@@ -1,0 +1,86 @@
+* CIRCUIT: dfcfc
+* YAML: /home/idies/workspace/Storage/xyu1/persistent/ALIGN-public/simple_circuit_5/OpenManus/autosizer_plus/circuits_yaml/dfcfc.yaml
+* Variables: ['L', 'W_BIAS_P', 'W_BIAS_N', 'W_CASC_N', 'W_GM1', 'W_GM2', 'W_GMF2', 'W_GM3', 'W_GM4', 'W_LOAD2']
+* Trial values (midpoint): [1.5, 10.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
+* Metrics: ['dc_gain_db', 'ugbw', 'power_dc', 'fom']
+* Class: unknown
+
+* DFCFC Amplifier Testbench
+.lib ${SKY130_PDK} tt
+
+.subckt DFCFC GNDA VDDA VINN VINP VOUT
+* PMOS BIAS CURRENT MIRROR
+xm0 VBIAS VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+xm1 VB4 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+xm2 DM_1 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+xm3 VB3 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+xm4 TAIL VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=8
+xm5 VOUTN VOUTN VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+xm6 V1OUT VOUTN VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+xm7 V2OUT VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+xm8 NET1 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=10.0 m=4
+
+* FIRST STAGE
+xm9 DM_2 VINN TAIL TAIL sky130_fd_pr__pfet_01v8 l=1.5 w=8.0 m=4
+xm10 DM_P VINP TAIL TAIL sky130_fd_pr__pfet_01v8 l=1.5 w=8.0 m=4
+xm20 DM_2 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=32
+xm21 DM_P VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=32
+xm16 VOUTN VB3 DM_2 GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=32
+xm17 V1OUT VB3 DM_P GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=32
+
+* NMOS BIAS GENERATION
+xm15 VB3 VB3 GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=4
+xm18 NET54 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=16
+xm13 VB4 VB3 NET54 GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=16
+xm19 NET56 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=16
+xm14 DM_1 VB3 NET56 GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=16
+
+* SECOND STAGE
+xm11 V2IN V1OUT VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=8.0 m=4
+xm22 V2IN V2IN GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=4
+xm23 V2OUT V2IN GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=4
+
+* OUTPUT STAGE
+xm25 VOUT V2OUT GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=4
+xm12 VOUT V1OUT VDDA VDDA sky130_fd_pr__pfet_01v8 l=1.5 w=8.0 m=4
+
+* DAMPING FACTOR CONTROL
+xm24 NET1 V2OUT GNDA GNDA sky130_fd_pr__nfet_01v8 l=1.5 w=8.0 m=4
+
+* COMPENSATION
+C0 V1OUT VOUT 500e-15
+C1 V2OUT NET1 200e-15
+
+* BIAS CURRENT SOURCE
+I0 VBIAS GNDA 10e-6
+
+.ends DFCFC
+
+
+VDD VDD 0 DC 1.8
+VSS VSS 0 DC 0
+VINP VINP 0 DC 0.9 AC 0.5
+VINN VINN 0 DC 0.9 AC -0.5
+
+XDUT VSS VDD VINN VINP VOUT DFCFC
+
+CLOAD VOUT 0 15e-9
+RLOAD VOUT 0 25e3
+
+.control
+op
+let vdd_current = abs(i(VDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let gain_db = vdb(VOUT)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+  meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+quit
+.endc
+.end

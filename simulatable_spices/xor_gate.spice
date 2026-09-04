@@ -1,0 +1,73 @@
+* CIRCUIT: xor_gate
+* YAML: /home/idies/workspace/Storage/xyu1/persistent/ALIGN-public/simple_circuit_5/OpenManus/autosizer_plus/circuits_yaml/xor_gate.yaml
+* Variables: ['W_pmos', 'W_nmos', 'L_pmos', 'L_nmos']
+* Trial values (midpoint): [1.5, 1.0, 0.2, 0.2]
+* Metrics: ['avg_delay_ps', 'power_total_uw', 'energy_per_transition_fj', 'noise_margin_high', 'noise_margin_low', 'fom']
+* Class: unknown
+
+* XOR Gate Testbench
+.lib ${SKY130_PDK} tt
+.global VDD GND
+.temp 27
+
+* 2-Input XOR Gate (Transmission Gate Implementation)
+* Y = A⊕B
+
+* Transmission gate 1: passes A when B=0
+XMP_TG1 N1 B_N A VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+XMN_TG1 N1 B A GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+
+* Transmission gate 2: passes A' when B=1
+XMP_TG2 N2 B A_N VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+XMN_TG2 N2 B_N A_N GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+
+* Inverter for A
+XMP_INVA A_N A VDD VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+XMN_INVA A_N A GND GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+
+* Inverter for B
+XMP_INVB B_N B VDD VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+XMN_INVB B_N B GND GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+
+* Output stage
+XMP_OUT Y N_INT VDD VDD sky130_fd_pr__pfet_01v8 l=0.2 w={1.5*2}
+XMN_OUT Y N_INT GND GND sky130_fd_pr__nfet_01v8 l=0.2 w={1.0*2}
+
+* Combine logic
+XMP_COMB1 N_INT N1 VDD VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+XMN_COMB1 N_INT N1 GND GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+XMP_COMB2 N_INT N2 VDD VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+XMN_COMB2 N_INT N2 GND GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+
+* Load
+CL Y GND 10e-15
+
+* Supply
+VDD VDD GND DC 1.8
+
+* Input stimuli
+VA A GND PULSE(0 1.8 0 10p 10p 1n 2n)
+VB B GND PULSE(0 1.8 0 10p 10p 2n 4n)
+
+.control
+set noaskquit
+tran 1p 10n
+
+let power = abs(i(VDD)) * 1.8
+let power_total_uw = mean(power) * 1e6
+print power_total_uw
+
+meas tran vout_max MAX v(Y)
+meas tran vout_min MIN v(Y)
+
+meas tran tphl TRIG v(A) VAL=0.9 RISE=1 TARG v(Y) VAL=0.9 FALL=1
+meas tran tplh TRIG v(A) VAL=0.9 FALL=1 TARG v(Y) VAL=0.9 RISE=1
+let tphl_ps = tphl * 1e12
+let tplh_ps = tplh * 1e12
+let avg_delay_ps = (tphl_ps + tplh_ps) / 2
+print tphl_ps tplh_ps avg_delay_ps
+
+quit
+.endc
+
+.end

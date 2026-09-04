@@ -1,0 +1,63 @@
+* CIRCUIT: ldo_regulator
+* YAML: /home/idies/workspace/Storage/xyu1/persistent/ALIGN-public/simple_circuit_5/OpenManus/autosizer_plus/circuits_yaml/ldo_regulator.yaml
+* Variables: ['W_pass', 'L_pass', 'W_diff', 'W_load', 'W_bias', 'L_amp']
+* Trial values (midpoint): [500, 1.0, 40, 80, 10, 3.0]
+* Metrics: ['vout', 'dropout_mv', 'line_reg_mv_per_v', 'load_reg_mv_per_ma', 'psrr_db', 'power_uw', 'fom']
+* Class: unknown
+
+* LDO Regulator
+.lib ${SKY130_PDK} tt
+.global VDD GND
+.temp 27
+
+* LDO Voltage Regulator
+* Pass Transistor
+XMPASS VOUT VGATE VDD_INTERNAL VDD sky130_fd_pr__pfet_01v8 l=1.0 w=500 m=10
+
+* Error Amplifier - Differential Pair
+XM1 VD1 VREF VTAIL GND sky130_fd_pr__nfet_01v8 l=3.0 w=40 m=4
+XM2 VD2 VFB VTAIL GND sky130_fd_pr__nfet_01v8 l=3.0 w=40 m=4
+XMTAIL VTAIL VBIAS GND GND sky130_fd_pr__nfet_01v8 l={3.0*2} w=10 m=4
+
+* Error Amplifier - Active Load
+XM3 VD1 VD1 VDD_INTERNAL VDD sky130_fd_pr__pfet_01v8 l=3.0 w=80 m=4
+XM4 VD2 VD1 VDD_INTERNAL VDD sky130_fd_pr__pfet_01v8 l=3.0 w=80 m=4
+
+* Output Driver
+XM5 VGATE VD2 VDD_INTERNAL VDD sky130_fd_pr__pfet_01v8 l=3.0 w={80*4} m=4
+XM6 VGATE VBIAS GND GND sky130_fd_pr__nfet_01v8 l={3.0*2} w={10*2} m=2
+
+* Compensation
+CC VGATE VOUT 5p
+
+* Feedback Network
+XR1 VOUT VFB VDD sky130_fd_pr__res_high_po_1p41 w=1.41 l=156
+XR2 VFB GND VDD sky130_fd_pr__res_high_po_1p41 w=1.41 l=156
+
+* Bias Circuit
+XMBIAS VBIAS VBIAS GND GND sky130_fd_pr__nfet_01v8 l={3.0*4} w=10 m=1
+RBIAS VDD_INTERNAL VBIAS {1.8/1e-5/10}
+
+* Load
+ILOAD VOUT GND DC 0.01
+CLOAD VOUT GND 100p
+
+* Supply and Reference
+VREF VREF GND DC 0.6
+VDD VDD GND DC 1.8
+
+
+.control
+set noaskquit
+op
+let vout = v(VOUT)
+print vout
+let power_uw = abs(i(VDD)) * 1.8 * 1e6
+print power_uw
+let dropout_mv = (1.8 - vout) * 1000
+print dropout_mv
+
+quit
+.endc
+
+.end

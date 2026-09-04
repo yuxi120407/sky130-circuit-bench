@@ -1,0 +1,66 @@
+* CIRCUIT: switched_capacitor
+* YAML: /home/idies/workspace/Storage/xyu1/persistent/ALIGN-public/simple_circuit_5/OpenManus/autosizer_plus/circuits_yaml/switched_capacitor.yaml
+* Variables: ['W_op1_base', 'W_op2_base', 'W_sw_base', 'L_op_base', 'L_sw_base']
+* Trial values (midpoint): [15, 15, 15, 0.4, 0.4]
+* Metrics: ['gain_db', 'thd_db', 'power_uw', 'phase_margin_deg', 'ugbw_mhz', 'fom']
+* Class: unknown
+
+* Switched Capacitor Integrator Circuit
+.lib ${SKY130_PDK} tt
+.global VDD GND
+.temp 27
+
+* Transmission gate switch subcircuit
+.subckt SWMOD in out ctrl
+XN in ctrl out GND sky130_fd_pr__nfet_01v8 l=0.4 w=15 m=2
+XP in ctrl out VDD sky130_fd_pr__pfet_01v8 l=0.4 w=15 m=2
+.ends
+
+* Two-stage OTA for switched capacitor circuit
+XM1 VD1 VIN_P VTAIL GND sky130_fd_pr__nfet_01v8 l=0.4 w=15 m=4
+XM2 VD2 VIN_N VTAIL GND sky130_fd_pr__nfet_01v8 l=0.4 w=15 m=4
+XMTAIL VTAIL VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*2} w=15 m=4
+XM3 VD1 VD1 VDD VDD sky130_fd_pr__pfet_01v8 l=0.4 w=15 m=4
+XM4 VD2 VD1 VDD VDD sky130_fd_pr__pfet_01v8 l=0.4 w=15 m=4
+XM5 VOUT VD2 VDD VDD sky130_fd_pr__pfet_01v8 l=0.4 w={15*4} m=4
+XM6 VOUT VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*2} w={15*2} m={4/2}
+CC VD2 VOUT 2p
+XMBIAS VBIAS VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*4} w=15 m=1
+RBIAS VDD VBIAS {1.8/10e-6/10}
+
+* Switched capacitor network
+XSW1 VIN VSAMP CLK1 SWMOD
+XSW2 VSAMP VIN_N CLK2 SWMOD
+XSW3 VIN_P VOUT CLK2 SWMOD
+CSAMP VSAMP GND 2e-12
+CHOLD VIN_N VOUT 2e-12
+CLOAD VOUT GND 2e-12
+
+* Sources
+VIN VIN GND DC 0.9
+VREF VIN_P GND DC {1.8/2}
+VDD VDD GND DC 1.8
+
+
+* Clock signals (1 MHz, non-overlapping)
+VCLK1 CLK1 GND PULSE(0 1.8 0 1e-8 1e-8 4.8e-07 1e-6)
+VCLK2 CLK2 GND PULSE(0 1.8 {1e-6/2} 1e-8 1e-8 4.8e-07 1e-6)
+
+.ic v(VOUT)={1.8/2} v(VSAMP)=0 v(VIN_N)={1.8/2}
+
+.control
+set noaskquit
+
+tran 10n 50u 10u
+
+let power_uw = mean(abs(i(VDD))) * 1.8 * 1e6
+print power_uw
+
+let vout_final = v(VOUT)[length(v(VOUT))-1]
+let gain_linear = abs((vout_final - 0.9) / (0.9 - 0.9) + 1)
+let gain_db = 20 * log10(abs(gain_linear))
+print gain_db
+
+quit
+.endc
+.end

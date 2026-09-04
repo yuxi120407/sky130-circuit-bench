@@ -1,0 +1,54 @@
+* CIRCUIT: nand_gate
+* YAML: /home/idies/workspace/Storage/xyu1/persistent/ALIGN-public/simple_circuit_5/OpenManus/autosizer_plus/circuits_yaml/nand_gate.yaml
+* Variables: ['W_pmos', 'W_nmos', 'L_pmos', 'L_nmos']
+* Trial values (midpoint): [1.5, 1.0, 0.2, 0.2]
+* Metrics: ['tphl_ps', 'tplh_ps', 'avg_delay_ps', 'power_total_uw', 'energy_per_transition_fj', 'noise_margin_high', 'noise_margin_low', 'fom']
+* Class: unknown
+
+* NAND Gate Testbench
+.lib ${SKY130_PDK} tt
+.global VDD GND
+.temp 27
+
+* 2-Input NAND Gate
+* Y = NOT(A AND B)
+* PMOS pull-up (parallel)
+XMP1 Y A VDD VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+XMP2 Y B VDD VDD sky130_fd_pr__pfet_01v8 l=0.2 w=1.5
+
+* NMOS pull-down (series)
+XMN1 Y A N1 GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+XMN2 N1 B GND GND sky130_fd_pr__nfet_01v8 l=0.2 w=1.0
+
+* Load
+CL Y GND 10e-15
+
+* Supply
+VDD VDD GND DC 1.8
+
+* Input stimuli
+VA A GND PULSE(0 1.8 0 10p 10p 1n 2n)
+VB B GND DC 1.8
+
+.control
+set noaskquit
+tran 1p 10n
+
+let power = abs(i(VDD)) * 1.8
+let power_total_uw = mean(power) * 1e6
+print power_total_uw
+
+meas tran vout_max MAX v(Y)
+meas tran vout_min MIN v(Y)
+
+meas tran tphl TRIG v(A) VAL=0.9 RISE=1 TARG v(Y) VAL=0.9 FALL=1
+meas tran tplh TRIG v(A) VAL=0.9 FALL=1 TARG v(Y) VAL=0.9 RISE=1
+let tphl_ps = tphl * 1e12
+let tplh_ps = tplh * 1e12
+let avg_delay_ps = (tphl_ps + tplh_ps) / 2
+print tphl_ps tplh_ps avg_delay_ps
+
+quit
+.endc
+
+.end
