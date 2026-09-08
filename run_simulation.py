@@ -69,16 +69,19 @@ CHAPTER_INFO = {
     "Chap27": "Nonlinear Analog Circuits",
     "Chap31": "Feedback Amplifiers",
     "Chap32": "Hysteretic Power Converters",
+    "RoCktNet": "Real Circuits from IEEE Papers",
 }
 
 
 def get_circuit_chapter(name):
-    """Extract chapter from circuit name."""
+    """Extract chapter/source from circuit name."""
     m = re.match(r"(Chap\d+)", name)
     if m:
         return m.group(1)
     if name.startswith("_Extras"):
         return "_Extras"
+    if name.startswith("rocktnet_"):
+        return "RoCktNet"
     return "Custom"
 
 
@@ -140,14 +143,30 @@ def extract_metrics(stdout):
     Returns a dict of {metric_name: float_value}.
     Filters out ngspice internal variables.
     """
-    skip = {"nodes", "transistor", "source", "voltage", "temp", "tnom",
-            "no", "reference", "of", "data", "all", "rows"}
+    skip = {
+        # ngspice internal / status words
+        "nodes", "transistor", "source", "voltage", "temp", "tnom",
+        "no", "reference", "of", "data", "all", "rows",
+        # ngspice .meas intermediates (not circuit metrics)
+        "at", "from", "to", "val", "rise", "fall", "cross",
+        "targ", "trig", "target",
+        # MOSFET operating point parameters
+        "body", "dbody", "sbody", "branch", "vdd_current",
+        "id", "ig", "is_", "ib", "vgs", "vds", "vbs", "vth",
+        "vdsat", "gm", "gds", "gmb", "cbd", "cbs",
+    }
     metrics = {}
     for m in re.finditer(
         r"(\w+)\s*=\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", stdout
     ):
         name, val = m.groups()
-        if name.lower() not in skip:
+        nl = name.lower()
+        if nl in skip:
+            continue
+        # Skip raw node voltages (n001, n002, ...) and supply nodes
+        if re.match(r"^n\d{2,}", nl) or nl in ("vdd", "vss", "gnd", "osc"):
+            continue
+        if nl not in skip:
             try:
                 metrics[name] = float(val)
             except ValueError:
@@ -237,9 +256,9 @@ def run_circuit(circuit_name, timeout=60, verbose=False):
         if stderr:
             print(f"\n--- ngspice stderr ---\n{stderr}")
 
-    # Check for fatal errors
+    # Check for fatal errors (skip "could not find include" — ngspice continues past it)
     combined = (stdout + stderr).lower()
-    for pat in ["error: could not find", "error: unknown subckt",
+    for pat in ["error: unknown subckt",
                 "error: no model", "segmentation fault"]:
         if pat in combined:
             return {
@@ -287,7 +306,8 @@ def run_all(timeout=60):
         if r["success"]:
             passed += 1
             n_metrics = len(r["metrics"])
-            print(f"PASS  ({r['time_s']:.1f}s, {n_metrics} metrics)")
+            metric_str = ", ".join(f"{k}={v:.4g}" for k, v in sorted(r["metrics"].items()))
+            print(f"PASS  ({r['time_s']:.1f}s, {n_metrics} metrics: {metric_str})")
         else:
             failed += 1
             print(f"FAIL  ({r['error']})")
@@ -336,8 +356,18 @@ def main():
     parser.add_argument("--timeout", type=int, default=60, help="Timeout per circuit in seconds (default: 60)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show full ngspice output")
     parser.add_argument("--list", action="store_true", help="List all circuits")
+    parser.add_argument("--spice-dir", type=str, default=None, help="Directory containing .spice files (default: ready_circuits/)")
+    parser.add_argument("--results-dir", type=str, default=None, help="Directory to save results (default: <spice-dir>/results/)")
 
     args = parser.parse_args()
+
+    global SPICE_DIR, RESULTS_DIR
+    if args.spice_dir:
+        SPICE_DIR = Path(args.spice_dir)
+    if args.results_dir:
+        RESULTS_DIR = Path(args.results_dir)
+    else:
+        RESULTS_DIR = Path(__file__).parent / "results" / SPICE_DIR.name
 
     if args.run:
         r = run_circuit(args.run, timeout=args.timeout, verbose=args.verbose)
@@ -357,11 +387,14 @@ def main():
     else:
         list_circuits()
         print("\nUsage examples:")
-        print(f"  python {sys.argv[0]} --list                          # List circuits")
-        print(f"  python {sys.argv[0]} --run five_trans_ota            # Run one circuit")
-        print(f"  python {sys.argv[0]} --run five_trans_ota -v         # Verbose output")
-        print(f"  python {sys.argv[0]} --run-all                       # Run all circuits")
-        print(f"  python {sys.argv[0]} --run-all --timeout 120         # With longer timeout")
+        print(f"  python {sys.argv[0]} --list                                          # List circuits")
+        print(f"  python {sys.argv[0]} --run five_trans_ota                            # Run one circuit")
+        print(f"  python {sys.argv[0]} --run five_trans_ota -v                         # Verbose output")
+        print(f"  python {sys.argv[0]} --run-all                                       # Run all circuits")
+        print(f"  python {sys.argv[0]} --run-all --timeout 120                         # Longer timeout")
+        print(f"  python {sys.argv[0]} --spice-dir ready_circuits --run-all            # Use specific folder")
+        print(f"  python {sys.argv[0]} --spice-dir single_metric --run-all             # Run single-metric set")
+        print(f"  python {sys.argv[0]} --spice-dir ready_circuits --results-dir out/   # Custom results dir")
 
 
 if __name__ == "__main__":

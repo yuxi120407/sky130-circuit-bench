@@ -1,0 +1,69 @@
+* Testcase 000260 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVIN VIN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+I1 N7 GND 1u
+XM1 N1 N0 N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+I2 N7 GND 1u
+I3 N7 GND 1u
+XM2 N0 VIN N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM3 N3 N6 N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM4 N6 N1 N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+L1 VDD N9 10n
+L2 VDD N4 10n
+XM5 N7 N7 N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 N6 N7 N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM7 N7 N7 N6 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+L3 VDD N10 10n
+I4 N7 GND 1u
+R8 VDD N11 10k
+L4 VDD N5 10n
+R1 N4 N7 10k
+R4 VOUT GND 10k
+XM8 N11 N7 N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R2 VDD N7 10k
+R5 N8 GND 10k
+R6 VDD N3 10k
+R7 VDD N1 10k
+R3 N5 N7 10k
+R9 N0 N10 10k
+R10 N6 N9 10k
+C1 N8 N11 1p
+C2 VOUT N3 1p
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1k 100g
+let vout_mag = vm(VOUT)
+let gain_db = db(vout_mag)
+
+meas ac max_gain_db MAX gain_db
+meas ac bw_3db WHEN gain_db='max_gain_db-3' CROSS=1
+
+print max_gain_db bw_3db
+
+quit
+.endc
+
+.end

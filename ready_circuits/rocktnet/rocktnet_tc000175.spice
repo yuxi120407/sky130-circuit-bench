@@ -1,0 +1,56 @@
+* Testcase 000175 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVB1 VB1 0 DC 0.9900000000000001 AC 0.5
+VVB4 VB4 0 0.54
+VVB2 VB2 0 0.75
+VVB3 VB3 0 0.75
+
+* Circuit
+XM16 N_M18_S VB1 VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM5 N_TAIL VB1 VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM6 N_M8_S VB1 VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM18 VO_PLUS G_M18 N_M18_S VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM8 VO_MINUS G_M8 N_M8_S VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM1 N_M19_S VI_MINUS N_TAIL VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM2 N_M9_S VI_PLUS N_TAIL VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM19 VO_PLUS G_M19 N_M19_S GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM9 VO_MINUS G_M9 N_M9_S GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM4 N_M19_S VB4 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM3 N_M9_S VB4 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(N_M19_S)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+    print ugbw
+end
+
+quit
+.endc
+
+.end

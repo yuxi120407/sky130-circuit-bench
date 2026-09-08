@@ -1,0 +1,59 @@
+* Testcase 000949 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVIN VIN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+I1 TAIL3 GND 1u
+I2 TAIL2 GND 1u
+I3 NODE_S GND 1u
+I4 NODE_SB GND 1u
+XMCB V1N BIAS NODE_SB GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+I5 TAIL1 GND 1u
+XM2 V1N VRN TAIL2 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XMS NODE_S SIGN TAIL3 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM4 V1P VIN TAIL2 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XMSB NODE_SB SIGNB TAIL3 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R1 VDD V1P 10k
+XM6 V1P VRP TAIL1 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+CP TAIL3 GND 1p
+R2 VDD V1N 10k
+XM7 V1N CLOCK_BAR V1P VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM8 V1N VIP TAIL1 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XMC V1P BIAS NODE_S GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(TAIL3)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+
+quit
+.endc
+
+.end

@@ -1,0 +1,60 @@
+* Testcase 000347 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 0.5
+VLABEL_NET_1 LABEL_NET_1 0 DC 0.9 AC -0.5
+
+* Circuit
+XM1 N7 GND N2 N2 sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R1 N4 N8 10k
+R2 N6 N8 10k
+R3 N1 N3 10k
+XM2 N2 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R4 N0 N1 10k
+R5 N4 N5 10k
+R6 N5 LABEL_NET_1 10k
+R7 N3 GND 10k
+R8 N5 N6 10k
+R9 N0 GND 10k
+C1 N2 N6 1p
+C2 N4 N7 1p
+R10 N5 GND 10k
+C3 N0 GND 1p
+C4 N2 GND 1p
+C5 N2 N3 1p
+L1 VDD N7 10n
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1k 100g
+let vout_mag = vm(N3)
+let gain_db = db(vout_mag)
+
+meas ac max_gain_db MAX gain_db
+meas ac bw_3db WHEN gain_db='max_gain_db-3' CROSS=1
+
+print max_gain_db bw_3db
+
+quit
+.endc
+
+.end

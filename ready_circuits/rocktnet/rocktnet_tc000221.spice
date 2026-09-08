@@ -1,0 +1,48 @@
+* Testcase 000221 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VIN1 IN1 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VIN2 IN2 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+R1 GND IN1 50
+R2 GND IN2 50
+XQ2 GND IN1 OUT1 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ1 GND IN2 OUT2 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+I2 OUT1 VEE 1u
+I1 OUT2 VEE 1u
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VIN1)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(OUT1)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+    print ugbw
+end
+
+quit
+.endc
+
+.end

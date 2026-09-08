@@ -1,0 +1,62 @@
+* Testcase 000922 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVSS VSS 0 0
+VLABEL_NET_1 LABEL_NET_1 0 DC 0.9 AC 1
+VLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC -0.5
+
+* Circuit
+C1 VO_MINUS N3 1p
+XM1 VO_PLUS N5 N0 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+C2 VO_MINUS VO_PLUS 1p
+XM2 VO_PLUS VO_PLUS VSS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C3 VO_MINUS VO_PLUS 1p
+XM3 N0 LABEL_NET_1 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM4 VO_MINUS N3 N0 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+C4 VO_PLUS N5 1p
+XM5 VO_MINUS VO_MINUS VSS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let gain_N5 = db(vm(N5))
+let gain_VO_MINUS = db(vm(VO_MINUS))
+let gain_VO_PLUS = db(vm(VO_PLUS))
+let gain_N0 = db(vm(N0))
+let gain_N3 = db(vm(N3))
+meas ac max_gain_N5 MAX gain_N5
+meas ac max_gain_VO_MINUS MAX gain_VO_MINUS
+meas ac max_gain_VO_PLUS MAX gain_VO_PLUS
+meas ac max_gain_N0 MAX gain_N0
+meas ac max_gain_N3 MAX gain_N3
+
+* Use first probe node for standard metrics
+let gain_db = db(vm(N5))
+meas ac dc_gain_db FIND gain_db AT=1
+meas ac ugbw WHEN gain_db=0 CROSS=1
+let vout_dc = v(N5)
+
+print dc_gain_db ugbw vout_dc gain_N5 gain_VO_MINUS gain_VO_PLUS gain_N0 gain_N3
+
+quit
+.endc
+
+.end

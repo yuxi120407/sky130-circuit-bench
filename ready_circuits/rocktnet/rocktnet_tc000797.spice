@@ -1,0 +1,58 @@
+* Testcase 000797 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VIN_PLUS IN_PLUS 0 DC 0.9 AC 0.5
+VVB1 VB1 0 0.54
+VVB2 VB2 0 0.54
+VIN_MINUS IN_MINUS 0 DC 0.9 AC -0.5
+VVB4 VB4 0 0.9900000000000001
+VVB3 VB3 0 0.75
+VLABEL_NET_1 LABEL_NET_1 0 0.9
+
+* Circuit
+XM1 N4 IN_PLUS N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM4 N12 CMFB GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM0 N7 VB1 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 OUT_PLUS VB2 N12 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM2 N1 IN_MINUS N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM10 N1 VB4 VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM3 N11 CMFB GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM5 OUT_MINUS VB2 N11 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C1 N4 IN_MINUS 1p
+C2 N1 IN_PLUS 1p
+XM7 N4 VB3 OUT_MINUS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM9 N4 VB4 VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM8 OUT_PLUS VB3 N1 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+R1 IN_MINUS LABEL_NET_1 10k
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+let vout_dc = v(OUT_PLUS)
+print power_dc vout_dc
+
+ac dec 100 1 10g
+let gain_db = db(vm(OUT_PLUS))
+meas ac dc_gain_db FIND gain_db AT=1
+meas ac ugbw WHEN gain_db=0 CROSS=1
+print dc_gain_db ugbw
+
+quit
+.endc
+
+.end

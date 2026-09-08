@@ -1,0 +1,59 @@
+* Testcase 000700 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 0.5
+VLABEL_NET_1 LABEL_NET_1 0 DC 0.9 AC -0.5
+
+* Circuit
+L1 N5 GND 10n
+L2 VDD N6 10n
+L3 VDD N1 10n
+L4 N3 GND 10n
+L5 N4 N9 10n
+L6 N2 N10 10n
+R1 N2 LABEL_NET_0 10k
+R2 N4 LABEL_NET_1 10k
+C1 N8 GND 1p
+XQ1 N7 N9 N5 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ2 N1 VDD N0 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+C2 N4 GND 1p
+C3 VDD GND 1p
+XQ3 N6 VDD N7 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ4 N0 N10 N3 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+C4 N1 N4 1p
+C5 N6 N8 1p
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1k 100g
+let vout_mag = vm(N8)
+let gain_db = db(vout_mag)
+
+meas ac max_gain_db MAX gain_db
+meas ac bw_3db WHEN gain_db='max_gain_db-3' CROSS=1
+
+print max_gain_db bw_3db
+
+quit
+.endc
+
+.end

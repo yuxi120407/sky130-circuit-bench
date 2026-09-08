@@ -1,0 +1,65 @@
+* Testcase 000447 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 1
+
+* Circuit
+C1 N10 N13 1p
+C2 N9 N11 1p
+R2 N10 GND 10k
+R3 N1 GND 10k
+C3 N4 N14 1p
+C4 N0 N1 1p
+C5 N5 N12 1p
+R5 N11 N12 10k
+R6 N5 LABEL_NET_0 10k
+R7 N4 N12 10k
+C6 N6 N7 1p
+L1 N8 N14 10n
+C7 N3 N6 1p
+C8 N2 N12 1p
+R9 N0 N14 10k
+R10 N8 N9 10k
+L2 N9 N13 10n
+L3 N6 N11 10n
+L4 N4 N6 10n
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VLABEL_NET_0)) * 1.8
+print power_dc
+
+ac dec 100 1 100g
+
+let vmag = vm(N9)
+let vdb = db(vmag)
+
+* Gain at key frequencies
+meas ac gain_1khz_db FIND vdb AT=1e3
+meas ac gain_1mhz_db FIND vdb AT=1e6
+meas ac gain_1ghz_db FIND vdb AT=1e9
+
+* Try to find 3dB bandwidth
+meas ac max_gain MAX vdb
+meas ac bw_3db_hz WHEN vdb='max_gain-3' CROSS=1
+
+print gain_1khz_db gain_1mhz_db gain_1ghz_db bw_3db_hz
+
+quit
+.endc
+
+.end

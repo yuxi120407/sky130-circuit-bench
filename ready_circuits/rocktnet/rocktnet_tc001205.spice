@@ -1,0 +1,60 @@
+* Testcase 001205 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVIN_P VIN_P 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VVIN_N VIN_N 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VVBB VBB 0 DC 0.9900000000000001 AC 1
+
+* Circuit
+XM1 N_L VIN_P N_TAIL VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM2 N_R VIN_N N_TAIL VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM3 IOUT_P DI_BAR N_L VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM4 IOUT_P DI N_R VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM5 N_TAIL VBB VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM6 IOUT_N DI_BAR N_R VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM7 IOUT_N DI N_L VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let gain_DI_BAR = db(vm(DI_BAR))
+let gain_N_R = db(vm(N_R))
+let gain_N_TAIL = db(vm(N_TAIL))
+let gain_IOUT_N = db(vm(IOUT_N))
+let gain_IOUT_P = db(vm(IOUT_P))
+meas ac max_gain_DI_BAR MAX gain_DI_BAR
+meas ac max_gain_N_R MAX gain_N_R
+meas ac max_gain_N_TAIL MAX gain_N_TAIL
+meas ac max_gain_IOUT_N MAX gain_IOUT_N
+meas ac max_gain_IOUT_P MAX gain_IOUT_P
+
+* Use first probe node for standard metrics
+let gain_db = db(vm(DI_BAR))
+meas ac dc_gain_db FIND gain_db AT=1
+meas ac ugbw WHEN gain_db=0 CROSS=1
+let vout_dc = v(DI_BAR)
+
+print dc_gain_db ugbw vout_dc gain_DI_BAR gain_N_R gain_N_TAIL gain_IOUT_N gain_IOUT_P
+
+quit
+.endc
+
+.end

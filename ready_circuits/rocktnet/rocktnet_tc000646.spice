@@ -1,0 +1,62 @@
+* Testcase 000646 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VINQ INQ 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VIN IN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+I1 N6 VEE 1u
+I2 N2 VEE 1u
+XQ1 GND N10 N7 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ2 GND N3 OUT 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ3 N10 N9 N6 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ4 GND N4 N3 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+R1 N10 GND 10k
+XQ5 N5 INQ N2 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ6 GND N7 OUTQ 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ7 GND N4 N12 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ8 N4 N5 N6 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+R2 N7 VEE 10k
+XQ9 N9 IN N2 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ10 GND N10 N13 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+R3 N3 VEE 10k
+R4 OUTQ VEE 10k
+R5 OUT VEE 10k
+R6 N5 N12 10k
+R7 N4 GND 10k
+R8 N9 N13 10k
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(OUT)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+
+quit
+.endc
+
+.end

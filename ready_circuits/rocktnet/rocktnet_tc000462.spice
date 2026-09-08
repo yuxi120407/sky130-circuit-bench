@@ -1,0 +1,73 @@
+* Testcase 000462 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVSS VSS 0 DC 0 AC 0.5
+VVBP VBP 0 0.9900000000000001
+VVBN VBN 0 0.54
+
+* Circuit
+XM25 N_M25_D VBP VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM23 N_M21_D N_M21_D N_M25_D VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM21 N_M21_D VIP N_M21_S VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM27 N_M21_S VBN VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM7 N_M7_D VBP VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM3 N_M7_D VOM VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM9 N_M9_D VBP VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM1 N_M9_D N_M7_D N_M1_S VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM5 N_M1_S VBN VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM15 N_M15_D VBP VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM11 VOM N_M9_D N_M15_D VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM13 VOM VBN VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM12 VOP N_M10_D N_M15_D VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM14 VOP VBN VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM10 N_M10_D VBP VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM2 N_M10_D N_M8_D N_M2_S VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 N_M2_S VBN VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM8 N_M8_D VBP VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM4 N_M8_D VOP VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM26 N_M26_D VBP VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM24 N_M22_D N_M22_D N_M26_D VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM22 N_M22_D VIM N_M22_S VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM28 N_M22_S VBN VSS VSS sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R1 N_M21_S N_M1_S 10k
+RF1 N_M1_S VOM 10k
+CC1 N_M7_D VOM 1p
+R2 N_M22_S N_M2_S 10k
+RF2 N_M2_S VOP 10k
+CC2 N_M8_D VOP 1p
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(N_M10_D)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+    print ugbw
+end
+
+quit
+.endc
+
+.end

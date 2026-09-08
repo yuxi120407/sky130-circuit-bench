@@ -1,0 +1,65 @@
+* Testcase 001081 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VIN_MINUS IN_MINUS 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VIN_PLUS IN_PLUS 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+XM1 N10 BIAS3 N13 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM2 OUT_PLUS BIAS3 N0 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM3 N15 BIAS1 VDDA VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM4 OUT_MINUS BIAS2 N15 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM5 N4 BIAS3 N14 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 OUT_PLUS BIAS2 N3 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM7 N10 BIAS2 N16 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM8 OUT_MINUS BIAS3 N2 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM9 N14 IN_MINUS N9 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM10 N0 N10 N1 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM11 N4 BIAS2 N6 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM12 N13 IN_PLUS N9 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM13 N3 BIAS1 VDDA VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM14 N6 BIAS1 VDDA VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM15 N2 N4 N1 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM16 N16 BIAS1 VDDA VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM17 N9 CM_BIAS1 VSSA GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C1 N5 OUT_PLUS 1p
+XM18 N1 CM_BIAS2 VSSA GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM19 N26 VDDA N4 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C2 OUT_MINUS N26 1p
+XM20 N5 VDDA N10 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(CM_BIAS1)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+    print ugbw
+end
+
+quit
+.endc
+
+.end

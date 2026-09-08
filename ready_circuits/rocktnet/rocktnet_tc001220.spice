@@ -1,0 +1,70 @@
+* Testcase 001220 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 0.5
+VLABEL_NET_1 LABEL_NET_1 0 DC 0.9 AC -0.5
+VLABEL_NET_2 LABEL_NET_2 0 0.9
+
+* Circuit
+XM1 N6 LABEL_NET_0 N4 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM2 N9 N12 N13 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM3 N11 N5 LABEL_NET_1 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM4 N3 N1 N9 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM5 GND GND N9 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XQ1 N6 N3 N16 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XM6 N15 N5 N21 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM7 N21 N12 N13 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+C1 N11 N17 1p
+R1 N14 GND 10k
+R2 N8 N20 10k
+XM8 N8 LABEL_NET_2 N4 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+R3 N0 GND 10k
+R4 N16 GND 10k
+XM9 N4 N19 N13 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM10 LABEL_NET_1 N19 N13 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+R5 N6 N17 10k
+C2 N1 N2 1p
+C3 N1 N10 1p
+C4 N1 N2 1p
+XQ2 N3 N3 N0 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+C5 N1 N10 1p
+XQ3 N11 N6 GND 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ4 N15 N8 GND 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ5 N8 N3 N14 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+C6 N15 N20 1p
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(N14)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+
+quit
+.endc
+
+.end

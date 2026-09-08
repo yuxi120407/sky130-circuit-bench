@@ -1,0 +1,73 @@
+* Testcase 000518 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVB2 VB2 0 DC 0.54 AC 0.5
+VVB1 VB1 0 0.75
+VVB3 VB3 0 DC 0.75 AC 1
+
+* Circuit
+XM1 N3 VB2 N1 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM2 N9 N4 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM3 N13 LO1I_MINUS N9 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM4 N10 LO1Q_MINUS N2 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM5 N12 LO1Q_PLUS N2 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R1 N7 VB1 10k
+XM6 N11 LO1I_PLUS N9 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R2 N4 VB3 10k
+XM7 N1 N7 N0 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R3 VDD N12 10k
+C1 N7 N8 1p
+XM8 N2 N4 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R4 VDD N10 10k
+R5 VDD N11 10k
+L2 N8 N7 10n
+L1 N0 GND 10n
+C2 N3 N4 1p
+R6 VDD N13 10k
+L3 N3 N5 10n
+C3 N3 N5 1p
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let gain_LO1I_MINUS = db(vm(LO1I_MINUS))
+let gain_LO1Q_MINUS = db(vm(LO1Q_MINUS))
+let gain_N2 = db(vm(N2))
+let gain_N9 = db(vm(N9))
+let gain_N4 = db(vm(N4))
+meas ac max_gain_LO1I_MINUS MAX gain_LO1I_MINUS
+meas ac max_gain_LO1Q_MINUS MAX gain_LO1Q_MINUS
+meas ac max_gain_N2 MAX gain_N2
+meas ac max_gain_N9 MAX gain_N9
+meas ac max_gain_N4 MAX gain_N4
+
+* Use first probe node for standard metrics
+let gain_db = db(vm(LO1I_MINUS))
+meas ac dc_gain_db FIND gain_db AT=1
+meas ac ugbw WHEN gain_db=0 CROSS=1
+let vout_dc = v(LO1I_MINUS)
+
+print dc_gain_db ugbw vout_dc gain_LO1I_MINUS gain_LO1Q_MINUS gain_N2 gain_N9 gain_N4
+
+quit
+.endc
+
+.end

@@ -1,0 +1,55 @@
+* Testcase 000289 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVLOI_P VLOI_P 0 DC 0.9 AC 0.5
+
+* Circuit
+XM3 VIFI_P N7 X GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+RD3 VDD VIFQ_P 10k
+XM2 Y VRF GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+RD4 VDD VIFQ_N 10k
+RD2 VDD VIFI_N 10k
+RD1 VDD VIFI_P 10k
+XM4 VIFI_N VLOI_N X GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 VIFQ_N VLOQ_N Y GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM1 X VRF GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM5 VIFQ_P VLOQ_P Y GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+VOS VLOI_P N7 0
+CY Y GND 1p
+CX X GND 1p
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(Y)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+
+quit
+.endc
+
+.end

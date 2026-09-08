@@ -1,0 +1,74 @@
+* Testcase 000906 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 0.5
+VLABEL_NET_1 LABEL_NET_1 0 DC 0.9 AC -0.5
+
+* Circuit
+XM1 N11 N11 N12 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM2 N3 N3 N10 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XT4 LABEL_NET_0 N1 V_MINUS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XT3 LABEL_NET_1 N0 V_PLUS VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XT1 N0 N6 N14 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 N6 N6 N15 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM7 N5 N5 GND VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM8 N7 N7 N4 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+R1 N0 V_PLUS 10k
+XT2 N1 N4 N14 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM10 GND GND N9 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+R2 N1 V_MINUS 10k
+XM11 N7 N4 N11 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM12 N9 N9 N3 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM13 N11 N12 N5 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C1 V_MINUS GND 1p
+C2 N6 GND 1p
+C3 N4 GND 1p
+XM14 N10 N10 N6 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C4 N12 GND 1p
+C5 N3 GND 1p
+C6 N5 RF_IN 1p
+C7 V_PLUS GND 1p
+C8 RF_IN N9 1p
+C9 RF_IN N11 1p
+CI N0 N1 1p
+C11 RF_IN N10 1p
+XM15 N15 N15 V_PLUS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C12 RF_IN N15 1p
+XM16 V_MINUS V_MINUS N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C13 N7 RF_IN 1p
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(V_MINUS)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+
+quit
+.endc
+
+.end

@@ -1,0 +1,65 @@
+* Testcase 000686 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVIN VIN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+ICQ VDD N_X1_C 1u
+XM1 N_M1_D N_M1_D VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM2 N_X2_C N_M2_G VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM3 N_M3_D N_M3_D VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM4 DELTA_ICQ N_M3_D VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM5 VDD N_X1_C N_BIAS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 VDD N_X2_C N_BIAS2 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XQ1 N_M1_D VIP GND 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ2 N_M1_D VIN GND 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ3 N_M3_D N_BIAS2 N_Q3_E 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ4 N_M3_D N_BIAS2 N_Q4_E 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX1 N_X1_C N_X1_B GND 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX2 N_X2_C N_X2_B GND 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+R1 N_M1_D N_M2_G 10k
+R2 N_BIAS VIN 10k
+R3 N_X1_B N_BIAS 10k
+R4 N_BIAS VIP 10k
+R5 N_BIAS N_X2_B 10k
+R6 N_Q4_E GND 10k
+R7 N_Q3_E GND 10k
+C1 N_M2_G VDD 1p
+C2 VIN GND 1p
+C3 VIP GND 1p
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(N_Q4_E)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+
+quit
+.endc
+
+.end

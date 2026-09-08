@@ -1,0 +1,75 @@
+* Testcase 001157 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVB4 VB4 0 0.9900000000000001
+VVB5 VB5 0 0.9900000000000001
+VLABEL_NET_2 LABEL_NET_2 0 0.9
+VLABEL_NET_3 LABEL_NET_3 0 0.9
+VVB3 VB3 0 DC 0.54 AC 1
+VVIN_PLUS VIN_PLUS 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+XM1 N14 VB4 N18 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM2 N20 VB5 N12 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM3 VO_PLUS N17 N20 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM4 N13 N12 N9 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM5 N18 VB5 LABEL_NET_2 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM6 N5 N1 N8 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM7 N1 N10 N19 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM8 N19 N9 LABEL_NET_3 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM9 VO_MINUS N16 N13 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM10 N4 N1 VO_MINUS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XMT2 VO_MINUS VO_MINUS GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM12 N4 N1 VO_MINUS GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XMT1 GND VO_PLUS GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM14 N8 CMFB GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM15 VO_PLUS VB3 N4 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM16 VO_MINUS VB3 N4 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM17 N1 VB3 N5 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM18 N14 N4 N4 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM19 N14 VIN_PLUS N4 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let gain_N19 = db(vm(N19))
+let gain_VO_MINUS = db(vm(VO_MINUS))
+let gain_N1 = db(vm(N1))
+let gain_N17 = db(vm(N17))
+let gain_N16 = db(vm(N16))
+meas ac max_gain_N19 MAX gain_N19
+meas ac max_gain_VO_MINUS MAX gain_VO_MINUS
+meas ac max_gain_N1 MAX gain_N1
+meas ac max_gain_N17 MAX gain_N17
+meas ac max_gain_N16 MAX gain_N16
+
+* Use first probe node for standard metrics
+let gain_db = db(vm(N19))
+meas ac dc_gain_db FIND gain_db AT=1
+meas ac ugbw WHEN gain_db=0 CROSS=1
+let vout_dc = v(N19)
+
+print dc_gain_db ugbw vout_dc gain_N19 gain_VO_MINUS gain_N1 gain_N17 gain_N16
+
+quit
+.endc
+
+.end

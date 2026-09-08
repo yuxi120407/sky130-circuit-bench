@@ -1,0 +1,69 @@
+* Testcase 000634 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVINP VINP 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VVINM VINM 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VVREF VREF 0 0.9
+
+* Circuit
+R1 GCSP N_GCSP 10k
+R2 N_GCSP VCC 10k
+C1 N_GCSP VCC 1p
+R1 GCSM N_GCSM 10k
+R2 N_GCSM VCC 10k
+C2 N_GCSM VCC 1p
+R3 VINP N_VINP 10k
+R3 VINM N_VINM 10k
+XX5 OUTM N_GCSP X5 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX6 OUTP N_GCSP X6 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX7 OUTM N_GCSM X7 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX8 OUTP N_GCSM X8 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX1 VCC N_VINP X1 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX2 VCC N_VINM X2 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+R4 X1 X3 10k
+R4 X2 X3 10k
+XX3 X6 X3 X3 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ3 X1 X1 X4 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XQ2 X2 X2 X4 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+R4 X4 VREF 10k
+R6 X4 VEE 10k
+XQ8 X7 X4 X4 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XX4 X8 X4 X4 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+R5 X4 X4 10k
+R5 X4 X4 10k
+R12 VCC GCSP 10k
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(OUTP)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+end
+
+quit
+.endc
+
+.end

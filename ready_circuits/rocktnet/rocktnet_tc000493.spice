@@ -1,0 +1,63 @@
+* Testcase 000493 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VVBIASN VBIASN 0 0.54
+VINn INn 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VVBIAS VBIAS 0 0.9900000000000001
+VINp INp 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VVBIASP VBIASP 0 0.9900000000000001
+
+* Circuit
+IB1 VDD VBIASN 1u
+XM1 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XMP3 N4 N4 VDD VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XQ1 N0 INn N8 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XM4 N2 VBIAS N0 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XQ2 N1 INp N8 0 sky130_fd_pr__npn_05v5_W1p00L1p00
+XMN3 N10 N10 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+I2 VDD N0 1u
+XMN1 VG_PCH VBIASN VG_NCH GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM7 VG_NCH N2 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM8 VG_PCH VBIAS N1 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XMN2 VBIASN VBIASN N10 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XMP2 VBIASP VBIASP N4 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XMP1 VG_NCH VBIASP VG_PCH VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+IB3 VDD N1 1u
+IB2 VBIASP GND 1u
+I5 N8 GND 1u
+
+.control
+set filetype=ascii
+
+op
+let power_dc = abs(i(VVDD)) * 1.8
+print power_dc
+
+ac dec 100 1 10g
+let vout_mag = vm(N8)
+let gain_db = db(vout_mag)
+let dc_gain_db = gain_db[0]
+print dc_gain_db
+
+if dc_gain_db > 0
+    meas ac ugbw WHEN gain_db=0 CROSS=1
+    print ugbw
+end
+
+quit
+.endc
+
+.end

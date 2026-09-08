@@ -1,0 +1,80 @@
+* Testcase 000929 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 0.5
+VVB1 VB1 0 0.75
+VLABEL_NET_2 LABEL_NET_2 0 DC 0.9 AC -0.5
+VVB2 VB2 0 0.75
+VLABEL_NET_3 LABEL_NET_3 0 0.9
+VN9 N9 0 0.9
+
+* Circuit
+R1 N11 GND 10k
+XM1 N4 N4 N3 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM2 N4 N4 N5 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+XM3 LABEL_NET_0 N4 N3 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM4 N4 N4 N5 VDD sky130_fd_pr__pfet_01v8 l=0.5 w=5
+I1 N8 GND 1u
+C1 VDD VB1 1p
+XM5 OUT_PLUS N11 N9 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R2 N5 VDDINT 10k
+R3 OUT_PLUS VDDINT 10k
+R4 TUNE GND 10k
+R5 N4 N4 10k
+XM6 OUT_PLUS LABEL_NET_2 N9 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+R6 N3 N10 10k
+R7 VB2 GND 10k
+R8 VB1 VB1 10k
+C2 VDDINT N10 1p
+C3 VB2 N4 1p
+C4 N3 N5 1p
+R9 N4 N4 10k
+R10 N4 N4 10k
+R11 N9 GND 10k
+R12 N4 N4 10k
+L1 VDDINT N8 10n
+R13 OUT_PLUS VDDINT 10k
+L2 N10 GND 10n
+V1 N9 N10 0
+XM7 VDD VDD VB1 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM8 VDD VDD LABEL_NET_3 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C5 VB1 N4 1p
+L3 N4 N4 10n
+C6 VB2 TUNE 1p
+C7 N4 N4 1p
+C8 N4 N11 1p
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1k 100g
+let vout_mag = vm(N11)
+let gain_db = db(vout_mag)
+
+meas ac max_gain_db MAX gain_db
+meas ac bw_3db WHEN gain_db='max_gain_db-3' CROSS=1
+
+print max_gain_db bw_3db
+
+quit
+.endc
+
+.end

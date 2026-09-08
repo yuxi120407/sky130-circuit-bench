@@ -1,0 +1,62 @@
+* Testcase 000691 — Full Analysis (sky130 tt corner)
+* SKY130 model header — replaces the ideal level-1 .model cards
+* Ships with the demo; the paths point at the local sky130 PDK checkout.
+* NOTE: libs.tech/ngspice/all.spice sets ".option scale=1.0u", so every
+* instance L/W below is written in microns WITHOUT a "u" suffix.
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/r+c/res_typical__cap_typical__lin.spice
+.include /home/idies/workspace/Temporary/xyu1/scratch/skywater-pdk-libs-sky130_fd_pr/models/corners/tt/specialized_cells.spice
+.model DIDEAL D   is=1e-14 n=1
+.options reltol=1e-3 itl1=500 itl2=100
+
+* Sources
+VVDD VDD 0 1.8
+VLABEL_NET_0 LABEL_NET_0 0 0.9
+VVIN_PLUS VIN_PLUS 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+VVIN_MINUS VIN_MINUS 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)
+
+* Circuit
+XM4 VDD GAIN_BAR N6 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+L_TR N1 VOUT_PLUS 10n
+L1 N0 N_T 10n
+L2 N4 N_T 10n
+L3 N7 N11 10n
+XM1 VOUT_MINUS VDD N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+L_TL N1 VOUT_MINUS 10n
+L4 N6 N8 10n
+XM_TAIL N5 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM7 N7 VIN_PLUS N0 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM3 VDD GAIN_BAR N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM2 VOUT_MINUS N7 N7 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM5 VOUT_PLUS GAIN N6 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM6 VOUT_PLUS VDD N6 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+XM8 N6 VIN_MINUS N4 GND sky130_fd_pr__nfet_01v8 l=0.5 w=5
+C1 N5 GND 1p
+C2 N11 GND 1p
+C3 N8 GND 1p
+L5 N5 N_T 10n
+
+.control
+set filetype=ascii
+
+op
+let vdd_current = abs(i(VVDD))
+let power_dc = vdd_current * 1.8
+print power_dc
+
+ac dec 100 1k 100g
+let vout_mag = vm(N5)
+let gain_db = db(vout_mag)
+
+meas ac max_gain_db MAX gain_db
+meas ac bw_3db WHEN gain_db='max_gain_db-3' CROSS=1
+
+print max_gain_db bw_3db
+
+quit
+.endc
+
+.end
