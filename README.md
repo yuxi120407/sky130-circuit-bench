@@ -7,7 +7,7 @@ A benchmark suite of **1,097 simulatable CMOS circuits** built on the SkyWater S
 | Source | Circuits | Description |
 |--------|----------|-------------|
 | **Baker Textbook** | 246 | Adapted from R. Jacob Baker's *CMOS: Circuit Design, Layout, and Simulation* (3rd/4th Ed.), plus custom OTA/amplifier topologies |
-| **RoCktNet** | 851 | Extracted from IEEE paper schematics via [RoCktNet](https://github.com/rocrocket/rocktnet), converted to sky130 |
+| **RoCktNet** | 851 | Extracted from IEEE paper schematics via [RoCktNet](https://github.com/xz-group/RoCktNet/tree/master), converted to sky130 |
 
 An additional 163 circuits that need fixing are included in `needs_fix/`.
 
