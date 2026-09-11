@@ -13,7 +13,7 @@ import html as htmlmod
 
 BENCH_DIR = os.path.dirname(os.path.abspath(__file__))
 SPECS_JSON = os.path.join(BENCH_DIR, "baker_circuit_specs.json")
-BAKER_RESULTS_CSV = os.path.join(BENCH_DIR, "results", "metrics_summary.csv")
+BAKER_RESULTS_CSV = os.path.join(BENCH_DIR, "results", "baker_textbook", "metrics_summary.csv")
 ROCKTNET_RESULTS_CSV = os.path.join(BENCH_DIR, "results", "rocktnet", "metrics_summary.csv")
 BAKER_DIR = os.path.join(BENCH_DIR, "ready_circuits", "baker_textbook")
 ROCKTNET_DIR = os.path.join(BENCH_DIR, "ready_circuits", "rocktnet")
