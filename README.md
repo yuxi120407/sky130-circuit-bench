@@ -1,6 +1,125 @@
 # sky130-circuit-bench
 
-A benchmark suite of **1,097 simulatable CMOS circuits** built on the SkyWater SKY130 open-source PDK. All circuits run in [ngspice](https://ngspice.sourceforge.io/) and produce extractable performance metrics (gain, power, bandwidth, etc.).
+A benchmark suite of **1,097 simulatable CMOS circuits** on the SkyWater SKY130 open-source PDK, plus **AMS-ReasonBench** — a 4-task benchmark evaluating LLM understanding of analog/mixed-signal circuit design.
+
+All circuits run in [ngspice](https://ngspice.sourceforge.io/) and produce extractable performance metrics (gain, power, bandwidth, etc.). Ground truth specifications come from Baker's *CMOS: Circuit Design, Layout, and Simulation* (3rd Edition).
+
+## AMS-ReasonBench: 4 Benchmark Tasks
+
+**980 total benchmark entries** across 246 Baker textbook circuits and 24 circuit types.
+
+| Task | File | Entries | Input | Expected Output | Evaluation |
+|------|------|---------|-------|-----------------|------------|
+| **1. Spec Generation** | `task1_spec_generation.json` | 246 | Circuit netlist | List of performance metrics (name, unit, analysis, description) | Compare against Baker textbook ground truth |
+| **2. Testbench Generation** | `task2_testbench_generation.json` | 246 | Circuit netlist + metrics list + PDK info | ngspice testbench code | Run in ngspice, check metrics extracted |
+| **3. Sizing Optimization** | `task3_sizing_optimization.json` | 244 | Parameterized netlist + Baker target specs | W/L per transistor | Simulate proposed sizing, verify specs met |
+| **4. Full Design** | `task4_full_design.json` | 244 | Parameterized netlist + PDK info only | Specs + W/L sizing | (1) Metric ID vs Baker, (2) simulate sizing |
+
+All benchmark files are in `benchmark/`.
+
+### Task 1: Spec Generation
+
+Given a circuit netlist, identify all performance metrics that should be measured. The LLM must recognize the circuit type and enumerate the relevant specifications from analog design theory.
+
+**Example** (op_amp, Ch 24 — `Chap24_LTspice_Fig24_10`):
+
+```
+Input:  34-transistor two-stage op_amp netlist
+
+Output: 18 metrics
+  open_loop_dc_gain_db     dB       AC     Open-loop voltage gain
+  unity_gain_bandwidth_hz  Hz       AC     Frequency where |A_OL| = 0 dB
+  phase_margin_deg         degrees  AC     180 + phase at unity-gain freq
+  slew_rate_v_per_us       V/us     Tran   Max dVout/dt = Iss/Cc
+  cmrr_db                  dB       AC     Common-mode rejection ratio
+  psrr_positive_db         dB       AC     Power supply rejection (VDD)
+  power_dc_w               W        OP     Total DC power
+  settling_time_s          s        Tran   Time to settle within error band
+  ... (+10 more)
+  required_analyses: [AC, DC, OP, Tran]
+```
+
+### Task 2: Testbench Generation
+
+Given a circuit netlist (subcircuit + top-level connections) and a list of metrics, write an ngspice testbench with input stimuli, analysis commands, and `.meas` statements.
+
+**Example** (same op_amp):
+
+```
+Input:  netlist (subcircuit + top-level devices + power supply)
+        metrics_to_measure: [dc_gain_db, ugbw, power_dc]
+        pdk: sky130_fd_pr, vdd: 1.8, simulator: ngspice
+
+Output: Stimulus + analysis code:
+        vp vp 0 500m AC 1
+        .control
+        op
+        let power_dc = abs(i(VDD)) * v(VDD)
+        ac dec 100 1 10g
+        let gain_db = db(vm(vout))
+        meas ac ugbw WHEN gain_db=0 CROSS=1
+        .endc
+
+        Reference values: dc_gain_db=34.82, ugbw=2.54 MHz, power_dc=47.6 uW
+```
+
+### Task 3: Sizing Optimization
+
+Given a parameterized netlist (W/L replaced with `{variables}`) and target specifications from Baker's textbook, choose optimal transistor sizing.
+
+**Example** (same op_amp):
+
+```
+Input:  Parameterized netlist:
+          xmsu2 N002 N002 VDD VDD pfet w={W_xmsu2} l={L_xmsu2}
+          xm3   N003 Vbiasp VDD VDD pfet w={W_xm3}   l={L_xm3}
+          ... (34 tunable devices)
+
+        Baker target specs (Ch 24):
+          open_loop_dc_gain_db:    >40 dB   (Baker: ~58 dB)
+          unity_gain_bandwidth_hz: >10 MHz  (Baker: 10-400 MHz)
+          phase_margin_deg:        >60 deg  (Baker: >=60 for stability)
+          power_dc_w:              <300 uW  (Baker: 30-300 uW)
+          slew_rate_v_per_us:      >5 V/us  (Baker: Iss/Cc)
+
+        Constraints: min_L=0.15um, max_W=100um, VDD=1.8V
+
+Output: W, L for each of 34 devices → verified by ngspice simulation
+```
+
+For circuit types where Baker does not provide numeric targets (comparator, inverter, memory, etc.), the task provides Baker-defined metric names with optimization directions (minimize/maximize).
+
+### Task 4: Full Design (End-to-End)
+
+The hardest task: given only a parameterized topology and PDK info, the LLM must **both** identify all relevant specs **and** choose device sizing. No target specs are provided.
+
+**Example** (same op_amp):
+
+```
+Input:  Parameterized netlist + PDK info only (SKY130, VDD=1.8V, tt, 27C)
+        No target specifications given.
+
+Output: Part 1 — Identify as op_amp, list 18 metrics
+        Part 2 — W, L for all 34 devices
+
+Eval:   (1) Metric identification score vs Baker ground truth
+        (2) Simulate proposed sizing, evaluate all identified metrics
+```
+
+### Circuit Types Covered
+
+| Type | Circuits | Baker Chapter | Textbook Metrics |
+|------|----------|---------------|------------------|
+| op_amp | 47 | Ch 24 | 18 (gain, UGBW, PM, GM, CMRR, PSRR, slew rate, ...) |
+| op_amp_ii | 25 | Ch 26 | 14 (fully-differential, CMFB) |
+| current_mirror | 21 | Ch 20 | 6 (Rout, compliance, accuracy) |
+| amplifier | 18 | Ch 21 | 14 (gain, BW, poles/zeros) |
+| delta_sigma | 22 | Ch 17 | 8 (SNR, power) |
+| inverter | 12 | Ch 11 | 10 (Vm, noise margins, delay) |
+| ota | 10 | Ch 24 | 10 (Gm, gain, UGBW) |
+| comparator | 9 | Ch 27 | 9 (delay, offset, hysteresis) |
+| diff_amp | 9 | Ch 22 | 11 (diff gain, CMRR, ICM range) |
+| + 15 more types | 71 | Ch 9-32 | 6-11 each |
 
 ## Sources
 
@@ -84,14 +203,23 @@ sky130-circuit-bench/
 │   │   └── ...
 │   └── rocktnet/                      #   851 RoCktNet IEEE paper circuits
 │       ├── rocktnet_tc000001.spice
-│       ├── rocktnet_tc000002.spice
 │       └── ...
+├── benchmark/                         # AMS-ReasonBench (980 entries)
+│   ├── task1_spec_generation.json     #   246 entries — identify metrics
+│   ├── task2_testbench_generation.json #  246 entries — write testbench
+│   ├── task3_sizing_optimization.json #   244 entries — choose W/L
+│   └── task4_full_design.json         #   244 entries — specs + sizing
+├── baker_textbook_specs.json          # Baker ground truth specs (16 circuit types)
+├── baker_circuit_specs.json           # Per-circuit spec templates (246 circuits)
+├── baker_circuit_metric_mapping.csv   # Circuit-to-metric mapping
 ├── needs_fix/                         # 163 circuits that need work
-│   └── rocktnet/                      #   All RoCktNet (no Baker failures)
+│   └── rocktnet/
 │       └── ...
-└── results/                           # Generated after --run-all
-    └── <spice_dir_name>/
-        └── metrics_summary.csv
+├── results/                           # Generated after --run-all
+│   └── <spice_dir_name>/
+│       └── metrics_summary.csv
+└── docs/
+    └── index.html                     # Interactive web dashboard
 ```
 
 ## Circuit Inventory
@@ -129,32 +257,35 @@ Circuits extracted from IEEE paper schematics, covering amplifiers, comparators,
 - Biased at 1.8V VDD
 - Equipped with auto-generated testbenches (OP, AC, or both)
 
-## Metric Types
+## Metrics
 
-### Metrics by Analysis
+### Existing Simulation Metrics
 
-| Analysis | Metrics Extracted | Description |
-|---|---|---|
-| **AC** | `dc_gain_db`, `ugbw` | Low-frequency gain and unity-gain bandwidth |
-| **Transient** | `avg_power`, `vout_swing`, `vout_max`, `vout_min` | Power and output swing |
-| **DC / OP** | `power_dc`, `vout_dc`, `iout_mid`, `rout_mid` | Operating point metrics |
+Extracted by `run_simulation.py` from existing testbenches (avg 3.3 per circuit):
 
-### Metric Glossary
+| Metric | Unit | Circuits | Description |
+|---|---|---|---|
+| `power_dc` | W | 660 | DC power consumption |
+| `dc_gain_db` | dB | 351 | Low-frequency open-loop voltage gain |
+| `avg_power` | W | 114 | Average power (transient) |
+| `vout_swing` | V | 118 | Peak-to-peak output voltage swing |
+| `ugbw` | Hz | 52 | Unity-gain bandwidth (0 dB crossing) |
+| `max_gain_db` | dB | 78 | Maximum gain across frequency |
+| `rise_time` / `fall_time` | s | 19-26 | Output transition times |
+| `rout_mid` | Ohm | 10 | Output resistance (current mirrors) |
 
-| Metric | Unit | Description |
-|---|---|---|
-| `dc_gain_db` | dB | Low-frequency open-loop voltage gain |
-| `ugbw` | Hz | Unity-gain bandwidth (0 dB crossing) |
-| `power_dc` | W | DC power consumption |
-| `vout_dc` | V | DC output voltage (operating point) |
-| `avg_power` | W | Average power (transient) |
-| `vout_swing` | V | Peak-to-peak output voltage swing |
-| `vout_max` | V | Maximum output voltage |
-| `vout_min` | V | Minimum output voltage |
-| `iout_mid` | A | Output current at mid-supply (current mirrors) |
-| `rout_mid` | Ohm | Output resistance at mid-supply (current mirrors) |
-| `vref` | V | Reference voltage (bandgap) |
-| `psrr_100hz_db` | dB | Power supply rejection ratio at 100 Hz |
+### Baker Textbook Metrics (Ground Truth)
+
+Comprehensive metric definitions from Baker's textbook (6-18 per circuit type):
+
+| Analysis | Example Metrics |
+|---|---|
+| **AC** | `open_loop_dc_gain_db`, `ugbw`, `phase_margin`, `gain_margin`, `cmrr`, `psrr+`, `psrr-`, `output_resistance`, `closed_loop_bandwidth` |
+| **Transient** | `slew_rate`, `settling_time`, `rise_time`, `fall_time`, `propagation_delay` |
+| **DC / OP** | `power_dc`, `output_swing`, `input_common_mode_range`, `input_offset`, `bias_current` |
+| **Design** | `compensation_capacitor`, `load_capacitance` |
+
+Full metric definitions per circuit type are in `baker_textbook_specs.json`.
 
 ## Programmatic Usage
 
