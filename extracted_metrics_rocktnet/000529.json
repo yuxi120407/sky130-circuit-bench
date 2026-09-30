@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Amplifier / Transconductor",
+    "description": "A basic NMOS differential pair with an NMOS tail current source. In the context of a continuous-time adaptive cable equalizer, this topology is typically used as a high-speed transconductor or gain stage.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "NBIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.18-m CMOS 3.5-Gb/s Continuous-Time Adaptive Cable Equalizer Using Enhanced Low-Frequency Gain Control Method",
+      "figure": "Not specified",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "DC power consumption of the differential stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "80 mW (entire equalizer)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming NBIAS=0.7V: I_tail = 0.5 * un*Cox * (W/L) * (Vbias - Vth)^2 = 0.5 * 270uA/V^2 * 10 * (0.7V - 0.42V)^2 = 1.05 mA. Power = 1.05 mA * 1.8 V = 1.89 mW.",
+        "range": {
+          "min": "1m",
+          "typical": "2m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on a typical bias voltage of 0.7V and given SKY130 parameters. The paper's 80mW is for the entire chip."
+      },
+      "importance": "essential"
+    },
+    "diff_gain": {
+      "description": "Low-frequency differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "16 dB to 21 dB",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2 * (I_tail/2) / Vov = 1.05mA / 0.62V = 1.69 mA/V. With a 2kOhm load added in the testbench, Gain = gm * RL = 3.38 V/V = 10.5 dB.",
+        "range": {
+          "min": "5",
+          "typical": "10",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the chosen load resistor in the testbench. 2kOhm gives ~10.5 dB, which is reasonable for a single wideband stage."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "3-dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.8 GHz to 2.5 GHz",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * RL * CL). With RL=2kOhm and CL=40fF, f_3dB = 1.99 GHz.",
+        "range": {
+          "min": "1G",
+          "typical": "2G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "Chosen load capacitance of 40fF to match the paper's reported bandwidth range for high-speed operation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for NMOS differential pair measuring DC power, AC differential gain, and 3-dB bandwidth.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "diff_gain",
+      "bw_3db"
+    ],
+    "spice": "* Differential Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\n* DUT\nXM2 OUTN INP N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 OUTP INN N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM3 N0 NBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* Loads (Added to complete the circuit)\nR1 VDD OUTP 2k\nR2 VDD OUTN 2k\nC1 OUTP 0 40f\nC2 OUTN 0 40f\n\n* Sources\nVVDD VDD 0 1.8\nVNBIAS NBIAS 0 0.7\n\n* Differential AC/Tran source\nVINP INP 0 DC 0.9 AC 0.5 SIN(0.9 0.1 100MEG)\nVINN INN 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 100MEG)\n\n* VCVS to compute differential output\nE1 OUT_DIFF 0 OUTN OUTP 1\n\n.control\n* DC Operating Point\nop\nlet power = -i(VVDD)*1.8\nprint power\n\n* AC Analysis\nac dec 100 1k 100G\nlet gain_db = vdb(OUT_DIFF)\nmeas ac max_gain MAX gain_db\nlet gain_3db = max_gain - 3\nmeas ac bw_3db when gain_db=gain_3db fall=1\n\n* Transient Analysis\ntran 10p 20n\nmeas tran vpp_out_diff pp v(OUT_DIFF)\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Amplifier / Transconductor\",\n    \"description\": \"A basic NMOS differential pair with an NMOS tail current source. In the context of a continuous-time adaptive cable equalizer, this topology is typically used as a high-speed transconductor or gain stage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"NBIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.18-m CMOS 3.5-Gb/s Continuous-Time Adaptive Cable Equalizer Using Enhanced Low-Frequency Gain Control Method\",\n      \"figure\": \"Not specified\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"DC power consumption of the differential stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"80 mW (entire equalizer)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming NBIAS=0.7V: I_tail = 0.5 * un*Cox * (W/L) * (Vbias - Vth)^2 = 0.5 * 270uA/V^2 * 10 * (0.7V - 0.42V)^2 = 1.05 mA. Power = 1.05 mA * 1.8 V = 1.89 mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"2m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on a typical bias voltage of 0.7V and given SKY130 parameters. The paper's 80mW is for the entire chip.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"diff_gain\": {\n      \"description\": \"Low-frequency differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"16 dB to 21 dB\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2 * (I_tail/2) / Vov = 1.05mA / 0.62V = 1.69 mA/V. With a 2kOhm load added in the testbench, Gain = gm * RL = 3.38 V/V = 10.5 dB.\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"10\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen load resistor in the testbench. 2kOhm gives ~10.5 dB, which is reasonable for a single wideband stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"3-dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.8 GHz to 2.5 GHz\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * RL * CL). With RL=2kOhm and CL=40fF, f_3dB = 1.99 GHz.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"2G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Chosen load capacitance of 40fF to match the paper's reported bandwidth range for high-speed operation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for NMOS differential pair measuring DC power, AC differential gain, and 3-dB bandwidth.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"diff_gain\",\n      \"bw_3db\"\n    ],\n    \"spice\": \"* Differential Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\n* DUT\\nXM2 OUTN INP N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 OUTP INN N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM3 N0 NBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Loads (Added to complete the circuit)\\nR1 VDD OUTP 2k\\nR2 VDD OUTN 2k\\nC1 OUTP 0 40f\\nC2 OUTN 0 40f\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVNBIAS NBIAS 0 0.7\\n\\n* Differential AC/Tran source\\nVINP INP 0 DC 0.9 AC 0.5 SIN(0.9 0.1 100MEG)\\nVINN INN 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 100MEG)\\n\\n* VCVS to compute differential output\\nE1 OUT_DIFF 0 OUTN OUTP 1\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VVDD)*1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1k 100G\\nlet gain_db = vdb(OUT_DIFF)\\nmeas ac max_gain MAX gain_db\\nlet gain_3db = max_gain - 3\\nmeas ac bw_3db when gain_db=gain_3db fall=1\\n\\n* Transient Analysis\\ntran 10p 20n\\nmeas tran vpp_out_diff pp v(OUT_DIFF)\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1269917",
+  "_case": "1269917_image_7_a"
+}

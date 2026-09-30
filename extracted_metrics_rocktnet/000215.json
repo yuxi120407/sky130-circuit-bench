@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully differential current-mirror OTA",
+    "description": "A single-stage fully differential operational transconductance amplifier (OTA) using a PMOS input differential pair and NMOS current mirrors. It serves as the core amplifier in a switched-capacitor filter, designed for low-voltage operation.",
+    "node_mapping": {
+      "input": [
+        "VIN_PLUS",
+        "VIN_MINUS"
+      ],
+      "output": [
+        "VOUT_PLUS",
+        "VOUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIASING"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 10.7-MHz Switched-Opamp Bandpass Sigma-Delta Modulator Using Double-Sampling Finite-Gain-Compensation Technique",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Differential DC open-loop gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "42.3 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gm = gm1 = 100uS. Rout = ro5 || ro_tl = 1M || 1M = 500k. Av = Gm * Rout = 50 V/V = 34 dB.",
+        "range": {
+          "min": 30,
+          "typical": 34,
+          "max": 45,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using sky130 lambda=0.1/V and 10uA branch current. The paper achieved slightly higher gain, likely using longer channel lengths or cascodes not present in this simplified schematic."
+      },
+      "importance": "essential"
+    },
+    "gbw": {
+      "description": "Unity gain bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "50 MHz (sampling frequency)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "GBW = Gm / (2 * pi * CL). With Gm = 100uS and CL = 1pF, GBW = 15.9 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 15900000.0,
+          "max": 50000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the load capacitance and bias current. Assuming 1pF load and 10uA bias."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Single stage OTA with dominant pole at output. Non-dominant poles from current mirrors (N0, N1) are at high frequencies.",
+        "range": {
+          "min": 60,
+          "typical": 80,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Current mirror OTAs typically have good phase margin if the mirror pole is beyond the GBW."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "12 mW (entire modulator)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Itotal = Ibias + Itail + I_tl + I_tr = 10u + 20u + 10u + 10u = 50uA. P = 1.8V * 50uA = 90uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 9e-05,
+          "max": 0.0002,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on a 10uA reference bias and 1.8V supply. The op-amp consumes a small fraction of the total 12mW modulator power."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Large-signal slew rate",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "SR = Iout_max / CL. Iout_max = 10uA. CL = 1pF. SR = 10 V/us.",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 20,
+          "unit": "V/us"
+        },
+        "reasoning": "Limited by the tail current and current mirror ratio."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for measuring DC gain, GBW, phase margin, slew rate, and power consumption of the fully differential OTA. An ideal CMFB is added to stabilize the output common-mode voltage. W_xmb1 is overridden to 10u to balance the DC currents.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "gbw",
+      "phase_margin",
+      "power",
+      "slew_rate"
+    ],
+    "spice": "* Fully Differential Current-Mirror OTA Testbench\n\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters (W_xmb1 set to 10u to balance 10uA tail current with 5uA branches)\n.param W_xm_tl=5u L_xm_tl=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xmb1=10u L_xmb1=0.5u\n.param W_xm_tr=5u L_xm_tr=0.5u\n\n* Power supply\nVVDD VDD 0 1.8\nVGND GND 0 0\n\n* Bias circuit (generates ~10uA)\nIbias VDD BIASING 10u\nMbias BIASING BIASING VDD VDD sky130_fd_pr__pfet_01v8 l=0.5u w=5u\n\n* Common-mode voltage\nVCM VCM 0 0.9\n\n* AC and Transient Input sources\nVIND VIN_DIFF 0 DC 0 AC 1 PULSE(0 0.5 1n 10p 10p 10n 20n)\nE1 VIN_PLUS VCM VIN_DIFF 0 0.5\nE2 VIN_MINUS VCM VIN_DIFF 0 -0.5\n\n* Ideal CMFB to set output common-mode to 0.9V\nGcmfb1 VOUT_PLUS 0 value='1e-3 * ((v(VOUT_PLUS)+v(VOUT_MINUS))/2 - 0.9)'\nGcmfb2 VOUT_MINUS 0 value='1e-3 * ((v(VOUT_PLUS)+v(VOUT_MINUS))/2 - 0.9)'\n\n* Load capacitors\nCL1 VOUT_PLUS 0 1p\nCL2 VOUT_MINUS 0 1p\n\n* Differential output\nEout VOUT_DIFF 0 VOUT_PLUS VOUT_MINUS 1\n\n* DUT\nXM_TL VOUT_MINUS BIASING VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm_tl} w={W_xm_tl}\nXM1 N1 VIN_MINUS N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM4 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM6 VOUT_MINUS N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM5 VOUT_PLUS N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM3 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM2 N0 VIN_PLUS N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXMB1 N2 BIASING VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmb1} w={W_xmb1}\nXM_TR VOUT_PLUS BIASING VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm_tr} w={W_xm_tr}\n\n.control\n  * Operating point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 100 1k 1G\n  let gain_db = vdb(VOUT_DIFF)\n  let phase = 180/PI * cph(v(VOUT_DIFF))\n  \n  meas ac dc_gain find gain_db at=1k\n  meas ac gbw when gain_db=0 fall=1\n  meas ac phase_margin find phase when gain_db=0 fall=1\n  \n  * Transient Analysis\n  tran 10p 20n\n  meas tran sr_fall deriv v(VOUT_DIFF) when v(VOUT_DIFF)=-0.2 fall=1\n  meas tran sr_rise deriv v(VOUT_DIFF) when v(VOUT_DIFF)=0.2 rise=1\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully differential current-mirror OTA\",\n    \"description\": \"A single-stage fully differential operational transconductance amplifier (OTA) using a PMOS input differential pair and NMOS current mirrors. It serves as the core amplifier in a switched-capacitor filter, designed for low-voltage operation.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_PLUS\",\n        \"VIN_MINUS\"\n      ],\n      \"output\": [\n        \"VOUT_PLUS\",\n        \"VOUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIASING\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 10.7-MHz Switched-Opamp Bandpass Sigma-Delta Modulator Using Double-Sampling Finite-Gain-Compensation Technique\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Differential DC open-loop gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"42.3 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm = gm1 = 100uS. Rout = ro5 || ro_tl = 1M || 1M = 500k. Av = Gm * Rout = 50 V/V = 34 dB.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 34,\n          \"max\": 45,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using sky130 lambda=0.1/V and 10uA branch current. The paper achieved slightly higher gain, likely using longer channel lengths or cascodes not present in this simplified schematic.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gbw\": {\n      \"description\": \"Unity gain bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"50 MHz (sampling frequency)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"GBW = Gm / (2 * pi * CL). With Gm = 100uS and CL = 1pF, GBW = 15.9 MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 15.9e6,\n          \"max\": 50e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the load capacitance and bias current. Assuming 1pF load and 10uA bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Single stage OTA with dominant pole at output. Non-dominant poles from current mirrors (N0, N1) are at high frequencies.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 80,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Current mirror OTAs typically have good phase margin if the mirror pole is beyond the GBW.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"12 mW (entire modulator)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Itotal = Ibias + Itail + I_tl + I_tr = 10u + 20u + 10u + 10u = 50uA. P = 1.8V * 50uA = 90uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 90e-6,\n          \"max\": 200e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on a 10uA reference bias and 1.8V supply. The op-amp consumes a small fraction of the total 12mW modulator power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Large-signal slew rate\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = Iout_max / CL. Iout_max = 10uA. CL = 1pF. SR = 10 V/us.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 10,\n          \"max\": 20,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Limited by the tail current and current mirror ratio.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for measuring DC gain, GBW, phase margin, slew rate, and power consumption of the fully differential OTA. An ideal CMFB is added to stabilize the output common-mode voltage. W_xmb1 is overridden to 10u to balance the DC currents.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"gbw\",\n      \"phase_margin\",\n      \"power\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Fully Differential Current-Mirror OTA Testbench\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters (W_xmb1 set to 10u to balance 10uA tail current with 5uA branches)\\n.param W_xm_tl=5u L_xm_tl=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xmb1=10u L_xmb1=0.5u\\n.param W_xm_tr=5u L_xm_tr=0.5u\\n\\n* Power supply\\nVVDD VDD 0 1.8\\nVGND GND 0 0\\n\\n* Bias circuit (generates ~10uA)\\nIbias VDD BIASING 10u\\nMbias BIASING BIASING VDD VDD sky130_fd_pr__pfet_01v8 l=0.5u w=5u\\n\\n* Common-mode voltage\\nVCM VCM 0 0.9\\n\\n* AC and Transient Input sources\\nVIND VIN_DIFF 0 DC 0 AC 1 PULSE(0 0.5 1n 10p 10p 10n 20n)\\nE1 VIN_PLUS VCM VIN_DIFF 0 0.5\\nE2 VIN_MINUS VCM VIN_DIFF 0 -0.5\\n\\n* Ideal CMFB to set output common-mode to 0.9V\\nGcmfb1 VOUT_PLUS 0 value='1e-3 * ((v(VOUT_PLUS)+v(VOUT_MINUS))/2 - 0.9)'\\nGcmfb2 VOUT_MINUS 0 value='1e-3 * ((v(VOUT_PLUS)+v(VOUT_MINUS))/2 - 0.9)'\\n\\n* Load capacitors\\nCL1 VOUT_PLUS 0 1p\\nCL2 VOUT_MINUS 0 1p\\n\\n* Differential output\\nEout VOUT_DIFF 0 VOUT_PLUS VOUT_MINUS 1\\n\\n* DUT\\nXM_TL VOUT_MINUS BIASING VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm_tl} w={W_xm_tl}\\nXM1 N1 VIN_MINUS N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM4 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM6 VOUT_MINUS N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM5 VOUT_PLUS N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM3 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM2 N0 VIN_PLUS N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXMB1 N2 BIASING VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmb1} w={W_xmb1}\\nXM_TR VOUT_PLUS BIASING VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm_tr} w={W_xm_tr}\\n\\n.control\\n  * Operating point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 100 1k 1G\\n  let gain_db = vdb(VOUT_DIFF)\\n  let phase = 180/PI * cph(v(VOUT_DIFF))\\n  \\n  meas ac dc_gain find gain_db at=1k\\n  meas ac gbw when gain_db=0 fall=1\\n  meas ac phase_margin find phase when gain_db=0 fall=1\\n  \\n  * Transient Analysis\\n  tran 10p 20n\\n  meas tran sr_fall deriv v(VOUT_DIFF) when v(VOUT_DIFF)=-0.2 fall=1\\n  meas tran sr_rise deriv v(VOUT_DIFF) when v(VOUT_DIFF)=0.2 rise=1\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1035935",
+  "_case": "1035935_image_10"
+}

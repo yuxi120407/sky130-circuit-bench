@@ -1,0 +1,111 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CML D-Latch",
+    "description": "A Current Mode Logic (CML) D-latch with a self-biased tail current. It uses a lower differential pair for the clock to switch between track and hold modes, and an upper differential pair to sample the data input.",
+    "node_mapping": {
+      "input": [
+        "Clk_P",
+        "Clk_N",
+        "D_P",
+        "D_N"
+      ],
+      "output": [
+        "Q_P",
+        "Q_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N6",
+        "N5",
+        "N14"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 132-Gb/s 4:1 Multiplexer in 0.13-m SiGe-Bipolar Technology",
+      "figure": "Unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total power dissipated by the latch",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.45 W",
+        "technology": "0.13-um SiGe-Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD=1.8V, Rload=500, Rbias=1k, the self-bias loop sets I_tail ~ 0.26 mA. Total current is ~0.26 mA. Power = 1.8V * 0.26mA = 0.47 mW.",
+        "range": {
+          "min": "0.3m",
+          "typical": "0.5m",
+          "max": "1m",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 1.45 W for the entire 4:1 MUX chip including clock distribution. A single latch consumes a small fraction of this."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Time delay from data input crossing to output crossing during the track phase",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "250 fs (jitter)",
+        "technology": "0.13-um SiGe-Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Simulated delay of a CML stage in 1.8V with generic NPN models.",
+        "range": {
+          "min": "10p",
+          "typical": "30p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Delay depends heavily on the NPN model parameters (TF, CJC). Expected in the tens of picoseconds for a generic model."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak single-ended output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.13-um SiGe-Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_load = 0.266 mA * 500 ohm = 133 mV.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.13",
+          "max": "0.2",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the self-bias loop and load resistors. The common mode will settle around 0.93V."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power, delay, and voltage swing of the CML D-latch. Missing resistor values from the extracted netlist have been populated to allow simulation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "propagation_delay",
+      "voltage_swing"
+    ],
+    "spice": "* CML D-Latch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model since SKY130 NPNs are subcircuits and netlist uses Q instances\n.model npn NPN(IS=1e-16 BF=100 VAF=50 CJC=10f CJE=20f TF=10p TR=1n)\n\n* DUT (with added resistor values for simulation)\nQ1 N4 N5 N3 npn\nQ2 N12 N14 N3 npn\nR1 Q_P N6 1k\nQ3 N14 N14 N9 npn\nQ4 VDD N1 Q_N npn\nQ5 VDD Clk_N N14 npn\nQ6 N6 N6 GND npn\nQ7 N1 D_P N4 npn\nQ8 N1 Q_P N12 npn\nR2 Q_N N6 1k\nR3 N7 VDD 500\nR4 N1 VDD 500\nQ9 N9 N6 GND npn\nQ10 N7 D_N N4 npn\nQ11 N7 Q_N N12 npn\nQ12 N5 N5 N13 npn\nQ13 VDD Clk_P N5 npn\nQ14 N3 N6 GND npn\nQ15 N13 N6 GND npn\nQ16 VDD N7 Q_P npn\n\n* Sources\nVVDD VDD GND 1.8\n* Clock: 1 GHz, 1.7V common mode to keep input transistors out of saturation\nVclk_p Clk_P GND dc 1.7 pulse(1.6 1.8 0 10p 10p 490p 1n)\nVclk_n Clk_N GND dc 1.7 pulse(1.8 1.6 0 10p 10p 490p 1n)\n* Data: 500 MHz, transitions during the clock high (track) phase\nVd_p D_P GND dc 1.7 pulse(1.6 1.8 250p 10p 10p 0.99n 2n)\nVd_n D_N GND dc 1.7 pulse(1.8 1.6 250p 10p 10p 0.99n 2n)\n\n.control\ntran 5p 3n\n\n* Power\nmeas tran I_vdd avg i(VVDD)\n\n* Swing\nmeas tran V_QP_max max v(Q_P)\nmeas tran V_QP_min min v(Q_P)\n\n* Delay (Data to Output during track phase)\n* Output common mode settles around 0.93V with these resistor values\nmeas tran delay_rise trig v(D_P) val=1.7 rise=1 targ v(Q_P) val=0.93 rise=1\nmeas tran delay_fall trig v(D_P) val=1.7 fall=1 targ v(Q_P) val=0.93 fall=1\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CML D-Latch\",\n    \"description\": \"A Current Mode Logic (CML) D-latch with a self-biased tail current. It uses a lower differential pair for the clock to switch between track and hold modes, and an upper differential pair to sample the data input.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Clk_P\",\n        \"Clk_N\",\n        \"D_P\",\n        \"D_N\"\n      ],\n      \"output\": [\n        \"Q_P\",\n        \"Q_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N6\",\n        \"N5\",\n        \"N14\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 132-Gb/s 4:1 Multiplexer in 0.13-m SiGe-Bipolar Technology\",\n      \"figure\": \"Unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the latch\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.45 W\",\n        \"technology\": \"0.13-um SiGe-Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD=1.8V, Rload=500, Rbias=1k, the self-bias loop sets I_tail ~ 0.26 mA. Total current is ~0.26 mA. Power = 1.8V * 0.26mA = 0.47 mW.\",\n        \"range\": {\n          \"min\": \"0.3m\",\n          \"typical\": \"0.5m\",\n          \"max\": \"1m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 1.45 W for the entire 4:1 MUX chip including clock distribution. A single latch consumes a small fraction of this.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Time delay from data input crossing to output crossing during the track phase\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"250 fs (jitter)\",\n        \"technology\": \"0.13-um SiGe-Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Simulated delay of a CML stage in 1.8V with generic NPN models.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"30p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Delay depends heavily on the NPN model parameters (TF, CJC). Expected in the tens of picoseconds for a generic model.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak single-ended output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.13-um SiGe-Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_load = 0.266 mA * 500 ohm = 133 mV.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.13\",\n          \"max\": \"0.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the self-bias loop and load resistors. The common mode will settle around 0.93V.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power, delay, and voltage swing of the CML D-latch. Missing resistor values from the extracted netlist have been populated to allow simulation.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"propagation_delay\",\n      \"voltage_swing\"\n    ],\n    \"spice\": \"* CML D-Latch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model since SKY130 NPNs are subcircuits and netlist uses Q instances\\n.model npn NPN(IS=1e-16 BF=100 VAF=50 CJC=10f CJE=20f TF=10p TR=1n)\\n\\n* DUT (with added resistor values for simulation)\\nQ1 N4 N5 N3 npn\\nQ2 N12 N14 N3 npn\\nR1 Q_P N6 1k\\nQ3 N14 N14 N9 npn\\nQ4 VDD N1 Q_N npn\\nQ5 VDD Clk_N N14 npn\\nQ6 N6 N6 GND npn\\nQ7 N1 D_P N4 npn\\nQ8 N1 Q_P N12 npn\\nR2 Q_N N6 1k\\nR3 N7 VDD 500\\nR4 N1 VDD 500\\nQ9 N9 N6 GND npn\\nQ10 N7 D_N N4 npn\\nQ11 N7 Q_N N12 npn\\nQ12 N5 N5 N13 npn\\nQ13 VDD Clk_P N5 npn\\nQ14 N3 N6 GND npn\\nQ15 N13 N6 GND npn\\nQ16 VDD N7 Q_P npn\\n\\n* Sources\\nVVDD VDD GND 1.8\\n* Clock: 1 GHz, 1.7V common mode to keep input transistors out of saturation\\nVclk_p Clk_P GND dc 1.7 pulse(1.6 1.8 0 10p 10p 490p 1n)\\nVclk_n Clk_N GND dc 1.7 pulse(1.8 1.6 0 10p 10p 490p 1n)\\n* Data: 500 MHz, transitions during the clock high (track) phase\\nVd_p D_P GND dc 1.7 pulse(1.6 1.8 250p 10p 10p 0.99n 2n)\\nVd_n D_N GND dc 1.7 pulse(1.8 1.6 250p 10p 10p 0.99n 2n)\\n\\n.control\\ntran 5p 3n\\n\\n* Power\\nmeas tran I_vdd avg i(VVDD)\\n\\n* Swing\\nmeas tran V_QP_max max v(Q_P)\\nmeas tran V_QP_min min v(Q_P)\\n\\n* Delay (Data to Output during track phase)\\n* Output common mode settles around 0.93V with these resistor values\\nmeas tran delay_rise trig v(D_P) val=1.7 rise=1 targ v(Q_P) val=0.93 rise=1\\nmeas tran delay_fall trig v(D_P) val=1.7 fall=1 targ v(Q_P) val=0.93 fall=1\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1362849",
+  "_case": "1362849_image_2_a"
+}

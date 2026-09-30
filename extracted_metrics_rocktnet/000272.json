@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Baseband Low-Pass Filter (Sallen-Key)",
+    "description": "A fully differential 3rd-order active low-pass filter used in the baseband section of a WCDMA receiver. It utilizes a Sallen-Key topology (A1/A2 with RC feedback) followed by a passive RC output stage to achieve a 1.92 MHz cutoff frequency for channel selection.",
+    "node_mapping": {
+      "input": [
+        "In",
+        "Inb"
+      ],
+      "output": [
+        "N5",
+        "N14"
+      ],
+      "supply": [],
+      "bias": [
+        "N6",
+        "N7"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Full-CMOS 2-GHz WCDMA Direct Conversion Transmitter and Receiver",
+      "figure": "Generic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "passband_gain": {
+      "description": "Low-frequency voltage gain of the active filter.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20 dB / 34 dB (VGA total)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the non-inverting amplifier gain 1 + R6/R7. With R6=R7=10k, gain is 2 (6 dB).",
+        "range": {
+          "min": 5.5,
+          "typical": 6.0,
+          "max": 6.5,
+          "unit": "dB"
+        },
+        "reasoning": "The baseband filter typically provides a fixed moderate gain, while variable gain is handled by cascaded VGA stages."
+      },
+      "importance": "essential"
+    },
+    "cutoff_frequency": {
+      "description": "-3dB bandwidth of the low-pass filter.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.92 MHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "fc = 1 / (2 * pi * sqrt(R9*R13*C2*C3)). With R=8.29k and C=10pF, fc is approximately 1.92 MHz.",
+        "range": {
+          "min": 1800000.0,
+          "typical": 1920000.0,
+          "max": 2000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "1.92 MHz is the standard baseband cutoff frequency for WCDMA (half of the 3.84 Mcps chip rate)."
+      },
+      "importance": "essential"
+    },
+    "stopband_attenuation": {
+      "description": "Filter attenuation at out-of-band frequencies (e.g., 10 MHz).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "A 3rd-order filter rolls off at -60 dB/decade. From 1.92 MHz to 10 MHz is ~0.7 decades, expecting ~40 dB attenuation relative to passband.",
+        "range": {
+          "min": -50,
+          "typical": -40,
+          "max": -30,
+          "unit": "dB"
+        },
+        "reasoning": "Crucial for rejecting adjacent channel interference (ACPR) in direct conversion receivers."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the AC frequency response (gain, cutoff frequency, stopband attenuation) and transient response of the differential Sallen-Key baseband filter.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "passband_gain",
+      "cutoff_frequency",
+      "stopband_attenuation"
+    ],
+    "spice": "* WCDMA Baseband Low-Pass Filter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Component parameters for 1.92 MHz cutoff\n.param Rval=8.29k\n.param Cval=10p\n.param Rgain=10k\n.param Csmall=100f\n\n* Ideal Op-Amp Subcircuit\n.subckt amplifier out in_m in_p\nE1 out 0 in_p in_m 100k\n.ends\n\n* DUT (Modified A1/A2 to X1/X2 for standard SPICE subcircuit syntax)\nX1 N4 N1 N13 amplifier\nX2 N3 N0 N2 amplifier\nR1 N7 N13 100k\nR2 N11 GND 100k\nR3 N9 GND 100k\nR4 N0 N7 100k\nC1 N11 N13 {Csmall}\nR5 N2 N6 {Rgain}\nR7 N1 N6 {Rgain}\nR6 N1 N4 {Rgain}\nC2 N4 N15 {Cval}\nR8 N2 N3 {Rgain}\nR9 In N15 {Rval}\nR10 N4 N5 {Rval}\nC3 N13 GND {Cval}\nR11 N8 Inb {Rval}\nC4 N5 GND {Cval}\nC5 N14 GND {Cval}\nR12 N0 N8 {Rval}\nR13 N13 N15 {Rval}\nR14 N3 N14 {Rval}\nC6 N0 GND {Cval}\nC8 N3 N8 {Cval}\nC7 N0 N9 {Csmall}\nC9 N11 In {Csmall}\nC10 N9 Inb {Csmall}\n\n* Bias and Common Mode Sources\nVcm N6 0 DC 0.9\nVoff N7 0 DC 0.9\n\n* Differential Input Stimulus\nVIN In 0 DC 0.9 AC 1 SIN(0.9 0.1 100k 0 0)\nVINB Inb 0 DC 0.9 AC -1 SIN(0.9 -0.1 100k 0 0)\n\n.control\n* AC Analysis for Frequency Response\nac dec 100 1k 100Meg\n\n* Calculate differential gain in dB\nlet vout_diff = v(N5) - v(N14)\nlet vin_diff = v(In) - v(Inb)\nlet gain_db = 20 * log10(mag(vout_diff) / mag(vin_diff))\n\n* Measure Passband Gain at 10 kHz\nmeas ac passband_gain find gain_db at=10k\n\n* Measure -3dB Cutoff Frequency\nlet gain_3db = passband_gain - 3\nmeas ac cutoff_freq when gain_db=gain_3db fall=1\n\n* Measure Stopband Attenuation at 10 MHz\nmeas ac gain_10M find gain_db at=10Meg\nlet stopband_attenuation = passband_gain - gain_10M\nprint stopband_attenuation\n\n* Transient Analysis\ntran 10n 20u\nmeas tran vout_diff_max max v(N5)-v(N14)\nmeas tran vout_diff_min min v(N5)-v(N14)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Baseband Low-Pass Filter (Sallen-Key)\",\n    \"description\": \"A fully differential 3rd-order active low-pass filter used in the baseband section of a WCDMA receiver. It utilizes a Sallen-Key topology (A1/A2 with RC feedback) followed by a passive RC output stage to achieve a 1.92 MHz cutoff frequency for channel selection.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"In\",\n        \"Inb\"\n      ],\n      \"output\": [\n        \"N5\",\n        \"N14\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"N6\",\n        \"N7\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Full-CMOS 2-GHz WCDMA Direct Conversion Transmitter and Receiver\",\n      \"figure\": \"Generic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"passband_gain\": {\n      \"description\": \"Low-frequency voltage gain of the active filter.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20 dB / 34 dB (VGA total)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the non-inverting amplifier gain 1 + R6/R7. With R6=R7=10k, gain is 2 (6 dB).\",\n        \"range\": {\n          \"min\": 5.5,\n          \"typical\": 6.0,\n          \"max\": 6.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The baseband filter typically provides a fixed moderate gain, while variable gain is handled by cascaded VGA stages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cutoff_frequency\": {\n      \"description\": \"-3dB bandwidth of the low-pass filter.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.92 MHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"fc = 1 / (2 * pi * sqrt(R9*R13*C2*C3)). With R=8.29k and C=10pF, fc is approximately 1.92 MHz.\",\n        \"range\": {\n          \"min\": 1.8e6,\n          \"typical\": 1.92e6,\n          \"max\": 2.0e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"1.92 MHz is the standard baseband cutoff frequency for WCDMA (half of the 3.84 Mcps chip rate).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"stopband_attenuation\": {\n      \"description\": \"Filter attenuation at out-of-band frequencies (e.g., 10 MHz).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A 3rd-order filter rolls off at -60 dB/decade. From 1.92 MHz to 10 MHz is ~0.7 decades, expecting ~40 dB attenuation relative to passband.\",\n        \"range\": {\n          \"min\": -50,\n          \"typical\": -40,\n          \"max\": -30,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Crucial for rejecting adjacent channel interference (ACPR) in direct conversion receivers.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the AC frequency response (gain, cutoff frequency, stopband attenuation) and transient response of the differential Sallen-Key baseband filter.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"passband_gain\",\n      \"cutoff_frequency\",\n      \"stopband_attenuation\"\n    ],\n    \"spice\": \"* WCDMA Baseband Low-Pass Filter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Component parameters for 1.92 MHz cutoff\\n.param Rval=8.29k\\n.param Cval=10p\\n.param Rgain=10k\\n.param Csmall=100f\\n\\n* Ideal Op-Amp Subcircuit\\n.subckt amplifier out in_m in_p\\nE1 out 0 in_p in_m 100k\\n.ends\\n\\n* DUT (Modified A1/A2 to X1/X2 for standard SPICE subcircuit syntax)\\nX1 N4 N1 N13 amplifier\\nX2 N3 N0 N2 amplifier\\nR1 N7 N13 100k\\nR2 N11 GND 100k\\nR3 N9 GND 100k\\nR4 N0 N7 100k\\nC1 N11 N13 {Csmall}\\nR5 N2 N6 {Rgain}\\nR7 N1 N6 {Rgain}\\nR6 N1 N4 {Rgain}\\nC2 N4 N15 {Cval}\\nR8 N2 N3 {Rgain}\\nR9 In N15 {Rval}\\nR10 N4 N5 {Rval}\\nC3 N13 GND {Cval}\\nR11 N8 Inb {Rval}\\nC4 N5 GND {Cval}\\nC5 N14 GND {Cval}\\nR12 N0 N8 {Rval}\\nR13 N13 N15 {Rval}\\nR14 N3 N14 {Rval}\\nC6 N0 GND {Cval}\\nC8 N3 N8 {Cval}\\nC7 N0 N9 {Csmall}\\nC9 N11 In {Csmall}\\nC10 N9 Inb {Csmall}\\n\\n* Bias and Common Mode Sources\\nVcm N6 0 DC 0.9\\nVoff N7 0 DC 0.9\\n\\n* Differential Input Stimulus\\nVIN In 0 DC 0.9 AC 1 SIN(0.9 0.1 100k 0 0)\\nVINB Inb 0 DC 0.9 AC -1 SIN(0.9 -0.1 100k 0 0)\\n\\n.control\\n* AC Analysis for Frequency Response\\nac dec 100 1k 100Meg\\n\\n* Calculate differential gain in dB\\nlet vout_diff = v(N5) - v(N14)\\nlet vin_diff = v(In) - v(Inb)\\nlet gain_db = 20 * log10(mag(vout_diff) / mag(vin_diff))\\n\\n* Measure Passband Gain at 10 kHz\\nmeas ac passband_gain find gain_db at=10k\\n\\n* Measure -3dB Cutoff Frequency\\nlet gain_3db = passband_gain - 3\\nmeas ac cutoff_freq when gain_db=gain_3db fall=1\\n\\n* Measure Stopband Attenuation at 10 MHz\\nmeas ac gain_10M find gain_db at=10Meg\\nlet stopband_attenuation = passband_gain - gain_10M\\nprint stopband_attenuation\\n\\n* Transient Analysis\\ntran 10n 20u\\nmeas tran vout_diff_max max v(N5)-v(N14)\\nmeas tran vout_diff_min min v(N5)-v(N14)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1158780",
+  "_case": "1158780_image_11_a"
+}

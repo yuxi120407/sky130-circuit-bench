@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Latch / Sense Amplifier",
+    "description": "A precharge-evaluate dynamic latch (sense amplifier) commonly used in high-speed prescalers or phase-frequency detectors in PLLs. It precharges the differential outputs (Q/QB) to VDD when CLK is low, and evaluates the differential inputs (D/DB) when CLK goes high, using a cross-coupled NMOS pair for fast switching.",
+    "node_mapping": {
+      "input": [
+        "D",
+        "DB",
+        "CLK"
+      ],
+      "output": [
+        "Q",
+        "QB"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.5-V 900-MHz Monolithic CMOS Fast-Switching Frequency Synthesizer for Wireless Applications",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "delay_clk_q": {
+      "description": "Delay from CLK rising edge to Q/QB falling edge during the evaluation phase.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Estimated load capacitance C_load ~ 20fF. NMOS drive current I_on ~ 0.5 * 270uA/V^2 * 10 * (1.8V - 0.42V)^2 ~ 2.5mA. Delay ~ C*V/I = 20fF * 0.9V / 2.5mA = 7.2ps. Adding parasitics and cross-coupled contention, expect 20-50ps.",
+        "range": {
+          "min": "10p",
+          "typical": "30p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Calculated based on SKY130 NMOS drive strength and estimated parasitic capacitance for W=5u L=0.5u."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Average power consumption of the latch operating at 900 MHz.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "30 mW (Total PLL)",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power P = C * V^2 * f. For two nodes with 20fF each at 900MHz: P = 40fF * (1.8V)^2 * 900MHz = 116uW. Adding short-circuit power during evaluation gives ~200uW.",
+        "range": {
+          "min": "100u",
+          "typical": "200u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Based on standard dynamic power formula C*V^2*f at the target frequency of 900 MHz."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak voltage swing of the output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Outputs are precharged to VDD by PMOS and pulled to GND by NMOS.",
+        "range": {
+          "min": "1.7",
+          "typical": "1.8",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "Dynamic latches typically achieve full rail-to-rail swing if given enough evaluation time."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis at 900 MHz to measure CLK-to-Q delay, voltage swing, and average power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_clk_q",
+      "delay_clk_qb",
+      "voltage_swing",
+      "power"
+    ],
+    "spice": "* Dynamic Latch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nVVDD VDD 0 1.8\n* CLK at 900 MHz (1.111ns period)\nVCLK CLK 0 PULSE(0 1.8 0.5n 20p 20p 500p 1.111n)\n* D and DB toggle at 450 MHz to test both states\nVD D 0 PULSE(0 1.8 0 20p 20p 1.111n 2.222n)\nVDB DB 0 PULSE(1.8 0 0 20p 20p 1.111n 2.222n)\n\nXM1 Q DB GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 QB Q GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 QB D GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 Q QB GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 Q CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 QB CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\n* Load capacitance\nC1 Q 0 10f\nC2 QB 0 10f\n\n.control\ntran 5p 5n\n* Measure delay for QB falling (first evaluation cycle)\nmeas tran delay_clk_qb_fall trig v(clk) val=0.9 rise=1 targ v(qb) val=0.9 fall=1\n* Measure delay for Q falling (second evaluation cycle)\nmeas tran delay_clk_q_fall trig v(clk) val=0.9 rise=2 targ v(q) val=0.9 fall=1\n\n* Measure voltage swing\nmeas tran v_max max v(q)\nmeas tran v_min min v(q)\nlet swing = v_max - v_min\nprint swing\n\n* Measure average power\nmeas tran i_avg avg i(VVDD) from=0 to=5n\nlet pwr = -i_avg * 1.8\nprint pwr\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Latch / Sense Amplifier\",\n    \"description\": \"A precharge-evaluate dynamic latch (sense amplifier) commonly used in high-speed prescalers or phase-frequency detectors in PLLs. It precharges the differential outputs (Q/QB) to VDD when CLK is low, and evaluates the differential inputs (D/DB) when CLK goes high, using a cross-coupled NMOS pair for fast switching.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"D\",\n        \"DB\",\n        \"CLK\"\n      ],\n      \"output\": [\n        \"Q\",\n        \"QB\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.5-V 900-MHz Monolithic CMOS Fast-Switching Frequency Synthesizer for Wireless Applications\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"delay_clk_q\": {\n      \"description\": \"Delay from CLK rising edge to Q/QB falling edge during the evaluation phase.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Estimated load capacitance C_load ~ 20fF. NMOS drive current I_on ~ 0.5 * 270uA/V^2 * 10 * (1.8V - 0.42V)^2 ~ 2.5mA. Delay ~ C*V/I = 20fF * 0.9V / 2.5mA = 7.2ps. Adding parasitics and cross-coupled contention, expect 20-50ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"30p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 NMOS drive strength and estimated parasitic capacitance for W=5u L=0.5u.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Average power consumption of the latch operating at 900 MHz.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"30 mW (Total PLL)\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power P = C * V^2 * f. For two nodes with 20fF each at 900MHz: P = 40fF * (1.8V)^2 * 900MHz = 116uW. Adding short-circuit power during evaluation gives ~200uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"200u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on standard dynamic power formula C*V^2*f at the target frequency of 900 MHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Outputs are precharged to VDD by PMOS and pulled to GND by NMOS.\",\n        \"range\": {\n          \"min\": \"1.7\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Dynamic latches typically achieve full rail-to-rail swing if given enough evaluation time.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis at 900 MHz to measure CLK-to-Q delay, voltage swing, and average power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay_clk_q\",\n      \"delay_clk_qb\",\n      \"voltage_swing\",\n      \"power\"\n    ],\n    \"spice\": \"* Dynamic Latch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nVVDD VDD 0 1.8\\n* CLK at 900 MHz (1.111ns period)\\nVCLK CLK 0 PULSE(0 1.8 0.5n 20p 20p 500p 1.111n)\\n* D and DB toggle at 450 MHz to test both states\\nVD D 0 PULSE(0 1.8 0 20p 20p 1.111n 2.222n)\\nVDB DB 0 PULSE(1.8 0 0 20p 20p 1.111n 2.222n)\\n\\nXM1 Q DB GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 QB Q GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 QB D GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 Q QB GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 Q CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 QB CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Load capacitance\\nC1 Q 0 10f\\nC2 QB 0 10f\\n\\n.control\\ntran 5p 5n\\n* Measure delay for QB falling (first evaluation cycle)\\nmeas tran delay_clk_qb_fall trig v(clk) val=0.9 rise=1 targ v(qb) val=0.9 fall=1\\n* Measure delay for Q falling (second evaluation cycle)\\nmeas tran delay_clk_q_fall trig v(clk) val=0.9 rise=2 targ v(q) val=0.9 fall=1\\n\\n* Measure voltage swing\\nmeas tran v_max max v(q)\\nmeas tran v_min min v(q)\\nlet swing = v_max - v_min\\nprint swing\\n\\n* Measure average power\\nmeas tran i_avg avg i(VVDD) from=0 to=5n\\nlet pwr = -i_avg * 1.8\\nprint pwr\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "991384",
+  "_case": "991384_image_12"
+}

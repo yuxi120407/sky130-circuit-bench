@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single-Inductor Dual-Output (SIDO) Boost Converter",
+    "description": "An integrated DC-DC boost converter that generates two independent output voltages from a single input voltage and a single shared inductor using time-multiplexing control.",
+    "node_mapping": {
+      "input": [
+        "N3"
+      ],
+      "output": [
+        "Voa",
+        "Vob"
+      ],
+      "supply": [
+        "N3"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Single-Inductor Multiple-Output Switching Converters With Time-Multiplexing Control in Discontinuous Conduction Mode",
+      "figure": "Generic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Voa_avg": {
+      "description": "Average output voltage of channel A",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.0 V",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vout = Vin / (1 - D). With Vin=1.8V and D=0.4, Vout = 3.0V.",
+        "range": {
+          "min": 2.8,
+          "typical": 3.0,
+          "max": 3.2,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the duty cycle of the time-multiplexed control signals for sub-period A."
+      },
+      "importance": "essential"
+    },
+    "Vob_avg": {
+      "description": "Average output voltage of channel B",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.6 V",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vout = Vin / (1 - D). With Vin=1.8V and D=0.5, Vout = 3.6V.",
+        "range": {
+          "min": 3.4,
+          "typical": 3.6,
+          "max": 3.8,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the duty cycle of the time-multiplexed control signals for sub-period B."
+      },
+      "importance": "essential"
+    },
+    "Efficiency": {
+      "description": "Power conversion efficiency (Pout / Pin)",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "88.4%",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ratio of total average output power to average input power.",
+        "range": {
+          "min": 80,
+          "typical": 90,
+          "max": 95,
+          "unit": "%"
+        },
+        "reasoning": "Ideal switches with 0.1 ohm Ron will yield high efficiency, close to the paper's reported value."
+      },
+      "importance": "essential"
+    },
+    "Total_Power": {
+      "description": "Total output power delivered to both loads",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "350 mW",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = Voa^2/Roa + Vob^2/Rob = 3^2/50 + 3.6^2/50 = 439 mW.",
+        "range": {
+          "min": 0.3,
+          "typical": 0.44,
+          "max": 0.5,
+          "unit": "W"
+        },
+        "reasoning": "Based on the target output voltages and 50 ohm load resistors."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis of the SIDO boost converter to measure output voltages, ripple, power, and efficiency using time-multiplexed PWM control.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Voa_avg",
+      "Vob_avg",
+      "Voa_ripple",
+      "Vob_ripple",
+      "Pin_avg",
+      "Pout_avg"
+    ],
+    "spice": "* SIDO Boost Converter Testbench\n.param VDD=1.8\n.param RLOAD_A=50\n.param RLOAD_B=50\n\n* DUT (Syntax corrected for ngspice voltage-controlled switches)\nVg N3 GND {VDD}\nRob Vob GND {RLOAD_B}\nRoa Voa GND {RLOAD_A}\nS1 N2 GND ctrl_S1 GND switch_ideal\nCob Vob GND 10u\nSb Vob N2 ctrl_Sb GND switch_ideal\nL N2 N3 1u\nSa Voa N2 ctrl_Sa GND switch_ideal\nCoa Voa GND 10u\n\n* Dead-time catch diodes to prevent inductor voltage spikes\nDa N2 Voa D_ideal\nDb N2 Vob D_ideal\n.model D_ideal D(N=0.01)\n\n* Switch model\n.model switch_ideal SW(vt=0.5 vh=0.1 ron=0.1 roff=1Meg)\n\n* Control signals (1MHz, Time-multiplexed)\n* Sub-period A: 0 to 0.5us. S1 ON: 0-0.2us, Sa ON: 0.2-0.5us\n* Sub-period B: 0.5 to 1.0us. S1 ON: 0.5-0.75us, Sb ON: 0.75-1.0us\nVp1 p1 0 PULSE(0 1 0 1n 1n 0.198u 1.0u)\nVp2 p2 0 PULSE(0 1 0.5u 1n 1n 0.248u 1.0u)\nB_S1 ctrl_S1 0 V=V(p1) + V(p2)\n\nVctrl_Sa ctrl_Sa 0 PULSE(0 1 0.200u 1n 1n 0.298u 1.0u)\nVctrl_Sb ctrl_Sb 0 PULSE(0 1 0.750u 1n 1n 0.248u 1.0u)\n\n.control\ntran 10n 200u\nmeas tran Voa_avg avg v(Voa) from=150u to=200u\nmeas tran Vob_avg avg v(Vob) from=150u to=200u\nmeas tran Voa_ripple pp v(Voa) from=150u to=200u\nmeas tran Vob_ripple pp v(Vob) from=150u to=200u\n\nlet Pin = -i(Vg) * 1.8\nlet Pout = (v(Voa)*v(Voa)/50) + (v(Vob)*v(Vob)/50)\nmeas tran Pin_avg avg Pin from=150u to=200u\nmeas tran Pout_avg avg Pout from=150u to=200u\n\nlet efficiency = (Pout_avg / Pin_avg) * 100\nprint Voa_avg Vob_avg Voa_ripple Vob_ripple Pin_avg Pout_avg efficiency\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single-Inductor Dual-Output (SIDO) Boost Converter\",\n    \"description\": \"An integrated DC-DC boost converter that generates two independent output voltages from a single input voltage and a single shared inductor using time-multiplexing control.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N3\"\n      ],\n      \"output\": [\n        \"Voa\",\n        \"Vob\"\n      ],\n      \"supply\": [\n        \"N3\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Single-Inductor Multiple-Output Switching Converters With Time-Multiplexing Control in Discontinuous Conduction Mode\",\n      \"figure\": \"Generic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Voa_avg\": {\n      \"description\": \"Average output voltage of channel A\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.0 V\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vout = Vin / (1 - D). With Vin=1.8V and D=0.4, Vout = 3.0V.\",\n        \"range\": {\n          \"min\": 2.8,\n          \"typical\": 3.0,\n          \"max\": 3.2,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the duty cycle of the time-multiplexed control signals for sub-period A.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Vob_avg\": {\n      \"description\": \"Average output voltage of channel B\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.6 V\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vout = Vin / (1 - D). With Vin=1.8V and D=0.5, Vout = 3.6V.\",\n        \"range\": {\n          \"min\": 3.4,\n          \"typical\": 3.6,\n          \"max\": 3.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the duty cycle of the time-multiplexed control signals for sub-period B.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Efficiency\": {\n      \"description\": \"Power conversion efficiency (Pout / Pin)\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"88.4%\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ratio of total average output power to average input power.\",\n        \"range\": {\n          \"min\": 80,\n          \"typical\": 90,\n          \"max\": 95,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Ideal switches with 0.1 ohm Ron will yield high efficiency, close to the paper's reported value.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Total_Power\": {\n      \"description\": \"Total output power delivered to both loads\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"350 mW\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = Voa^2/Roa + Vob^2/Rob = 3^2/50 + 3.6^2/50 = 439 mW.\",\n        \"range\": {\n          \"min\": 0.3,\n          \"typical\": 0.44,\n          \"max\": 0.5,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the target output voltages and 50 ohm load resistors.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis of the SIDO boost converter to measure output voltages, ripple, power, and efficiency using time-multiplexed PWM control.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Voa_avg\",\n      \"Vob_avg\",\n      \"Voa_ripple\",\n      \"Vob_ripple\",\n      \"Pin_avg\",\n      \"Pout_avg\"\n    ],\n    \"spice\": \"* SIDO Boost Converter Testbench\\n.param VDD=1.8\\n.param RLOAD_A=50\\n.param RLOAD_B=50\\n\\n* DUT (Syntax corrected for ngspice voltage-controlled switches)\\nVg N3 GND {VDD}\\nRob Vob GND {RLOAD_B}\\nRoa Voa GND {RLOAD_A}\\nS1 N2 GND ctrl_S1 GND switch_ideal\\nCob Vob GND 10u\\nSb Vob N2 ctrl_Sb GND switch_ideal\\nL N2 N3 1u\\nSa Voa N2 ctrl_Sa GND switch_ideal\\nCoa Voa GND 10u\\n\\n* Dead-time catch diodes to prevent inductor voltage spikes\\nDa N2 Voa D_ideal\\nDb N2 Vob D_ideal\\n.model D_ideal D(N=0.01)\\n\\n* Switch model\\n.model switch_ideal SW(vt=0.5 vh=0.1 ron=0.1 roff=1Meg)\\n\\n* Control signals (1MHz, Time-multiplexed)\\n* Sub-period A: 0 to 0.5us. S1 ON: 0-0.2us, Sa ON: 0.2-0.5us\\n* Sub-period B: 0.5 to 1.0us. S1 ON: 0.5-0.75us, Sb ON: 0.75-1.0us\\nVp1 p1 0 PULSE(0 1 0 1n 1n 0.198u 1.0u)\\nVp2 p2 0 PULSE(0 1 0.5u 1n 1n 0.248u 1.0u)\\nB_S1 ctrl_S1 0 V=V(p1) + V(p2)\\n\\nVctrl_Sa ctrl_Sa 0 PULSE(0 1 0.200u 1n 1n 0.298u 1.0u)\\nVctrl_Sb ctrl_Sb 0 PULSE(0 1 0.750u 1n 1n 0.248u 1.0u)\\n\\n.control\\ntran 10n 200u\\nmeas tran Voa_avg avg v(Voa) from=150u to=200u\\nmeas tran Vob_avg avg v(Vob) from=150u to=200u\\nmeas tran Voa_ripple pp v(Voa) from=150u to=200u\\nmeas tran Vob_ripple pp v(Vob) from=150u to=200u\\n\\nlet Pin = -i(Vg) * 1.8\\nlet Pout = (v(Voa)*v(Voa)/50) + (v(Vob)*v(Vob)/50)\\nmeas tran Pin_avg avg Pin from=150u to=200u\\nmeas tran Pout_avg avg Pout from=150u to=200u\\n\\nlet efficiency = (Pout_avg / Pin_avg) * 100\\nprint Voa_avg Vob_avg Voa_ripple Vob_ripple Pin_avg Pout_avg efficiency\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1158785",
+  "_case": "1158785_image_3"
+}

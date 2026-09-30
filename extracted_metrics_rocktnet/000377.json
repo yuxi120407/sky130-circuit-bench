@@ -1,0 +1,124 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CMOS Voltage Reference",
+    "description": "A voltage reference circuit intended to use work function differences to generate a stable voltage. In this extracted netlist, all transistors are standard NFETs, the output node (V1) lacks a pull-up path, and XM4 has a forward-biased bulk connection, likely due to extraction errors or missing components.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "V1",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "CMOS Voltage Reference Based on Gate Work Function Differences in Poly-Si Controlled by Conductivity Type and Impurity Concentration",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Vref": {
+      "description": "DC Reference Voltage at room temperature",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "0.35 V",
+        "technology": "500 nm"
+      },
+      "sky130_expected": {
+        "calculation": "V1 has no pull-up path to VDD (only connected to XM5 drain and XM1 gate), so it will discharge to 0V.",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 0,
+          "unit": "V"
+        },
+        "reasoning": "Missing pull-up device in the extracted netlist."
+      },
+      "importance": "essential"
+    },
+    "TC": {
+      "description": "Temperature Coefficient",
+      "unit": "ppm/C",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "0.17 mV/C",
+        "technology": "500 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Since Vref remains at 0V across temperatures, TC will evaluate to 0.",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 0,
+          "unit": "ppm/C"
+        },
+        "reasoning": "Circuit is non-functional as extracted."
+      },
+      "importance": "essential"
+    },
+    "Line_Regulation": {
+      "description": "Change in Vref with respect to VDD variations",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "500 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Since Vref is stuck at 0V, Line Regulation will be 0.",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 0,
+          "unit": "V/V"
+        },
+        "reasoning": "Circuit is non-functional as extracted."
+      },
+      "importance": "essential"
+    },
+    "Power": {
+      "description": "Total power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2 uW",
+        "technology": "500 nm"
+      },
+      "sky130_expected": {
+        "calculation": "XM4 has B=VDD and S=GND, forward biasing the P-well to N+ source diode.",
+        "range": {
+          "min": 0.1,
+          "typical": 1,
+          "max": 10,
+          "unit": "W"
+        },
+        "reasoning": "Forward biased PN junction from VDD to GND draws massive current, limited only by parasitic resistances."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for measuring Vref, TC, Line Regulation, and Power.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "Vref",
+      "TC",
+      "Line_Reg",
+      "Power"
+    ],
+    "spice": "* CMOS Voltage Reference Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM5 V1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM2 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 VDD V1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM4 VDD GND GND VDD sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\nVVDD VDD 0 1.8\n\n.control\n  set temp=27\n  op\n  let vref_nom = v(V1)\n  let power = -i(VVDD) * 1.8\n  print vref_nom power\n\n  * Temperature Sweep for TC\n  dc temp -40 125 1\n  meas dc vref_max max v(V1)\n  meas dc vref_min min v(V1)\n  meas dc vref_27 find v(V1) at=27\n  * Added 1e-9 to avoid division by zero due to missing pull-up\n  let tc_ppm = (vref_max - vref_min) / ((vref_27 + 1e-9) * 165) * 1e6\n  print tc_ppm\n\n  * VDD Sweep for Line Regulation\n  dc VVDD 1.2 1.8 0.01\n  meas dc vref_vdd_18 find v(V1) at=1.8\n  meas dc vref_vdd_12 find v(V1) at=1.2\n  let line_reg = (vref_vdd_18 - vref_vdd_12) / 0.6\n  print line_reg\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CMOS Voltage Reference\",\n    \"description\": \"A voltage reference circuit intended to use work function differences to generate a stable voltage. In this extracted netlist, all transistors are standard NFETs, the output node (V1) lacks a pull-up path, and XM4 has a forward-biased bulk connection, likely due to extraction errors or missing components.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"V1\", \"N1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"CMOS Voltage Reference Based on Gate Work Function Differences in Poly-Si Controlled by Conductivity Type and Impurity Concentration\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Vref\": {\n      \"description\": \"DC Reference Voltage at room temperature\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"0.35 V\",\n        \"technology\": \"500 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V1 has no pull-up path to VDD (only connected to XM5 drain and XM1 gate), so it will discharge to 0V.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Missing pull-up device in the extracted netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"TC\": {\n      \"description\": \"Temperature Coefficient\",\n      \"unit\": \"ppm/C\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"0.17 mV/C\",\n        \"technology\": \"500 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since Vref remains at 0V across temperatures, TC will evaluate to 0.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 0,\n          \"unit\": \"ppm/C\"\n        },\n        \"reasoning\": \"Circuit is non-functional as extracted.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Line_Regulation\": {\n      \"description\": \"Change in Vref with respect to VDD variations\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"500 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since Vref is stuck at 0V, Line Regulation will be 0.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 0,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Circuit is non-functional as extracted.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power\": {\n      \"description\": \"Total power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2 uW\",\n        \"technology\": \"500 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"XM4 has B=VDD and S=GND, forward biasing the P-well to N+ source diode.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 1,\n          \"max\": 10,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Forward biased PN junction from VDD to GND draws massive current, limited only by parasitic resistances.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for measuring Vref, TC, Line Regulation, and Power.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"Vref\",\n      \"TC\",\n      \"Line_Reg\",\n      \"Power\"\n    ],\n    \"spice\": \"* CMOS Voltage Reference Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM5 V1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM2 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 VDD V1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM4 VDD GND GND VDD sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\nVVDD VDD 0 1.8\\n\\n.control\\n  set temp=27\\n  op\\n  let vref_nom = v(V1)\\n  let power = -i(VVDD) * 1.8\\n  print vref_nom power\\n\\n  * Temperature Sweep for TC\\n  dc temp -40 125 1\\n  meas dc vref_max max v(V1)\\n  meas dc vref_min min v(V1)\\n  meas dc vref_27 find v(V1) at=27\\n  * Added 1e-9 to avoid division by zero due to missing pull-up\\n  let tc_ppm = (vref_max - vref_min) / ((vref_27 + 1e-9) * 165) * 1e6\\n  print tc_ppm\\n\\n  * VDD Sweep for Line Regulation\\n  dc VVDD 1.2 1.8 0.01\\n  meas dc vref_vdd_18 find v(V1) at=1.8\\n  meas dc vref_vdd_12 find v(V1) at=1.2\\n  let line_reg = (vref_vdd_18 - vref_vdd_12) / 0.6\\n  print line_reg\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1202001",
+  "_case": "1202001_image_5"
+}

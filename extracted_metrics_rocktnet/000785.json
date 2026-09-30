@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully differential summing amplifier",
+    "description": "A fully differential amplifier with resistive feedback configured to sum a scan signal (VSCAN) and an offset signal (VOFFSET). Although the metadata labels it an ADC, the netlist topology is clearly an analog summing amplifier, likely used for signal conditioning or scanner actuation in the AFM system.",
+    "node_mapping": {
+      "input": [
+        "VOFFSET_PLUS",
+        "VOFFSET_MINUS",
+        "VSCAN_PLUS",
+        "VSCAN_MINUS"
+      ],
+      "output": [
+        "VOUT_PLUS",
+        "VOUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "CMOS Monolithic Mechatronic Microsystem for Surface Imaging and Force Response Studies",
+      "figure": "Unknown",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain_scan": {
+      "description": "Differential DC gain from VSCAN to VOUT",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "With equal feedback and input resistors (10k), the gain is 1 V/V or 0 dB.",
+        "range": {
+          "min": -0.5,
+          "typical": 0,
+          "max": 0.5,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the ratio of ideal resistors R2/R6 and R5/R4."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "-3dB bandwidth of the closed-loop amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 MHz",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming an op-amp GBW of 1 MHz and a feedback factor of 0.5, the closed-loop bandwidth is 500 kHz.",
+        "range": {
+          "min": 400000,
+          "typical": 500000,
+          "max": 600000,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on the op-amp macro model parameters used in the testbench."
+      },
+      "importance": "essential"
+    },
+    "vout_offset_dc": {
+      "description": "DC differential output voltage due to VOFFSET",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "VOFFSET_diff = 0.2V. Gain from VOFFSET to VOUT is -1. Expected output is -0.2V.",
+        "range": {
+          "min": -0.21,
+          "typical": -0.2,
+          "max": -0.19,
+          "unit": "V"
+        },
+        "reasoning": "Directly calculated from the summing amplifier equation."
+      },
+      "importance": "recommended"
+    },
+    "vout_swing_pkpk": {
+      "description": "Peak-to-peak differential output swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 mV",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Input VSCAN_diff is a sine wave with 0.4V pk-pk. Gain is 1, so output is 0.4V pk-pk.",
+        "range": {
+          "min": 0.39,
+          "typical": 0.4,
+          "max": 0.41,
+          "unit": "V"
+        },
+        "reasoning": "Linear amplification of the input signal."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC bandwidth, DC gain, and transient response of the fully differential summing amplifier.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain_scan",
+      "bw_3db",
+      "vout_offset_dc",
+      "vout_swing_pkpk"
+    ],
+    "spice": "* Fully Differential Summing Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param R_val=10k\n\n.subckt amplifier out_minus out_plus in_plus in_minus\n* Ideal fully differential amplifier with 1MHz GBW\nG1 0 int_plus in_plus in_minus 0.01\nR1 int_plus 0 1Meg\nC1 int_plus 0 1.59n\nE1 out_plus 0 vol='0.9 + 0.5*v(int_plus)'\nE2 out_minus 0 vol='0.9 - 0.5*v(int_plus)'\n.ends\n\n* DUT (Changed A1 to X1 for subcircuit compatibility)\nX1 VOUT_MINUS VOUT_PLUS N0 N1 amplifier\nR1 N1 VOFFSET_PLUS {R_val}\nR2 N1 VOUT_PLUS {R_val}\nR3 N0 VOFFSET_MINUS {R_val}\nR4 N0 VSCAN_PLUS {R_val}\nR5 N0 VOUT_MINUS {R_val}\nR6 N1 VSCAN_MINUS {R_val}\n\n* Sources\nVDD vdd 0 1.8\nVCM vcm 0 0.9\n\n* VSCAN sources (AC for bandwidth, SIN for transient)\nVSCAN_P VSCAN_PLUS vcm dc 0 ac 0.5 sin(0 0.1 10k)\nVSCAN_M VSCAN_MINUS vcm dc 0 ac -0.5 sin(0 -0.1 10k)\n\n* VOFFSET sources (DC offset)\nVOFFSET_P VOFFSET_PLUS vcm dc 0.1\nVOFFSET_M VOFFSET_MINUS vcm dc -0.1\n\n.control\n* AC Analysis\nac dec 10 1 10Meg\nlet vout_diff = v(VOUT_PLUS) - v(VOUT_MINUS)\nlet gain_db = 20*log10(mag(vout_diff))\nmeas ac dc_gain_scan find gain_db at=10\nmeas ac bw_3db when gain_db='dc_gain_scan - 3' fall=1\n\n* Transient Analysis\ntran 1u 200u\nlet vout_diff_tran = v(VOUT_PLUS) - v(VOUT_MINUS)\nmeas tran vout_offset_dc avg vout_diff_tran\nmeas tran vout_diff_max max vout_diff_tran\nmeas tran vout_diff_min min vout_diff_tran\nlet vout_swing_pkpk = vout_diff_max - vout_diff_min\nprint vout_swing_pkpk\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully differential summing amplifier\",\n    \"description\": \"A fully differential amplifier with resistive feedback configured to sum a scan signal (VSCAN) and an offset signal (VOFFSET). Although the metadata labels it an ADC, the netlist topology is clearly an analog summing amplifier, likely used for signal conditioning or scanner actuation in the AFM system.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VOFFSET_PLUS\",\n        \"VOFFSET_MINUS\",\n        \"VSCAN_PLUS\",\n        \"VSCAN_MINUS\"\n      ],\n      \"output\": [\n        \"VOUT_PLUS\",\n        \"VOUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"CMOS Monolithic Mechatronic Microsystem for Surface Imaging and Force Response Studies\",\n      \"figure\": \"Unknown\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain_scan\": {\n      \"description\": \"Differential DC gain from VSCAN to VOUT\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With equal feedback and input resistors (10k), the gain is 1 V/V or 0 dB.\",\n        \"range\": {\n          \"min\": -0.5,\n          \"typical\": 0,\n          \"max\": 0.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by the ratio of ideal resistors R2/R6 and R5/R4.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"-3dB bandwidth of the closed-loop amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 MHz\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming an op-amp GBW of 1 MHz and a feedback factor of 0.5, the closed-loop bandwidth is 500 kHz.\",\n        \"range\": {\n          \"min\": 400000,\n          \"typical\": 500000,\n          \"max\": 600000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends on the op-amp macro model parameters used in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vout_offset_dc\": {\n      \"description\": \"DC differential output voltage due to VOFFSET\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VOFFSET_diff = 0.2V. Gain from VOFFSET to VOUT is -1. Expected output is -0.2V.\",\n        \"range\": {\n          \"min\": -0.21,\n          \"typical\": -0.2,\n          \"max\": -0.19,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Directly calculated from the summing amplifier equation.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vout_swing_pkpk\": {\n      \"description\": \"Peak-to-peak differential output swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 mV\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input VSCAN_diff is a sine wave with 0.4V pk-pk. Gain is 1, so output is 0.4V pk-pk.\",\n        \"range\": {\n          \"min\": 0.39,\n          \"typical\": 0.4,\n          \"max\": 0.41,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Linear amplification of the input signal.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC bandwidth, DC gain, and transient response of the fully differential summing amplifier.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain_scan\",\n      \"bw_3db\",\n      \"vout_offset_dc\",\n      \"vout_swing_pkpk\"\n    ],\n    \"spice\": \"* Fully Differential Summing Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param R_val=10k\\n\\n.subckt amplifier out_minus out_plus in_plus in_minus\\n* Ideal fully differential amplifier with 1MHz GBW\\nG1 0 int_plus in_plus in_minus 0.01\\nR1 int_plus 0 1Meg\\nC1 int_plus 0 1.59n\\nE1 out_plus 0 vol='0.9 + 0.5*v(int_plus)'\\nE2 out_minus 0 vol='0.9 - 0.5*v(int_plus)'\\n.ends\\n\\n* DUT (Changed A1 to X1 for subcircuit compatibility)\\nX1 VOUT_MINUS VOUT_PLUS N0 N1 amplifier\\nR1 N1 VOFFSET_PLUS {R_val}\\nR2 N1 VOUT_PLUS {R_val}\\nR3 N0 VOFFSET_MINUS {R_val}\\nR4 N0 VSCAN_PLUS {R_val}\\nR5 N0 VOUT_MINUS {R_val}\\nR6 N1 VSCAN_MINUS {R_val}\\n\\n* Sources\\nVDD vdd 0 1.8\\nVCM vcm 0 0.9\\n\\n* VSCAN sources (AC for bandwidth, SIN for transient)\\nVSCAN_P VSCAN_PLUS vcm dc 0 ac 0.5 sin(0 0.1 10k)\\nVSCAN_M VSCAN_MINUS vcm dc 0 ac -0.5 sin(0 -0.1 10k)\\n\\n* VOFFSET sources (DC offset)\\nVOFFSET_P VOFFSET_PLUS vcm dc 0.1\\nVOFFSET_M VOFFSET_MINUS vcm dc -0.1\\n\\n.control\\n* AC Analysis\\nac dec 10 1 10Meg\\nlet vout_diff = v(VOUT_PLUS) - v(VOUT_MINUS)\\nlet gain_db = 20*log10(mag(vout_diff))\\nmeas ac dc_gain_scan find gain_db at=10\\nmeas ac bw_3db when gain_db='dc_gain_scan - 3' fall=1\\n\\n* Transient Analysis\\ntran 1u 200u\\nlet vout_diff_tran = v(VOUT_PLUS) - v(VOUT_MINUS)\\nmeas tran vout_offset_dc avg vout_diff_tran\\nmeas tran vout_diff_max max vout_diff_tran\\nmeas tran vout_diff_min min vout_diff_tran\\nlet vout_swing_pkpk = vout_diff_max - vout_diff_min\\nprint vout_swing_pkpk\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1424227",
+  "_case": "1424227_image_5"
+}

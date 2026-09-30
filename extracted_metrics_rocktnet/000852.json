@@ -1,0 +1,100 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-capacitor network (Capacitive DAC / Passive Integrator)",
+    "description": "A passive switched-capacitor circuit that samples the input voltage onto multiple capacitors during one clock phase and redistributes the charge onto an output capacitor during the second phase, effectively acting as a capacitive voltage multiplier or DAC.",
+    "node_mapping": {
+      "input": [
+        "VIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fourth-Order Interface for Micromachined Inertial Sensors",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Ratio of output voltage to input voltage during the transfer phase",
+      "unit": "V/V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "20 dB",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = -(C1+C2A+C2B)/(C1+C2A+C2B+CP). Assuming equal capacitors, Gain = -0.75 V/V.",
+        "range": {
+          "min": -1.0,
+          "typical": -0.75,
+          "max": 0.0,
+          "unit": "V/V"
+        },
+        "reasoning": "Determined by capacitor ratios. The 20 dB gain in the paper likely refers to an active amplifier stage following this passive network."
+      },
+      "importance": "essential"
+    },
+    "dynamic_power": {
+      "description": "Power consumed by charging and discharging the capacitors",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "13 mW",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = f * C_tot * V^2 = 8MHz * 4pF * (0.9V)^2 = ~26 uW",
+        "range": {
+          "min": 1e-05,
+          "typical": 2.6e-05,
+          "max": 0.0001,
+          "unit": "W"
+        },
+        "reasoning": "The 13 mW reported in the paper is for the entire ADC interface. The passive SC network alone consumes much less power, dominated by dynamic switching power."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the output voltage to settle during the transfer phase",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "tau = Ron * C_tot = 100 ohm * 4 pF = 0.4 ns. Settling time (99%) = 4.6 * tau = ~1.8 ns.",
+        "range": {
+          "min": 1e-09,
+          "typical": 2e-09,
+          "max": 1e-08,
+          "unit": "s"
+        },
+        "reasoning": "Depends on the ON-resistance of the switches and the total capacitance."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure voltage gain, settling behavior, and dynamic power of the switched-capacitor network.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "dynamic_power"
+    ],
+    "spice": "* Switched Capacitor Circuit Testbench\n.param Cval=1p\n.model switch_ideal sw vt=0.9 vh=0.1 ron=100 roff=1G\n\n* DUT (Corrected for ngspice switch syntax: added control nodes phi1/phi2 and removed parentheses)\nS1 N0 GND phi2 GND switch_ideal\nS2 N6 GND phi2 GND switch_ideal\nS3 VOUT N5 phi2 GND switch_ideal\nS4 VOUT GND phi1 GND switch_ideal\nCP VOUT GND {Cval}\nC2A N2 N5 {Cval}\nS5 N2 GND phi2 GND switch_ideal\nS6 N1 GND phi1 GND switch_ideal\nS7 N5 GND phi1 GND switch_ideal\nS8 N1 VOUT phi2 GND switch_ideal\nC1 VOUT N6 {Cval}\nS9 N0 VIN phi1 GND switch_ideal\nC2B N0 N1 {Cval}\nS10 VIN N6 phi1 GND switch_ideal\nS11 N2 VIN phi1 GND switch_ideal\n\n* Sources\nVVIN VIN GND DC 0.9\nVphi1 phi1 GND PULSE(0 1.8 0 1n 1n 50n 125n)\nVphi2 phi2 GND PULSE(0 1.8 62.5n 1n 1n 50n 125n)\n\n* Analysis\n.control\ntran 1n 500n\n\n* Measure gain during the second transfer phase (phi2 is high)\nmeas tran vout_settled find v(VOUT) at=225n\nmeas tran vin_val find v(VIN) at=225n\nlet gain = vout_settled / vin_val\nprint gain\n\n* Measure dynamic power from the input source\nmeas tran pwr_vin integ i(VVIN) from=0 to=500n\nlet avg_pwr = -pwr_vin * 0.9 / 500n\nprint avg_pwr\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-capacitor network (Capacitive DAC / Passive Integrator)\",\n    \"description\": \"A passive switched-capacitor circuit that samples the input voltage onto multiple capacitors during one clock phase and redistributes the charge onto an output capacitor during the second phase, effectively acting as a capacitive voltage multiplier or DAC.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fourth-Order Interface for Micromachined Inertial Sensors\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Ratio of output voltage to input voltage during the transfer phase\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"20 dB\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = -(C1+C2A+C2B)/(C1+C2A+C2B+CP). Assuming equal capacitors, Gain = -0.75 V/V.\",\n        \"range\": {\n          \"min\": -1.0,\n          \"typical\": -0.75,\n          \"max\": 0.0,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Determined by capacitor ratios. The 20 dB gain in the paper likely refers to an active amplifier stage following this passive network.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dynamic_power\": {\n      \"description\": \"Power consumed by charging and discharging the capacitors\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"13 mW\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = f * C_tot * V^2 = 8MHz * 4pF * (0.9V)^2 = ~26 uW\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 26e-6,\n          \"max\": 100e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 13 mW reported in the paper is for the entire ADC interface. The passive SC network alone consumes much less power, dominated by dynamic switching power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the output voltage to settle during the transfer phase\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"tau = Ron * C_tot = 100 ohm * 4 pF = 0.4 ns. Settling time (99%) = 4.6 * tau = ~1.8 ns.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 2e-9,\n          \"max\": 10e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends on the ON-resistance of the switches and the total capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure voltage gain, settling behavior, and dynamic power of the switched-capacitor network.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"dynamic_power\"\n    ],\n    \"spice\": \"* Switched Capacitor Circuit Testbench\\n.param Cval=1p\\n.model switch_ideal sw vt=0.9 vh=0.1 ron=100 roff=1G\\n\\n* DUT (Corrected for ngspice switch syntax: added control nodes phi1/phi2 and removed parentheses)\\nS1 N0 GND phi2 GND switch_ideal\\nS2 N6 GND phi2 GND switch_ideal\\nS3 VOUT N5 phi2 GND switch_ideal\\nS4 VOUT GND phi1 GND switch_ideal\\nCP VOUT GND {Cval}\\nC2A N2 N5 {Cval}\\nS5 N2 GND phi2 GND switch_ideal\\nS6 N1 GND phi1 GND switch_ideal\\nS7 N5 GND phi1 GND switch_ideal\\nS8 N1 VOUT phi2 GND switch_ideal\\nC1 VOUT N6 {Cval}\\nS9 N0 VIN phi1 GND switch_ideal\\nC2B N0 N1 {Cval}\\nS10 VIN N6 phi1 GND switch_ideal\\nS11 N2 VIN phi1 GND switch_ideal\\n\\n* Sources\\nVVIN VIN GND DC 0.9\\nVphi1 phi1 GND PULSE(0 1.8 0 1n 1n 50n 125n)\\nVphi2 phi2 GND PULSE(0 1.8 62.5n 1n 1n 50n 125n)\\n\\n* Analysis\\n.control\\ntran 1n 500n\\n\\n* Measure gain during the second transfer phase (phi2 is high)\\nmeas tran vout_settled find v(VOUT) at=225n\\nmeas tran vin_val find v(VIN) at=225n\\nlet gain = vout_settled / vin_val\\nprint gain\\n\\n* Measure dynamic power from the input source\\nmeas tran pwr_vin integ i(VVIN) from=0 to=500n\\nlet avg_pwr = -pwr_vin * 0.9 / 500n\\nprint avg_pwr\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1487603",
+  "_case": "1487603_image_10"
+}

@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Emitter Follower (Buffer)",
+    "description": "A pair of common-collector NPN transistors acting as a high-speed differential voltage buffer or level shifter, likely used to buffer the 1.8-GHz VCO output.",
+    "node_mapping": {
+      "input": [
+        "IN+",
+        "IN-"
+      ],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.5-Mb/s GFSK 5.0-Mb/s 4-FSK Automatically Calibrated \u2013 Frequency Synthesizer",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "AC voltage gain from input to output at low frequencies.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * ro / (1 + gm * ro) \u2248 1 (0 dB) with ideal current source load.",
+        "range": {
+          "min": -1,
+          "typical": 0,
+          "max": 0.1,
+          "unit": "dB"
+        },
+        "reasoning": "An emitter follower provides near-unity voltage gain."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB bandwidth of the buffer.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.8 GHz",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by NPN fT and load capacitance. With generic NPN tf=10p, fT ~ 15GHz.",
+        "range": {
+          "min": 1800000000.0,
+          "typical": 5000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Must comfortably exceed the 1.8 GHz operating frequency of the VCO reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power dissipation of the buffer stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VCC * (I_bias1 + I_bias2) = 1.8V * 2mA = 3.6mW",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0036,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Depends on the chosen bias current (1mA per branch assumed) to drive parasitic capacitances at 1.8 GHz."
+      },
+      "importance": "essential"
+    },
+    "DC Offset": {
+      "description": "DC voltage drop from base to emitter (Vbe).",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vbe = Vt * ln(Ic/Is) \u2248 26mV * ln(1mA/1e-16) \u2248 0.78V",
+        "range": {
+          "min": 0.65,
+          "typical": 0.75,
+          "max": 0.85,
+          "unit": "V"
+        },
+        "reasoning": "Standard forward-biased base-emitter voltage for a silicon NPN transistor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for differential emitter follower measuring DC offset, power, AC gain, bandwidth, and transient response.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Voltage Gain",
+      "Bandwidth",
+      "Power Consumption",
+      "DC Offset"
+    ],
+    "spice": "* Differential Emitter Follower Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model (since SKY130 is CMOS, we define a basic NPN for the netlist)\n.model npn npn (is=1e-16 bf=100 cje=10f cjc=10f tf=10p)\n\n.param I_bias=1m\n\n* DUT\nQ1 VCC IN+ N1 npn\nQ2 VCC IN- N2 npn\n\n* Bias Current Sources\nI1 N1 0 {I_bias}\nI2 N2 0 {I_bias}\n\n* Voltage Sources\nVCC VCC 0 1.8\nVINp IN+ 0 DC 0.9 AC 1 SIN(0.9 0.1 10MEG 0 0)\nVINn IN- 0 DC 0.9 AC 0 SIN(0.9 0.1 10MEG 180 0)\n\n* Load Capacitance\nC1 N1 0 10f\nC2 N2 0 10f\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VCC) * 1.8\n  print power\n  let dc_offset = v(IN+) - v(N1)\n  print dc_offset\n\n  * AC Analysis\n  ac dec 20 1k 100G\n  meas ac low_freq_gain_db find vdb(N1) at=10k\n  * Assuming near 0dB DC gain, measure -3dB bandwidth\n  meas ac bw_3db when vdb(N1)=-3 fall=1\n\n  * Transient Analysis\n  tran 1n 200n\n  meas tran vout_max max v(N1)\n  meas tran vout_min min v(N1)\n  meas tran vin_max max v(IN+)\n  meas tran vin_min min v(IN+)\n  let tran_gain = (vout_max - vout_min) / (vin_max - vin_min)\n  print tran_gain\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Emitter Follower (Buffer)\",\n    \"description\": \"A pair of common-collector NPN transistors acting as a high-speed differential voltage buffer or level shifter, likely used to buffer the 1.8-GHz VCO output.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN+\",\n        \"IN-\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.5-Mb/s GFSK 5.0-Mb/s 4-FSK Automatically Calibrated \u2013 Frequency Synthesizer\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"AC voltage gain from input to output at low frequencies.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * ro / (1 + gm * ro) \u2248 1 (0 dB) with ideal current source load.\",\n        \"range\": {\n          \"min\": -1,\n          \"typical\": 0,\n          \"max\": 0.1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"An emitter follower provides near-unity voltage gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB bandwidth of the buffer.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.8 GHz\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by NPN fT and load capacitance. With generic NPN tf=10p, fT ~ 15GHz.\",\n        \"range\": {\n          \"min\": 1.8e9,\n          \"typical\": 5e9,\n          \"max\": 20e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Must comfortably exceed the 1.8 GHz operating frequency of the VCO reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power dissipation of the buffer stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VCC * (I_bias1 + I_bias2) = 1.8V * 2mA = 3.6mW\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 3.6e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on the chosen bias current (1mA per branch assumed) to drive parasitic capacitances at 1.8 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"DC Offset\": {\n      \"description\": \"DC voltage drop from base to emitter (Vbe).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vbe = Vt * ln(Ic/Is) \u2248 26mV * ln(1mA/1e-16) \u2248 0.78V\",\n        \"range\": {\n          \"min\": 0.65,\n          \"typical\": 0.75,\n          \"max\": 0.85,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard forward-biased base-emitter voltage for a silicon NPN transistor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for differential emitter follower measuring DC offset, power, AC gain, bandwidth, and transient response.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Voltage Gain\",\n      \"Bandwidth\",\n      \"Power Consumption\",\n      \"DC Offset\"\n    ],\n    \"spice\": \"* Differential Emitter Follower Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model (since SKY130 is CMOS, we define a basic NPN for the netlist)\\n.model npn npn (is=1e-16 bf=100 cje=10f cjc=10f tf=10p)\\n\\n.param I_bias=1m\\n\\n* DUT\\nQ1 VCC IN+ N1 npn\\nQ2 VCC IN- N2 npn\\n\\n* Bias Current Sources\\nI1 N1 0 {I_bias}\\nI2 N2 0 {I_bias}\\n\\n* Voltage Sources\\nVCC VCC 0 1.8\\nVINp IN+ 0 DC 0.9 AC 1 SIN(0.9 0.1 10MEG 0 0)\\nVINn IN- 0 DC 0.9 AC 0 SIN(0.9 0.1 10MEG 180 0)\\n\\n* Load Capacitance\\nC1 N1 0 10f\\nC2 N2 0 10f\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VCC) * 1.8\\n  print power\\n  let dc_offset = v(IN+) - v(N1)\\n  print dc_offset\\n\\n  * AC Analysis\\n  ac dec 20 1k 100G\\n  meas ac low_freq_gain_db find vdb(N1) at=10k\\n  * Assuming near 0dB DC gain, measure -3dB bandwidth\\n  meas ac bw_3db when vdb(N1)=-3 fall=1\\n\\n  * Transient Analysis\\n  tran 1n 200n\\n  meas tran vout_max max v(N1)\\n  meas tran vout_min min v(N1)\\n  meas tran vin_max max v(IN+)\\n  meas tran vin_min min v(IN+)\\n  let tran_gain = (vout_max - vout_min) / (vin_max - vin_min)\\n  print tran_gain\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "974542",
+  "_case": "974542_image_14"
+}

@@ -1,0 +1,135 @@
+{
+  "step1_analysis": {
+    "circuit_type": "IF Amplifier / Mixer Fragment",
+    "description": "A sub-circuit extracted from a 200-MHz receiver, likely functioning as a variable-gain IF amplifier or a mixer branch. It consists of NMOS and PMOS differential or cascode structures that process the intermediate frequency signals.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_3",
+        "LABEL_NET_5",
+        "LABEL_NET_6",
+        "LABEL_NET_7"
+      ],
+      "output": [
+        "N25",
+        "N3",
+        "N4",
+        "N11"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N26",
+        "N27"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Low-Power 200-MHz Receiver for Wireless Hearing Aid Devices",
+      "figure": "extracted_schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit under nominal bias conditions.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "667 uA (for demodulator block)",
+        "technology": "0.8um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 1kOhm tail resistors to VDD/GND from common source nodes (N0, N16) biased at ~0.9V, the tail currents are ~0.9mA each. Total current = 1.8mA. Power = 1.8mA * 1.8V = 3.24mW.",
+        "range": {
+          "min": "2.0m",
+          "typical": "3.2m",
+          "max": "5.0m",
+          "unit": "W"
+        },
+        "reasoning": "Adapted for SKY130 1.8V supply with standard 1kOhm biasing resistors to establish a stable operating point."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Low-frequency AC voltage gain from the input (LABEL_NET_3) to the output (N25).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "23 dB",
+        "technology": "0.8um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id ~ 450uA per branch. Vov = sqrt(2*Id / (unCox * W/L)) = sqrt(900u / (270u * 10)) = 0.57V. gm = 2*Id/Vov = 1.57mS. With a 10kOhm load, Gain = gm * Rload = 15.7 V/V = 23.9 dB.",
+        "range": {
+          "min": "15",
+          "typical": "24",
+          "max": "30",
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using SKY130 NMOS parameters (unCox=270uA/V^2) and a 10kOhm load, which perfectly aligns with the paper's reported 23 dB gain for the IF amplifier."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "The frequency at which the AC voltage gain drops to 0 dB (1 V/V).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "200 MHz (Operating Frequency)",
+        "technology": "0.8um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole is formed by the 10kOhm load and parasitic capacitance (~50fF). f_pole = 1 / (2*pi*10k*50f) = 318 MHz. UGF = Gain * f_pole = 15.7 * 318MHz = ~5 GHz.",
+        "range": {
+          "min": "1G",
+          "typical": "5G",
+          "max": "10G",
+          "unit": "Hz"
+        },
+        "reasoning": "The circuit must easily pass the 200 MHz IF/RF signal. The UGF in a modern 130nm process will be well into the GHz range for this topology."
+      },
+      "importance": "recommended"
+    },
+    "transient_vpp": {
+      "description": "Peak-to-peak output voltage swing for a given input signal amplitude.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "For a 20mVpp input signal at 10MHz, multiplied by a linear gain of 15.7 V/V, the output swing should be 20mV * 15.7 = 314mVpp.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.31",
+          "max": "0.5",
+          "unit": "V"
+        },
+        "reasoning": "Verifies the large-signal time-domain behavior and ensures the amplifier is not clipping for small IF signals."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, unity gain frequency, and transient output swing of the IF amplifier fragment.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "unity_gain_frequency",
+      "transient_vpp"
+    ],
+    "spice": "* IF Amplifier / Mixer Fragment Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n* DUT\nXM1 N0 N26 N26 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N25 N26 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N16 N2 N27 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 N27 N16 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N14 LABEL_NET_3 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 LABEL_NET_5 N16 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N4 LABEL_NET_6 N14 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N11 LABEL_NET_7 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\n\n* Supplies and Biasing\nVVDD VDD 0 1.8\nVLABEL_NET_3 LABEL_NET_3 0 DC 0.9 AC 1 SIN(0.9 0.01 10Meg)\nVLABEL_NET_5 LABEL_NET_5 0 DC 0.9\nVLABEL_NET_6 LABEL_NET_6 0 DC 0.9\nVLABEL_NET_7 LABEL_NET_7 0 DC 0.9\n\n* Bias for floating gates\nVN26 N26 0 DC 0.9\nVN27 N27 0 DC 0.9\n\n* Load resistors for floating drains\nRN25 N25 VDD 10k\nRN3 N3 GND 10k\nRN4 N4 VDD 10k\nRN11 N11 GND 10k\n\n* Tail resistors for common sources\nRN0 N0 0 1k\nRN16 VDD N16 1k\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 100 1k 10G\nlet gain_db = vdb(N25)\nmeas ac mid_gain find gain_db at=100k\nmeas ac ugf when gain_db=0 fall=1\n\n* 3. Transient Analysis for Output Swing\ntran 1n 500n\nmeas tran vout_pp pp v(N25)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"IF Amplifier / Mixer Fragment\",\n    \"description\": \"A sub-circuit extracted from a 200-MHz receiver, likely functioning as a variable-gain IF amplifier or a mixer branch. It consists of NMOS and PMOS differential or cascode structures that process the intermediate frequency signals.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_3\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_6\",\n        \"LABEL_NET_7\"\n      ],\n      \"output\": [\n        \"N25\",\n        \"N3\",\n        \"N4\",\n        \"N11\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N26\",\n        \"N27\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Low-Power 200-MHz Receiver for Wireless Hearing Aid Devices\",\n      \"figure\": \"extracted_schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit under nominal bias conditions.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"667 uA (for demodulator block)\",\n        \"technology\": \"0.8um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 1kOhm tail resistors to VDD/GND from common source nodes (N0, N16) biased at ~0.9V, the tail currents are ~0.9mA each. Total current = 1.8mA. Power = 1.8mA * 1.8V = 3.24mW.\",\n        \"range\": {\n          \"min\": \"2.0m\",\n          \"typical\": \"3.2m\",\n          \"max\": \"5.0m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adapted for SKY130 1.8V supply with standard 1kOhm biasing resistors to establish a stable operating point.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency AC voltage gain from the input (LABEL_NET_3) to the output (N25).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"23 dB\",\n        \"technology\": \"0.8um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id ~ 450uA per branch. Vov = sqrt(2*Id / (unCox * W/L)) = sqrt(900u / (270u * 10)) = 0.57V. gm = 2*Id/Vov = 1.57mS. With a 10kOhm load, Gain = gm * Rload = 15.7 V/V = 23.9 dB.\",\n        \"range\": {\n          \"min\": \"15\",\n          \"typical\": \"24\",\n          \"max\": \"30\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS parameters (unCox=270uA/V^2) and a 10kOhm load, which perfectly aligns with the paper's reported 23 dB gain for the IF amplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"The frequency at which the AC voltage gain drops to 0 dB (1 V/V).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"200 MHz (Operating Frequency)\",\n        \"technology\": \"0.8um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole is formed by the 10kOhm load and parasitic capacitance (~50fF). f_pole = 1 / (2*pi*10k*50f) = 318 MHz. UGF = Gain * f_pole = 15.7 * 318MHz = ~5 GHz.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"5G\",\n          \"max\": \"10G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The circuit must easily pass the 200 MHz IF/RF signal. The UGF in a modern 130nm process will be well into the GHz range for this topology.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"transient_vpp\": {\n      \"description\": \"Peak-to-peak output voltage swing for a given input signal amplitude.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 20mVpp input signal at 10MHz, multiplied by a linear gain of 15.7 V/V, the output swing should be 20mV * 15.7 = 314mVpp.\",\n        \"range\": {\n          \"min\": \"0.2\",\n          \"typical\": \"0.31\",\n          \"max\": \"0.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Verifies the large-signal time-domain behavior and ensures the amplifier is not clipping for small IF signals.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, unity gain frequency, and transient output swing of the IF amplifier fragment.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"unity_gain_frequency\",\n      \"transient_vpp\"\n    ],\n    \"spice\": \"* IF Amplifier / Mixer Fragment Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n* DUT\\nXM1 N0 N26 N26 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N25 N26 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N16 N2 N27 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 N27 N16 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N14 LABEL_NET_3 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 LABEL_NET_5 N16 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N4 LABEL_NET_6 N14 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N11 LABEL_NET_7 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* Supplies and Biasing\\nVVDD VDD 0 1.8\\nVLABEL_NET_3 LABEL_NET_3 0 DC 0.9 AC 1 SIN(0.9 0.01 10Meg)\\nVLABEL_NET_5 LABEL_NET_5 0 DC 0.9\\nVLABEL_NET_6 LABEL_NET_6 0 DC 0.9\\nVLABEL_NET_7 LABEL_NET_7 0 DC 0.9\\n\\n* Bias for floating gates\\nVN26 N26 0 DC 0.9\\nVN27 N27 0 DC 0.9\\n\\n* Load resistors for floating drains\\nRN25 N25 VDD 10k\\nRN3 N3 GND 10k\\nRN4 N4 VDD 10k\\nRN11 N11 GND 10k\\n\\n* Tail resistors for common sources\\nRN0 N0 0 1k\\nRN16 VDD N16 1k\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 100 1k 10G\\nlet gain_db = vdb(N25)\\nmeas ac mid_gain find gain_db at=100k\\nmeas ac ugf when gain_db=0 fall=1\\n\\n* 3. Transient Analysis for Output Swing\\ntran 1n 500n\\nmeas tran vout_pp pp v(N25)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1196226",
+  "_case": "1196226_image_14"
+}

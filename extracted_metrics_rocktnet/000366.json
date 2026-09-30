@@ -1,0 +1,136 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Capacitance Multiplier / Active Loop Filter",
+    "description": "An active capacitance multiplier circuit used in a PLL loop filter. It uses a cross-coupled current mirror feedback structure to multiply the physical capacitance connected at node A by the intrinsic gain of the transistors, presenting a large effective capacitance and a series resistance at the input node B.",
+    "node_mapping": {
+      "input": [
+        "B"
+      ],
+      "output": [
+        "B"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBP",
+        "N_PG"
+      ],
+      "ground": [
+        "GND"
+      ],
+      "capacitor_node": [
+        "A"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.4-GHz Monolithic Fractional-N Frequency Synthesizer With Robust Phase-Switching Prescaler and Loop Capacitance Multiplier",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipation of the multiplier circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.2 mW",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD=1.8V and VBP=0.99V, the PMOS bias string is in subthreshold. Expected current is a few microamps. Power = 1.8V * I_total.",
+        "range": {
+          "min": "1u",
+          "typical": "5u",
+          "max": "50u",
+          "unit": "W"
+        },
+        "reasoning": "The provided VBP=0.99V puts the PMOS in weak inversion, leading to lower power than the paper's 0.2mW which was likely in strong inversion at 1.5V."
+      },
+      "importance": "essential"
+    },
+    "effective_capacitance": {
+      "description": "The multiplied capacitance seen at the input node B.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "sky130_expected": {
+        "calculation": "Ceff = Cphys * (K * gm * ro). With Cphys=10pF and gm*ro ~ 250 in subthreshold, Ceff ~ 2.5nF.",
+        "range": {
+          "min": "500p",
+          "typical": "2.5n",
+          "max": "10n",
+          "unit": "F"
+        },
+        "reasoning": "Depends strongly on the intrinsic gain (gm*ro) of the NMOS transistors at the operating point."
+      },
+      "importance": "essential"
+    },
+    "multiplication_factor": {
+      "description": "Ratio of effective capacitance to physical capacitance.",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "sky130_expected": {
+        "calculation": "M = Ceff / Cphys ~ gm * ro.",
+        "range": {
+          "min": "50",
+          "typical": "250",
+          "max": "1000",
+          "unit": ""
+        },
+        "reasoning": "Determined by the intrinsic gain of SKY130 NMOS in weak/moderate inversion."
+      },
+      "importance": "essential"
+    },
+    "equivalent_series_resistance": {
+      "description": "The real part of the input impedance at high frequencies, acting as the loop filter resistor.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "sky130_expected": {
+        "calculation": "Req = 2 / gm. With gm ~ 25uS, Req ~ 80kOhm.",
+        "range": {
+          "min": "10k",
+          "typical": "80k",
+          "max": "500k",
+          "unit": "ohm"
+        },
+        "reasoning": "Inversely proportional to the transconductance of the NMOS transistors."
+      },
+      "importance": "recommended"
+    },
+    "dc_bias_voltage": {
+      "description": "Quiescent DC voltage at the input node B.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "sky130_expected": {
+        "calculation": "VB = 2 * Vgs. In subthreshold, Vgs ~ 0.4V, so VB ~ 0.8V.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.8",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the diode-connected NMOS stack."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC power, effective capacitance, multiplication factor, and equivalent series resistance using AC and Transient analyses.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "effective_capacitance",
+      "multiplication_factor",
+      "equivalent_series_resistance",
+      "dc_bias_voltage"
+    ],
+    "spice": "* Capacitance Multiplier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM8 N_M2D N_PG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM4 B VBP N_M2D VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM1 N_M5D N_PG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM5 A VBP N_M5D VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM2 N_PG N_PG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VBP VBP N_PG VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM9 B B N_M3S GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N_M3S N_NG GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM7 A B N_NG GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM6 N_NG N_NG GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\nVVDD VDD 0 1.8\nVVBP VBP 0 0.99\n\n* Physical capacitor at Node A\nCphys A 0 10p\n\n* Input current source for AC impedance and Tran step response at Node B\nIin B 0 DC 0 AC 1 PULSE(0 10n 1u 1n 1n 50u 100u)\n\n.control\n  * DC Analysis\n  op\n  let power = -i(VVDD) * 1.8\n  let v_b_dc = v(B)\n  print power v_b_dc\n  \n  * AC Analysis for Impedance\n  ac dec 20 1 1G\n  \n  * Measure impedance at 10 Hz (dominated by Ceff)\n  meas ac z_lowfreq find mag(v(B)) at=10\n  * Measure impedance at 100 MHz (dominated by Req)\n  meas ac req find mag(v(B)) at=100Meg\n  \n  * Calculate Ceff and Multiplication Factor\n  let ceff = 1 / (2 * 3.14159265 * 10 * z_lowfreq)\n  let mult_factor = ceff / 10e-12\n  print ceff mult_factor req\n  \n  * Transient Analysis for Step Response\n  tran 100n 20u\n  * Measure voltage change over 10us with 10nA current\n  meas tran v_start find v(B) at=2u\n  meas tran v_end find v(B) at=12u\n  let dv = v_end - v_start\n  let ceff_tran = 10e-9 * 10e-6 / dv\n  print ceff_tran\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Capacitance Multiplier / Active Loop Filter\",\n    \"description\": \"An active capacitance multiplier circuit used in a PLL loop filter. It uses a cross-coupled current mirror feedback structure to multiply the physical capacitance connected at node A by the intrinsic gain of the transistors, presenting a large effective capacitance and a series resistance at the input node B.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"B\"\n      ],\n      \"output\": [\n        \"B\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBP\",\n        \"N_PG\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"capacitor_node\": [\n        \"A\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.4-GHz Monolithic Fractional-N Frequency Synthesizer With Robust Phase-Switching Prescaler and Loop Capacitance Multiplier\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation of the multiplier circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.2 mW\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD=1.8V and VBP=0.99V, the PMOS bias string is in subthreshold. Expected current is a few microamps. Power = 1.8V * I_total.\",\n        \"range\": {\n          \"min\": \"1u\",\n          \"typical\": \"5u\",\n          \"max\": \"50u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The provided VBP=0.99V puts the PMOS in weak inversion, leading to lower power than the paper's 0.2mW which was likely in strong inversion at 1.5V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"effective_capacitance\": {\n      \"description\": \"The multiplied capacitance seen at the input node B.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"sky130_expected\": {\n        \"calculation\": \"Ceff = Cphys * (K * gm * ro). With Cphys=10pF and gm*ro ~ 250 in subthreshold, Ceff ~ 2.5nF.\",\n        \"range\": {\n          \"min\": \"500p\",\n          \"typical\": \"2.5n\",\n          \"max\": \"10n\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Depends strongly on the intrinsic gain (gm*ro) of the NMOS transistors at the operating point.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"multiplication_factor\": {\n      \"description\": \"Ratio of effective capacitance to physical capacitance.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"sky130_expected\": {\n        \"calculation\": \"M = Ceff / Cphys ~ gm * ro.\",\n        \"range\": {\n          \"min\": \"50\",\n          \"typical\": \"250\",\n          \"max\": \"1000\",\n          \"unit\": \"\"\n        },\n        \"reasoning\": \"Determined by the intrinsic gain of SKY130 NMOS in weak/moderate inversion.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"equivalent_series_resistance\": {\n      \"description\": \"The real part of the input impedance at high frequencies, acting as the loop filter resistor.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"sky130_expected\": {\n        \"calculation\": \"Req = 2 / gm. With gm ~ 25uS, Req ~ 80kOhm.\",\n        \"range\": {\n          \"min\": \"10k\",\n          \"typical\": \"80k\",\n          \"max\": \"500k\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Inversely proportional to the transconductance of the NMOS transistors.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dc_bias_voltage\": {\n      \"description\": \"Quiescent DC voltage at the input node B.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"sky130_expected\": {\n        \"calculation\": \"VB = 2 * Vgs. In subthreshold, Vgs ~ 0.4V, so VB ~ 0.8V.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.8\",\n          \"max\": \"1.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the diode-connected NMOS stack.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC power, effective capacitance, multiplication factor, and equivalent series resistance using AC and Transient analyses.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"effective_capacitance\",\n      \"multiplication_factor\",\n      \"equivalent_series_resistance\",\n      \"dc_bias_voltage\"\n    ],\n    \"spice\": \"* Capacitance Multiplier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM8 N_M2D N_PG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM4 B VBP N_M2D VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM1 N_M5D N_PG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM5 A VBP N_M5D VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM2 N_PG N_PG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VBP VBP N_PG VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM9 B B N_M3S GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N_M3S N_NG GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM7 A B N_NG GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM6 N_NG N_NG GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVVDD VDD 0 1.8\\nVVBP VBP 0 0.99\\n\\n* Physical capacitor at Node A\\nCphys A 0 10p\\n\\n* Input current source for AC impedance and Tran step response at Node B\\nIin B 0 DC 0 AC 1 PULSE(0 10n 1u 1n 1n 50u 100u)\\n\\n.control\\n  * DC Analysis\\n  op\\n  let power = -i(VVDD) * 1.8\\n  let v_b_dc = v(B)\\n  print power v_b_dc\\n  \\n  * AC Analysis for Impedance\\n  ac dec 20 1 1G\\n  \\n  * Measure impedance at 10 Hz (dominated by Ceff)\\n  meas ac z_lowfreq find mag(v(B)) at=10\\n  * Measure impedance at 100 MHz (dominated by Req)\\n  meas ac req find mag(v(B)) at=100Meg\\n  \\n  * Calculate Ceff and Multiplication Factor\\n  let ceff = 1 / (2 * 3.14159265 * 10 * z_lowfreq)\\n  let mult_factor = ceff / 10e-12\\n  print ceff mult_factor req\\n  \\n  * Transient Analysis for Step Response\\n  tran 100n 20u\\n  * Measure voltage change over 10us with 10nA current\\n  meas tran v_start find v(B) at=2u\\n  meas tran v_end find v(B) at=12u\\n  let dv = v_end - v_start\\n  let ceff_tran = 10e-9 * 10e-6 / dv\\n  print ceff_tran\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1201988",
+  "_case": "1201988_image_6"
+}

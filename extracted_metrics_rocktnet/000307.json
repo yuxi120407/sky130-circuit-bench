@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Programmable Current Source / Ramp Generator",
+    "description": "The circuit is a programmable current source designed to charge a capacitor and generate a precise voltage ramp. It consists of a wide-swing cascode current mirror biased by a self-biased beta-multiplier reference. The reference current is programmed by an NMOS transistor (XM1) operating in the linear region, whose resistance is controlled by VCTRL.",
+    "node_mapping": {
+      "input": [
+        "VCTRL"
+      ],
+      "output": [
+        "IOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N1",
+        "N3",
+        "N6",
+        "N9"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "On-Chip Ramp Generators for Mixed-Signal BIST and ADC Self-Test",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "DC_Current": {
+      "description": "DC output current of the ramp generator at a given control voltage (VCTRL=0.9V).",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "With VCTRL=0.9V, XM1 acts as a resistor R ~ 1 / (u_n*C_ox * W/L * (Vgs-Vth)) ~ 770 ohms. The beta-multiplier current is I = (Vgs5 - Vgs2)/R. Assuming W2/W5 = 4, I is approximately 300 uA.",
+        "range": {
+          "min": "100u",
+          "typical": "300u",
+          "max": "500u",
+          "unit": "A"
+        },
+        "reasoning": "Depends on the exact threshold voltage and mobility of the SKY130 NMOS devices."
+      },
+      "importance": "essential"
+    },
+    "Ramp_Slope": {
+      "description": "Voltage ramp rate (dV/dt) across a 10pF load capacitor.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.4 V/ms (lowest)",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Slope = I / C = 300uA / 10pF = 30 V/us.",
+        "range": {
+          "min": "10",
+          "typical": "30",
+          "max": "50",
+          "unit": "V/us"
+        },
+        "reasoning": "Directly proportional to the DC charging current and inversely proportional to the load capacitance."
+      },
+      "importance": "essential"
+    },
+    "Slope_Error": {
+      "description": "Percentage difference between the actual transient slope and the ideal slope calculated from DC current and capacitance (I/C).",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.6%",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "(Actual_Slope - Ideal_Slope) / Ideal_Slope * 100",
+        "range": {
+          "min": "-2",
+          "typical": "0.5",
+          "max": "2",
+          "unit": "%"
+        },
+        "reasoning": "The finite output impedance of the cascode current source causes a slight deviation from the ideal constant-current charging."
+      },
+      "importance": "recommended"
+    },
+    "INL_Midpoint": {
+      "description": "Integral Non-Linearity measured at the midpoint of the 10% to 90% ramp range.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "175 uV",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Deviation of the actual voltage from the ideal straight line at the time midpoint between 10% and 90% VDD (ideal is exactly 0.9V).",
+        "range": {
+          "min": "-1m",
+          "typical": "100u",
+          "max": "1m",
+          "unit": "V"
+        },
+        "reasoning": "The high output impedance of the wide-swing cascode keeps the current very constant, resulting in extremely low INL, matching the paper's microvolt-level claims."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC charging current, transient ramp slope, slope error, and midpoint INL of the ramp generator.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Current",
+      "Ramp_Slope",
+      "Slope_Error",
+      "INL_Midpoint"
+    ],
+    "spice": "* Testbench for Ramp Generator\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=20u L_xm2=0.5u $ Modified from 5u to 20u to enable beta-multiplier operation\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\nXM1 N5 VCTRL VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N3 N4 VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 N1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 IOUT N1 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N3 N3 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N6 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N3 N1 N9 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N9 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\n\n* Connect N4 and N5 to form the beta-multiplier source degeneration\nVshort N4 N5 0\n\n* Power supplies\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVCTRL VCTRL 0 0.9\n\n* Load and measurement\nVmeas_I IOUT IOUT_meas 0\nCload IOUT_meas 0 10p\n\n* Reset switch to hold IOUT at 0V initially\nVreset reset 0 PWL(0 1.8 10n 1.8 11n 0)\nMreset IOUT_meas reset 0 0 sky130_fd_pr__nfet_01v8 L=0.15u W=10u\n\n* Startup nodeset for the self-biased loop\n.nodeset v(N3)=1.0 v(N0)=0.5 v(N1)=0.5\n\n.control\n  * Run transient analysis\n  tran 0.1n 500n\n  \n  * Measure DC current before reset is released (at t=5ns)\n  meas tran i_out_dc find i(Vmeas_I) at=5n\n  \n  * Measure ramp times for 10% (0.18V) and 90% (1.62V) of VDD\n  meas tran t_10 trig v(IOUT_meas) val=0.18 rise=1\n  meas tran t_90 trig v(IOUT_meas) val=1.62 rise=1\n  \n  * Calculate actual slope (V/s and V/us)\n  let slope = (1.62 - 0.18) / (t_90 - t_10)\n  let slope_vus = slope / 1e6\n  \n  * Calculate slope error compared to ideal I/C\n  let ideal_slope = i_out_dc / 10e-12\n  let slope_error_pct = (slope - ideal_slope) / ideal_slope * 100\n  \n  * Calculate INL at the midpoint of the ramp\n  let t_mid = (t_10 + t_90) / 2\n  meas tran v_mid find v(IOUT_meas) at=t_mid\n  let inl = v_mid - 0.9\n  \n  * Print all metrics\n  print i_out_dc slope_vus slope_error_pct inl\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Programmable Current Source / Ramp Generator\",\n    \"description\": \"The circuit is a programmable current source designed to charge a capacitor and generate a precise voltage ramp. It consists of a wide-swing cascode current mirror biased by a self-biased beta-multiplier reference. The reference current is programmed by an NMOS transistor (XM1) operating in the linear region, whose resistance is controlled by VCTRL.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VCTRL\"\n      ],\n      \"output\": [\n        \"IOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N1\",\n        \"N3\",\n        \"N6\",\n        \"N9\"\n      ],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"On-Chip Ramp Generators for Mixed-Signal BIST and ADC Self-Test\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Current\": {\n      \"description\": \"DC output current of the ramp generator at a given control voltage (VCTRL=0.9V).\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VCTRL=0.9V, XM1 acts as a resistor R ~ 1 / (u_n*C_ox * W/L * (Vgs-Vth)) ~ 770 ohms. The beta-multiplier current is I = (Vgs5 - Vgs2)/R. Assuming W2/W5 = 4, I is approximately 300 uA.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"300u\",\n          \"max\": \"500u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Depends on the exact threshold voltage and mobility of the SKY130 NMOS devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Ramp_Slope\": {\n      \"description\": \"Voltage ramp rate (dV/dt) across a 10pF load capacitor.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.4 V/ms (lowest)\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Slope = I / C = 300uA / 10pF = 30 V/us.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"30\",\n          \"max\": \"50\",\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Directly proportional to the DC charging current and inversely proportional to the load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Slope_Error\": {\n      \"description\": \"Percentage difference between the actual transient slope and the ideal slope calculated from DC current and capacitance (I/C).\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.6%\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"(Actual_Slope - Ideal_Slope) / Ideal_Slope * 100\",\n        \"range\": {\n          \"min\": \"-2\",\n          \"typical\": \"0.5\",\n          \"max\": \"2\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"The finite output impedance of the cascode current source causes a slight deviation from the ideal constant-current charging.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"INL_Midpoint\": {\n      \"description\": \"Integral Non-Linearity measured at the midpoint of the 10% to 90% ramp range.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"175 uV\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Deviation of the actual voltage from the ideal straight line at the time midpoint between 10% and 90% VDD (ideal is exactly 0.9V).\",\n        \"range\": {\n          \"min\": \"-1m\",\n          \"typical\": \"100u\",\n          \"max\": \"1m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The high output impedance of the wide-swing cascode keeps the current very constant, resulting in extremely low INL, matching the paper's microvolt-level claims.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC charging current, transient ramp slope, slope error, and midpoint INL of the ramp generator.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Current\",\n      \"Ramp_Slope\",\n      \"Slope_Error\",\n      \"INL_Midpoint\"\n    ],\n    \"spice\": \"* Testbench for Ramp Generator\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=20u L_xm2=0.5u $ Modified from 5u to 20u to enable beta-multiplier operation\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\nXM1 N5 VCTRL VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N3 N4 VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 N1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 IOUT N1 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N3 N3 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N6 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N3 N1 N9 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N9 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\n\\n* Connect N4 and N5 to form the beta-multiplier source degeneration\\nVshort N4 N5 0\\n\\n* Power supplies\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVCTRL VCTRL 0 0.9\\n\\n* Load and measurement\\nVmeas_I IOUT IOUT_meas 0\\nCload IOUT_meas 0 10p\\n\\n* Reset switch to hold IOUT at 0V initially\\nVreset reset 0 PWL(0 1.8 10n 1.8 11n 0)\\nMreset IOUT_meas reset 0 0 sky130_fd_pr__nfet_01v8 L=0.15u W=10u\\n\\n* Startup nodeset for the self-biased loop\\n.nodeset v(N3)=1.0 v(N0)=0.5 v(N1)=0.5\\n\\n.control\\n  * Run transient analysis\\n  tran 0.1n 500n\\n  \\n  * Measure DC current before reset is released (at t=5ns)\\n  meas tran i_out_dc find i(Vmeas_I) at=5n\\n  \\n  * Measure ramp times for 10% (0.18V) and 90% (1.62V) of VDD\\n  meas tran t_10 trig v(IOUT_meas) val=0.18 rise=1\\n  meas tran t_90 trig v(IOUT_meas) val=1.62 rise=1\\n  \\n  * Calculate actual slope (V/s and V/us)\\n  let slope = (1.62 - 0.18) / (t_90 - t_10)\\n  let slope_vus = slope / 1e6\\n  \\n  * Calculate slope error compared to ideal I/C\\n  let ideal_slope = i_out_dc / 10e-12\\n  let slope_error_pct = (slope - ideal_slope) / ideal_slope * 100\\n  \\n  * Calculate INL at the midpoint of the ramp\\n  let t_mid = (t_10 + t_90) / 2\\n  meas tran v_mid find v(IOUT_meas) at=t_mid\\n  let inl = v_mid - 0.9\\n  \\n  * Print all metrics\\n  print i_out_dc slope_vus slope_error_pct inl\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1175507",
+  "_case": "1175507_image_10"
+}

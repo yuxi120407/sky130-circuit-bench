@@ -1,0 +1,147 @@
+{
+  "step1_analysis": {
+    "circuit_type": "PMOS Current Mirror (Sub-block of Variable Gain Amplifier)",
+    "description": "A basic PMOS current mirror that duplicates a reference current. It is likely part of the temperature-compensated bias network for the variable gain amplifier described in the paper.",
+    "node_mapping": {
+      "input": [
+        "N3"
+      ],
+      "output": [
+        "VR"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Variable Gain Amplifier With 50-dB Control Range for 900-MHz Applications",
+      "figure": "1",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "current_gain_db": {
+      "description": "Current mirroring ratio in dB (Iout/Iref). Maps to the paper's Gain metric, though for a 1:1 mirror it should be 0 dB.",
+      "unit": "dB",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "28 dB (VGA Gain)",
+        "technology": "BiCMOS 24 GHz"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(W2/L2 / (W1/L1)) = 20 * log10(1) = 0",
+        "range": {
+          "min": -0.5,
+          "typical": 0,
+          "max": 0.5,
+          "unit": "dB"
+        },
+        "reasoning": "1:1 mirror ratio based on identical W and L for XM1 and XM2."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Frequency at which the current gain drops by 3 dB. Maps to the paper's operating frequency metrics.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "900 MHz / 24 GHz",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by parasitic capacitances at node N3 and VR.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 1000000000.0,
+          "max": 100000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "A simple current mirror in 130nm should easily achieve >1GHz bandwidth."
+      },
+      "importance": "essential"
+    },
+    "power_dissipation": {
+      "description": "Total DC power consumption. Maps to the paper's output power / power consumption.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "30 mA from 2.8-V (84 mW)",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * (Iref + Iout) = 1.8V * (10uA + 10uA) = 36uW",
+        "range": {
+          "min": 3e-05,
+          "typical": 3.6e-05,
+          "max": 4e-05,
+          "unit": "W"
+        },
+        "reasoning": "Based on a 10uA reference current and 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "output_resistance": {
+      "description": "Small-signal output resistance of the current mirror.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "1 / (lambda * Iout) = 1 / (0.1 * 10uA) = 1 MOhm",
+        "range": {
+          "min": 100000.0,
+          "typical": 1000000.0,
+          "max": 10000000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Standard output resistance for a single-transistor current source."
+      },
+      "importance": "essential"
+    },
+    "compliance_voltage": {
+      "description": "Maximum output voltage before the mirror transistor enters the triode region and current drops by 10%.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "VDD - |Vds,sat| = 1.8 - sqrt(2*10u / (50u * 10)) = 1.8 - 0.2 = 1.6V",
+        "range": {
+          "min": 1.4,
+          "typical": 1.6,
+          "max": 1.7,
+          "unit": "V"
+        },
+        "reasoning": "Calculated using square-law model for PMOS."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for PMOS current mirror measuring current gain, bandwidth, output resistance, compliance voltage, and power dissipation.",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC"
+    ],
+    "metrics_measured": [
+      "current_gain_db",
+      "bandwidth",
+      "power_dissipation",
+      "output_resistance",
+      "compliance_voltage"
+    ],
+    "spice": "* PMOS Current Mirror Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VR N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\n\nVVDD VDD 0 1.8\nIref N3 0 dc 10u ac 1\nVout VR 0 dc 0.9 ac 0\n\n.control\n* 1. Operating Point (Current Gain and Power)\nop\nlet i_out = i(Vout)\nlet i_ref = 10u\nlet current_gain_linear = i_out / i_ref\nlet current_gain_db = 20 * log10(current_gain_linear)\nlet power = -i(VVDD) * 1.8\nprint current_gain_linear current_gain_db power\n\n* 2. AC Analysis 1: Bandwidth\nac dec 10 1 100G\nlet i_out_ac = mag(i(Vout))\nlet current_gain_ac_db = 20 * log10(i_out_ac)\nmeas ac dc_gain find current_gain_ac_db at=10\nlet gain_3db = dc_gain - 3\nmeas ac bandwidth when current_gain_ac_db=gain_3db fall=1\n\n* 3. AC Analysis 2: Output Resistance\nalter Iref ac = 0\nalter Vout ac = 1\nac dec 10 1 100G\nlet rout = 1 / mag(i(Vout))\nmeas ac rout_dc find rout at=10\n\n* 4. DC Sweep: Compliance Voltage\ndc Vout 0 1.8 0.01\n* Find the voltage where output current drops to 9uA (10% drop from 10uA nominal)\nmeas dc compliance_voltage when i(Vout)=9u fall=1\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"PMOS Current Mirror (Sub-block of Variable Gain Amplifier)\",\n    \"description\": \"A basic PMOS current mirror that duplicates a reference current. It is likely part of the temperature-compensated bias network for the variable gain amplifier described in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N3\"\n      ],\n      \"output\": [\n        \"VR\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Variable Gain Amplifier With 50-dB Control Range for 900-MHz Applications\",\n      \"figure\": \"1\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"current_gain_db\": {\n      \"description\": \"Current mirroring ratio in dB (Iout/Iref). Maps to the paper's Gain metric, though for a 1:1 mirror it should be 0 dB.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"28 dB (VGA Gain)\",\n        \"technology\": \"BiCMOS 24 GHz\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(W2/L2 / (W1/L1)) = 20 * log10(1) = 0\",\n        \"range\": {\n          \"min\": -0.5,\n          \"typical\": 0,\n          \"max\": 0.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"1:1 mirror ratio based on identical W and L for XM1 and XM2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Frequency at which the current gain drops by 3 dB. Maps to the paper's operating frequency metrics.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"900 MHz / 24 GHz\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by parasitic capacitances at node N3 and VR.\",\n        \"range\": {\n          \"min\": 1e8,\n          \"typical\": 1e9,\n          \"max\": 1e11,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"A simple current mirror in 130nm should easily achieve >1GHz bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total DC power consumption. Maps to the paper's output power / power consumption.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"30 mA from 2.8-V (84 mW)\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * (Iref + Iout) = 1.8V * (10uA + 10uA) = 36uW\",\n        \"range\": {\n          \"min\": 30e-6,\n          \"typical\": 36e-6,\n          \"max\": 40e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a 10uA reference current and 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal output resistance of the current mirror.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (lambda * Iout) = 1 / (0.1 * 10uA) = 1 MOhm\",\n        \"range\": {\n          \"min\": 1e5,\n          \"typical\": 1e6,\n          \"max\": 1e7,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Standard output resistance for a single-transistor current source.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"compliance_voltage\": {\n      \"description\": \"Maximum output voltage before the mirror transistor enters the triode region and current drops by 10%.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - |Vds,sat| = 1.8 - sqrt(2*10u / (50u * 10)) = 1.8 - 0.2 = 1.6V\",\n        \"range\": {\n          \"min\": 1.4,\n          \"typical\": 1.6,\n          \"max\": 1.7,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Calculated using square-law model for PMOS.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for PMOS current mirror measuring current gain, bandwidth, output resistance, compliance voltage, and power dissipation.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"current_gain_db\",\n      \"bandwidth\",\n      \"power_dissipation\",\n      \"output_resistance\",\n      \"compliance_voltage\"\n    ],\n    \"spice\": \"* PMOS Current Mirror Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VR N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVVDD VDD 0 1.8\\nIref N3 0 dc 10u ac 1\\nVout VR 0 dc 0.9 ac 0\\n\\n.control\\n* 1. Operating Point (Current Gain and Power)\\nop\\nlet i_out = i(Vout)\\nlet i_ref = 10u\\nlet current_gain_linear = i_out / i_ref\\nlet current_gain_db = 20 * log10(current_gain_linear)\\nlet power = -i(VVDD) * 1.8\\nprint current_gain_linear current_gain_db power\\n\\n* 2. AC Analysis 1: Bandwidth\\nac dec 10 1 100G\\nlet i_out_ac = mag(i(Vout))\\nlet current_gain_ac_db = 20 * log10(i_out_ac)\\nmeas ac dc_gain find current_gain_ac_db at=10\\nlet gain_3db = dc_gain - 3\\nmeas ac bandwidth when current_gain_ac_db=gain_3db fall=1\\n\\n* 3. AC Analysis 2: Output Resistance\\nalter Iref ac = 0\\nalter Vout ac = 1\\nac dec 10 1 100G\\nlet rout = 1 / mag(i(Vout))\\nmeas ac rout_dc find rout at=10\\n\\n* 4. DC Sweep: Compliance Voltage\\ndc Vout 0 1.8 0.01\\n* Find the voltage where output current drops to 9uA (10% drop from 10uA nominal)\\nmeas dc compliance_voltage when i(Vout)=9u fall=1\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1028096",
+  "_case": "1028096_image_7"
+}

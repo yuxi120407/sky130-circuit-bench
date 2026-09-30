@@ -1,0 +1,98 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 18.39",
+    "page": "Not in provided PDF (Index indicates Chapter 18/19)",
+    "circuit_type": "Phase Frequency Detector (PFD) / Charge Pump",
+    "description": "The circuit consists of a logic block (SUB_1) acting as a phase splitter or PFD that drives a push-pull charge pump (xmu and xmd). The charge pump adds or removes charge from a large loop filter capacitor (C1 = 7.5nF). Notably, the pull-up device (xmu) is an NMOS transistor, which limits the maximum output voltage to VDD - VTHN."
+  },
+  "step2_metrics": {
+    "output_high_voltage": {
+      "description": "Maximum output voltage, limited by the NMOS pull-up transistor (xmu) operating as a source follower.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "21",
+        "reference": "Eq VDS,sat = VGS - VTHN"
+      },
+      "equation": {
+        "formula": "VOH = VDD - VTHN",
+        "explanation": "The NMOS pull-up transistor stops conducting when its VGS drops below the threshold voltage VTHN. Since the gate is driven to VDD, the source (Vout) can only reach VDD - VTHN.",
+        "assumptions": "Body effect is neglected in the simplified calculation, though it will increase VTHN in reality."
+      },
+      "sky130_expected": {
+        "calculation": "VOH = 1.8V - 0.42V = 1.38V",
+        "range": {
+          "min": 1.1,
+          "typical": 1.38,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "The typical value is 1.38V without body effect. With body effect (VSB > 0), VTHN increases, which will lower the actual VOH to around 1.1V - 1.2V."
+      },
+      "importance": "essential"
+    },
+    "charge_pump_current_down": {
+      "description": "Discharge current through the pull-down NMOS (xmd) when Vout is at VDD/2.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "21",
+        "reference": "Triode ID equation"
+      },
+      "equation": {
+        "formula": "ID = KPn*(W/L)*((VGS-VTHN)*VDS - VDS^2/2)",
+        "explanation": "When Down is high (1.8V) and Vout is 0.9V, xmd is in the triode region because VDS (0.9V) < VGS - VTHN (1.8V - 0.42V = 1.38V).",
+        "assumptions": "Assuming W/L = 1 for the parameterized device."
+      },
+      "sky130_expected": {
+        "calculation": "VGS = 1.8V, VDS = 0.9V. ID = 270uA/V^2 * 1 * ((1.8 - 0.42)*0.9 - 0.9^2 / 2) = 270u * (1.242 - 0.405) = 225.99 uA",
+        "range": {
+          "min": 0.00015,
+          "typical": 0.000226,
+          "max": 0.0003,
+          "unit": "A"
+        },
+        "reasoning": "Depends on the exact W/L ratio provided during instantiation and short-channel velocity saturation effects not captured in the long-channel equation."
+      },
+      "importance": "essential"
+    },
+    "charge_pump_current_up": {
+      "description": "Charge current through the pull-up NMOS (xmu) when Vout is at VDD/2.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "21",
+        "reference": "Saturation ID equation"
+      },
+      "equation": {
+        "formula": "ID = (KPn/2)*(W/L)*(VGS-VTHN)^2*[1+lambda*(VDS-VDS,sat)]",
+        "explanation": "When Up is high (1.8V) and Vout is 0.9V, xmu is in saturation because VDS (0.9V) > VGS - VTHN (0.9V - 0.42V = 0.48V).",
+        "assumptions": "Assuming W/L = 1 for the parameterized device."
+      },
+      "sky130_expected": {
+        "calculation": "VGS = 1.8 - 0.9 = 0.9V. VDS = 1.8 - 0.9 = 0.9V. VDS,sat = 0.48V. ID = (270u/2) * 1 * (0.48)^2 * [1 + 0.1*(0.9 - 0.48)] = 135u * 0.2304 * 1.042 = 32.4 uA",
+        "range": {
+          "min": 1.5e-05,
+          "typical": 3.24e-05,
+          "max": 5e-05,
+          "unit": "A"
+        },
+        "reasoning": "The pull-up current is severely limited because xmu is an NMOS source follower. Body effect will further increase VTHN, reducing VGS-VTHN and dropping the current even lower than 32uA."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the charge pump's maximum output voltage (VOH) and the rise/fall times, which reflect the UP and DOWN charge pump currents charging/discharging the 7.5nF loop filter capacitor.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "output_high_voltage",
+      "charge_pump_current_up",
+      "charge_pump_current_down"
+    ],
+    "spice": "* Charge Pump Testbench\n.lib ${SKY130_PDK} tt\n\n* Define missing parameters with default W/L=1/0.15\n.param W_xmu=1 L_xmu=0.15 W_xmd=1 L_xmd=0.15\n.param W_xm1i=1 L_xm1i=0.15 W_xm2i=1 L_xm2i=0.15\n.param W_xm1a=1 L_xm1a=0.15 W_xm2a=1 L_xm2a=0.15\n.param W_xm3=1 L_xm3=0.15 W_xm4=1 L_xm4=0.15\n.param W_xm2=1 L_xm2=0.15 W_xm1=1 L_xm1=0.15\n.param W_xm8=1 L_xm8=0.15 W_xm11=1 L_xm11=0.15 W_xm12=1 L_xm12=0.15\n\nVDD VDD 0 DC 1.8\nVs Vs 0 DC 1.8\n* 100us period to allow the 7.5nF capacitor to charge/discharge\nVin Vin 0 PULSE(0 1.8 1u 10n 10n 40u 100u)\n\n* --- DUT Netlist ---\nxmu Vs N001 N002 0 sky130_fd_pr__nfet_01v8 w={W_xmu} l={L_xmu}\nxmd N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmd} l={L_xmd}\nC1 Vout 0 7.5e-09\nX_X1 Vin Vs N001 N003 SUB_1\nL1 N002 Vout 0.0001\nRload Vout 0 10000.0\n\n.subckt SUB_1 In Vs Up Down\n  X_X1 N004 Up Vs Fig18_39\n  X_X2 N005 Down Vs INV_240_80\n  X_X3 N001 N004 Vs INV_240_80\n  X_X4 N003 N001 Vs INV_30_10\n  X_X5 N007 N005 Vs INV_30_10\n  X_X6 N006 N007 Vs INV_30_10\n  X_X7 N002 N003 Vs INV_30_10\n  X_X8 In N008 Vs INV_30_10\n  X_X9 In N005 N002 Vs NAND_2\n  X_X10 N001 N008 N006 Vs NAND_2\n.ends SUB_1\n\n.subckt Fig18_39 In Out VDD\n  xm1i N001 In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\n  xm2i N001 In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\n  C2 N002 B 5p\n  xm1a N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1a} l={L_xm1a}\n  xm2a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2a} l={L_xm2a}\n  xm3 Out N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 Out N001 B B sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  C1 N001 A 1p\n  xm2 B A VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  xm1 A B VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n.ends Fig18_39\n\n.subckt INV_240_80 In Out VDD\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n.ends INV_240_80\n\n.subckt INV_30_10 In Out VDD\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n.ends INV_30_10\n\n.subckt NAND_2 A B Out VDD\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NAND_2\n* --- End DUT Netlist ---\n\n.control\n  tran 100n 200u\n  \n  * Measure max and min voltages to verify VOH limitation\n  meas tran v_max max v(Vout)\n  meas tran v_min min v(Vout)\n  \n  * Measure rise time (indicative of UP charge pump current)\n  meas tran t_rise trig v(Vout) val=0.2 rise=1 targ v(Vout) val=1.0 rise=1\n  \n  * Measure fall time (indicative of DOWN charge pump current)\n  meas tran t_fall trig v(Vout) val=1.0 fall=1 targ v(Vout) val=0.2 fall=1\n  \n  print v_max v_min t_rise t_fall\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 18.39\",\n    \"page\": \"Not in provided PDF (Index indicates Chapter 18/19)\",\n    \"circuit_type\": \"Phase Frequency Detector (PFD) / Charge Pump\",\n    \"description\": \"The circuit consists of a logic block (SUB_1) acting as a phase splitter or PFD that drives a push-pull charge pump (xmu and xmd). The charge pump adds or removes charge from a large loop filter capacitor (C1 = 7.5nF). Notably, the pull-up device (xmu) is an NMOS transistor, which limits the maximum output voltage to VDD - VTHN.\"\n  },\n  \"step2_metrics\": {\n    \"output_high_voltage\": {\n      \"description\": \"Maximum output voltage, limited by the NMOS pull-up transistor (xmu) operating as a source follower.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"21\",\n        \"reference\": \"Eq VDS,sat = VGS - VTHN\"\n      },\n      \"equation\": {\n        \"formula\": \"VOH = VDD - VTHN\",\n        \"explanation\": \"The NMOS pull-up transistor stops conducting when its VGS drops below the threshold voltage VTHN. Since the gate is driven to VDD, the source (Vout) can only reach VDD - VTHN.\",\n        \"assumptions\": \"Body effect is neglected in the simplified calculation, though it will increase VTHN in reality.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VOH = 1.8V - 0.42V = 1.38V\",\n        \"range\": {\n          \"min\": 1.1,\n          \"typical\": 1.38,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The typical value is 1.38V without body effect. With body effect (VSB > 0), VTHN increases, which will lower the actual VOH to around 1.1V - 1.2V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"charge_pump_current_down\": {\n      \"description\": \"Discharge current through the pull-down NMOS (xmd) when Vout is at VDD/2.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"21\",\n        \"reference\": \"Triode ID equation\"\n      },\n      \"equation\": {\n        \"formula\": \"ID = KPn*(W/L)*((VGS-VTHN)*VDS - VDS^2/2)\",\n        \"explanation\": \"When Down is high (1.8V) and Vout is 0.9V, xmd is in the triode region because VDS (0.9V) < VGS - VTHN (1.8V - 0.42V = 1.38V).\",\n        \"assumptions\": \"Assuming W/L = 1 for the parameterized device.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VGS = 1.8V, VDS = 0.9V. ID = 270uA/V^2 * 1 * ((1.8 - 0.42)*0.9 - 0.9^2 / 2) = 270u * (1.242 - 0.405) = 225.99 uA\",\n        \"range\": {\n          \"min\": 150e-6,\n          \"typical\": 226e-6,\n          \"max\": 300e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Depends on the exact W/L ratio provided during instantiation and short-channel velocity saturation effects not captured in the long-channel equation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"charge_pump_current_up\": {\n      \"description\": \"Charge current through the pull-up NMOS (xmu) when Vout is at VDD/2.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"21\",\n        \"reference\": \"Saturation ID equation\"\n      },\n      \"equation\": {\n        \"formula\": \"ID = (KPn/2)*(W/L)*(VGS-VTHN)^2*[1+lambda*(VDS-VDS,sat)]\",\n        \"explanation\": \"When Up is high (1.8V) and Vout is 0.9V, xmu is in saturation because VDS (0.9V) > VGS - VTHN (0.9V - 0.42V = 0.48V).\",\n        \"assumptions\": \"Assuming W/L = 1 for the parameterized device.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VGS = 1.8 - 0.9 = 0.9V. VDS = 1.8 - 0.9 = 0.9V. VDS,sat = 0.48V. ID = (270u/2) * 1 * (0.48)^2 * [1 + 0.1*(0.9 - 0.48)] = 135u * 0.2304 * 1.042 = 32.4 uA\",\n        \"range\": {\n          \"min\": 15e-6,\n          \"typical\": 32.4e-6,\n          \"max\": 50e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"The pull-up current is severely limited because xmu is an NMOS source follower. Body effect will further increase VTHN, reducing VGS-VTHN and dropping the current even lower than 32uA.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the charge pump's maximum output voltage (VOH) and the rise/fall times, which reflect the UP and DOWN charge pump currents charging/discharging the 7.5nF loop filter capacitor.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"output_high_voltage\",\n      \"charge_pump_current_up\",\n      \"charge_pump_current_down\"\n    ],\n    \"spice\": \"* Charge Pump Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define missing parameters with default W/L=1/0.15\\n.param W_xmu=1 L_xmu=0.15 W_xmd=1 L_xmd=0.15\\n.param W_xm1i=1 L_xm1i=0.15 W_xm2i=1 L_xm2i=0.15\\n.param W_xm1a=1 L_xm1a=0.15 W_xm2a=1 L_xm2a=0.15\\n.param W_xm3=1 L_xm3=0.15 W_xm4=1 L_xm4=0.15\\n.param W_xm2=1 L_xm2=0.15 W_xm1=1 L_xm1=0.15\\n.param W_xm8=1 L_xm8=0.15 W_xm11=1 L_xm11=0.15 W_xm12=1 L_xm12=0.15\\n\\nVDD VDD 0 DC 1.8\\nVs Vs 0 DC 1.8\\n* 100us period to allow the 7.5nF capacitor to charge/discharge\\nVin Vin 0 PULSE(0 1.8 1u 10n 10n 40u 100u)\\n\\n* --- DUT Netlist ---\\nxmu Vs N001 N002 0 sky130_fd_pr__nfet_01v8 w={W_xmu} l={L_xmu}\\nxmd N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmd} l={L_xmd}\\nC1 Vout 0 7.5e-09\\nX_X1 Vin Vs N001 N003 SUB_1\\nL1 N002 Vout 0.0001\\nRload Vout 0 10000.0\\n\\n.subckt SUB_1 In Vs Up Down\\n  X_X1 N004 Up Vs Fig18_39\\n  X_X2 N005 Down Vs INV_240_80\\n  X_X3 N001 N004 Vs INV_240_80\\n  X_X4 N003 N001 Vs INV_30_10\\n  X_X5 N007 N005 Vs INV_30_10\\n  X_X6 N006 N007 Vs INV_30_10\\n  X_X7 N002 N003 Vs INV_30_10\\n  X_X8 In N008 Vs INV_30_10\\n  X_X9 In N005 N002 Vs NAND_2\\n  X_X10 N001 N008 N006 Vs NAND_2\\n.ends SUB_1\\n\\n.subckt Fig18_39 In Out VDD\\n  xm1i N001 In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\\n  xm2i N001 In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\\n  C2 N002 B 5p\\n  xm1a N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1a} l={L_xm1a}\\n  xm2a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2a} l={L_xm2a}\\n  xm3 Out N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 Out N001 B B sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  C1 N001 A 1p\\n  xm2 B A VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  xm1 A B VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n.ends Fig18_39\\n\\n.subckt INV_240_80 In Out VDD\\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n.ends INV_240_80\\n\\n.subckt INV_30_10 In Out VDD\\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n.ends INV_30_10\\n\\n.subckt NAND_2 A B Out VDD\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NAND_2\\n* --- End DUT Netlist ---\\n\\n.control\\n  tran 100n 200u\\n  \\n  * Measure max and min voltages to verify VOH limitation\\n  meas tran v_max max v(Vout)\\n  meas tran v_min min v(Vout)\\n  \\n  * Measure rise time (indicative of UP charge pump current)\\n  meas tran t_rise trig v(Vout) val=0.2 rise=1 targ v(Vout) val=1.0 rise=1\\n  \\n  * Measure fall time (indicative of DOWN charge pump current)\\n  meas tran t_fall trig v(Vout) val=1.0 fall=1 targ v(Vout) val=0.2 fall=1\\n  \\n  print v_max v_min t_rise t_fall\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

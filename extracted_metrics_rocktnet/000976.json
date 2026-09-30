@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "10T SRAM Cell",
+    "description": "A 10-transistor SRAM cell featuring a cross-coupled inverter core and asymmetric read/write access ports. Due to netlist extraction artifacts, one wordline is tied to ground (node 0), making one side permanently accessed, while the other side (node 1) acts as an active-low read wordline.",
+    "node_mapping": {
+      "input": [
+        "1"
+      ],
+      "output": [
+        "BL",
+        "BLB",
+        "DATA",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "0",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An SRAM Using Output Prediction to Reduce BL-Switching Activity and Statistically-Gated SA for up to 1.9\u00d7 Reduction in Energy/Access",
+      "figure": "Unknown",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "energy_per_access": {
+      "description": "Energy consumed during a single read/write access operation.",
+      "unit": "J",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.9x reduction",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "I_avg * VDD * T_access. Assuming I_avg ~ 100uA during a 5ns pulse at 1.8V, Energy = 100uA * 1.8V * 5ns = 0.9pJ.",
+        "range": {
+          "min": "0.1pJ",
+          "typical": "1pJ",
+          "max": "5pJ",
+          "unit": "J"
+        },
+        "reasoning": "Scaled from the paper's 0.6V 65nm process to SKY130 1.8V, resulting in higher absolute energy but similar relative trends."
+      },
+      "importance": "essential"
+    },
+    "static_power": {
+      "description": "Leakage power consumed by the cell in standby mode (when not being accessed).",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1W (likely 1uW or 1nW in original context)",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Sum of leakage currents through OFF transistors * VDD. I_leak ~ 1nA -> 1.8nW.",
+        "range": {
+          "min": "0.1nW",
+          "typical": "2nW",
+          "max": "10nW",
+          "unit": "W"
+        },
+        "reasoning": "Standard cell leakage for 130nm devices at 1.8V at room temperature."
+      },
+      "importance": "essential"
+    },
+    "read_current": {
+      "description": "Peak current discharging the bitline (BLB) during a read operation.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "NMOS W/L=5u/0.5u=10. I = 0.5 * un*Cox * (Vgs-Vth)^2 = 0.5 * 270u * (1.8-0.42)^2 = ~2.5mA.",
+        "range": {
+          "min": "1mA",
+          "typical": "2.5mA",
+          "max": "5mA",
+          "unit": "A"
+        },
+        "reasoning": "Calculated using the provided SKY130 NMOS parameters and the large W/L ratio of the access transistors."
+      },
+      "importance": "recommended"
+    },
+    "read_disturb_voltage": {
+      "description": "The minimum voltage the internal storage node (DATA) drops to during a read operation due to voltage division between access and pull-up transistors.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Voltage divider between PMOS (weaker, up*Cox=50u) and NMOS (stronger, un*Cox=270u). The node will drop significantly, likely to ~0.5V.",
+        "range": {
+          "min": "0.2V",
+          "typical": "0.5V",
+          "max": "1.0V",
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact mobility ratio and threshold voltages. If it drops below the inverter switching threshold, the cell will flip (read failure)."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure static leakage power in standby mode and dynamic metrics (read current, read disturb voltage, energy per access) during a read pulse on node 1.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "static_power",
+      "v_data_min",
+      "v_blb_min",
+      "i_read_peak",
+      "energy_access"
+    ],
+    "spice": "* SRAM Cell Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nVVDD VDD 0 1.8\n* Node 1 acts as an active-low Read Wordline for the BLB side\nV1 1 0 PULSE(1.8 0 5n 0.1n 0.1n 5n 20n)\n\n* DUT\nXM1 N1 DATA VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 BLB DATA 1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 BL 1 1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 DATA N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 BL 0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 DATA N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 DATA GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 BLB 0 DATA VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 BLB 1 1 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 BL N1 0 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\n* Bitline loads (precharged to VDD)\nR_BL BL VDD 100k\nR_BLB BLB VDD 100k\nC_BL BL 0 10f\nC_BLB BLB 0 10f\n\n* Initialize to the stable state (N1=0, DATA=1.8)\n.ic v(N1)=0 v(DATA)=1.8 v(BL)=1.8 v(BLB)=1.8\n\n.control\n* 1. DC Operating Point for Static Power\nop\nlet static_power = -i(VVDD) * 1.8\nprint static_power\n\n* 2. Transient Analysis for Read Operation\ntran 10p 15n\nmeas tran v_data_min min v(DATA)\nmeas tran v_blb_min min v(BLB)\nmeas tran i_read_peak max i(V1)\n\n* Calculate Energy per Access\nmeas tran i_avg avg i(VVDD) from=5n to=10n\nlet energy_access = -i_avg * 1.8 * 5e-9\nprint energy_access\n\n* Check if cell flipped during read (Read Stability)\nmeas tran v_data_final find v(DATA) at=14n\nmeas tran v_n1_final find v(N1) at=14n\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"10T SRAM Cell\",\n    \"description\": \"A 10-transistor SRAM cell featuring a cross-coupled inverter core and asymmetric read/write access ports. Due to netlist extraction artifacts, one wordline is tied to ground (node 0), making one side permanently accessed, while the other side (node 1) acts as an active-low read wordline.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"1\"\n      ],\n      \"output\": [\n        \"BL\",\n        \"BLB\",\n        \"DATA\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"0\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An SRAM Using Output Prediction to Reduce BL-Switching Activity and Statistically-Gated SA for up to 1.9\u00d7 Reduction in Energy/Access\",\n      \"figure\": \"Unknown\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"energy_per_access\": {\n      \"description\": \"Energy consumed during a single read/write access operation.\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.9x reduction\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_avg * VDD * T_access. Assuming I_avg ~ 100uA during a 5ns pulse at 1.8V, Energy = 100uA * 1.8V * 5ns = 0.9pJ.\",\n        \"range\": {\n          \"min\": \"0.1pJ\",\n          \"typical\": \"1pJ\",\n          \"max\": \"5pJ\",\n          \"unit\": \"J\"\n        },\n        \"reasoning\": \"Scaled from the paper's 0.6V 65nm process to SKY130 1.8V, resulting in higher absolute energy but similar relative trends.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"static_power\": {\n      \"description\": \"Leakage power consumed by the cell in standby mode (when not being accessed).\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1W (likely 1uW or 1nW in original context)\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Sum of leakage currents through OFF transistors * VDD. I_leak ~ 1nA -> 1.8nW.\",\n        \"range\": {\n          \"min\": \"0.1nW\",\n          \"typical\": \"2nW\",\n          \"max\": \"10nW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Standard cell leakage for 130nm devices at 1.8V at room temperature.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"read_current\": {\n      \"description\": \"Peak current discharging the bitline (BLB) during a read operation.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NMOS W/L=5u/0.5u=10. I = 0.5 * un*Cox * (Vgs-Vth)^2 = 0.5 * 270u * (1.8-0.42)^2 = ~2.5mA.\",\n        \"range\": {\n          \"min\": \"1mA\",\n          \"typical\": \"2.5mA\",\n          \"max\": \"5mA\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Calculated using the provided SKY130 NMOS parameters and the large W/L ratio of the access transistors.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"read_disturb_voltage\": {\n      \"description\": \"The minimum voltage the internal storage node (DATA) drops to during a read operation due to voltage division between access and pull-up transistors.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Voltage divider between PMOS (weaker, up*Cox=50u) and NMOS (stronger, un*Cox=270u). The node will drop significantly, likely to ~0.5V.\",\n        \"range\": {\n          \"min\": \"0.2V\",\n          \"typical\": \"0.5V\",\n          \"max\": \"1.0V\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact mobility ratio and threshold voltages. If it drops below the inverter switching threshold, the cell will flip (read failure).\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure static leakage power in standby mode and dynamic metrics (read current, read disturb voltage, energy per access) during a read pulse on node 1.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"static_power\",\n      \"v_data_min\",\n      \"v_blb_min\",\n      \"i_read_peak\",\n      \"energy_access\"\n    ],\n    \"spice\": \"* SRAM Cell Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nVVDD VDD 0 1.8\\n* Node 1 acts as an active-low Read Wordline for the BLB side\\nV1 1 0 PULSE(1.8 0 5n 0.1n 0.1n 5n 20n)\\n\\n* DUT\\nXM1 N1 DATA VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 BLB DATA 1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 BL 1 1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 DATA N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 BL 0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 DATA N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 DATA GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 BLB 0 DATA VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 BLB 1 1 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 BL N1 0 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Bitline loads (precharged to VDD)\\nR_BL BL VDD 100k\\nR_BLB BLB VDD 100k\\nC_BL BL 0 10f\\nC_BLB BLB 0 10f\\n\\n* Initialize to the stable state (N1=0, DATA=1.8)\\n.ic v(N1)=0 v(DATA)=1.8 v(BL)=1.8 v(BLB)=1.8\\n\\n.control\\n* 1. DC Operating Point for Static Power\\nop\\nlet static_power = -i(VVDD) * 1.8\\nprint static_power\\n\\n* 2. Transient Analysis for Read Operation\\ntran 10p 15n\\nmeas tran v_data_min min v(DATA)\\nmeas tran v_blb_min min v(BLB)\\nmeas tran i_read_peak max i(V1)\\n\\n* Calculate Energy per Access\\nmeas tran i_avg avg i(VVDD) from=5n to=10n\\nlet energy_access = -i_avg * 1.8 * 5e-9\\nprint energy_access\\n\\n* Check if cell flipped during read (Read Stability)\\nmeas tran v_data_final find v(DATA) at=14n\\nmeas tran v_n1_final find v(N1) at=14n\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6487751",
+  "_case": "6487751_image_3_a"
+}

@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cross-coupled latch / Regenerative comparator stage",
+    "description": "This circuit is a cross-coupled transistor pair with resistive and capacitive loads. It acts as the regenerative latching stage in a high-speed comparator, using positive feedback to amplify a small initial voltage difference into a full logic-level swing.",
+    "node_mapping": {
+      "input": [
+        "Vout",
+        "Vout_bar"
+      ],
+      "output": [
+        "Vout",
+        "Vout_bar"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 16-GHz Ultra-High-Speed Si\u2013SiGe HBT Comparator",
+      "figure": "Generic Latch",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "regeneration_time": {
+      "description": "Time required for the latch to amplify a small initial voltage difference (e.g., 10mV) to a large signal difference (e.g., 800mV).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "7 ps - 40 ps (delay)",
+        "technology": "0.5um 55-GHz BiCMOS Si-SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Time constant tau = C_load / gm. For W=5u, L=0.15u NMOS at 0.5mA, gm ~= 3mS. With C_load=10fF, tau ~= 3.3ps. Time to grow from 10mV to 800mV is tau * ln(80) ~= 14.5ps.",
+        "range": {
+          "min": "10ps",
+          "typical": "15ps",
+          "max": "30ps",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the load capacitance and the gm of the cross-coupled pair. SKY130 130nm CMOS is slower than 55-GHz SiGe HBT, but for very small loads (10fF), regeneration can still be in the 10-20ps range."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Static power dissipation of the latch stage.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "80 mW (entire comparator)",
+        "technology": "0.5um 55-GHz BiCMOS Si-SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * Ibias = 1.8V * 1mA = 1.8mW.",
+        "range": {
+          "min": "1mW",
+          "typical": "1.8mW",
+          "max": "5mW",
+          "unit": "W"
+        },
+        "reasoning": "The latch itself consumes a fraction of the total comparator power. It is strictly set by the tail current source and VDD."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak voltage swing at the output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly listed, typically 200mV - 1V for CML/ECL.",
+        "technology": "0.5um 55-GHz BiCMOS Si-SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = Ibias * RL = 1mA * 1kOhm = 1V.",
+        "range": {
+          "min": "0.5V",
+          "typical": "1.0V",
+          "max": "1.8V",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the tail current and load resistors to ensure sufficient logic levels without driving transistors into deep triode/saturation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the regeneration time, voltage swing, and power consumption of the cross-coupled latch. An initial small voltage difference is applied to the outputs to trigger the positive feedback.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "regeneration_time",
+      "power_consumption",
+      "voltage_swing"
+    ],
+    "spice": "* Cross-coupled latch testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Parameters\n.param W_m1=5u L_m1=0.15u\n.param R_load=1k C_load=10f I_tail=1m\n\n* Supply and Bias\nVVDD VDD 0 1.8\nIbias N2 0 {I_tail}\n\n* DUT (Adapted from NPN to SKY130 CMOS for compatibility)\nM1 Vout Vout_bar N2 0 sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\nM2 Vout_bar Vout N2 0 sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\nCL1 VDD Vout_bar {C_load}\nCL2 VDD Vout {C_load}\nRL1 VDD Vout {R_load}\nRL2 VDD Vout_bar {R_load}\n\n* Initial conditions to trigger regeneration (2mV initial difference)\n.ic v(Vout)=1.299 v(Vout_bar)=1.301 v(N2)=0.5\n\n.control\n  * Run transient analysis\n  tran 1p 200p uic\n  \n  * 1. Power Consumption\n  let power = -i(VVDD) * 1.8\n  meas tran avg_power avg power\n  \n  * 2. Voltage Swing\n  meas tran vout_max max v(Vout_bar)\n  meas tran vout_min min v(Vout_bar)\n  let swing = vout_max - vout_min\n  print swing\n  \n  * 3. Regeneration Time (Time to grow from 10mV to 800mV difference)\n  let vdiff = v(Vout_bar) - v(Vout)\n  meas tran regen_time trig vdiff val=0.01 rise=1 targ vdiff val=0.8 rise=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cross-coupled latch / Regenerative comparator stage\",\n    \"description\": \"This circuit is a cross-coupled transistor pair with resistive and capacitive loads. It acts as the regenerative latching stage in a high-speed comparator, using positive feedback to amplify a small initial voltage difference into a full logic-level swing.\",\n    \"node_mapping\": {\n      \"input\": [\"Vout\", \"Vout_bar\"],\n      \"output\": [\"Vout\", \"Vout_bar\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N2\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 16-GHz Ultra-High-Speed Si\u2013SiGe HBT Comparator\",\n      \"figure\": \"Generic Latch\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"regeneration_time\": {\n      \"description\": \"Time required for the latch to amplify a small initial voltage difference (e.g., 10mV) to a large signal difference (e.g., 800mV).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"7 ps - 40 ps (delay)\",\n        \"technology\": \"0.5um 55-GHz BiCMOS Si-SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Time constant tau = C_load / gm. For W=5u, L=0.15u NMOS at 0.5mA, gm ~= 3mS. With C_load=10fF, tau ~= 3.3ps. Time to grow from 10mV to 800mV is tau * ln(80) ~= 14.5ps.\",\n        \"range\": {\n          \"min\": \"10ps\",\n          \"typical\": \"15ps\",\n          \"max\": \"30ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the load capacitance and the gm of the cross-coupled pair. SKY130 130nm CMOS is slower than 55-GHz SiGe HBT, but for very small loads (10fF), regeneration can still be in the 10-20ps range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Static power dissipation of the latch stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"80 mW (entire comparator)\",\n        \"technology\": \"0.5um 55-GHz BiCMOS Si-SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * Ibias = 1.8V * 1mA = 1.8mW.\",\n        \"range\": {\n          \"min\": \"1mW\",\n          \"typical\": \"1.8mW\",\n          \"max\": \"5mW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The latch itself consumes a fraction of the total comparator power. It is strictly set by the tail current source and VDD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed, typically 200mV - 1V for CML/ECL.\",\n        \"technology\": \"0.5um 55-GHz BiCMOS Si-SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = Ibias * RL = 1mA * 1kOhm = 1V.\",\n        \"range\": {\n          \"min\": \"0.5V\",\n          \"typical\": \"1.0V\",\n          \"max\": \"1.8V\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the tail current and load resistors to ensure sufficient logic levels without driving transistors into deep triode/saturation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the regeneration time, voltage swing, and power consumption of the cross-coupled latch. An initial small voltage difference is applied to the outputs to trigger the positive feedback.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"regeneration_time\",\n      \"power_consumption\",\n      \"voltage_swing\"\n    ],\n    \"spice\": \"* Cross-coupled latch testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Parameters\\n.param W_m1=5u L_m1=0.15u\\n.param R_load=1k C_load=10f I_tail=1m\\n\\n* Supply and Bias\\nVVDD VDD 0 1.8\\nIbias N2 0 {I_tail}\\n\\n* DUT (Adapted from NPN to SKY130 CMOS for compatibility)\\nM1 Vout Vout_bar N2 0 sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\\nM2 Vout_bar Vout N2 0 sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\\nCL1 VDD Vout_bar {C_load}\\nCL2 VDD Vout {C_load}\\nRL1 VDD Vout {R_load}\\nRL2 VDD Vout_bar {R_load}\\n\\n* Initial conditions to trigger regeneration (2mV initial difference)\\n.ic v(Vout)=1.299 v(Vout_bar)=1.301 v(N2)=0.5\\n\\n.control\\n  * Run transient analysis\\n  tran 1p 200p uic\\n  \\n  * 1. Power Consumption\\n  let power = -i(VVDD) * 1.8\\n  meas tran avg_power avg power\\n  \\n  * 2. Voltage Swing\\n  meas tran vout_max max v(Vout_bar)\\n  meas tran vout_min min v(Vout_bar)\\n  let swing = vout_max - vout_min\\n  print swing\\n  \\n  * 3. Regeneration Time (Time to grow from 10mV to 800mV difference)\\n  let vdiff = v(Vout_bar) - v(Vout)\\n  meas tran regen_time trig vdiff val=0.01 rise=1 targ vdiff val=0.8 rise=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1225803",
+  "_case": "1225803_image_5"
+}

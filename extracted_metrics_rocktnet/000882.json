@@ -1,0 +1,111 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CML Buffer with Pre-emphasis / Phase Detector",
+    "description": "A differential Current Mode Logic (CML) buffer with two input pairs sharing the same active PMOS loads. It is typically used as a pre-emphasis buffer by driving the second pair with delayed data, or as a phase detector/mixer in a PLL/DLL.",
+    "node_mapping": {
+      "input": [
+        "UP",
+        "UPB",
+        "DN",
+        "DNB"
+      ],
+      "output": [
+        "OUTP",
+        "OUTM"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB",
+        "VCM"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.5\u20133.125-Gb/s Quad Transceiver With Second-Order Analog DLL-Based CDRs",
+      "figure": "Not specified",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption of the buffer stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "32 mW (Total Transceiver)",
+        "technology": "1.2V process"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 0.5 * un*Cox * (W/L) * (VB - Vth)^2 = 0.5 * 270u * 10 * (0.54 - 0.42)^2 = 19.4 uA. Total current for two tails = 38.8 uA. Power = 38.8 uA * 1.8 V = 70 uW.",
+        "range": {
+          "min": "50 uW",
+          "typical": "70 uW",
+          "max": "100 uW",
+          "unit": "W"
+        },
+        "reasoning": "Calculated using SKY130 NMOS parameters at 1.8V supply. The paper's 32 mW is for the entire quad transceiver, so this single block's power is much lower."
+      },
+      "importance": "essential"
+    },
+    "v_swing_diff": {
+      "description": "Maximum peak-to-peak differential output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "250 mV",
+        "technology": "1.2V process"
+      },
+      "sky130_expected": {
+        "calculation": "PMOS linear resistance R = 1 / (up*Cox * (W/L) * (VDD - VCM - |Vth|)) = 1 / (50u * 10 * (1.8 - 0.9 - 0.42)) = 4.16 kOhm. Max single-ended swing = (I_tail1 + I_tail2) * R = 38.8 uA * 4.16 kOhm = 161 mV. Differential swing = 2 * 161 mV = 322 mV.",
+        "range": {
+          "min": "200 mV",
+          "typical": "322 mV",
+          "max": "400 mV",
+          "unit": "V"
+        },
+        "reasoning": "The PMOS transistors act as active loads in the linear region. The swing depends on the total steered tail current and the PMOS resistance."
+      },
+      "importance": "essential"
+    },
+    "v_out_cm": {
+      "description": "Output common-mode voltage",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "V_out_cm = VDD - (I_tail1 + I_tail2) * R / 2 = 1.8 - 38.8uA * 4.16kOhm / 2 = 1.8 - 0.08V = 1.72V.",
+        "range": {
+          "min": "1.6 V",
+          "typical": "1.72 V",
+          "max": "1.8 V",
+          "unit": "V"
+        },
+        "reasoning": "The PMOS loads pull the output close to VDD, with the DC drop determined by the average tail current."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, output common-mode voltage, and differential voltage swing under dynamic switching conditions.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "v_swing_diff",
+      "v_out_cm"
+    ],
+    "spice": "* CML Buffer with Pre-emphasis Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\nXM1 VT1 VB GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VT2 VB GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 OUTM DNB VT2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTP DN VT2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUTP UPB VT1 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUTM UP VT1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 OUTP VCM VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 OUTM VCM VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\n\nVVDD VDD 0 1.8\nVVB VB 0 0.54\nVVCM VCM 0 0.9\n\n* Inputs: UP/UPB (Main Data) and DN/DNB (Delayed Data for Pre-emphasis)\nVUP UP 0 PULSE(0.6 1.2 1n 50p 50p 2n 4n)\nVUPB UPB 0 PULSE(1.2 0.6 1n 50p 50p 2n 4n)\nVDN DN 0 PULSE(0.6 1.2 2n 50p 50p 4n 8n)\nVDNB DNB 0 PULSE(1.2 0.6 2n 50p 50p 4n 8n)\n\n* Parasitic Load Capacitance\nC1 OUTP 0 10f\nC2 OUTM 0 10f\n\n.control\n  * DC Operating Point for Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * Transient Analysis for Swing and Delay\n  tran 10p 10n\n  \n  * Calculate Differential Output\n  let vdiff = v(OUTP) - v(OUTM)\n  \n  * Measure Differential Swing\n  meas tran vdiff_max max vdiff\n  meas tran vdiff_min min vdiff\n  let swing_diff = vdiff_max - vdiff_min\n  print swing_diff\n  \n  * Measure Single-Ended Swings and Common Mode\n  meas tran voutp_max max v(OUTP)\n  meas tran voutp_min min v(OUTP)\n  let voutp_cm = (voutp_max + voutp_min) / 2\n  print voutp_cm\n\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CML Buffer with Pre-emphasis / Phase Detector\",\n    \"description\": \"A differential Current Mode Logic (CML) buffer with two input pairs sharing the same active PMOS loads. It is typically used as a pre-emphasis buffer by driving the second pair with delayed data, or as a phase detector/mixer in a PLL/DLL.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"UP\",\n        \"UPB\",\n        \"DN\",\n        \"DNB\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTM\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB\",\n        \"VCM\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.5\u20133.125-Gb/s Quad Transceiver With Second-Order Analog DLL-Based CDRs\",\n      \"figure\": \"Not specified\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption of the buffer stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"32 mW (Total Transceiver)\",\n        \"technology\": \"1.2V process\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 0.5 * un*Cox * (W/L) * (VB - Vth)^2 = 0.5 * 270u * 10 * (0.54 - 0.42)^2 = 19.4 uA. Total current for two tails = 38.8 uA. Power = 38.8 uA * 1.8 V = 70 uW.\",\n        \"range\": {\n          \"min\": \"50 uW\",\n          \"typical\": \"70 uW\",\n          \"max\": \"100 uW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS parameters at 1.8V supply. The paper's 32 mW is for the entire quad transceiver, so this single block's power is much lower.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_swing_diff\": {\n      \"description\": \"Maximum peak-to-peak differential output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"250 mV\",\n        \"technology\": \"1.2V process\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PMOS linear resistance R = 1 / (up*Cox * (W/L) * (VDD - VCM - |Vth|)) = 1 / (50u * 10 * (1.8 - 0.9 - 0.42)) = 4.16 kOhm. Max single-ended swing = (I_tail1 + I_tail2) * R = 38.8 uA * 4.16 kOhm = 161 mV. Differential swing = 2 * 161 mV = 322 mV.\",\n        \"range\": {\n          \"min\": \"200 mV\",\n          \"typical\": \"322 mV\",\n          \"max\": \"400 mV\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The PMOS transistors act as active loads in the linear region. The swing depends on the total steered tail current and the PMOS resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_out_cm\": {\n      \"description\": \"Output common-mode voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_out_cm = VDD - (I_tail1 + I_tail2) * R / 2 = 1.8 - 38.8uA * 4.16kOhm / 2 = 1.8 - 0.08V = 1.72V.\",\n        \"range\": {\n          \"min\": \"1.6 V\",\n          \"typical\": \"1.72 V\",\n          \"max\": \"1.8 V\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The PMOS loads pull the output close to VDD, with the DC drop determined by the average tail current.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, output common-mode voltage, and differential voltage swing under dynamic switching conditions.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"v_swing_diff\",\n      \"v_out_cm\"\n    ],\n    \"spice\": \"* CML Buffer with Pre-emphasis Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\nXM1 VT1 VB GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VT2 VB GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 OUTM DNB VT2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTP DN VT2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUTP UPB VT1 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUTM UP VT1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 OUTP VCM VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 OUTM VCM VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\n\\nVVDD VDD 0 1.8\\nVVB VB 0 0.54\\nVVCM VCM 0 0.9\\n\\n* Inputs: UP/UPB (Main Data) and DN/DNB (Delayed Data for Pre-emphasis)\\nVUP UP 0 PULSE(0.6 1.2 1n 50p 50p 2n 4n)\\nVUPB UPB 0 PULSE(1.2 0.6 1n 50p 50p 2n 4n)\\nVDN DN 0 PULSE(0.6 1.2 2n 50p 50p 4n 8n)\\nVDNB DNB 0 PULSE(1.2 0.6 2n 50p 50p 4n 8n)\\n\\n* Parasitic Load Capacitance\\nC1 OUTP 0 10f\\nC2 OUTM 0 10f\\n\\n.control\\n  * DC Operating Point for Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * Transient Analysis for Swing and Delay\\n  tran 10p 10n\\n  \\n  * Calculate Differential Output\\n  let vdiff = v(OUTP) - v(OUTM)\\n  \\n  * Measure Differential Swing\\n  meas tran vdiff_max max vdiff\\n  meas tran vdiff_min min vdiff\\n  let swing_diff = vdiff_max - vdiff_min\\n  print swing_diff\\n  \\n  * Measure Single-Ended Swings and Common Mode\\n  meas tran voutp_max max v(OUTP)\\n  meas tran voutp_min min v(OUTP)\\n  let voutp_cm = (voutp_max + voutp_min) / 2\\n  print voutp_cm\\n\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1501994",
+  "_case": "1501994_image_8_a"
+}

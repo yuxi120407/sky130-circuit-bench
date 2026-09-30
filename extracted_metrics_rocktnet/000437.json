@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Transimpedance Amplifier (TIA)",
+    "description": "A broadband transimpedance amplifier designed to convert high-speed input current from a photodetector into an output voltage. It utilizes a Cherry-Hooper or similar broadband architecture with feedback to achieve high bandwidth for 40 Gb/s optical communication systems.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "GND",
+        "N12"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "N0",
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "SiGe Differential Transimpedance Amplifier With 50-GHz Bandwidth",
+      "figure": "Fig. 1",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Transimpedance_Gain": {
+      "description": "The ratio of the output voltage to the input current, expressed in dB ohms.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "49 dB",
+        "technology": "SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is primarily determined by the feedback resistors (RFB1, RFB2). 20 * log10(280 ohms) \u2248 49 dB. With SKY130 generic MOSFETs or default BJTs, open-loop gain might be lower, slightly reducing closed-loop gain.",
+        "range": {
+          "min": 45,
+          "typical": 48,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "Feedback sets the gain, so it remains relatively constant across technologies as long as the open-loop gain is sufficient."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth_3dB": {
+      "description": "The frequency at which the transimpedance gain drops by 3 dB from its midband value.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "50 GHz",
+        "technology": "SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Bandwidth is limited by the fT of the technology. SKY130 NMOS fT is ~30-40 GHz. Closed-loop TIA bandwidth is typically a fraction of fT depending on the transimpedance limit.",
+        "range": {
+          "min": "5G",
+          "typical": "15G",
+          "max": "25G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 130nm CMOS is significantly slower than the 200-GHz SiGe HBTs used in the original paper, so the bandwidth will scale down proportionally."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumed by the amplifier from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "200 mW",
+        "technology": "SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Using a 1.8V supply instead of 5.2V, and assuming similar bias currents (e.g., 20-30 mA total).",
+        "range": {
+          "min": "20m",
+          "typical": "45m",
+          "max": "80m",
+          "unit": "W"
+        },
+        "reasoning": "The lower supply voltage of SKY130 (1.8V vs 5.2V) will drastically reduce the total power consumption compared to the paper."
+      },
+      "importance": "essential"
+    },
+    "Input_Referred_Noise": {
+      "description": "The equivalent noise current at the input that would produce the observed output noise.",
+      "unit": "A/sqrt(Hz)",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "30 pA/sqrt(Hz)",
+        "technology": "SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Dominated by the thermal noise of the feedback resistor (4kT/R_fb) and the input transistor channel noise.",
+        "range": {
+          "min": "20p",
+          "typical": "35p",
+          "max": "50p",
+          "unit": "A/sqrt(Hz)"
+        },
+        "reasoning": "Noise performance will be slightly worse in CMOS due to lower gm/Id and higher flicker noise, though thermal noise from the feedback resistor remains constant."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure transimpedance gain, -3dB bandwidth, power consumption, and input-referred noise. Missing resistor values are parameterized to allow simulation.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Noise"
+    ],
+    "metrics_measured": [
+      "Transimpedance_Gain",
+      "Bandwidth_3dB",
+      "Power_Consumption",
+      "Input_Referred_Noise"
+    ],
+    "spice": "* SiGe Differential TIA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized missing resistor values\n.param R_default=1k\n.param R_fb=280\n.param R_out=50\n\n* DUT Netlist\nR1 GND IN {R_default}\nQ1 GND N2 N7 npn\nQ2 N3 N3 N17 npn\nQ3 N2 N2 N10 npn\nQ4 IN N0 N11 npn\nQ5 N8 IN N19 npn\nR2 N7 N12 {R_default}\nQ6 OUT N7 N20 npn\nR3 N11 N12 {R_default}\nR4 GND OUT {R_out}\nR5 N1 N12 {R_default}\nR6 N10 N12 {R_default}\nQ7 N19 N0 N15 npn\nQ8 N14 IN N0 npn\nQ9 N9 N0 N13 npn\nQ10 N18 N18 N14 npn\nR7 N12 N15 {R_default}\nR8 N12 N17 {R_default}\nRL2 N4 GND {R_default}\nR10 N12 N13 {R_default}\nRE1 N9 N9 {R_default}\nRL1 GND N8 {R_default}\nQ11 N4 IN N19 npn\nRE2 N9 N20 {R_default}\nRFB2 N2 IN {R_fb}\nR15 GND OUT {R_out}\nRFB1 N3 IN {R_fb}\nQ12 GND N4 N2 npn\nQ13 GND GND N18 npn\nQ14 OUT N1 LABEL_NET_0 npn\nQ15 N3 N8 GND pnp\nQ16 N1 N3 GND pnp\n\n* Generic BJT models for simulation\n.model npn npn bf=100 is=1e-15\n.model pnp pnp bf=50 is=1e-15\n\n* Supplies and Stimulus\n* GND is treated as the positive supply (0V), N12 as the negative supply (-1.8V)\nVEE N12 0 DC -1.8\nVLABEL LABEL_NET_0 0 DC -1.8\nIIN IN 0 DC 0 AC 1\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VEE) * 1.8\nprint power\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 50 10M 100G\nlet gain_db = vdb(OUT)\nmeas ac midband_gain find gain_db at=100M\nlet gain_3db = midband_gain - 3\nmeas ac bw_3db when gain_db=gain_3db fall=1\n\n* 3. Noise Analysis\nnoise v(OUT) IIN dec 10 100M 10G\nsetplot noise1\nprint inoise_spectrum\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Transimpedance Amplifier (TIA)\",\n    \"description\": \"A broadband transimpedance amplifier designed to convert high-speed input current from a photodetector into an output voltage. It utilizes a Cherry-Hooper or similar broadband architecture with feedback to achieve high bandwidth for 40 Gb/s optical communication systems.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"GND\",\n        \"N12\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"N0\",\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"SiGe Differential Transimpedance Amplifier With 50-GHz Bandwidth\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Transimpedance_Gain\": {\n      \"description\": \"The ratio of the output voltage to the input current, expressed in dB ohms.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"49 dB\",\n        \"technology\": \"SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is primarily determined by the feedback resistors (RFB1, RFB2). 20 * log10(280 ohms) \u2248 49 dB. With SKY130 generic MOSFETs or default BJTs, open-loop gain might be lower, slightly reducing closed-loop gain.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 48,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Feedback sets the gain, so it remains relatively constant across technologies as long as the open-loop gain is sufficient.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth_3dB\": {\n      \"description\": \"The frequency at which the transimpedance gain drops by 3 dB from its midband value.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"50 GHz\",\n        \"technology\": \"SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bandwidth is limited by the fT of the technology. SKY130 NMOS fT is ~30-40 GHz. Closed-loop TIA bandwidth is typically a fraction of fT depending on the transimpedance limit.\",\n        \"range\": {\n          \"min\": \"5G\",\n          \"typical\": \"15G\",\n          \"max\": \"25G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 130nm CMOS is significantly slower than the 200-GHz SiGe HBTs used in the original paper, so the bandwidth will scale down proportionally.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumed by the amplifier from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"200 mW\",\n        \"technology\": \"SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Using a 1.8V supply instead of 5.2V, and assuming similar bias currents (e.g., 20-30 mA total).\",\n        \"range\": {\n          \"min\": \"20m\",\n          \"typical\": \"45m\",\n          \"max\": \"80m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The lower supply voltage of SKY130 (1.8V vs 5.2V) will drastically reduce the total power consumption compared to the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Input_Referred_Noise\": {\n      \"description\": \"The equivalent noise current at the input that would produce the observed output noise.\",\n      \"unit\": \"A/sqrt(Hz)\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"30 pA/sqrt(Hz)\",\n        \"technology\": \"SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominated by the thermal noise of the feedback resistor (4kT/R_fb) and the input transistor channel noise.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"35p\",\n          \"max\": \"50p\",\n          \"unit\": \"A/sqrt(Hz)\"\n        },\n        \"reasoning\": \"Noise performance will be slightly worse in CMOS due to lower gm/Id and higher flicker noise, though thermal noise from the feedback resistor remains constant.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure transimpedance gain, -3dB bandwidth, power consumption, and input-referred noise. Missing resistor values are parameterized to allow simulation.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Noise\"\n    ],\n    \"metrics_measured\": [\n      \"Transimpedance_Gain\",\n      \"Bandwidth_3dB\",\n      \"Power_Consumption\",\n      \"Input_Referred_Noise\"\n    ],\n    \"spice\": \"* SiGe Differential TIA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized missing resistor values\\n.param R_default=1k\\n.param R_fb=280\\n.param R_out=50\\n\\n* DUT Netlist\\nR1 GND IN {R_default}\\nQ1 GND N2 N7 npn\\nQ2 N3 N3 N17 npn\\nQ3 N2 N2 N10 npn\\nQ4 IN N0 N11 npn\\nQ5 N8 IN N19 npn\\nR2 N7 N12 {R_default}\\nQ6 OUT N7 N20 npn\\nR3 N11 N12 {R_default}\\nR4 GND OUT {R_out}\\nR5 N1 N12 {R_default}\\nR6 N10 N12 {R_default}\\nQ7 N19 N0 N15 npn\\nQ8 N14 IN N0 npn\\nQ9 N9 N0 N13 npn\\nQ10 N18 N18 N14 npn\\nR7 N12 N15 {R_default}\\nR8 N12 N17 {R_default}\\nRL2 N4 GND {R_default}\\nR10 N12 N13 {R_default}\\nRE1 N9 N9 {R_default}\\nRL1 GND N8 {R_default}\\nQ11 N4 IN N19 npn\\nRE2 N9 N20 {R_default}\\nRFB2 N2 IN {R_fb}\\nR15 GND OUT {R_out}\\nRFB1 N3 IN {R_fb}\\nQ12 GND N4 N2 npn\\nQ13 GND GND N18 npn\\nQ14 OUT N1 LABEL_NET_0 npn\\nQ15 N3 N8 GND pnp\\nQ16 N1 N3 GND pnp\\n\\n* Generic BJT models for simulation\\n.model npn npn bf=100 is=1e-15\\n.model pnp pnp bf=50 is=1e-15\\n\\n* Supplies and Stimulus\\n* GND is treated as the positive supply (0V), N12 as the negative supply (-1.8V)\\nVEE N12 0 DC -1.8\\nVLABEL LABEL_NET_0 0 DC -1.8\\nIIN IN 0 DC 0 AC 1\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VEE) * 1.8\\nprint power\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 50 10M 100G\\nlet gain_db = vdb(OUT)\\nmeas ac midband_gain find gain_db at=100M\\nlet gain_3db = midband_gain - 3\\nmeas ac bw_3db when gain_db=gain_3db fall=1\\n\\n* 3. Noise Analysis\\nnoise v(OUT) IIN dec 10 100M 10G\\nsetplot noise1\\nprint inoise_spectrum\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1225792",
+  "_case": "1225792_image_4"
+}

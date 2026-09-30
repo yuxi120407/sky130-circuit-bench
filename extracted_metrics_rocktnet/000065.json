@@ -1,0 +1,110 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Receiver Sub-circuit (Differential Pair and Cascode Amplifier)",
+    "description": "The extracted netlist contains a differential pair (XM1, XM5) typically used in mixer or amplifier stages, and a cascode-like amplifier structure (XM2, XM3, XM4) which may be part of the LNA or baseband amplifier. The circuit is a fragment of a 5.2-GHz heterodyne receiver.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "N0"
+      ],
+      "output": [
+        "N2",
+        "N8",
+        "N6"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N5"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5.2-GHz CMOS Receiver with 62-dB Image Rejection",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the sub-circuit from the 1.8V supply.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "29 mW",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 3 bias branches (diff pair tail, and two amplifier branches) each drawing ~1mA, total current is 3mA. Power = 3mA * 1.8V = 5.4mW.",
+        "range": {
+          "min": "1m",
+          "typical": "5.4m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 29mW for the entire receiver. This sub-circuit will consume a fraction of that total power."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Differential AC voltage gain of the XM1/XM5 differential pair.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "43 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rload. For W/L=5/0.5 and Id=0.5mA, gm is approx 1-2 mS. With a 2kOhm load, gain is ~2-4 V/V (6-12 dB).",
+        "range": {
+          "min": "5",
+          "typical": "10",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "The 43 dB gain reported in the paper is the cascaded gain of the entire receiver. A single differential stage typically provides 10-15 dB."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "The -3dB cutoff frequency of the differential amplifier stage.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5.2 GHz (Operating)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant at the output nodes. With Rload=2kOhm and parasitic capacitance ~50fF, f3dB = 1 / (2*pi*R*C) ~= 1.6 GHz.",
+        "range": {
+          "min": "500M",
+          "typical": "1.5G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "While the receiver operates at 5.2 GHz, this specific baseband or IF stage might have a lower bandwidth depending on its exact role (e.g., 23.5 MHz IF)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power consumption and AC voltage gain of the differential pair. Ideal current sources and load resistors are added to bias the incomplete extracted netlist properly.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth"
+    ],
+    "spice": "* Testbench for Receiver Sub-circuit\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\n* Supply and Inputs\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 0.5\nVLABEL_NET_1 LABEL_NET_1 0 dc 0.9 ac -0.5\nVN0 N0 0 dc 0.9\n\n* Biasing and loads to prevent floating nodes\nR_N2 VDD N2 2k\nR_N8 VDD N8 2k\nI_tail N7 0 1m\n\nR_N5 VDD N5 2k\nR_N6 VDD N6 2k\nI_N3 N3 0 1m\nI_N1 N1 0 1m\n\n* DUT\nXM1 N2 LABEL_NET_0 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N4 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N5 VDD N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N6 N5 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N8 LABEL_NET_1 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n* DC Operating Point\nop\nlet power = -i(VVDD)*1.8\nprint power\n\n* AC Analysis\nac dec 20 1M 10G\nlet vout_diff = v(N2) - v(N8)\nlet gain = mag(vout_diff)\nlet gain_db = 20*log10(gain)\n\nmeas ac max_gain max gain_db\nmeas ac f3db when gain_db=(max_gain-3) fall=1\n\nprint max_gain f3db\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Receiver Sub-circuit (Differential Pair and Cascode Amplifier)\",\n    \"description\": \"The extracted netlist contains a differential pair (XM1, XM5) typically used in mixer or amplifier stages, and a cascode-like amplifier structure (XM2, XM3, XM4) which may be part of the LNA or baseband amplifier. The circuit is a fragment of a 5.2-GHz heterodyne receiver.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"N0\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N8\",\n        \"N6\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N5\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5.2-GHz CMOS Receiver with 62-dB Image Rejection\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the sub-circuit from the 1.8V supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"29 mW\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 3 bias branches (diff pair tail, and two amplifier branches) each drawing ~1mA, total current is 3mA. Power = 3mA * 1.8V = 5.4mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"5.4m\",\n          \"max\": \"10m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 29mW for the entire receiver. This sub-circuit will consume a fraction of that total power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Differential AC voltage gain of the XM1/XM5 differential pair.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"43 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rload. For W/L=5/0.5 and Id=0.5mA, gm is approx 1-2 mS. With a 2kOhm load, gain is ~2-4 V/V (6-12 dB).\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"10\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The 43 dB gain reported in the paper is the cascaded gain of the entire receiver. A single differential stage typically provides 10-15 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"The -3dB cutoff frequency of the differential amplifier stage.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz (Operating)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant at the output nodes. With Rload=2kOhm and parasitic capacitance ~50fF, f3dB = 1 / (2*pi*R*C) ~= 1.6 GHz.\",\n        \"range\": {\n          \"min\": \"500M\",\n          \"typical\": \"1.5G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"While the receiver operates at 5.2 GHz, this specific baseband or IF stage might have a lower bandwidth depending on its exact role (e.g., 23.5 MHz IF).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power consumption and AC voltage gain of the differential pair. Ideal current sources and load resistors are added to bias the incomplete extracted netlist properly.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth\"\n    ],\n    \"spice\": \"* Testbench for Receiver Sub-circuit\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\n* Supply and Inputs\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 0.5\\nVLABEL_NET_1 LABEL_NET_1 0 dc 0.9 ac -0.5\\nVN0 N0 0 dc 0.9\\n\\n* Biasing and loads to prevent floating nodes\\nR_N2 VDD N2 2k\\nR_N8 VDD N8 2k\\nI_tail N7 0 1m\\n\\nR_N5 VDD N5 2k\\nR_N6 VDD N6 2k\\nI_N3 N3 0 1m\\nI_N1 N1 0 1m\\n\\n* DUT\\nXM1 N2 LABEL_NET_0 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N4 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N5 VDD N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N6 N5 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N8 LABEL_NET_1 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VVDD)*1.8\\nprint power\\n\\n* AC Analysis\\nac dec 20 1M 10G\\nlet vout_diff = v(N2) - v(N8)\\nlet gain = mag(vout_diff)\\nlet gain_db = 20*log10(gain)\\n\\nmeas ac max_gain max gain_db\\nmeas ac f3db when gain_db=(max_gain-3) fall=1\\n\\nprint max_gain f3db\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "918919",
+  "_case": "918919_image_4"
+}

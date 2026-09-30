@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Voltage-Controlled Delay Cell / Tunable Inverter",
+    "description": "This circuit is a modified CMOS inverter where the NMOS source is connected to a control voltage (V_CONTROL) instead of ground. This configuration allows tuning of the discharge current, thereby controlling the high-to-low propagation delay, which is useful in delay-locked loops (DLLs) and waveform converters.",
+    "node_mapping": {
+      "input": [
+        "VIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "V_CONTROL"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A VLSI CMOS Delay Oriented Waveform Converter for Polyphase Frequency Synthesizer",
+      "figure": "9",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "t_delay_fall": {
+      "description": "High-to-low propagation delay from input to output.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 ps",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay is dominated by the discharge of the output capacitance through the NMOS. With V_CONTROL > 0, Vgs of NMOS is reduced and Vds is reduced, decreasing the discharge current. Assuming Cload ~ 10fF, I_discharge ~ 100uA, delay ~ (Cload * VDD/2) / I_discharge.",
+        "range": {
+          "min": "50p",
+          "typical": "150p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V process. The delay will heavily depend on the V_CONTROL voltage and output load."
+      },
+      "importance": "essential"
+    },
+    "t_delay_rise": {
+      "description": "Low-to-high propagation delay from input to output.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the PMOS charging the output node. PMOS source is at VDD, so it operates as a standard inverter pull-up.",
+        "range": {
+          "min": "50p",
+          "typical": "100p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Standard PMOS pull-up delay in SKY130 for a 5um/0.5um device driving a small load."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average dynamic power consumption of the cell.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 mW (entire converter)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = C_load * VDD * V_swing * f. For a single cell at 250MHz with 10fF load and 1.8V supply.",
+        "range": {
+          "min": "1u",
+          "typical": "10u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "The 50mW reported in the paper is for the entire multi-stage waveform converter and frequency multiplier. A single cell will consume significantly less power."
+      },
+      "importance": "essential"
+    },
+    "switching_threshold": {
+      "description": "Input voltage at which the output transitions (typically where VOUT crosses VDD/2).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Intersection of PMOS and NMOS current curves. Since NMOS source is at V_CONTROL, the effective Vgs is VIN - V_CONTROL, shifting the threshold higher.",
+        "range": {
+          "min": "0.8",
+          "typical": "1.1",
+          "max": "1.4",
+          "unit": "V"
+        },
+        "reasoning": "With V_CONTROL > 0, the NMOS is weaker, pushing the switching threshold above VDD/2 (0.9V)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure propagation delays, power consumption, and DC switching threshold of the voltage-controlled delay cell.",
+    "analyses": [
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "t_delay_fall",
+      "t_delay_rise",
+      "power_consumption",
+      "switching_threshold"
+    ],
+    "spice": "* Testbench for Voltage-Controlled Delay Cell\n\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 VOUT VIN V_CONTROL GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VOUT VIN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\n\n* Sources\nVVDD VDD 0 1.8\nVVCTRL V_CONTROL 0 0.3\n* 250 MHz Pulse input\nVVIN VIN 0 PULSE(0 1.8 1n 0.1n 0.1n 1.9n 4n)\n\n* Load capacitance\nCload VOUT 0 10f\n\n.control\n  * 1. Transient Analysis for Delay and Power\n  tran 10p 20n\n  \n  * Measure delays at 50% of VDD (0.9V)\n  meas tran t_delay_fall trig v(VIN) val=0.9 rise=1 targ v(VOUT) val=0.9 fall=1\n  meas tran t_delay_rise trig v(VIN) val=0.9 fall=1 targ v(VOUT) val=0.9 rise=1\n  \n  * Measure average power consumption\n  meas tran avg_current_vdd avg i(VVDD) from=0 to=20n\n  let avg_power = -avg_current_vdd * 1.8\n  print avg_power\n  \n  * 2. DC Analysis for Switching Threshold\n  dc VVIN 0 1.8 0.01\n  * Measure threshold when output crosses 1.0V (approximate midpoint considering V_CONTROL=0.3V)\n  meas dc v_threshold when v(VOUT)=1.0 fall=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Voltage-Controlled Delay Cell / Tunable Inverter\",\n    \"description\": \"This circuit is a modified CMOS inverter where the NMOS source is connected to a control voltage (V_CONTROL) instead of ground. This configuration allows tuning of the discharge current, thereby controlling the high-to-low propagation delay, which is useful in delay-locked loops (DLLs) and waveform converters.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"V_CONTROL\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A VLSI CMOS Delay Oriented Waveform Converter for Polyphase Frequency Synthesizer\",\n      \"figure\": \"9\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"t_delay_fall\": {\n      \"description\": \"High-to-low propagation delay from input to output.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 ps\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is dominated by the discharge of the output capacitance through the NMOS. With V_CONTROL > 0, Vgs of NMOS is reduced and Vds is reduced, decreasing the discharge current. Assuming Cload ~ 10fF, I_discharge ~ 100uA, delay ~ (Cload * VDD/2) / I_discharge.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"150p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V process. The delay will heavily depend on the V_CONTROL voltage and output load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_delay_rise\": {\n      \"description\": \"Low-to-high propagation delay from input to output.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the PMOS charging the output node. PMOS source is at VDD, so it operates as a standard inverter pull-up.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"100p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard PMOS pull-up delay in SKY130 for a 5um/0.5um device driving a small load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average dynamic power consumption of the cell.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 mW (entire converter)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C_load * VDD * V_swing * f. For a single cell at 250MHz with 10fF load and 1.8V supply.\",\n        \"range\": {\n          \"min\": \"1u\",\n          \"typical\": \"10u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 50mW reported in the paper is for the entire multi-stage waveform converter and frequency multiplier. A single cell will consume significantly less power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"switching_threshold\": {\n      \"description\": \"Input voltage at which the output transitions (typically where VOUT crosses VDD/2).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Intersection of PMOS and NMOS current curves. Since NMOS source is at V_CONTROL, the effective Vgs is VIN - V_CONTROL, shifting the threshold higher.\",\n        \"range\": {\n          \"min\": \"0.8\",\n          \"typical\": \"1.1\",\n          \"max\": \"1.4\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"With V_CONTROL > 0, the NMOS is weaker, pushing the switching threshold above VDD/2 (0.9V).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure propagation delays, power consumption, and DC switching threshold of the voltage-controlled delay cell.\",\n    \"analyses\": [\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"t_delay_fall\",\n      \"t_delay_rise\",\n      \"power_consumption\",\n      \"switching_threshold\"\n    ],\n    \"spice\": \"* Testbench for Voltage-Controlled Delay Cell\\n\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 VOUT VIN V_CONTROL GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VOUT VIN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVVCTRL V_CONTROL 0 0.3\\n* 250 MHz Pulse input\\nVVIN VIN 0 PULSE(0 1.8 1n 0.1n 0.1n 1.9n 4n)\\n\\n* Load capacitance\\nCload VOUT 0 10f\\n\\n.control\\n  * 1. Transient Analysis for Delay and Power\\n  tran 10p 20n\\n  \\n  * Measure delays at 50% of VDD (0.9V)\\n  meas tran t_delay_fall trig v(VIN) val=0.9 rise=1 targ v(VOUT) val=0.9 fall=1\\n  meas tran t_delay_rise trig v(VIN) val=0.9 fall=1 targ v(VOUT) val=0.9 rise=1\\n  \\n  * Measure average power consumption\\n  meas tran avg_current_vdd avg i(VVDD) from=0 to=20n\\n  let avg_power = -avg_current_vdd * 1.8\\n  print avg_power\\n  \\n  * 2. DC Analysis for Switching Threshold\\n  dc VVIN 0 1.8 0.01\\n  * Measure threshold when output crosses 1.0V (approximate midpoint considering V_CONTROL=0.3V)\\n  meas dc v_threshold when v(VOUT)=1.0 fall=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "987085",
+  "_case": "987085_image_8"
+}

@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Gilbert Cell Up-Conversion Mixer",
+    "description": "A double-balanced Gilbert cell mixer used in a transmitter front-end to up-convert an intermediate frequency (IF) or baseband signal to a radio frequency (RF) using a local oscillator (LO). It features inductive degeneration for linearity and an LC tank load tuned to the RF frequency.",
+    "node_mapping": {
+      "input": [
+        "label_net_1",
+        "label_net_2"
+      ],
+      "lo_input": [
+        "n2",
+        "n0"
+      ],
+      "output": [
+        "n10",
+        "n6"
+      ],
+      "supply": [
+        "n7"
+      ],
+      "bias": [
+        "n4",
+        "n3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Silicon Bipolar Transmitter Front-End for 802.11a and HIPERLAN2 Wireless LANs",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the mixer circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2 W (Entire Transmitter)",
+        "technology": "46-GHz fT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_tail = 1.8V * 5mA = 9mW",
+        "range": {
+          "min": "5m",
+          "typical": "9m",
+          "max": "15m",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 2W for the entire multi-stage transmitter power amplifier. A single mixer stage in SKY130 typically consumes 5-15 mW depending on the tail current."
+      },
+      "importance": "essential"
+    },
+    "conversion_gain": {
+      "description": "Ratio of the RF output voltage amplitude to the IF input voltage amplitude.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "35 dB (Max power gain of TX)",
+        "technology": "46-GHz fT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 (2/pi) * gm * R_load. With gm \u2248 20mS and R_load \u2248 500 ohms (LC tank at resonance), Gain \u2248 6.3 V/V = 16 dB.",
+        "range": {
+          "min": "10",
+          "typical": "15",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "Mixer conversion gain is typically lower than the full TX chain gain. 10-20 dB is standard for an active Gilbert cell with a tuned load."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "The target RF output frequency of the up-converter.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5.2 GHz",
+        "technology": "46-GHz fT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L_total * C_total)). With L=4nH and C=230fF, f \u2248 5.2 GHz.",
+        "range": {
+          "min": "5.1G",
+          "typical": "5.2G",
+          "max": "5.3G",
+          "unit": "Hz"
+        },
+        "reasoning": "The LC tank (L3, L6, C1) must be tuned to the 802.11a standard frequency of 5.2 GHz."
+      },
+      "importance": "essential"
+    },
+    "supply_voltage": {
+      "description": "DC supply voltage required for operation.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "3 V",
+        "technology": "46-GHz fT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Standard nominal VDD for SKY130 1.8V devices.",
+        "range": {
+          "min": "1.7",
+          "typical": "1.8",
+          "max": "1.9",
+          "unit": "V"
+        },
+        "reasoning": "Adapted from the paper's 3V bipolar process to the 1.8V SKY130 CMOS process."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power consumption and transient conversion gain of the Gilbert cell up-converter. The NPN transistors are mapped to SKY130 NMOS devices, and the output center tap is connected to VDD.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "conversion_gain"
+    ],
+    "spice": "* Gilbert Cell Up-Converter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT (NPNs replaced with SKY130 NMOS for CMOS adaptation)\nI1 n3 GND 5m\nL1 n3 n9 1n\nL2 n3 n8 1n\nL3 n6 n7 2n\nC1 n6 n10 230f\n* L4 n7 GND (Original netlist shorted center tap to GND. Changed to VDD RF choke)\nL4 n7 VDD 10u\nL5 label_net_0 GND 1n\nX1 n10 n2 n1 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nL6 n7 n10 2n\nX2 n6 n2 n5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nX3 n10 n0 n5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nX4 n1 label_net_1 n8 GND sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nR1 n2 n4 1k\nR2 n0 n4 1k\nL7 n0 n2 5n\nX5 n5 label_net_2 n9 GND sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nX6 n6 n0 n1 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\n\n* Power Supply\nV1 VDD GND 1.8\n\n* Biasing\nVbias_LO n4 GND 1.2\n\n* Existing Testbench DC Sources (with series resistors to prevent inductor shorts)\nVLABEL_NET_0 label_net_0_src GND 0.9\nR_src0 label_net_0_src label_net_0 50\nVLABEL_NET_1 label_net_1 IF_ac_p 0.9\nVLABEL_NET_2 label_net_2 IF_ac_n 0.9\n\n* IF Signal (200 MHz Baseband/IF)\nVIF_p IF_ac_p GND dc 0 sin(0 0.01 200Meg)\nVIF_n IF_ac_n GND dc 0 sin(0 0.01 200Meg 0 0 180)\n\n* LO Signal (5 GHz Local Oscillator, AC Coupled)\nVLO_p n2_ac GND dc 0 sin(0 0.3 5G)\nVLO_n n0_ac GND dc 0 sin(0 0.3 5G 0 0 180)\nC_LO_p n2_ac n2 1p\nC_LO_n n0_ac n0 1p\n\n.control\n  * DC Operating Point for Power\n  op\n  let power = -i(V1) * 1.8\n  print power\n\n  * Transient Analysis for Conversion Gain\n  tran 10p 20n\n  \n  * Measure IF input peak-to-peak amplitude\n  meas tran if_max max v(label_net_1, label_net_2) from=10n to=20n\n  meas tran if_min min v(label_net_1, label_net_2) from=10n to=20n\n  let if_pp = if_max - if_min\n\n  * Measure RF output peak-to-peak amplitude (at 5.2 GHz)\n  meas tran rf_max max v(n10, n6) from=10n to=20n\n  meas tran rf_min min v(n10, n6) from=10n to=20n\n  let rf_pp = rf_max - rf_min\n\n  * Calculate Conversion Gain in dB\n  let conv_gain = rf_pp / if_pp\n  let conv_gain_db = 20 * log10(conv_gain)\n  print conv_gain_db\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Gilbert Cell Up-Conversion Mixer\",\n    \"description\": \"A double-balanced Gilbert cell mixer used in a transmitter front-end to up-convert an intermediate frequency (IF) or baseband signal to a radio frequency (RF) using a local oscillator (LO). It features inductive degeneration for linearity and an LC tank load tuned to the RF frequency.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"label_net_1\",\n        \"label_net_2\"\n      ],\n      \"lo_input\": [\n        \"n2\",\n        \"n0\"\n      ],\n      \"output\": [\n        \"n10\",\n        \"n6\"\n      ],\n      \"supply\": [\n        \"n7\"\n      ],\n      \"bias\": [\n        \"n4\",\n        \"n3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Silicon Bipolar Transmitter Front-End for 802.11a and HIPERLAN2 Wireless LANs\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the mixer circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2 W (Entire Transmitter)\",\n        \"technology\": \"46-GHz fT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_tail = 1.8V * 5mA = 9mW\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"9m\",\n          \"max\": \"15m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 2W for the entire multi-stage transmitter power amplifier. A single mixer stage in SKY130 typically consumes 5-15 mW depending on the tail current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"conversion_gain\": {\n      \"description\": \"Ratio of the RF output voltage amplitude to the IF input voltage amplitude.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"35 dB (Max power gain of TX)\",\n        \"technology\": \"46-GHz fT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 (2/pi) * gm * R_load. With gm \u2248 20mS and R_load \u2248 500 ohms (LC tank at resonance), Gain \u2248 6.3 V/V = 16 dB.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"15\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Mixer conversion gain is typically lower than the full TX chain gain. 10-20 dB is standard for an active Gilbert cell with a tuned load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"The target RF output frequency of the up-converter.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz\",\n        \"technology\": \"46-GHz fT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L_total * C_total)). With L=4nH and C=230fF, f \u2248 5.2 GHz.\",\n        \"range\": {\n          \"min\": \"5.1G\",\n          \"typical\": \"5.2G\",\n          \"max\": \"5.3G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The LC tank (L3, L6, C1) must be tuned to the 802.11a standard frequency of 5.2 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"supply_voltage\": {\n      \"description\": \"DC supply voltage required for operation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"3 V\",\n        \"technology\": \"46-GHz fT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard nominal VDD for SKY130 1.8V devices.\",\n        \"range\": {\n          \"min\": \"1.7\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Adapted from the paper's 3V bipolar process to the 1.8V SKY130 CMOS process.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power consumption and transient conversion gain of the Gilbert cell up-converter. The NPN transistors are mapped to SKY130 NMOS devices, and the output center tap is connected to VDD.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"conversion_gain\"\n    ],\n    \"spice\": \"* Gilbert Cell Up-Converter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT (NPNs replaced with SKY130 NMOS for CMOS adaptation)\\nI1 n3 GND 5m\\nL1 n3 n9 1n\\nL2 n3 n8 1n\\nL3 n6 n7 2n\\nC1 n6 n10 230f\\n* L4 n7 GND (Original netlist shorted center tap to GND. Changed to VDD RF choke)\\nL4 n7 VDD 10u\\nL5 label_net_0 GND 1n\\nX1 n10 n2 n1 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nL6 n7 n10 2n\\nX2 n6 n2 n5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nX3 n10 n0 n5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nX4 n1 label_net_1 n8 GND sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nR1 n2 n4 1k\\nR2 n0 n4 1k\\nL7 n0 n2 5n\\nX5 n5 label_net_2 n9 GND sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nX6 n6 n0 n1 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\n\\n* Power Supply\\nV1 VDD GND 1.8\\n\\n* Biasing\\nVbias_LO n4 GND 1.2\\n\\n* Existing Testbench DC Sources (with series resistors to prevent inductor shorts)\\nVLABEL_NET_0 label_net_0_src GND 0.9\\nR_src0 label_net_0_src label_net_0 50\\nVLABEL_NET_1 label_net_1 IF_ac_p 0.9\\nVLABEL_NET_2 label_net_2 IF_ac_n 0.9\\n\\n* IF Signal (200 MHz Baseband/IF)\\nVIF_p IF_ac_p GND dc 0 sin(0 0.01 200Meg)\\nVIF_n IF_ac_n GND dc 0 sin(0 0.01 200Meg 0 0 180)\\n\\n* LO Signal (5 GHz Local Oscillator, AC Coupled)\\nVLO_p n2_ac GND dc 0 sin(0 0.3 5G)\\nVLO_n n0_ac GND dc 0 sin(0 0.3 5G 0 0 180)\\nC_LO_p n2_ac n2 1p\\nC_LO_n n0_ac n0 1p\\n\\n.control\\n  * DC Operating Point for Power\\n  op\\n  let power = -i(V1) * 1.8\\n  print power\\n\\n  * Transient Analysis for Conversion Gain\\n  tran 10p 20n\\n  \\n  * Measure IF input peak-to-peak amplitude\\n  meas tran if_max max v(label_net_1, label_net_2) from=10n to=20n\\n  meas tran if_min min v(label_net_1, label_net_2) from=10n to=20n\\n  let if_pp = if_max - if_min\\n\\n  * Measure RF output peak-to-peak amplitude (at 5.2 GHz)\\n  meas tran rf_max max v(n10, n6) from=10n to=20n\\n  meas tran rf_min min v(n10, n6) from=10n to=20n\\n  let rf_pp = rf_max - rf_min\\n\\n  * Calculate Conversion Gain in dB\\n  let conv_gain = rf_pp / if_pp\\n  let conv_gain_db = 20 * log10(conv_gain)\\n  print conv_gain_db\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "jssc.2005.847327",
+  "_case": "jssc.2005.847327_image_9"
+}

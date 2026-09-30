@@ -1,0 +1,152 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 27.5",
+    "page": "913",
+    "circuit_type": "Comparator preamplification stage and positive feedback decision circuit",
+    "description": "The circuit consists of an NMOS differential pair (M1, M2) with diode-connected PMOS loads (M31, M41) mirrored via M3 and M4 into an NMOS positive feedback decision circuit (M5-M8) with tail current source biased by a beta-multiplier reference."
+  },
+  "step2_metrics": {
+    "tail_current": {
+      "description": "Tail bias current Iss supplied to the input differential pair",
+      "unit": "A",
+      "analysis_type": "OP",
+      "source": {
+        "page": "913",
+        "reference": "Figure 27.5"
+      },
+      "equation": {
+        "formula": "Iss = 40 uA",
+        "explanation": "Nominal tail bias current set by the bias circuit (SUB_1) through the tail current mirror transistor xmsu3.",
+        "assumptions": "Bias circuit properly started up and stabilized."
+      },
+      "sky130_expected": {
+        "calculation": "Iss is set to 40 uA nominal as specified in Fig 27.5.",
+        "range": {
+          "min": 3e-05,
+          "typical": 4e-05,
+          "max": 5e-05,
+          "unit": "A"
+        },
+        "reasoning": "Standard biasing variation across process corners."
+      },
+      "importance": "essential"
+    },
+    "decision_circuit_voh": {
+      "description": "Maximum output voltage vop when all tail current is steered to one side",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "911",
+        "reference": "Eq. (27.2)"
+      },
+      "equation": {
+        "formula": "vop = sqrt(2 * iop / beta_A) + VTHN",
+        "explanation": "When M8 and M6 are off, all mirrored current iop flows through diode-connected NMOS M5.",
+        "assumptions": "M8 and M6 are completely turned off, vom approx 0V."
+      },
+      "sky130_expected": {
+        "calculation": "With iop = Iss = 40 uA, beta_A = un*Cox*(W5/L5) = 270u * (10u / 1u) = 2.7 mA/V^2, VTHN = 0.42 V: vop = sqrt(2 * 40u / 2.7m) + 0.42 = sqrt(2.96e-2) + 0.42 = 0.172 + 0.42 = 0.592 V.",
+        "range": {
+          "min": 0.5,
+          "typical": 0.6,
+          "max": 0.75,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the threshold voltage VTHN and effective transconductance parameter beta_A of M5."
+      },
+      "importance": "recommended"
+    },
+    "high_switching_threshold": {
+      "description": "Upper switching point voltage VSPH where decision circuit flips as vp increases",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "912",
+        "reference": "Eq. (27.6)"
+      },
+      "equation": {
+        "formula": "VSPH = vp - vm = (Iss / gm) * ((beta_B / beta_A - 1) / (beta_B / beta_A + 1))",
+        "explanation": "Input differential voltage at which the decision circuit switches when beta_B >= beta_A.",
+        "assumptions": "M8 gate-source voltage reaches VTHN at the trip point; Iss = 40 uA."
+      },
+      "sky130_expected": {
+        "calculation": "For W5=W8=10u/1u (beta_A), W6=W7=12u/1u (beta_B), beta_B/beta_A = 1.2. Differential pair ID = 20 uA with W/L = 10u/2u = 5: gm = sqrt(2 * 270u * 5 * 20u) = 232.4 uA/V. VSPH = (40u / 232.4u) * ((1.2 - 1) / (1.2 + 1)) = 0.1721 * (0.2 / 2.2) = 15.6 mV.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.016,
+          "max": 0.025,
+          "unit": "V"
+        },
+        "reasoning": "Determined by gm of input pair and beta ratio (1.2)."
+      },
+      "importance": "essential"
+    },
+    "low_switching_threshold": {
+      "description": "Lower switching point voltage VSPL where decision circuit flips as vp decreases",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "912",
+        "reference": "Eq. (27.7)"
+      },
+      "equation": {
+        "formula": "VSPL = -VSPH",
+        "explanation": "Due to circuit symmetry, the lower switching threshold is equal in magnitude and opposite in sign to VSPH.",
+        "assumptions": "Fully symmetric differential pair and decision circuit layout."
+      },
+      "sky130_expected": {
+        "calculation": "VSPL = -VSPH = -15.6 mV.",
+        "range": {
+          "min": -0.025,
+          "typical": -0.016,
+          "max": -0.01,
+          "unit": "V"
+        },
+        "reasoning": "Equal and opposite to VSPH by differential symmetry."
+      },
+      "importance": "essential"
+    },
+    "hysteresis_voltage": {
+      "description": "Total input hysteresis voltage width of the comparator",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "912",
+        "reference": "Eq. (27.6), Eq. (27.7)"
+      },
+      "equation": {
+        "formula": "VHYS = VSPH - VSPL = 2 * VSPH",
+        "explanation": "Total difference between the upper and lower input switching thresholds.",
+        "assumptions": "beta_B > beta_A creating positive feedback latching."
+      },
+      "sky130_expected": {
+        "calculation": "VHYS = 2 * 15.6 mV = 31.2 mV.",
+        "range": {
+          "min": 0.02,
+          "typical": 0.031,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Double the individual switching point voltage."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench measuring bias current, output high level, VSPH, VSPL, and hysteresis voltage of the pre-amp and decision circuit.",
+    "analyses": [
+      "OP",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "tail_current",
+      "decision_circuit_voh",
+      "high_switching_threshold",
+      "low_switching_threshold",
+      "hysteresis_voltage"
+    ],
+    "spice": "* Testbench for Pre-amp and Decision Circuit (Baker Fig. 27.5)\n.lib \"/home/designer/sky130_pdk/sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Parameter definitions matching Fig. 27.5 / Ex. 27.1\n.param W_xmsu3=20u L_xmsu3=2u\n.param W_xm31=30u  L_xm31=2u\n.param W_xm41=30u  L_xm41=2u\n.param W_xm2=10u   L_xm2=2u\n.param W_xm1=10u   L_xm1=2u\n.param W_xm3=30u   L_xm3=2u\n.param W_xm4=30u   L_xm4=2u\n.param W_xm5=10u   L_xm5=1u\n.param W_xm6=12u   L_xm6=1u\n.param W_xm7=12u   L_xm7=1u\n.param W_xm8=10u   L_xm8=1u\n\n* Parameters for SUB_1 reference\n.param W_xmsu2=5u  L_xmsu2=2u\n.param W_xmsu1=5u  L_xmsu1=2u\n\n* Circuit Netlist (DUT)\nVDD VDD 0 1.8\nxmsu3 N003 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\nxm31 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\nxm41 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm41} l={L_xm41}\nxm2 N001 vm N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N002 vp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\nVp vp 0 0.9\nVm vm 0 0.9\nxm3 vop N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 vom N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 vop vop 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 vop vom 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm7 vom vop 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nxm8 vom vom 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 VDD N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Vbiasp Vbiasn N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N002 GND 6.5k\n.ends SUB_1\n\n* Dynamic stimulus for hysteresis extraction via slow triangular wave\nVp_dyn vp_dyn 0 PWL(0 0.8 100u 1.0 200u 0.8)\nBvp vp 0 V = v(vp_dyn)\n\n.control\n* 1. Operating Point to check Iss tail current\nop\nlet iss_val = @m.xmsu3.msky130_fd_pr__nfet_01v8[id]\nprint iss_val\n\n* 2. Transient analysis over triangular sweep to capture hysteresis\ntran 100n 200u\n\n* Differential output\nlet vdiff = v(vop) - v(vom)\nlet vid = v(vp) - v(vm)\n\n* Forward switching (vp ramping up: 0 to 100us)\nmeas tran vsph_time when vdiff=0 rise=1\nmeas tran vsph find vid at=vsph_time\n\n* Reverse switching (vp ramping down: 100us to 200us)\nmeas tran vspl_time when vdiff=0 fall=1\nmeas tran vspl find vid at=vspl_time\n\n* Hysteresis calculation\nlet vhys = vsph - vspl\nprint vsph vspl vhys\n\n* 3. Max output high level of decision circuit\nmeas tran voh_max max v(vop)\nprint voh_max\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 27.5\",\n    \"page\": \"913\",\n    \"circuit_type\": \"Comparator preamplification stage and positive feedback decision circuit\",\n    \"description\": \"The circuit consists of an NMOS differential pair (M1, M2) with diode-connected PMOS loads (M31, M41) mirrored via M3 and M4 into an NMOS positive feedback decision circuit (M5-M8) with tail current source biased by a beta-multiplier reference.\"\n  },\n  \"step2_metrics\": {\n    \"tail_current\": {\n      \"description\": \"Tail bias current Iss supplied to the input differential pair\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"913\", \"reference\": \"Figure 27.5\" },\n      \"equation\": {\n        \"formula\": \"Iss = 40 uA\",\n        \"explanation\": \"Nominal tail bias current set by the bias circuit (SUB_1) through the tail current mirror transistor xmsu3.\",\n        \"assumptions\": \"Bias circuit properly started up and stabilized.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Iss is set to 40 uA nominal as specified in Fig 27.5.\",\n        \"range\": { \"min\": 30e-6, \"typical\": 40e-6, \"max\": 50e-6, \"unit\": \"A\" },\n        \"reasoning\": \"Standard biasing variation across process corners.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"decision_circuit_voh\": {\n      \"description\": \"Maximum output voltage vop when all tail current is steered to one side\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"911\", \"reference\": \"Eq. (27.2)\" },\n      \"equation\": {\n        \"formula\": \"vop = sqrt(2 * iop / beta_A) + VTHN\",\n        \"explanation\": \"When M8 and M6 are off, all mirrored current iop flows through diode-connected NMOS M5.\",\n        \"assumptions\": \"M8 and M6 are completely turned off, vom approx 0V.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With iop = Iss = 40 uA, beta_A = un*Cox*(W5/L5) = 270u * (10u / 1u) = 2.7 mA/V^2, VTHN = 0.42 V: vop = sqrt(2 * 40u / 2.7m) + 0.42 = sqrt(2.96e-2) + 0.42 = 0.172 + 0.42 = 0.592 V.\",\n        \"range\": { \"min\": 0.50, \"typical\": 0.60, \"max\": 0.75, \"unit\": \"V\" },\n        \"reasoning\": \"Depends on the threshold voltage VTHN and effective transconductance parameter beta_A of M5.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"high_switching_threshold\": {\n      \"description\": \"Upper switching point voltage VSPH where decision circuit flips as vp increases\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"912\", \"reference\": \"Eq. (27.6)\" },\n      \"equation\": {\n        \"formula\": \"VSPH = vp - vm = (Iss / gm) * ((beta_B / beta_A - 1) / (beta_B / beta_A + 1))\",\n        \"explanation\": \"Input differential voltage at which the decision circuit switches when beta_B >= beta_A.\",\n        \"assumptions\": \"M8 gate-source voltage reaches VTHN at the trip point; Iss = 40 uA.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For W5=W8=10u/1u (beta_A), W6=W7=12u/1u (beta_B), beta_B/beta_A = 1.2. Differential pair ID = 20 uA with W/L = 10u/2u = 5: gm = sqrt(2 * 270u * 5 * 20u) = 232.4 uA/V. VSPH = (40u / 232.4u) * ((1.2 - 1) / (1.2 + 1)) = 0.1721 * (0.2 / 2.2) = 15.6 mV.\",\n        \"range\": { \"min\": 10e-3, \"typical\": 16e-3, \"max\": 25e-3, \"unit\": \"V\" },\n        \"reasoning\": \"Determined by gm of input pair and beta ratio (1.2).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"low_switching_threshold\": {\n      \"description\": \"Lower switching point voltage VSPL where decision circuit flips as vp decreases\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"912\", \"reference\": \"Eq. (27.7)\" },\n      \"equation\": {\n        \"formula\": \"VSPL = -VSPH\",\n        \"explanation\": \"Due to circuit symmetry, the lower switching threshold is equal in magnitude and opposite in sign to VSPH.\",\n        \"assumptions\": \"Fully symmetric differential pair and decision circuit layout.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VSPL = -VSPH = -15.6 mV.\",\n        \"range\": { \"min\": -25e-3, \"typical\": -16e-3, \"max\": -10e-3, \"unit\": \"V\" },\n        \"reasoning\": \"Equal and opposite to VSPH by differential symmetry.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"hysteresis_voltage\": {\n      \"description\": \"Total input hysteresis voltage width of the comparator\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"912\", \"reference\": \"Eq. (27.6), Eq. (27.7)\" },\n      \"equation\": {\n        \"formula\": \"VHYS = VSPH - VSPL = 2 * VSPH\",\n        \"explanation\": \"Total difference between the upper and lower input switching thresholds.\",\n        \"assumptions\": \"beta_B > beta_A creating positive feedback latching.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VHYS = 2 * 15.6 mV = 31.2 mV.\",\n        \"range\": { \"min\": 20e-3, \"typical\": 31e-3, \"max\": 50e-3, \"unit\": \"V\" },\n        \"reasoning\": \"Double the individual switching point voltage.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench measuring bias current, output high level, VSPH, VSPL, and hysteresis voltage of the pre-amp and decision circuit.\",\n    \"analyses\": [\"OP\", \"DC\", \"Tran\"],\n    \"metrics_measured\": [\n      \"tail_current\",\n      \"decision_circuit_voh\",\n      \"high_switching_threshold\",\n      \"low_switching_threshold\",\n      \"hysteresis_voltage\"\n    ],\n    \"spice\": \"* Testbench for Pre-amp and Decision Circuit (Baker Fig. 27.5)\\n.lib \\\"/home/designer/sky130_pdk/sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Parameter definitions matching Fig. 27.5 / Ex. 27.1\\n.param W_xmsu3=20u L_xmsu3=2u\\n.param W_xm31=30u  L_xm31=2u\\n.param W_xm41=30u  L_xm41=2u\\n.param W_xm2=10u   L_xm2=2u\\n.param W_xm1=10u   L_xm1=2u\\n.param W_xm3=30u   L_xm3=2u\\n.param W_xm4=30u   L_xm4=2u\\n.param W_xm5=10u   L_xm5=1u\\n.param W_xm6=12u   L_xm6=1u\\n.param W_xm7=12u   L_xm7=1u\\n.param W_xm8=10u   L_xm8=1u\\n\\n* Parameters for SUB_1 reference\\n.param W_xmsu2=5u  L_xmsu2=2u\\n.param W_xmsu1=5u  L_xmsu1=2u\\n\\n* Circuit Netlist (DUT)\\nVDD VDD 0 1.8\\nxmsu3 N003 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\nxm31 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\\nxm41 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm41} l={L_xm41}\\nxm2 N001 vm N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N002 vp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\\nVp vp 0 0.9\\nVm vm 0 0.9\\nxm3 vop N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 vom N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 vop vop 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 vop vom 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 vom vop 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 vom vom 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n\\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 VDD N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Vbiasp Vbiasn N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N002 GND 6.5k\\n.ends SUB_1\\n\\n* Dynamic stimulus for hysteresis extraction via slow triangular wave\\nVp_dyn vp_dyn 0 PWL(0 0.8 100u 1.0 200u 0.8)\\nBvp vp 0 V = v(vp_dyn)\\n\\n.control\\n* 1. Operating Point to check Iss tail current\\nop\\nlet iss_val = @m.xmsu3.msky130_fd_pr__nfet_01v8[id]\\nprint iss_val\\n\\n* 2. Transient analysis over triangular sweep to capture hysteresis\\ntran 100n 200u\\n\\n* Differential output\\nlet vdiff = v(vop) - v(vom)\\nlet vid = v(vp) - v(vm)\\n\\n* Forward switching (vp ramping up: 0 to 100us)\\nmeas tran vsph_time when vdiff=0 rise=1\\nmeas tran vsph find vid at=vsph_time\\n\\n* Reverse switching (vp ramping down: 100us to 200us)\\nmeas tran vspl_time when vdiff=0 fall=1\\nmeas tran vspl find vid at=vspl_time\\n\\n* Hysteresis calculation\\nlet vhys = vsph - vspl\\nprint vsph vspl vhys\\n\\n* 3. Max output high level of decision circuit\\nmeas tran voh_max max v(vop)\\nprint voh_max\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

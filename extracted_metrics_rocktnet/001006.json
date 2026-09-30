@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Active Envelope Detector / RF Front-End",
+    "description": "A differential RF amplifier with an integrated square-law envelope detector. The LC tank (to be connected at N7/N0) amplifies the RF signal, which is then rectified by the PMOS transistors (XM3, XM5) to extract the baseband envelope at VE2.",
+    "node_mapping": {
+      "input": [
+        "VBL_PLUS",
+        "VBL_MINUS"
+      ],
+      "output": [
+        "VE2",
+        "N7",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB"
+      ],
+      "ground": [
+        "GND",
+        "N1",
+        "N2"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1mW 1Mb/s 7.75-to-8.25GHz Chirp-UWB Transceiver with Low Peak-Power Transmission and Fast Synchronization Capability",
+      "figure": "unknown",
+      "year": 2014
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the block",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "1mW",
+        "technology": "unknown"
+      },
+      "sky130_expected": {
+        "calculation": "I_NMOS = 0.5 * 270u * 10 * (0.75-0.42)^2 = 147uA. I_PMOS = 0.5 * 50u * 10 * (1.8-0.75-0.42)^2 = 99uA. Total current = 2 * (147u + 99u) = 492uA. Power = 492uA * 1.8V = 0.88mW.",
+        "range": {
+          "min": "0.5m",
+          "typical": "0.88m",
+          "max": "1.2m",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on SKY130 typical Vth and mobility. Matches the order of magnitude of the paper's total transceiver power."
+      },
+      "importance": "essential"
+    },
+    "rf_gain": {
+      "description": "Voltage gain from RF input to the LC tank nodes (N7, N0)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2 * 147uA / 0.33V = 0.89mS. Assuming an LC tank parallel resistance of 2kOhm at resonance. Gain = gm * R_tank = 1.78 = 5 dB.",
+        "range": {
+          "min": "0",
+          "typical": "5",
+          "max": "10",
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the assumed LC tank Q-factor and parallel resistance."
+      },
+      "importance": "recommended"
+    },
+    "detector_dc_voltage": {
+      "description": "Steady-state DC voltage at the envelope output (VE2) without RF input",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "VE2 sinks ~100uA from XM3. XM2/XM4 (W/L=20) act as a diode-connected load. Vov = sqrt(100u / (0.5 * 270u * 20)) = 0.19V. Vgs = 0.42 + 0.19 = 0.61V.",
+        "range": {
+          "min": "0.5",
+          "typical": "0.61",
+          "max": "0.7",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the diode-connected NMOS load and the quiescent current of the PMOS."
+      },
+      "importance": "essential"
+    },
+    "detector_dc_shift": {
+      "description": "Change in the average DC voltage at VE2 when an RF signal is applied (Detection Gain)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "With 100mV RF input and 5dB gain, PMOS Vsg swing is ~280mV. Due to square-law, average current increases, raising VE2 by ~50-150mV.",
+        "range": {
+          "min": "0.01",
+          "typical": "0.1",
+          "max": "0.3",
+          "unit": "V"
+        },
+        "reasoning": "Square-law rectification of the amplified RF signal."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, RF gain, and envelope detector response (DC shift) using an AM-modulated (step) RF input.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "rf_gain",
+      "detector_dc_voltage",
+      "detector_dc_shift"
+    ],
+    "spice": "* Active Envelope Detector Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\nXM1 N3 VB VE2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VE2 VE2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N7 VBL_PLUS VE2 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VE2 VE2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 VBL_MINUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N7 VBL_PLUS N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N0 VBL_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\nVVDD VDD 0 1.8\nVVB VB 0 0.54\nVN1 N1 0 0\nVN2 N2 0 0\n\n* LC Tank Loads (Resonance at ~8GHz)\nL1 VDD N7 1n\nC1 N7 VDD 395f\nR1 N7 VDD 2k\n\nL2 VDD N0 1n\nC2 N0 VDD 395f\nR2 N0 VDD 2k\n\n* RF Inputs (DC 0.75V, AC 1V for AC analysis, 8GHz Sine starting at 2.5ns for Tran)\nVBLP VBL_PLUS 0 DC 0.75 AC 1 SIN(0.75 0.1 8G 2.5n 0 0)\nVBLM VBL_MINUS 0 DC 0.75 AC 1 180 SIN(0.75 0.1 8G 2.5n 0 180)\n\n.control\n  * AC Analysis for RF Gain\n  ac dec 100 1G 20G\n  let gain_db = vdb(N7)\n  meas ac max_gain MAX gain_db\n  meas ac gain_8g find gain_db at=8G\n\n  * Transient Analysis for Envelope Detection\n  tran 1p 5n\n  \n  * Measure DC Power (before RF turns on)\n  meas tran i_vdd avg i(VVDD) from=1n to=2n\n  let power_dc = -i_vdd * 1.8\n  print power_dc\n\n  * Measure Detector DC Voltage (No RF)\n  meas tran ve2_dc avg v(VE2) from=1n to=2n\n  \n  * Measure Detector Voltage (With RF)\n  meas tran ve2_rf avg v(VE2) from=4n to=5n\n  \n  * Calculate DC Shift (Detection Gain)\n  let ve2_shift = ve2_rf - ve2_dc\n  print ve2_dc ve2_rf ve2_shift\n  \n  * Measure Ripple\n  meas tran ve2_ripple pp v(VE2) from=4n to=5n\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Active Envelope Detector / RF Front-End\",\n    \"description\": \"A differential RF amplifier with an integrated square-law envelope detector. The LC tank (to be connected at N7/N0) amplifies the RF signal, which is then rectified by the PMOS transistors (XM3, XM5) to extract the baseband envelope at VE2.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VBL_PLUS\",\n        \"VBL_MINUS\"\n      ],\n      \"output\": [\n        \"VE2\",\n        \"N7\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N1\",\n        \"N2\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1mW 1Mb/s 7.75-to-8.25GHz Chirp-UWB Transceiver with Low Peak-Power Transmission and Fast Synchronization Capability\",\n      \"figure\": \"unknown\",\n      \"year\": 2014\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the block\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"1mW\",\n        \"technology\": \"unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_NMOS = 0.5 * 270u * 10 * (0.75-0.42)^2 = 147uA. I_PMOS = 0.5 * 50u * 10 * (1.8-0.75-0.42)^2 = 99uA. Total current = 2 * (147u + 99u) = 492uA. Power = 492uA * 1.8V = 0.88mW.\",\n        \"range\": {\n          \"min\": \"0.5m\",\n          \"typical\": \"0.88m\",\n          \"max\": \"1.2m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 typical Vth and mobility. Matches the order of magnitude of the paper's total transceiver power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rf_gain\": {\n      \"description\": \"Voltage gain from RF input to the LC tank nodes (N7, N0)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2 * 147uA / 0.33V = 0.89mS. Assuming an LC tank parallel resistance of 2kOhm at resonance. Gain = gm * R_tank = 1.78 = 5 dB.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"5\",\n          \"max\": \"10\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the assumed LC tank Q-factor and parallel resistance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"detector_dc_voltage\": {\n      \"description\": \"Steady-state DC voltage at the envelope output (VE2) without RF input\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VE2 sinks ~100uA from XM3. XM2/XM4 (W/L=20) act as a diode-connected load. Vov = sqrt(100u / (0.5 * 270u * 20)) = 0.19V. Vgs = 0.42 + 0.19 = 0.61V.\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"0.61\",\n          \"max\": \"0.7\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the diode-connected NMOS load and the quiescent current of the PMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"detector_dc_shift\": {\n      \"description\": \"Change in the average DC voltage at VE2 when an RF signal is applied (Detection Gain)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With 100mV RF input and 5dB gain, PMOS Vsg swing is ~280mV. Due to square-law, average current increases, raising VE2 by ~50-150mV.\",\n        \"range\": {\n          \"min\": \"0.01\",\n          \"typical\": \"0.1\",\n          \"max\": \"0.3\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Square-law rectification of the amplified RF signal.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, RF gain, and envelope detector response (DC shift) using an AM-modulated (step) RF input.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"rf_gain\",\n      \"detector_dc_voltage\",\n      \"detector_dc_shift\"\n    ],\n    \"spice\": \"* Active Envelope Detector Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\nXM1 N3 VB VE2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VE2 VE2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N7 VBL_PLUS VE2 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VE2 VE2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 VBL_MINUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N7 VBL_PLUS N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N0 VBL_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\nVVDD VDD 0 1.8\\nVVB VB 0 0.54\\nVN1 N1 0 0\\nVN2 N2 0 0\\n\\n* LC Tank Loads (Resonance at ~8GHz)\\nL1 VDD N7 1n\\nC1 N7 VDD 395f\\nR1 N7 VDD 2k\\n\\nL2 VDD N0 1n\\nC2 N0 VDD 395f\\nR2 N0 VDD 2k\\n\\n* RF Inputs (DC 0.75V, AC 1V for AC analysis, 8GHz Sine starting at 2.5ns for Tran)\\nVBLP VBL_PLUS 0 DC 0.75 AC 1 SIN(0.75 0.1 8G 2.5n 0 0)\\nVBLM VBL_MINUS 0 DC 0.75 AC 1 180 SIN(0.75 0.1 8G 2.5n 0 180)\\n\\n.control\\n  * AC Analysis for RF Gain\\n  ac dec 100 1G 20G\\n  let gain_db = vdb(N7)\\n  meas ac max_gain MAX gain_db\\n  meas ac gain_8g find gain_db at=8G\\n\\n  * Transient Analysis for Envelope Detection\\n  tran 1p 5n\\n  \\n  * Measure DC Power (before RF turns on)\\n  meas tran i_vdd avg i(VVDD) from=1n to=2n\\n  let power_dc = -i_vdd * 1.8\\n  print power_dc\\n\\n  * Measure Detector DC Voltage (No RF)\\n  meas tran ve2_dc avg v(VE2) from=1n to=2n\\n  \\n  * Measure Detector Voltage (With RF)\\n  meas tran ve2_rf avg v(VE2) from=4n to=5n\\n  \\n  * Calculate DC Shift (Detection Gain)\\n  let ve2_shift = ve2_rf - ve2_dc\\n  print ve2_dc ve2_rf ve2_shift\\n  \\n  * Measure Ripple\\n  meas tran ve2_ripple pp v(VE2) from=4n to=5n\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "6757382",
+  "_case": "6757382_image_3_d"
+}

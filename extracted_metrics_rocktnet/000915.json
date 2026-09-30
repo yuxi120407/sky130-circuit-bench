@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential Transconductor (Gm cell) with Enable",
+    "description": "A fully differential transconductance amplifier used in continuous-time analog filters. It features a main differential pair with PMOS active loads, a common-mode feedback (CMFB) control node, and a dummy differential pair used for power-down mode or common-mode stabilization when the main cell is disabled.",
+    "node_mapping": {
+      "input": [
+        "I_PLUS",
+        "I_MINUS"
+      ],
+      "output": [
+        "O_PLUS",
+        "O_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBIAS_EN",
+        "VBIAS_EN_BAR",
+        "VDD_EN_BAR",
+        "CMFB"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1 GHz CMOS Analog Front-End for a Generalized PRML Read Channel",
+      "figure": "Not specified",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low-frequency differential voltage gain of the transconductor.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "30 dB",
+        "technology": "0.35 \u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/Vov. With W/L=5/0.5 and two parallel tail transistors, Id_tail ~ 200uA, so Id_branch ~ 100uA. Assuming Vov ~ 0.2V, gm ~ 1mS. Rout = ro_n || ro_p ~ 1/(lambda*Id) || 1/(lambda*Id) = 100k || 100k = 50kOhm. Gain = gm * Rout = 50 V/V = 34 dB.",
+        "range": {
+          "min": 25,
+          "typical": 34,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using standard square-law approximations for SKY130 1.8V devices with L=0.5um. Matches the typical 30 dB gain reported in the paper for similar stages."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB cutoff frequency of the voltage gain with a specified load capacitance.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz (Filter cutoff)",
+        "technology": "0.35 \u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rout * C_load). With Rout = 50 kOhm and C_load = 50 fF, BW = 1 / (2 * pi * 50k * 50f) = 63.6 MHz.",
+        "range": {
+          "min": 40000000.0,
+          "typical": 63000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The cell bandwidth depends heavily on the load capacitance. While the overall filter operates at 1 GHz, the open-loop -3dB bandwidth of a single high-gain Gm cell is lower; the unity-gain frequency is what supports the 1 GHz operation."
+      },
+      "importance": "essential"
+    },
+    "Unity_Gain_Frequency": {
+      "description": "Frequency at which the differential voltage gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported for the cell",
+        "technology": "0.35 \u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "UGF = gm / (2 * pi * C_load). With gm = 1 mS and C_load = 50 fF, UGF = 1e-3 / (2 * pi * 50e-15) = 3.18 GHz.",
+        "range": {
+          "min": 2000000000.0,
+          "typical": 3180000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "To support a 1 GHz continuous-time filter, the unity-gain frequency of the individual transconductors must be significantly higher than 1 GHz to minimize excess phase shift."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumed by the cell from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "240 mW (Whole chip at 800 MHz)",
+        "technology": "0.35 \u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_total. I_total is dominated by the tail current (approx 200 uA). Power = 1.8 V * 200 uA = 360 uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00036,
+          "max": 0.0006,
+          "unit": "W"
+        },
+        "reasoning": "The paper reports power for the entire analog front-end (240 mW at 3.3V). A single Gm cell consumes a small fraction of this, scaled down further by the 1.8V supply in SKY130."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, -3dB bandwidth, unity-gain frequency, and power consumption of the fully differential Gm cell. An ideal behavioral CMFB loop is used to stabilize the output common-mode voltage.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "DC_Gain",
+      "Bandwidth",
+      "Unity_Gain_Frequency"
+    ],
+    "spice": "* Gm Cell Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2d=5u L_xm2d=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm1d=5u L_xm1d=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm12=5u L_xm12=0.5u\n\n* DUT\nXM2D N0 VBIAS_EN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm2d} w={W_xm2d}\nXM5 N1 VBIAS_EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM8 CM I_MINUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM1D CM I_PLUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1d} w={W_xm1d}\nXM2 N1 VBIAS_EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM6 N0 VBIAS_EN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 O_PLUS I_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM3 O_MINUS CMFB N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM9 O_PLUS CMFB N12 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM1 O_MINUS I_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM4 N4 VDD_EN_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM12 N12 VDD_EN_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\n\n* Biasing and Supplies\nV_VDD VDD 0 1.8\nV_VBIAS_EN VBIAS_EN 0 1.8\nV_VBIAS_EN_BAR VBIAS_EN_BAR 0 0\nV_VDD_EN_BAR VDD_EN_BAR 0 0\nV_CM CM 0 0.9\n\n* Ideal CMFB Loop to stabilize output common-mode at 0.9V\nB_CMFB CMFB 0 V='0.9 + 10*(v(O_PLUS)+v(O_MINUS)-1.8)'\n\n* Inputs\nV_IN_CM IN_CM 0 0.9\nV_IN_D IN_D 0 0 ac 1 sin(0 0.1 100Meg)\nE_IN_P I_PLUS IN_CM IN_D 0 0.5\nE_IN_M I_MINUS IN_CM IN_D 0 -0.5\n\n* Loads\nC_L1 O_PLUS 0 50f\nC_L2 O_MINUS 0 50f\n\n* Differential Output for Measurement\nE_DIFF OUT_DIFF 0 O_PLUS O_MINUS 1\n\n.control\n* DC Operating Point and Power\nop\nlet power = -i(V_VDD) * 1.8\nprint power\n\n* AC Analysis\nac dec 100 1Meg 10G\nlet gain_db = vdb(OUT_DIFF)\nmeas ac dc_gain find gain_db at=1Meg\nmeas ac bw_3db when gain_db='dc_gain-3' fall=1\nmeas ac unity_gain_freq when gain_db=0 fall=1\n\n* Transient Analysis\ntran 10p 20n\nmeas tran vout_pp pp v(OUT_DIFF)\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential Transconductor (Gm cell) with Enable\",\n    \"description\": \"A fully differential transconductance amplifier used in continuous-time analog filters. It features a main differential pair with PMOS active loads, a common-mode feedback (CMFB) control node, and a dummy differential pair used for power-down mode or common-mode stabilization when the main cell is disabled.\",\n    \"node_mapping\": {\n      \"input\": [\"I_PLUS\", \"I_MINUS\"],\n      \"output\": [\"O_PLUS\", \"O_MINUS\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"VBIAS_EN\", \"VBIAS_EN_BAR\", \"VDD_EN_BAR\", \"CMFB\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1 GHz CMOS Analog Front-End for a Generalized PRML Read Channel\",\n      \"figure\": \"Not specified\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low-frequency differential voltage gain of the transconductor.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"30 dB\",\n        \"technology\": \"0.35 \u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/Vov. With W/L=5/0.5 and two parallel tail transistors, Id_tail ~ 200uA, so Id_branch ~ 100uA. Assuming Vov ~ 0.2V, gm ~ 1mS. Rout = ro_n || ro_p ~ 1/(lambda*Id) || 1/(lambda*Id) = 100k || 100k = 50kOhm. Gain = gm * Rout = 50 V/V = 34 dB.\",\n        \"range\": { \"min\": 25, \"typical\": 34, \"max\": 40, \"unit\": \"dB\" },\n        \"reasoning\": \"Calculated using standard square-law approximations for SKY130 1.8V devices with L=0.5um. Matches the typical 30 dB gain reported in the paper for similar stages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the voltage gain with a specified load capacitance.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz (Filter cutoff)\",\n        \"technology\": \"0.35 \u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rout * C_load). With Rout = 50 kOhm and C_load = 50 fF, BW = 1 / (2 * pi * 50k * 50f) = 63.6 MHz.\",\n        \"range\": { \"min\": 40e6, \"typical\": 63e6, \"max\": 100e6, \"unit\": \"Hz\" },\n        \"reasoning\": \"The cell bandwidth depends heavily on the load capacitance. While the overall filter operates at 1 GHz, the open-loop -3dB bandwidth of a single high-gain Gm cell is lower; the unity-gain frequency is what supports the 1 GHz operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unity_Gain_Frequency\": {\n      \"description\": \"Frequency at which the differential voltage gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported for the cell\",\n        \"technology\": \"0.35 \u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = gm / (2 * pi * C_load). With gm = 1 mS and C_load = 50 fF, UGF = 1e-3 / (2 * pi * 50e-15) = 3.18 GHz.\",\n        \"range\": { \"min\": 2e9, \"typical\": 3.18e9, \"max\": 5e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"To support a 1 GHz continuous-time filter, the unity-gain frequency of the individual transconductors must be significantly higher than 1 GHz to minimize excess phase shift.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumed by the cell from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"240 mW (Whole chip at 800 MHz)\",\n        \"technology\": \"0.35 \u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_total. I_total is dominated by the tail current (approx 200 uA). Power = 1.8 V * 200 uA = 360 uW.\",\n        \"range\": { \"min\": 200e-6, \"typical\": 360e-6, \"max\": 600e-6, \"unit\": \"W\" },\n        \"reasoning\": \"The paper reports power for the entire analog front-end (240 mW at 3.3V). A single Gm cell consumes a small fraction of this, scaled down further by the 1.8V supply in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, -3dB bandwidth, unity-gain frequency, and power consumption of the fully differential Gm cell. An ideal behavioral CMFB loop is used to stabilize the output common-mode voltage.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"Power_Consumption\", \"DC_Gain\", \"Bandwidth\", \"Unity_Gain_Frequency\"],\n    \"spice\": \"* Gm Cell Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2d=5u L_xm2d=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm1d=5u L_xm1d=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n\\n* DUT\\nXM2D N0 VBIAS_EN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm2d} w={W_xm2d}\\nXM5 N1 VBIAS_EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM8 CM I_MINUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM1D CM I_PLUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1d} w={W_xm1d}\\nXM2 N1 VBIAS_EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM6 N0 VBIAS_EN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 O_PLUS I_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM3 O_MINUS CMFB N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM9 O_PLUS CMFB N12 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM1 O_MINUS I_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM4 N4 VDD_EN_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM12 N12 VDD_EN_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\n\\n* Biasing and Supplies\\nV_VDD VDD 0 1.8\\nV_VBIAS_EN VBIAS_EN 0 1.8\\nV_VBIAS_EN_BAR VBIAS_EN_BAR 0 0\\nV_VDD_EN_BAR VDD_EN_BAR 0 0\\nV_CM CM 0 0.9\\n\\n* Ideal CMFB Loop to stabilize output common-mode at 0.9V\\nB_CMFB CMFB 0 V='0.9 + 10*(v(O_PLUS)+v(O_MINUS)-1.8)'\\n\\n* Inputs\\nV_IN_CM IN_CM 0 0.9\\nV_IN_D IN_D 0 0 ac 1 sin(0 0.1 100Meg)\\nE_IN_P I_PLUS IN_CM IN_D 0 0.5\\nE_IN_M I_MINUS IN_CM IN_D 0 -0.5\\n\\n* Loads\\nC_L1 O_PLUS 0 50f\\nC_L2 O_MINUS 0 50f\\n\\n* Differential Output for Measurement\\nE_DIFF OUT_DIFF 0 O_PLUS O_MINUS 1\\n\\n.control\\n* DC Operating Point and Power\\nop\\nlet power = -i(V_VDD) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1Meg 10G\\nlet gain_db = vdb(OUT_DIFF)\\nmeas ac dc_gain find gain_db at=1Meg\\nmeas ac bw_3db when gain_db='dc_gain-3' fall=1\\nmeas ac unity_gain_freq when gain_db=0 fall=1\\n\\n* Transient Analysis\\ntran 10p 20n\\nmeas tran vout_pp pp v(OUT_DIFF)\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1522567",
+  "_case": "1522567_image_9"
+}

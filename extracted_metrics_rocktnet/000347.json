@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Low-Noise Amplifier (LNA) Core",
+    "description": "This is a common-source, common-gate (cascode) amplifier core typically used in RF LNAs. The common-source transistor (XM2) provides transconductance, while the common-gate transistor (XM1) provides isolation, increases output impedance, and mitigates the Miller effect to achieve high frequency operation.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0"
+      ],
+      "output": [
+        "N7"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5.2-GHz LNA in 0.35-m CMOS Utilizing Inter-Stage Series Resonance and Optimizing the Substrate Resistance",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Voltage gain of the amplifier at the operating frequency (5.2 GHz)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "19.3 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 gm * Rload. For W=50u, Id \u2248 5mA, gm \u2248 50mS. With a 500 ohm tuned load, intrinsic gain is ~25 V/V (28 dB). Accounting for parasitics and source matching, expect 15-20 dB.",
+        "range": {
+          "min": 10,
+          "typical": 18,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "Sky130 0.15um has higher gm/Id than 0.35um, allowing similar or better gain at lower supply voltages, heavily dependent on the LC tank Q-factor."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Noise Figure (NF) at 5.2 GHz, representing the degradation of SNR",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "2.45 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "NF = 10 * log10(inoise_spectrum / (4*k*T*Rsrc)). Dominated by the common-source transistor's channel noise.",
+        "range": {
+          "min": 1.0,
+          "typical": 2.0,
+          "max": 3.5,
+          "unit": "dB"
+        },
+        "reasoning": "The shorter channel length of Sky130 (0.15um vs 0.35um) provides a higher fT, which generally translates to a lower minimum noise figure (NFmin)."
+      },
+      "importance": "essential"
+    },
+    "dc_power": {
+      "description": "Total DC power consumption from the supply",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Pdc = VDD * Id. For a typical LNA bias of 5mA at 1.8V, Pdc = 9 mW.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.01,
+          "max": 0.02,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down from the 3.3V supply used in the 0.35um paper to the 1.8V standard supply of Sky130."
+      },
+      "importance": "essential"
+    },
+    "peak_frequency": {
+      "description": "Frequency at which the voltage gain reaches its maximum",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5.2 GHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_peak = 1 / (2 * pi * sqrt(L * C_total)). With L=1nH and C=0.5pF + transistor parasitics, it tunes near 5.2 GHz.",
+        "range": {
+          "min": 4800000000.0,
+          "typical": 5200000000.0,
+          "max": 5600000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the LC tank components added in the testbench to replicate the LNA's tuned load."
+      },
+      "importance": "recommended"
+    },
+    "oip3": {
+      "description": "Output Third-Order Intercept Point",
+      "unit": "dBm",
+      "analysis_type": "Tran (Two-tone)",
+      "paper_reported": {
+        "value": "13.2 dBm",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Requires two-tone transient analysis and FFT. Typically 5-15 dBm for LNAs.",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 15,
+          "unit": "dBm"
+        },
+        "reasoning": "Depends on bias current, overdrive voltage, and load impedance."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, peak frequency, Noise Figure, and transient swing of the cascode LNA core.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Noise",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "voltage_gain",
+      "peak_frequency",
+      "noise_figure"
+    ],
+    "spice": "* Cascode LNA Core Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Upsized W and L for RF LNA operation\n.param W_xm1=50u L_xm1=0.15u\n.param W_xm2=50u L_xm2=0.15u\n\n* DUT\n* Note: XM1 gate was changed from GND to VB to allow proper cascode biasing.\nXM1 N7 VB N2 N2 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Biasing and Supply\nVVDD VDD 0 1.8\nVVB VB 0 1.8\n\n* Input Source (50 ohm source resistance, DC bias 0.9V, AC 1V, Transient 10mV peak at 5.2GHz)\nV_in N_src 0 dc 0.9 ac 1 sin(0.9 0.01 5.2G)\nR_src N_src LABEL_NET_0 50\n\n* Tuned Load (Resonates near 5.2 GHz)\nL1 VDD N7 1n\nC1 N7 0 0.5p\nR1 N7 VDD 500\n\n.control\n* 1. DC Analysis\nop\nlet idc = -i(VVDD)\nlet power = idc * 1.8\nprint idc power\n\n* 2. AC Analysis\nac dec 100 1G 10G\nlet gain_db = vdb(N7)\nmeas ac gain_5g find gain_db at=5.2G\nmeas ac max_gain max gain_db\nmeas ac peak_freq when gain_db=max_gain\n\n* 3. Noise Analysis\n* Calculates input-referred noise spectrum and derives Noise Figure (NF)\nnoise v(N7) V_in dec 50 1G 10G\nsetplot noise1\nmeas noise inoise_5g find inoise_spectrum at=5.2G\n* Thermal noise of 50 ohm resistor at 300K is 4*k*T*R = 8.28e-19 V^2/Hz\nlet nf_db = 10 * log10(inoise_5g / 8.28e-19)\nprint nf_db\n\n* 4. Transient Analysis\n* 5.2 GHz period is ~192ps. Simulate for 1ns, measure last 0.5ns.\ntran 2p 1n\nmeas tran vout_max max v(N7) from=0.5n to=1n\nmeas tran vout_min min v(N7) from=0.5n to=1n\nlet vout_pp = vout_max - vout_min\n* Input is 20mV peak-to-peak\nlet gain_v_v = vout_pp / 0.02\nprint vout_pp gain_v_v\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Low-Noise Amplifier (LNA) Core\",\n    \"description\": \"This is a common-source, common-gate (cascode) amplifier core typically used in RF LNAs. The common-source transistor (XM2) provides transconductance, while the common-gate transistor (XM1) provides isolation, increases output impedance, and mitigates the Miller effect to achieve high frequency operation.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\"\n      ],\n      \"output\": [\n        \"N7\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5.2-GHz LNA in 0.35-m CMOS Utilizing Inter-Stage Series Resonance and Optimizing the Substrate Resistance\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Voltage gain of the amplifier at the operating frequency (5.2 GHz)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"19.3 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 gm * Rload. For W=50u, Id \u2248 5mA, gm \u2248 50mS. With a 500 ohm tuned load, intrinsic gain is ~25 V/V (28 dB). Accounting for parasitics and source matching, expect 15-20 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 18,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Sky130 0.15um has higher gm/Id than 0.35um, allowing similar or better gain at lower supply voltages, heavily dependent on the LC tank Q-factor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Noise Figure (NF) at 5.2 GHz, representing the degradation of SNR\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"2.45 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NF = 10 * log10(inoise_spectrum / (4*k*T*Rsrc)). Dominated by the common-source transistor's channel noise.\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 2.0,\n          \"max\": 3.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The shorter channel length of Sky130 (0.15um vs 0.35um) provides a higher fT, which generally translates to a lower minimum noise figure (NFmin).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption from the supply\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pdc = VDD * Id. For a typical LNA bias of 5mA at 1.8V, Pdc = 9 mW.\",\n        \"range\": {\n          \"min\": 0.005,\n          \"typical\": 0.01,\n          \"max\": 0.02,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down from the 3.3V supply used in the 0.35um paper to the 1.8V standard supply of Sky130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"peak_frequency\": {\n      \"description\": \"Frequency at which the voltage gain reaches its maximum\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_peak = 1 / (2 * pi * sqrt(L * C_total)). With L=1nH and C=0.5pF + transistor parasitics, it tunes near 5.2 GHz.\",\n        \"range\": {\n          \"min\": 4.8e9,\n          \"typical\": 5.2e9,\n          \"max\": 5.6e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the LC tank components added in the testbench to replicate the LNA's tuned load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"oip3\": {\n      \"description\": \"Output Third-Order Intercept Point\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran (Two-tone)\",\n      \"paper_reported\": {\n        \"value\": \"13.2 dBm\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Requires two-tone transient analysis and FFT. Typically 5-15 dBm for LNAs.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 10,\n          \"max\": 15,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Depends on bias current, overdrive voltage, and load impedance.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, peak frequency, Noise Figure, and transient swing of the cascode LNA core.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Noise\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"voltage_gain\",\n      \"peak_frequency\",\n      \"noise_figure\"\n    ],\n    \"spice\": \"* Cascode LNA Core Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Upsized W and L for RF LNA operation\\n.param W_xm1=50u L_xm1=0.15u\\n.param W_xm2=50u L_xm2=0.15u\\n\\n* DUT\\n* Note: XM1 gate was changed from GND to VB to allow proper cascode biasing.\\nXM1 N7 VB N2 N2 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Biasing and Supply\\nVVDD VDD 0 1.8\\nVVB VB 0 1.8\\n\\n* Input Source (50 ohm source resistance, DC bias 0.9V, AC 1V, Transient 10mV peak at 5.2GHz)\\nV_in N_src 0 dc 0.9 ac 1 sin(0.9 0.01 5.2G)\\nR_src N_src LABEL_NET_0 50\\n\\n* Tuned Load (Resonates near 5.2 GHz)\\nL1 VDD N7 1n\\nC1 N7 0 0.5p\\nR1 N7 VDD 500\\n\\n.control\\n* 1. DC Analysis\\nop\\nlet idc = -i(VVDD)\\nlet power = idc * 1.8\\nprint idc power\\n\\n* 2. AC Analysis\\nac dec 100 1G 10G\\nlet gain_db = vdb(N7)\\nmeas ac gain_5g find gain_db at=5.2G\\nmeas ac max_gain max gain_db\\nmeas ac peak_freq when gain_db=max_gain\\n\\n* 3. Noise Analysis\\n* Calculates input-referred noise spectrum and derives Noise Figure (NF)\\nnoise v(N7) V_in dec 50 1G 10G\\nsetplot noise1\\nmeas noise inoise_5g find inoise_spectrum at=5.2G\\n* Thermal noise of 50 ohm resistor at 300K is 4*k*T*R = 8.28e-19 V^2/Hz\\nlet nf_db = 10 * log10(inoise_5g / 8.28e-19)\\nprint nf_db\\n\\n* 4. Transient Analysis\\n* 5.2 GHz period is ~192ps. Simulate for 1ns, measure last 0.5ns.\\ntran 2p 1n\\nmeas tran vout_max max v(N7) from=0.5n to=1n\\nmeas tran vout_min min v(N7) from=0.5n to=1n\\nlet vout_pp = vout_max - vout_min\\n* Input is 20mV peak-to-peak\\nlet gain_v_v = vout_pp / 0.02\\nprint vout_pp gain_v_v\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1190604",
+  "_case": "1190604_image_3"
+}

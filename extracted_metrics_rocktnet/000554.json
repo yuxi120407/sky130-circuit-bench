@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Loop Filter / Modulation Injection Network",
+    "description": "This circuit acts as a modulation injection network for a VCO. It generates a bias voltage at N0, which drives the gates of NMOS switches (XM3, XM4) connecting the modulation input to the VCO control line, and MOS capacitors (XM5, XM6) that provide filtering.",
+    "node_mapping": {
+      "input": [
+        "VMOD"
+      ],
+      "output": [
+        "VCTRL"
+      ],
+      "supply": [
+        "VDD",
+        "N1"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 6.5-GHz Energy-Efficient BFSK Modulator for Wireless Sensor Applications",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Power_DC": {
+      "description": "Static power consumption of the bias network",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "22 mW (entire modulator)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_N0 is determined by the voltage divider of XM1/8 and XM2/7. V_N0 \u2248 0.71V. Current = 0.5 * 270u * 20 * (0.71-0.42)^2 \u2248 227uA. Power = 1.8V * 227uA \u2248 408uW.",
+        "range": {
+          "min": "300u",
+          "typical": "400u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on sky130 parameters for the diode-connected bias branch."
+      },
+      "importance": "essential"
+    },
+    "V_N0": {
+      "description": "DC bias voltage generated at node N0",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Equating PMOS and NMOS currents: 50 * 20 * (1.8 - V_N0 - 0.42)^2 = 270 * 20 * (V_N0 - 0.42)^2. Solving yields V_N0 \u2248 0.71V.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.71",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact Vth and mobility ratio of PMOS to NMOS in sky130."
+      },
+      "importance": "essential"
+    },
+    "R_mod": {
+      "description": "Small-signal resistance between VMOD and VCTRL",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "With VCTRL=0.9V and V_N0=0.71V, Vgs = -0.19V. XM3/XM4 are in subthreshold, so resistance is very high (>1 MOhm). If biased in linear region, it would be ~2 kOhm.",
+        "range": {
+          "min": "1k",
+          "typical": "1G",
+          "max": "10G",
+          "unit": "ohm"
+        },
+        "reasoning": "Highly dependent on the DC bias of VCTRL and VMOD. At 0.9V, the switches are OFF."
+      },
+      "importance": "recommended"
+    },
+    "C_ctrl": {
+      "description": "Small-signal capacitance at VCTRL node",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "XM5 and XM6 act as MOS capacitors. Total W*L = 2 * 5u * 0.5u = 5 um^2. With Cox \u2248 5 fF/um^2, C \u2248 25 fF plus overlap and parasitic capacitance from XM3/XM4.",
+        "range": {
+          "min": "10f",
+          "typical": "30f",
+          "max": "100f",
+          "unit": "F"
+        },
+        "reasoning": "Based on gate area of XM5 and XM6 and typical sky130 oxide capacitance."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC bias, static power, modulation resistance, and control capacitance.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "Power_DC",
+      "V_N0",
+      "R_mod",
+      "C_ctrl"
+    ],
+    "spice": "* Testbench for BFSK Modulator Loop Filter\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\nVVDD VDD 0 1.8\nVN1 N1 0 1.8\nVVCTRL VCTRL 0 dc 0.9 ac 1\nVVMOD VMOD 0 dc 0.9 ac 0\n\nXM1 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VCTRL N0 VMOD GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VMOD N0 VCTRL GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VCTRL N0 VCTRL GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VCTRL N0 VCTRL GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\n\n.control\nop\nlet v_n0_dc = v(n0)\nlet pwr = -(i(vvdd) + i(vn1)) * 1.8\nprint v_n0_dc pwr\n\nac dec 10 1 1G\nlet g_ctrl = abs(real(i(vvctrl))) + 1e-20\nlet r_ctrl = 1/g_ctrl\nlet c_ctrl = abs(imag(i(vvctrl)))/(2*pi*frequency)\n\nmeas ac R_mod_val find r_ctrl at=10\nmeas ac C_ctrl_val find c_ctrl at=100MEG\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Loop Filter / Modulation Injection Network\",\n    \"description\": \"This circuit acts as a modulation injection network for a VCO. It generates a bias voltage at N0, which drives the gates of NMOS switches (XM3, XM4) connecting the modulation input to the VCO control line, and MOS capacitors (XM5, XM6) that provide filtering.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VMOD\"\n      ],\n      \"output\": [\n        \"VCTRL\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"N1\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 6.5-GHz Energy-Efficient BFSK Modulator for Wireless Sensor Applications\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Power_DC\": {\n      \"description\": \"Static power consumption of the bias network\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"22 mW (entire modulator)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_N0 is determined by the voltage divider of XM1/8 and XM2/7. V_N0 \u2248 0.71V. Current = 0.5 * 270u * 20 * (0.71-0.42)^2 \u2248 227uA. Power = 1.8V * 227uA \u2248 408uW.\",\n        \"range\": {\n          \"min\": \"300u\",\n          \"typical\": \"400u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on sky130 parameters for the diode-connected bias branch.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_N0\": {\n      \"description\": \"DC bias voltage generated at node N0\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Equating PMOS and NMOS currents: 50 * 20 * (1.8 - V_N0 - 0.42)^2 = 270 * 20 * (V_N0 - 0.42)^2. Solving yields V_N0 \u2248 0.71V.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.71\",\n          \"max\": \"0.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact Vth and mobility ratio of PMOS to NMOS in sky130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"R_mod\": {\n      \"description\": \"Small-signal resistance between VMOD and VCTRL\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VCTRL=0.9V and V_N0=0.71V, Vgs = -0.19V. XM3/XM4 are in subthreshold, so resistance is very high (>1 MOhm). If biased in linear region, it would be ~2 kOhm.\",\n        \"range\": {\n          \"min\": \"1k\",\n          \"typical\": \"1G\",\n          \"max\": \"10G\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Highly dependent on the DC bias of VCTRL and VMOD. At 0.9V, the switches are OFF.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"C_ctrl\": {\n      \"description\": \"Small-signal capacitance at VCTRL node\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"XM5 and XM6 act as MOS capacitors. Total W*L = 2 * 5u * 0.5u = 5 um^2. With Cox \u2248 5 fF/um^2, C \u2248 25 fF plus overlap and parasitic capacitance from XM3/XM4.\",\n        \"range\": {\n          \"min\": \"10f\",\n          \"typical\": \"30f\",\n          \"max\": \"100f\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Based on gate area of XM5 and XM6 and typical sky130 oxide capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC bias, static power, modulation resistance, and control capacitance.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Power_DC\",\n      \"V_N0\",\n      \"R_mod\",\n      \"C_ctrl\"\n    ],\n    \"spice\": \"* Testbench for BFSK Modulator Loop Filter\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\nVVDD VDD 0 1.8\\nVN1 N1 0 1.8\\nVVCTRL VCTRL 0 dc 0.9 ac 1\\nVVMOD VMOD 0 dc 0.9 ac 0\\n\\nXM1 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VCTRL N0 VMOD GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VMOD N0 VCTRL GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VCTRL N0 VCTRL GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VCTRL N0 VCTRL GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\n\\n.control\\nop\\nlet v_n0_dc = v(n0)\\nlet pwr = -(i(vvdd) + i(vn1)) * 1.8\\nprint v_n0_dc pwr\\n\\nac dec 10 1 1G\\nlet g_ctrl = abs(real(i(vvctrl))) + 1e-20\\nlet r_ctrl = 1/g_ctrl\\nlet c_ctrl = abs(imag(i(vvctrl)))/(2*pi*frequency)\\n\\nmeas ac R_mod_val find r_ctrl at=10\\nmeas ac C_ctrl_val find c_ctrl at=100MEG\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1291678",
+  "_case": "1291678_image_7"
+}

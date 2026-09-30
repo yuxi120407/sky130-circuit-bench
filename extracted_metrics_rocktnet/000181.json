@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Line Driver / Analog Buffer",
+    "description": "A diamond buffer-based line driver output stage. It features a complementary push-pull output (Q5, Q6) with current mirroring (Q7-Q10) to enhance output drive capability for ADSL line driving.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VSLD"
+      ],
+      "bias": [
+        "Vref1",
+        "Vref2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An ADSL-RT Full-Rate Analog Front End IC With Integrated Line Driver",
+      "figure": "Fig. 1 (implied line driver sub-circuit)",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Midband voltage gain of the buffer",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "75 dB",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "As an emitter-follower based buffer, the gain is typically close to 1 V/V (0 dB). The 75 dB reported in the paper likely refers to the open-loop gain of the preceding op-amp or the dynamic range of the ADC.",
+        "range": {
+          "min": -2,
+          "typical": 0,
+          "max": 1,
+          "unit": "dB"
+        },
+        "reasoning": "Diamond buffers inherently have a closed-loop gain slightly less than unity due to VBE drops and finite transconductance."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB cutoff frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.1 MHz",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by transistor fT and parasitic capacitances. Modern processes easily exceed 100 MHz for this topology.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 50000000.0,
+          "max": 500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The 1.1 MHz reported in the paper is the ADSL signal bandwidth requirement, not the maximum physical bandwidth of the circuit."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power dissipation",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "800 mW",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With 1.8V supply and ~2mA quiescent current, P ~ 3.6mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.005,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down significantly due to the 1.8V supply compared to the 12V line driver supply used in the original paper."
+      },
+      "importance": "essential"
+    },
+    "output_power": {
+      "description": "Maximum signal power delivered to the load",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "13 dBm",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P_out = (V_peak^2) / (2 * R_load). For V_peak = 0.5V and R_load = 1k, P_out = 0.125 mW = -9 dBm.",
+        "range": {
+          "min": -15,
+          "typical": -9,
+          "max": 0,
+          "unit": "dBm"
+        },
+        "reasoning": "Severely limited by the 1.8V supply voltage and load resistance, much lower than the 12V ADSL line driver."
+      },
+      "importance": "essential"
+    },
+    "supply_voltage": {
+      "description": "Operating supply voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "3.3 V / 12 V",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Standard SKY130 core voltage.",
+        "range": {
+          "min": 1.7,
+          "typical": 1.8,
+          "max": 1.9,
+          "unit": "V"
+        },
+        "reasoning": "Fixed by the prompt's requirement to use VDD=1.8V."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure voltage gain, bandwidth, power consumption, and output swing of the line driver.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "bandwidth",
+      "power_consumption",
+      "output_power"
+    ],
+    "spice": "* Line Driver Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters\n.param R_val=1k\n\n* DUT\nR1 VSLD N1 {R_val}\nR2 N4 GND {R_val}\nQ1 N1 Vref1 N2 npn\nQ2 N3 Vref2 N4 npn\nQ3 GND IN N2 pnp\nQ4 VSLD IN N3 npn\nQ5 N5 N2 OUT npn\nQ6 N6 N3 OUT pnp\nQ7 N5 N5 VSLD pnp\nQ8 OUT N5 VSLD pnp\nQ9 N6 N6 GND npn\nQ10 OUT N6 GND npn\n\n* Generic BJT Models (since netlist uses BJTs)\n.model npn npn (is=1e-14 bf=100 vaf=50)\n.model pnp pnp (is=1e-14 bf=100 vaf=50)\n\n* Sources\nVSLD VSLD 0 1.8\nVVREF1 Vref1 0 0.9\nVVREF2 Vref2 0 0.9\nVIN IN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\n\n* Load\nRL OUT 0 1k\n\n* Control Block\n.control\n  * DC Operating Point and Power\n  op\n  let power = -i(VSLD) * 1.8\n  print power\n\n  * AC Analysis for Gain and Bandwidth\n  ac dec 100 1 1G\n  let gain_db = vdb(OUT)\n  meas ac midband_gain find gain_db at=10k\n  meas ac bandwidth when gain_db=-3 fall=1\n\n  * Transient Analysis for Output Swing\n  tran 10n 5u\n  meas tran v_max max v(OUT)\n  meas tran v_min min v(OUT)\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Line Driver / Analog Buffer\",\n    \"description\": \"A diamond buffer-based line driver output stage. It features a complementary push-pull output (Q5, Q6) with current mirroring (Q7-Q10) to enhance output drive capability for ADSL line driving.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VSLD\"\n      ],\n      \"bias\": [\n        \"Vref1\",\n        \"Vref2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An ADSL-RT Full-Rate Analog Front End IC With Integrated Line Driver\",\n      \"figure\": \"Fig. 1 (implied line driver sub-circuit)\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Midband voltage gain of the buffer\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"75 dB\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"As an emitter-follower based buffer, the gain is typically close to 1 V/V (0 dB). The 75 dB reported in the paper likely refers to the open-loop gain of the preceding op-amp or the dynamic range of the ADC.\",\n        \"range\": {\n          \"min\": -2,\n          \"typical\": 0,\n          \"max\": 1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Diamond buffers inherently have a closed-loop gain slightly less than unity due to VBE drops and finite transconductance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.1 MHz\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by transistor fT and parasitic capacitances. Modern processes easily exceed 100 MHz for this topology.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 50e6,\n          \"max\": 500e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The 1.1 MHz reported in the paper is the ADSL signal bandwidth requirement, not the maximum physical bandwidth of the circuit.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"800 mW\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With 1.8V supply and ~2mA quiescent current, P ~ 3.6mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 5e-3,\n          \"max\": 15e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down significantly due to the 1.8V supply compared to the 12V line driver supply used in the original paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_power\": {\n      \"description\": \"Maximum signal power delivered to the load\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"13 dBm\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_out = (V_peak^2) / (2 * R_load). For V_peak = 0.5V and R_load = 1k, P_out = 0.125 mW = -9 dBm.\",\n        \"range\": {\n          \"min\": -15,\n          \"typical\": -9,\n          \"max\": 0,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Severely limited by the 1.8V supply voltage and load resistance, much lower than the 12V ADSL line driver.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"supply_voltage\": {\n      \"description\": \"Operating supply voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"3.3 V / 12 V\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard SKY130 core voltage.\",\n        \"range\": {\n          \"min\": 1.7,\n          \"typical\": 1.8,\n          \"max\": 1.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Fixed by the prompt's requirement to use VDD=1.8V.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure voltage gain, bandwidth, power consumption, and output swing of the line driver.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"power_consumption\",\n      \"output_power\"\n    ],\n    \"spice\": \"* Line Driver Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters\\n.param R_val=1k\\n\\n* DUT\\nR1 VSLD N1 {R_val}\\nR2 N4 GND {R_val}\\nQ1 N1 Vref1 N2 npn\\nQ2 N3 Vref2 N4 npn\\nQ3 GND IN N2 pnp\\nQ4 VSLD IN N3 npn\\nQ5 N5 N2 OUT npn\\nQ6 N6 N3 OUT pnp\\nQ7 N5 N5 VSLD pnp\\nQ8 OUT N5 VSLD pnp\\nQ9 N6 N6 GND npn\\nQ10 OUT N6 GND npn\\n\\n* Generic BJT Models (since netlist uses BJTs)\\n.model npn npn (is=1e-14 bf=100 vaf=50)\\n.model pnp pnp (is=1e-14 bf=100 vaf=50)\\n\\n* Sources\\nVSLD VSLD 0 1.8\\nVVREF1 Vref1 0 0.9\\nVVREF2 Vref2 0 0.9\\nVIN IN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\n\\n* Load\\nRL OUT 0 1k\\n\\n* Control Block\\n.control\\n  * DC Operating Point and Power\\n  op\\n  let power = -i(VSLD) * 1.8\\n  print power\\n\\n  * AC Analysis for Gain and Bandwidth\\n  ac dec 100 1 1G\\n  let gain_db = vdb(OUT)\\n  meas ac midband_gain find gain_db at=10k\\n  meas ac bandwidth when gain_db=-3 fall=1\\n\\n  * Transient Analysis for Output Swing\\n  tran 10n 5u\\n  meas tran v_max max v(OUT)\\n  meas tran v_min min v(OUT)\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1015683",
+  "_case": "1015683_image_4"
+}

@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Pair / CML Buffer",
+    "description": "A basic NMOS differential pair, likely used as a building block in the high-speed Current Mode Logic (CML) buffers, ring oscillator delay cells, or phase detector of the 10-Gb/s CDR circuit.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N2",
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10-Gb/s CMOS Clock and Data Recovery Circuit With a Half-Rate Binary Phase/Frequency Detector",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Differential Gain": {
+      "description": "Low-frequency small-signal differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = sqrt(2 * un*Cox * (W/L) * I_D) = sqrt(2 * 270u * (5/0.5) * 0.5m) = 1.64 mS. Av = gm * R_load = 1.64 mS * 1k = 1.64 V/V = 4.3 dB.",
+        "range": {
+          "min": 2,
+          "typical": 4.3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the chosen tail current and load resistor in the testbench. Set to 1mA and 1kOhm for typical CML operation."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB frequency of the differential gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 Gb/s operation implies > 5 GHz bandwidth",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * R_load * C_load). With R_load=1k and parasitic C_load~10fF, f_3dB ~ 15 GHz.",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 15000000000.0,
+          "max": 30000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "High bandwidth is required for 10Gb/s operation. In this isolated testbench, it is limited only by intrinsic parasitic capacitances."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "DC power dissipation of the differential pair.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "91 mW (entire CDR)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = I_tail * VDD = 1mA * 1.8V = 1.8mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0018,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "A single CML buffer stage typically consumes 1-5 mW. The 91 mW reported in the paper is for the entire CDR system."
+      },
+      "importance": "essential"
+    },
+    "Output Swing": {
+      "description": "Peak-to-peak differential voltage swing during transient operation.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_swing = I_tail * R_load = 1mA * 1k = 1V (single-ended peak-to-peak), so differential swing is ~2V ideally, but limited by input swing and gain.",
+        "range": {
+          "min": 0.2,
+          "typical": 0.5,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the input amplitude. With a 200mVpp differential input and ~4.3dB gain, output swing will be around 320mVpp."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the NMOS differential pair measuring DC power, AC gain, bandwidth, and transient output swing. A tail current source and load resistors are added to complete the CML structure.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Differential Gain",
+      "Bandwidth",
+      "Output Swing"
+    ],
+    "spice": "* Differential Pair Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Testbench components (Tail current and Load resistors)\nVVDD VDD 0 1.8\nI_tail N0 0 1m\nR1 VDD N2 1k\nR2 VDD N3 1k\n\n* Inputs\nVCM VCM 0 0.9\nVINP LABEL_NET_0 VCM dc 0 ac 0.5 sin(0 0.1 1G)\nVINN LABEL_NET_1 VCM dc 0 ac -0.5 sin(0 -0.1 1G)\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis (Gain and Bandwidth)\nac dec 100 1M 100G\nlet out_diff = v(N2) - v(N3)\nlet gain_db = 20 * log10(mag(out_diff))\nmeas ac max_gain MAX gain_db\nmeas ac f3db WHEN gain_db='max_gain - 3' FALL=1\nprint max_gain f3db\n\n* 3. Transient Analysis (Output Swing)\ntran 1p 5n\nlet out_diff_tran = v(N2) - v(N3)\nmeas tran v_max MAX out_diff_tran\nmeas tran v_min MIN out_diff_tran\nlet v_swing = v_max - v_min\nprint v_swing\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Pair / CML Buffer\",\n    \"description\": \"A basic NMOS differential pair, likely used as a building block in the high-speed Current Mode Logic (CML) buffers, ring oscillator delay cells, or phase detector of the 10-Gb/s CDR circuit.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10-Gb/s CMOS Clock and Data Recovery Circuit With a Half-Rate Binary Phase/Frequency Detector\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Differential Gain\": {\n      \"description\": \"Low-frequency small-signal differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = sqrt(2 * un*Cox * (W/L) * I_D) = sqrt(2 * 270u * (5/0.5) * 0.5m) = 1.64 mS. Av = gm * R_load = 1.64 mS * 1k = 1.64 V/V = 4.3 dB.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 4.3,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen tail current and load resistor in the testbench. Set to 1mA and 1kOhm for typical CML operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB frequency of the differential gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 Gb/s operation implies > 5 GHz bandwidth\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * R_load * C_load). With R_load=1k and parasitic C_load~10fF, f_3dB ~ 15 GHz.\",\n        \"range\": {\n          \"min\": 5e9,\n          \"typical\": 15e9,\n          \"max\": 30e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"High bandwidth is required for 10Gb/s operation. In this isolated testbench, it is limited only by intrinsic parasitic capacitances.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"DC power dissipation of the differential pair.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"91 mW (entire CDR)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = I_tail * VDD = 1mA * 1.8V = 1.8mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 1.8e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"A single CML buffer stage typically consumes 1-5 mW. The 91 mW reported in the paper is for the entire CDR system.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output Swing\": {\n      \"description\": \"Peak-to-peak differential voltage swing during transient operation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_swing = I_tail * R_load = 1mA * 1k = 1V (single-ended peak-to-peak), so differential swing is ~2V ideally, but limited by input swing and gain.\",\n        \"range\": {\n          \"min\": 0.2,\n          \"typical\": 0.5,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the input amplitude. With a 200mVpp differential input and ~4.3dB gain, output swing will be around 320mVpp.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the NMOS differential pair measuring DC power, AC gain, bandwidth, and transient output swing. A tail current source and load resistors are added to complete the CML structure.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Differential Gain\",\n      \"Bandwidth\",\n      \"Output Swing\"\n    ],\n    \"spice\": \"* Differential Pair Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Testbench components (Tail current and Load resistors)\\nVVDD VDD 0 1.8\\nI_tail N0 0 1m\\nR1 VDD N2 1k\\nR2 VDD N3 1k\\n\\n* Inputs\\nVCM VCM 0 0.9\\nVINP LABEL_NET_0 VCM dc 0 ac 0.5 sin(0 0.1 1G)\\nVINN LABEL_NET_1 VCM dc 0 ac -0.5 sin(0 -0.1 1G)\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Gain and Bandwidth)\\nac dec 100 1M 100G\\nlet out_diff = v(N2) - v(N3)\\nlet gain_db = 20 * log10(mag(out_diff))\\nmeas ac max_gain MAX gain_db\\nmeas ac f3db WHEN gain_db='max_gain - 3' FALL=1\\nprint max_gain f3db\\n\\n* 3. Transient Analysis (Output Swing)\\ntran 1p 5n\\nlet out_diff_tran = v(N2) - v(N3)\\nmeas tran v_max MAX out_diff_tran\\nmeas tran v_min MIN out_diff_tran\\nlet v_swing = v_max - v_min\\nprint v_swing\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1158777",
+  "_case": "1158777_image_4"
+}

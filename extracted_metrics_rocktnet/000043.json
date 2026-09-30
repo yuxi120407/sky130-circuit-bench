@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Current Mode Logic (DyCML) Evaluation Tree",
+    "description": "An NMOS differential pair with a clocked tail transistor, forming the evaluation tree of a DyCML gate. It steers the tail current to one of the output branches based on the differential input, enabling high-speed, reduced-swing logic operation without a static current source.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N2",
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Dynamic Current Mode Logic (DyCML): A New Low-Power High-Performance Logic Style",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "delay": {
+      "description": "Propagation delay from the clock rising edge to the differential output evaluation.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.24 ns",
+        "technology": "0.6um CMOS (16-bit CLA)"
+      },
+      "sky130_expected": {
+        "calculation": "Time constant tau = R_load * C_out. With R_load=1k and C_out~10fF, tau=10ps. Delay is approx 0.69*tau + transistor switching time.",
+        "range": {
+          "min": "10p",
+          "typical": "25p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "SKY130 (130nm) is significantly faster than the 0.6um process in the paper. A single gate delay is expected to be in the tens of picoseconds, whereas the paper reports the delay for an entire 16-bit adder."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Average power consumption of the gate during dynamic operation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "19.2 mW",
+        "technology": "0.6um CMOS (16-bit CLA at 400MHz)"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current I_tail = 0.5 * 270u * (5/0.5) * (0.9-0.42)^2 = 311uA. With 50% clock duty cycle, avg current = 155uA. Power = 1.8V * 155uA = 280uW.",
+        "range": {
+          "min": "150u",
+          "typical": "280u",
+          "max": "400u",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the tail transistor saturation current with Vgs=0.9V (reduced clock swing) and 50% duty cycle for a single gate."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak voltage swing at the output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Reduced swing",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_load = 311uA * 1kOhm = 311mV.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.31",
+          "max": "0.4",
+          "unit": "V"
+        },
+        "reasoning": "DyCML relies on reduced voltage swing to save power and increase speed. ~300mV is a typical target for CML-style logic."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure delay, voltage swing, and average power of the DyCML evaluation tree with 1kOhm resistive loads and a 500MHz clock.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay",
+      "voltage_swing",
+      "power"
+    ],
+    "spice": "* DyCML Evaluation Tree Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\nXM1 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\nVDD VDD 0 1.8\nR1 VDD N2 1k\nR2 VDD N3 1k\n\n* Clock signal on tail (500 MHz, 0.9V reduced swing)\nVCLK LABEL_NET_2 0 PULSE(0 0.9 0 50p 50p 0.95n 2n)\n\n* Differential inputs\nVINP LABEL_NET_0 0 PULSE(1.5 1.8 0.2n 50p 50p 2n 4n)\nVINN LABEL_NET_1 0 PULSE(1.8 1.5 0.2n 50p 50p 2n 4n)\n\n.control\ntran 10p 8n\n\n* Measure voltage swing\nmeas tran vout_max MAX v(n3) FROM=3.5n TO=5n\nmeas tran vout_min MIN v(n3) FROM=3.5n TO=5n\nlet swing = vout_max - vout_min\nprint swing\n\n* Measure delay (CLK to OUT)\n* CLK rises at 4ns, N3 evaluates low. Thresholds: CLK 50% (0.45V), OUT 50% (~1.65V)\nmeas tran t_delay TRIG v(LABEL_NET_2) VAL=0.45 RISE=1 FROM=3.5n TARG v(n3) VAL=1.65 FALL=1 FROM=3.5n\nprint t_delay\n\n* Measure power\nmeas tran avg_current AVG i(VDD) FROM=0 TO=8n\nlet avg_power = -avg_current * 1.8\nprint avg_power\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Current Mode Logic (DyCML) Evaluation Tree\",\n    \"description\": \"An NMOS differential pair with a clocked tail transistor, forming the evaluation tree of a DyCML gate. It steers the tail current to one of the output branches based on the differential input, enabling high-speed, reduced-swing logic operation without a static current source.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Dynamic Current Mode Logic (DyCML): A New Low-Power High-Performance Logic Style\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"delay\": {\n      \"description\": \"Propagation delay from the clock rising edge to the differential output evaluation.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.24 ns\",\n        \"technology\": \"0.6um CMOS (16-bit CLA)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Time constant tau = R_load * C_out. With R_load=1k and C_out~10fF, tau=10ps. Delay is approx 0.69*tau + transistor switching time.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"25p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 (130nm) is significantly faster than the 0.6um process in the paper. A single gate delay is expected to be in the tens of picoseconds, whereas the paper reports the delay for an entire 16-bit adder.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Average power consumption of the gate during dynamic operation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"19.2 mW\",\n        \"technology\": \"0.6um CMOS (16-bit CLA at 400MHz)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current I_tail = 0.5 * 270u * (5/0.5) * (0.9-0.42)^2 = 311uA. With 50% clock duty cycle, avg current = 155uA. Power = 1.8V * 155uA = 280uW.\",\n        \"range\": {\n          \"min\": \"150u\",\n          \"typical\": \"280u\",\n          \"max\": \"400u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the tail transistor saturation current with Vgs=0.9V (reduced clock swing) and 50% duty cycle for a single gate.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Reduced swing\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_load = 311uA * 1kOhm = 311mV.\",\n        \"range\": {\n          \"min\": \"0.2\",\n          \"typical\": \"0.31\",\n          \"max\": \"0.4\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"DyCML relies on reduced voltage swing to save power and increase speed. ~300mV is a typical target for CML-style logic.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure delay, voltage swing, and average power of the DyCML evaluation tree with 1kOhm resistive loads and a 500MHz clock.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay\",\n      \"voltage_swing\",\n      \"power\"\n    ],\n    \"spice\": \"* DyCML Evaluation Tree Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\nXM1 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\nVDD VDD 0 1.8\\nR1 VDD N2 1k\\nR2 VDD N3 1k\\n\\n* Clock signal on tail (500 MHz, 0.9V reduced swing)\\nVCLK LABEL_NET_2 0 PULSE(0 0.9 0 50p 50p 0.95n 2n)\\n\\n* Differential inputs\\nVINP LABEL_NET_0 0 PULSE(1.5 1.8 0.2n 50p 50p 2n 4n)\\nVINN LABEL_NET_1 0 PULSE(1.8 1.5 0.2n 50p 50p 2n 4n)\\n\\n.control\\ntran 10p 8n\\n\\n* Measure voltage swing\\nmeas tran vout_max MAX v(n3) FROM=3.5n TO=5n\\nmeas tran vout_min MIN v(n3) FROM=3.5n TO=5n\\nlet swing = vout_max - vout_min\\nprint swing\\n\\n* Measure delay (CLK to OUT)\\n* CLK rises at 4ns, N3 evaluates low. Thresholds: CLK 50% (0.45V), OUT 50% (~1.65V)\\nmeas tran t_delay TRIG v(LABEL_NET_2) VAL=0.45 RISE=1 FROM=3.5n TARG v(n3) VAL=1.65 FALL=1 FROM=3.5n\\nprint t_delay\\n\\n* Measure power\\nmeas tran avg_current AVG i(VDD) FROM=0 TO=8n\\nlet avg_power = -avg_current * 1.8\\nprint avg_power\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "910495",
+  "_case": "910495_image_1"
+}

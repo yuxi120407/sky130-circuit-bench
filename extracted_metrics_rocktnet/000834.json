@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Active Bias Circuit",
+    "description": "A linearizing active bias circuit for an RF power amplifier. It uses a diode-connected transistor stack to generate a reference voltage and a source/emitter follower to provide a low-impedance bias voltage to the RF transistor, preventing bias collapse under large signal drive.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "RFin"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Silicon Bipolar Transmitter Front-End for 802.11a and HIPERLAN2 Wireless LANs",
+      "figure": "Unknown",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "DC power consumption of the bias circuit",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "20 mW (entire front-end)",
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Total current = IB + I_MQA. IB = 100uA. I_MQA mirrors IB approximately, so I_MQA \u2248 95uA. Total current = 195uA. Power = 1.8V * 195uA = 351uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00035,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on a 100uA reference current and the mirrored current in the source follower branch at 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "v_bias": {
+      "description": "DC bias voltage provided to the RF PA transistor",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Vgs of MQ1 at ~95uA. Vov = sqrt(95u / (0.5 * 270u * (5/0.15))) = 0.145V. Vgs = Vth + Vov = 0.42 + 0.145 = 0.565V.",
+        "range": {
+          "min": 0.45,
+          "typical": 0.56,
+          "max": 0.7,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the threshold voltage and overdrive of the diode-connected output transistor (MQ1) acting as the bias reference."
+      },
+      "importance": "essential"
+    },
+    "zout_dc_db": {
+      "description": "Low-frequency output impedance at the bias node (in dB ohms)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Zout = (1/gm1) || (RA + 1/gmA). gm1 \u2248 1.3mA/V (769 ohms), gmA \u2248 1.8mA/V (555 ohms). Zout = 769 || (500 + 555) = 444 ohms. In dB: 20*log10(444) = 52.9 dB.",
+        "range": {
+          "min": 45,
+          "typical": 53,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the transconductance of the source follower and diode-connected transistor, plus the series resistance RA."
+      },
+      "importance": "recommended"
+    },
+    "zout_5g_db": {
+      "description": "High-frequency output impedance at 5.2 GHz (in dB ohms)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5.2 GHz (operating frequency)",
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "At 5.2 GHz, CB (1pF) bypasses N0 to ground. Zout is similar to DC, dominated by 1/gm1 || (RA + 1/gmA).",
+        "range": {
+          "min": 40,
+          "typical": 50,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "The bypass capacitor ensures the gate of the source follower is at AC ground, maintaining low output impedance at RF frequencies to supply dynamic current."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, bias voltage, output impedance (AC), and load step response (Transient) of the active bias circuit.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "v_bias",
+      "zout_dc_db",
+      "zout_5g_db",
+      "v_droop"
+    ],
+    "spice": "* Active Bias Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT (Adapted from generic NPN to SKY130 NMOS)\nIB VDD N0 100u\nMQ1 RFin RFin GND GND sky130_fd_pr__nfet_01v8 w=5u l=0.15u\nRB N0 N3 1k\nRA N2 RFin 500\nMQB N0 N0 N1 GND sky130_fd_pr__nfet_01v8 w=5u l=0.15u\nMQC N1 N1 GND GND sky130_fd_pr__nfet_01v8 w=5u l=0.15u\nCB N0 GND 1p\nMQA VDD N3 N2 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\n\n* Sources\nVVDD VDD 0 1.8\nI_ac RFin 0 AC 1\nI_step RFin 0 PULSE(0 1m 1n 100p 100p 5n 10n)\n\n.control\n* DC Sweep for Power and Bias Voltage\ndc VVDD 0 1.8 0.05\nlet power = -i(VVDD) * v(VDD)\nmeas dc pwr_at_1v8 find power at=1.8\nmeas dc vbias_at_1v8 find v(RFin) at=1.8\n\n* AC Analysis for Output Impedance\nac dec 20 1M 10G\nlet zout_db = vdb(RFin)\nmeas ac zout_dc_db find zout_db at=1M\nmeas ac zout_5g_db find zout_db at=5.2G\n\n* Transient Analysis for Load Step Response\ntran 10p 10n\nmeas tran v_max max v(RFin)\nmeas tran v_min min v(RFin)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Active Bias Circuit\",\n    \"description\": \"A linearizing active bias circuit for an RF power amplifier. It uses a diode-connected transistor stack to generate a reference voltage and a source/emitter follower to provide a low-impedance bias voltage to the RF transistor, preventing bias collapse under large signal drive.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\n        \"RFin\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Silicon Bipolar Transmitter Front-End for 802.11a and HIPERLAN2 Wireless LANs\",\n      \"figure\": \"Unknown\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"DC power consumption of the bias circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"20 mW (entire front-end)\",\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current = IB + I_MQA. IB = 100uA. I_MQA mirrors IB approximately, so I_MQA \u2248 95uA. Total current = 195uA. Power = 1.8V * 195uA = 351uW.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 350e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on a 100uA reference current and the mirrored current in the source follower branch at 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_bias\": {\n      \"description\": \"DC bias voltage provided to the RF PA transistor\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs of MQ1 at ~95uA. Vov = sqrt(95u / (0.5 * 270u * (5/0.15))) = 0.145V. Vgs = Vth + Vov = 0.42 + 0.145 = 0.565V.\",\n        \"range\": {\n          \"min\": 0.45,\n          \"typical\": 0.56,\n          \"max\": 0.7,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the threshold voltage and overdrive of the diode-connected output transistor (MQ1) acting as the bias reference.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"zout_dc_db\": {\n      \"description\": \"Low-frequency output impedance at the bias node (in dB ohms)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zout = (1/gm1) || (RA + 1/gmA). gm1 \u2248 1.3mA/V (769 ohms), gmA \u2248 1.8mA/V (555 ohms). Zout = 769 || (500 + 555) = 444 ohms. In dB: 20*log10(444) = 52.9 dB.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 53,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by the transconductance of the source follower and diode-connected transistor, plus the series resistance RA.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"zout_5g_db\": {\n      \"description\": \"High-frequency output impedance at 5.2 GHz (in dB ohms)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz (operating frequency)\",\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At 5.2 GHz, CB (1pF) bypasses N0 to ground. Zout is similar to DC, dominated by 1/gm1 || (RA + 1/gmA).\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 50,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The bypass capacitor ensures the gate of the source follower is at AC ground, maintaining low output impedance at RF frequencies to supply dynamic current.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, bias voltage, output impedance (AC), and load step response (Transient) of the active bias circuit.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"v_bias\",\n      \"zout_dc_db\",\n      \"zout_5g_db\",\n      \"v_droop\"\n    ],\n    \"spice\": \"* Active Bias Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT (Adapted from generic NPN to SKY130 NMOS)\\nIB VDD N0 100u\\nMQ1 RFin RFin GND GND sky130_fd_pr__nfet_01v8 w=5u l=0.15u\\nRB N0 N3 1k\\nRA N2 RFin 500\\nMQB N0 N0 N1 GND sky130_fd_pr__nfet_01v8 w=5u l=0.15u\\nMQC N1 N1 GND GND sky130_fd_pr__nfet_01v8 w=5u l=0.15u\\nCB N0 GND 1p\\nMQA VDD N3 N2 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\n\\n* Sources\\nVVDD VDD 0 1.8\\nI_ac RFin 0 AC 1\\nI_step RFin 0 PULSE(0 1m 1n 100p 100p 5n 10n)\\n\\n.control\\n* DC Sweep for Power and Bias Voltage\\ndc VVDD 0 1.8 0.05\\nlet power = -i(VVDD) * v(VDD)\\nmeas dc pwr_at_1v8 find power at=1.8\\nmeas dc vbias_at_1v8 find v(RFin) at=1.8\\n\\n* AC Analysis for Output Impedance\\nac dec 20 1M 10G\\nlet zout_db = vdb(RFin)\\nmeas ac zout_dc_db find zout_db at=1M\\nmeas ac zout_5g_db find zout_db at=5.2G\\n\\n* Transient Analysis for Load Step Response\\ntran 10p 10n\\nmeas tran v_max max v(RFin)\\nmeas tran v_min min v(RFin)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1458988",
+  "_case": "1458988_image_16"
+}

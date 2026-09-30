@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual-Output Operational Transconductance Amplifier (OTA)",
+    "description": "A symmetrical current-mirror OTA with a differential input pair and two identical output branches. It serves as the core amplifier for an adaptive ENG recording system, providing high output impedance and transconductance to drive subsequent filtering or adaptation stages.",
+    "node_mapping": {
+      "input": [
+        "VI",
+        "GND"
+      ],
+      "output": [
+        "IO1",
+        "IO2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "IFI"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Adaptive ENG Amplifier for Tripolar Cuff Electrodes",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Open-loop AC voltage gain in the ENG signal band (e.g., at 1 kHz).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "54 dB",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current = 20uA -> Id1 = 10uA. Gm = sqrt(2 * 270u * 10 * 10u) = 232 uS. Rout = ro_p || ro_n = 1/(0.1*10u) || 1/(0.1*10u) = 500 kOhm. Av = Gm * Rout = 116 V/V = 41.3 dB.",
+        "range": {
+          "min": 35,
+          "typical": 41,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using SKY130 parameters. The paper's 54 dB might have used longer channel lengths (higher Rout) or lower bias currents."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency at which the open-loop voltage gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 kHz (ENG band upper limit)",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "fu = Gm / (2 * pi * Cload). With Cload = 10pF, fu = 232uS / (2 * pi * 10pF) = 3.69 MHz.",
+        "range": {
+          "min": 2000000.0,
+          "typical": 3700000.0,
+          "max": 5000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is heavily dependent on the load capacitance. 3.7 MHz is more than sufficient to cover the 10 kHz ENG band."
+      },
+      "importance": "essential"
+    },
+    "power_dissipation": {
+      "description": "Total DC power consumption of the amplifier.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Low power emphasized for inside the cuff",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Total VDD current = 5 branches * 10uA = 50uA. Tail current (VSS) = 20uA. Power = (50uA * 1.8V) + (20uA * 1.8V) = 126 uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.000126,
+          "max": 0.00015,
+          "unit": "W"
+        },
+        "reasoning": "Based on a 20uA tail current and 1:1 current mirror ratios across the 5 branches."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin of the amplifier to ensure stability in closed-loop configurations.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Single dominant pole at output node. Phase shifts from 180 (inverting) to 90 degrees.",
+        "range": {
+          "min": 80,
+          "typical": 90,
+          "max": 100,
+          "unit": "degrees"
+        },
+        "reasoning": "As a single-stage OTA, it naturally has a ~90 degree phase margin when loaded with a capacitor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure open-loop AC gain, bandwidth, phase margin, transient swing, and DC power. A dual supply is used to accommodate the hardcoded GND at the non-inverting input, and large inductors are used to set the output DC bias to VDD/2 without loading the AC signal.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "power_dissipation"
+    ],
+    "spice": "* Adaptive ENG Amplifier OTA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\n* DUT\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM7 IO2 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM6 IO1 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM4 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N5 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM2 N5 GND IFI GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM9 IO1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM1 N1 VI IFI GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM10 IO2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\n* Power Supplies (Dual supply to handle GND at XM2 gate)\nVVDD VDD 0 1.8\nVVSS VSS 0 -1.8\nI_tail IFI VSS 20u\n\n* Input Signal (1mV peak sine at 1kHz + AC 1 for Bode plot)\nV_VI VI 0 DC 0 AC 1 SIN(0 1m 1k)\n\n* Output DC Bias and AC Load\n* Biasing outputs at 0.9V to keep output transistors in saturation\nV_out_bias OUT_BIAS 0 0.9\nL_bias1 OUT_BIAS IO1 1G\nC_load1 IO1 0 10p\nL_bias2 OUT_BIAS IO2 1G\nC_load2 IO2 0 10p\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = (-i(VVDD) * 1.8) + (-i(VVSS) * 1.8)\nprint power\n\n* 2. AC Analysis\nac dec 100 1 100MEG\nlet gain_db = vdb(IO1)\nlet phase = 180/PI * cph(v(IO1))\n\nmeas ac gain_1k find gain_db at=1k\nmeas ac gain_10k find gain_db at=10k\nmeas ac ugf when gain_db=0 fall=1\nmeas ac phase_at_ugf find phase when gain_db=0 fall=1\n\n* 3. Transient Analysis\ntran 10u 5m\nmeas tran v_out_max max v(IO1)\nmeas tran v_out_min min v(IO1)\nlet v_out_ptp = v_out_max - v_out_min\nprint v_out_ptp\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual-Output Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"A symmetrical current-mirror OTA with a differential input pair and two identical output branches. It serves as the core amplifier for an adaptive ENG recording system, providing high output impedance and transconductance to drive subsequent filtering or adaptation stages.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VI\",\n        \"GND\"\n      ],\n      \"output\": [\n        \"IO1\",\n        \"IO2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"IFI\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Adaptive ENG Amplifier for Tripolar Cuff Electrodes\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Open-loop AC voltage gain in the ENG signal band (e.g., at 1 kHz).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"54 dB\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current = 20uA -> Id1 = 10uA. Gm = sqrt(2 * 270u * 10 * 10u) = 232 uS. Rout = ro_p || ro_n = 1/(0.1*10u) || 1/(0.1*10u) = 500 kOhm. Av = Gm * Rout = 116 V/V = 41.3 dB.\",\n        \"range\": {\n          \"min\": 35,\n          \"typical\": 41,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using SKY130 parameters. The paper's 54 dB might have used longer channel lengths (higher Rout) or lower bias currents.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency at which the open-loop voltage gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 kHz (ENG band upper limit)\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"fu = Gm / (2 * pi * Cload). With Cload = 10pF, fu = 232uS / (2 * pi * 10pF) = 3.69 MHz.\",\n        \"range\": {\n          \"min\": 2e6,\n          \"typical\": 3.7e6,\n          \"max\": 5e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is heavily dependent on the load capacitance. 3.7 MHz is more than sufficient to cover the 10 kHz ENG band.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total DC power consumption of the amplifier.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Low power emphasized for inside the cuff\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total VDD current = 5 branches * 10uA = 50uA. Tail current (VSS) = 20uA. Power = (50uA * 1.8V) + (20uA * 1.8V) = 126 uW.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 126e-6,\n          \"max\": 150e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a 20uA tail current and 1:1 current mirror ratios across the 5 branches.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin of the amplifier to ensure stability in closed-loop configurations.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Single dominant pole at output node. Phase shifts from 180 (inverting) to 90 degrees.\",\n        \"range\": {\n          \"min\": 80,\n          \"typical\": 90,\n          \"max\": 100,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"As a single-stage OTA, it naturally has a ~90 degree phase margin when loaded with a capacitor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure open-loop AC gain, bandwidth, phase margin, transient swing, and DC power. A dual supply is used to accommodate the hardcoded GND at the non-inverting input, and large inductors are used to set the output DC bias to VDD/2 without loading the AC signal.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"power_dissipation\"\n    ],\n    \"spice\": \"* Adaptive ENG Amplifier OTA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\n* DUT\\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM7 IO2 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM6 IO1 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM4 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N5 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM2 N5 GND IFI GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM9 IO1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM1 N1 VI IFI GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM10 IO2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Power Supplies (Dual supply to handle GND at XM2 gate)\\nVVDD VDD 0 1.8\\nVVSS VSS 0 -1.8\\nI_tail IFI VSS 20u\\n\\n* Input Signal (1mV peak sine at 1kHz + AC 1 for Bode plot)\\nV_VI VI 0 DC 0 AC 1 SIN(0 1m 1k)\\n\\n* Output DC Bias and AC Load\\n* Biasing outputs at 0.9V to keep output transistors in saturation\\nV_out_bias OUT_BIAS 0 0.9\\nL_bias1 OUT_BIAS IO1 1G\\nC_load1 IO1 0 10p\\nL_bias2 OUT_BIAS IO2 1G\\nC_load2 IO2 0 10p\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = (-i(VVDD) * 1.8) + (-i(VVSS) * 1.8)\\nprint power\\n\\n* 2. AC Analysis\\nac dec 100 1 100MEG\\nlet gain_db = vdb(IO1)\\nlet phase = 180/PI * cph(v(IO1))\\n\\nmeas ac gain_1k find gain_db at=1k\\nmeas ac gain_10k find gain_db at=10k\\nmeas ac ugf when gain_db=0 fall=1\\nmeas ac phase_at_ugf find phase when gain_db=0 fall=1\\n\\n* 3. Transient Analysis\\ntran 10u 5m\\nmeas tran v_out_max max v(IO1)\\nmeas tran v_out_min min v(IO1)\\nlet v_out_ptp = v_out_max - v_out_min\\nprint v_out_ptp\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1388630",
+  "_case": "1388630_image_5"
+}

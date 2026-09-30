@@ -1,0 +1,150 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 18.39",
+    "page": "546",
+    "circuit_type": "Charge-pump clock driver",
+    "description": "A bootstrapped clock driver circuit that uses cross-coupled NMOS transistors and capacitors to generate a pulsed output voltage roughly twice the supply voltage (2*VDD) to fully turn on NMOS switches without suffering a threshold voltage drop."
+  },
+  "step2_metrics": {
+    "v_out_high": {
+      "description": "Maximum high voltage level of the output clock signal.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text: 'The output of the driver circuit then goes to 2VDD'"
+      },
+      "equation": {
+        "formula": "V_{out,high} \\approx 2 \\cdot VDD",
+        "explanation": "The output is pulled to node B, which is bootstrapped to twice the supply voltage when the input goes high.",
+        "assumptions": "Negligible charge sharing losses with parasitic capacitances and ideal precharging of node B."
+      },
+      "sky130_expected": {
+        "calculation": "2 * 1.8V = 3.6V",
+        "range": {
+          "min": 3.0,
+          "typical": 3.4,
+          "max": 3.6,
+          "unit": "V"
+        },
+        "reasoning": "Ideal is 3.6V. In practice, parasitic capacitances at node B and the output node will reduce the peak voltage slightly through charge sharing."
+      },
+      "importance": "essential"
+    },
+    "v_boot_b": {
+      "description": "Bootstrapped peak voltage at node B.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text: 'node B boots up to 2VDD'"
+      },
+      "equation": {
+        "formula": "V_{B,high} \\approx 2 \\cdot VDD",
+        "explanation": "Node B is precharged to VDD by M2 and then boosted by an additional VDD when INV2 output goes high.",
+        "assumptions": "C2 (1000fF) is much larger than the parasitic capacitance at node B."
+      },
+      "sky130_expected": {
+        "calculation": "2 * 1.8V = 3.6V",
+        "range": {
+          "min": 3.2,
+          "typical": 3.5,
+          "max": 3.6,
+          "unit": "V"
+        },
+        "reasoning": "Ideal is 3.6V, reduced slightly by parasitics. C2 is large (1pF), so the boost efficiency should be high."
+      },
+      "importance": "essential"
+    },
+    "v_boot_a": {
+      "description": "Bootstrapped peak voltage at node A.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text: 'node A is at roughly 2VDD'"
+      },
+      "equation": {
+        "formula": "V_{A,high} \\approx 2 \\cdot VDD",
+        "explanation": "Node A is precharged to VDD by M1 and then boosted by an additional VDD when INV1 output goes high.",
+        "assumptions": "C1 (100fF) is much larger than the parasitic capacitance at node A."
+      },
+      "sky130_expected": {
+        "calculation": "2 * 1.8V = 3.6V",
+        "range": {
+          "min": 3.0,
+          "typical": 3.4,
+          "max": 3.6,
+          "unit": "V"
+        },
+        "reasoning": "Ideal is 3.6V. C1 is smaller (100fF), so charge sharing with M2's gate capacitance will cause a slightly larger voltage drop compared to node B."
+      },
+      "importance": "essential"
+    },
+    "t_rise": {
+      "description": "Rise time of the output clock signal, dependent on load capacitance.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text: 'characterize the performance as a function of the load capacitance.'"
+      },
+      "equation": {
+        "formula": "t_{rise} \\propto \\frac{C_{load} \\cdot \\Delta V}{I_{drive}}",
+        "explanation": "The rise time is determined by the ability of the PMOS (M4) to charge the load capacitance from the bootstrapped node B.",
+        "assumptions": "Constant average drive current during the transition."
+      },
+      "sky130_expected": {
+        "calculation": "With W=10u, I_drive ~ 1mA. dt = C*dV/I = 1pF * 3.6V / 1mA = 3.6ns.",
+        "range": {
+          "min": 1e-09,
+          "typical": 3e-09,
+          "max": 1e-08,
+          "unit": "s"
+        },
+        "reasoning": "Estimated based on typical 130nm drive strengths for a 10um device driving a 1pF load."
+      },
+      "importance": "recommended"
+    },
+    "power": {
+      "description": "Average power consumption of the clock driver.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text: 'minimize layout area and power (the charging and discharging of the parasitic capacitors doesn't waste power)'"
+      },
+      "equation": {
+        "formula": "P_{avg} = VDD \\cdot I_{avg}",
+        "explanation": "Dynamic power consumed by switching the capacitors (C1, C2) and the load capacitance.",
+        "assumptions": "Measured over an integer number of clock cycles."
+      },
+      "sky130_expected": {
+        "calculation": "P \\approx f \\cdot C_{total} \\cdot V^2. C_{total} \\approx 2.1pF. At 25MHz, P \\approx 25e6 * 2.1e-12 * (3.6)^2 \\approx 680\\mu W.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0006,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "Dynamic power dominates and is heavily dependent on the input clock frequency and load capacitance."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure bootstrapped voltages at nodes A and B, output high voltage, rise time, and average power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_out_high",
+      "v_boot_b",
+      "v_boot_a",
+      "t_rise",
+      "power"
+    ],
+    "spice": "* Charge-pump clock driver testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the parameterized netlist\n.param W_xm1i=2u L_xm1i=0.15u\n.param W_xm2i=4u L_xm2i=0.15u\n.param W_xm1a=4u L_xm1a=0.15u\n.param W_xm2a=8u L_xm2a=0.15u\n.param W_xm1=2u L_xm1=0.15u\n.param W_xm2=10u L_xm2=0.15u\n.param W_xm3=10u L_xm3=0.15u\n.param W_xm4=10u L_xm4=0.15u\n\n* Input clock (25MHz)\nVclk N003 0 PULSE(0 1.8 0 100p 100p 20n 40n)\n\n* --- DUT START ---\nxm1i N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\nVDD VDD 0 1.8\nxm2i N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\nCload Vout 0 1e-12\nC2 N002 B 1e-12\nxm1a N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1a} l={L_xm1a}\nxm2a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2a} l={L_xm2a}\nxm3 Vout N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 Vout N001 B B sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nC1 N001 A 1e-13\nxm2 B A VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 A B VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n* --- DUT END ---\n\n* Initial conditions to help startup\n.ic v(vout)=0 v(a)=1.8 v(b)=1.8\n\n.control\ntran 100p 200n\n\n* Measure steady state boosted voltages (after a few cycles)\nmeas tran v_out_high max v(vout) from=100n to=200n\nmeas tran v_boot_b max v(b) from=100n to=200n\nmeas tran v_boot_a max v(a) from=100n to=200n\n\n* Measure rise time on a later edge (10% to 90% of expected 3.6V swing)\nmeas tran t_rise trig v(vout) val=0.36 rise=4 targ v(vout) val=3.24 rise=4\n\n* Measure average power from VDD\nmeas tran pwr_integ integ i(VDD) from=100n to=200n\nlet power = -(pwr_integ / 100n) * 1.8\n\nprint v_out_high v_boot_b v_boot_a t_rise power\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 18.39\",\n    \"page\": \"546\",\n    \"circuit_type\": \"Charge-pump clock driver\",\n    \"description\": \"A bootstrapped clock driver circuit that uses cross-coupled NMOS transistors and capacitors to generate a pulsed output voltage roughly twice the supply voltage (2*VDD) to fully turn on NMOS switches without suffering a threshold voltage drop.\"\n  },\n  \"step2_metrics\": {\n    \"v_out_high\": {\n      \"description\": \"Maximum high voltage level of the output clock signal.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text: 'The output of the driver circuit then goes to 2VDD'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{out,high} \\\\approx 2 \\\\cdot VDD\",\n        \"explanation\": \"The output is pulled to node B, which is bootstrapped to twice the supply voltage when the input goes high.\",\n        \"assumptions\": \"Negligible charge sharing losses with parasitic capacitances and ideal precharging of node B.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2 * 1.8V = 3.6V\",\n        \"range\": {\n          \"min\": 3.0,\n          \"typical\": 3.4,\n          \"max\": 3.6,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ideal is 3.6V. In practice, parasitic capacitances at node B and the output node will reduce the peak voltage slightly through charge sharing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_boot_b\": {\n      \"description\": \"Bootstrapped peak voltage at node B.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text: 'node B boots up to 2VDD'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{B,high} \\\\approx 2 \\\\cdot VDD\",\n        \"explanation\": \"Node B is precharged to VDD by M2 and then boosted by an additional VDD when INV2 output goes high.\",\n        \"assumptions\": \"C2 (1000fF) is much larger than the parasitic capacitance at node B.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2 * 1.8V = 3.6V\",\n        \"range\": {\n          \"min\": 3.2,\n          \"typical\": 3.5,\n          \"max\": 3.6,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ideal is 3.6V, reduced slightly by parasitics. C2 is large (1pF), so the boost efficiency should be high.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_boot_a\": {\n      \"description\": \"Bootstrapped peak voltage at node A.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text: 'node A is at roughly 2VDD'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{A,high} \\\\approx 2 \\\\cdot VDD\",\n        \"explanation\": \"Node A is precharged to VDD by M1 and then boosted by an additional VDD when INV1 output goes high.\",\n        \"assumptions\": \"C1 (100fF) is much larger than the parasitic capacitance at node A.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2 * 1.8V = 3.6V\",\n        \"range\": {\n          \"min\": 3.0,\n          \"typical\": 3.4,\n          \"max\": 3.6,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ideal is 3.6V. C1 is smaller (100fF), so charge sharing with M2's gate capacitance will cause a slightly larger voltage drop compared to node B.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_rise\": {\n      \"description\": \"Rise time of the output clock signal, dependent on load capacitance.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text: 'characterize the performance as a function of the load capacitance.'\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{rise} \\\\propto \\\\frac{C_{load} \\\\cdot \\\\Delta V}{I_{drive}}\",\n        \"explanation\": \"The rise time is determined by the ability of the PMOS (M4) to charge the load capacitance from the bootstrapped node B.\",\n        \"assumptions\": \"Constant average drive current during the transition.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W=10u, I_drive ~ 1mA. dt = C*dV/I = 1pF * 3.6V / 1mA = 3.6ns.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 3e-9,\n          \"max\": 10e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Estimated based on typical 130nm drive strengths for a 10um device driving a 1pF load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power\": {\n      \"description\": \"Average power consumption of the clock driver.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text: 'minimize layout area and power (the charging and discharging of the parasitic capacitors doesn't waste power)'\"\n      },\n      \"equation\": {\n        \"formula\": \"P_{avg} = VDD \\\\cdot I_{avg}\",\n        \"explanation\": \"Dynamic power consumed by switching the capacitors (C1, C2) and the load capacitance.\",\n        \"assumptions\": \"Measured over an integer number of clock cycles.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P \\\\approx f \\\\cdot C_{total} \\\\cdot V^2. C_{total} \\\\approx 2.1pF. At 25MHz, P \\\\approx 25e6 * 2.1e-12 * (3.6)^2 \\\\approx 680\\\\mu W.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 600e-6,\n          \"max\": 2e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dynamic power dominates and is heavily dependent on the input clock frequency and load capacitance.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure bootstrapped voltages at nodes A and B, output high voltage, rise time, and average power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_out_high\",\n      \"v_boot_b\",\n      \"v_boot_a\",\n      \"t_rise\",\n      \"power\"\n    ],\n    \"spice\": \"* Charge-pump clock driver testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm1i=2u L_xm1i=0.15u\\n.param W_xm2i=4u L_xm2i=0.15u\\n.param W_xm1a=4u L_xm1a=0.15u\\n.param W_xm2a=8u L_xm2a=0.15u\\n.param W_xm1=2u L_xm1=0.15u\\n.param W_xm2=10u L_xm2=0.15u\\n.param W_xm3=10u L_xm3=0.15u\\n.param W_xm4=10u L_xm4=0.15u\\n\\n* Input clock (25MHz)\\nVclk N003 0 PULSE(0 1.8 0 100p 100p 20n 40n)\\n\\n* --- DUT START ---\\nxm1i N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\\nVDD VDD 0 1.8\\nxm2i N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\\nCload Vout 0 1e-12\\nC2 N002 B 1e-12\\nxm1a N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1a} l={L_xm1a}\\nxm2a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2a} l={L_xm2a}\\nxm3 Vout N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 Vout N001 B B sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nC1 N001 A 1e-13\\nxm2 B A VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 A B VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n* --- DUT END ---\\n\\n* Initial conditions to help startup\\n.ic v(vout)=0 v(a)=1.8 v(b)=1.8\\n\\n.control\\ntran 100p 200n\\n\\n* Measure steady state boosted voltages (after a few cycles)\\nmeas tran v_out_high max v(vout) from=100n to=200n\\nmeas tran v_boot_b max v(b) from=100n to=200n\\nmeas tran v_boot_a max v(a) from=100n to=200n\\n\\n* Measure rise time on a later edge (10% to 90% of expected 3.6V swing)\\nmeas tran t_rise trig v(vout) val=0.36 rise=4 targ v(vout) val=3.24 rise=4\\n\\n* Measure average power from VDD\\nmeas tran pwr_integ integ i(VDD) from=100n to=200n\\nlet power = -(pwr_integ / 100n) * 1.8\\n\\nprint v_out_high v_boot_b v_boot_a t_rise power\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

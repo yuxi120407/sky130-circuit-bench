@@ -1,0 +1,426 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 24.51",
+    "page": "810",
+    "circuit_type": "Folded-cascode op-amp with class AB output buffer and gain-enhancement",
+    "description": "A high-gain two-stage operational amplifier utilizing gain-enhancement (GE) in the folded-cascode first stage to boost the output resistance and overall DC open-loop gain. The provided netlist is configured as a unity-gain voltage follower (Vout tied to the inverting input)."
+  },
+  "step2_metrics": {
+    "gain_enhancement_amp_gain": {
+      "description": "Gain of the auxiliary differential amplifiers used for gain enhancement.",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "808",
+        "reference": "Eq 24.55 and 24.56"
+      },
+      "equation": {
+        "formula": "A_GE = A_P = A_N = g_m * (r_on || r_op)",
+        "explanation": "The intrinsic gain of the auxiliary amplifiers regulating the cascode nodes.",
+        "assumptions": "Assumes symmetric N and P auxiliary amplifiers."
+      },
+      "sky130_expected": {
+        "calculation": "g_m \u2248 200uS, r_o \u2248 1/(lambda*I_D) \u2248 1/(0.1 * 50uA) = 200k\u03a9. r_on || r_op \u2248 100k\u03a9. A_GE = 200uS * 100k\u03a9 = 20 V/V.",
+        "range": {
+          "min": 10,
+          "typical": 20,
+          "max": 50,
+          "unit": "V/V"
+        },
+        "reasoning": "Depends heavily on the bias current and channel lengths of the auxiliary amplifiers."
+      },
+      "importance": "essential"
+    },
+    "open_loop_gain_no_ge": {
+      "description": "Low-frequency open-loop gain of the op-amp without gain enhancement.",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "808",
+        "reference": "Eq 24.57"
+      },
+      "equation": {
+        "formula": "A_0LDC = g_mn * (R_ocasn || R_ocasp) * (g_mp + g_mn) * (r_on || r_op)",
+        "explanation": "The product of the first stage (folded cascode) gain and the second stage (class AB) gain.",
+        "assumptions": "Assumes standard output resistance without the GE regulation."
+      },
+      "sky130_expected": {
+        "calculation": "First stage gain \u2248 g_m * R_out \u2248 200uS * 200k\u03a9 = 40 V/V. Second stage gain \u2248 10 V/V. Total \u2248 400 V/V (52 dB).",
+        "range": {
+          "min": 200,
+          "typical": 400,
+          "max": 1000,
+          "unit": "V/V"
+        },
+        "reasoning": "Intrinsic gain (g_m * r_o) in SKY130 is typically 20-50 for minimum length devices."
+      },
+      "importance": "essential"
+    },
+    "open_loop_gain_with_ge": {
+      "description": "Total low-frequency open-loop gain of the op-amp with gain enhancement.",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "808",
+        "reference": "Eq 24.58"
+      },
+      "equation": {
+        "formula": "A_0LDC,GE = A_0LDC * A_GE",
+        "explanation": "The original open-loop gain multiplied by the gain of the enhancement amplifiers.",
+        "assumptions": "Assumes the GE amplifiers perfectly regulate the cascode nodes at DC."
+      },
+      "sky130_expected": {
+        "calculation": "A_0LDC \u2248 400 V/V, A_GE \u2248 20 V/V. A_0LDC,GE = 400 * 20 = 8000 V/V (78 dB).",
+        "range": {
+          "min": 4000,
+          "typical": 8000,
+          "max": 20000,
+          "unit": "V/V"
+        },
+        "reasoning": "The GE technique boosts the output resistance of the first stage by A_GE, directly multiplying the total gain."
+      },
+      "importance": "essential"
+    },
+    "ge_amp_freq_response": {
+      "description": "Frequency response of the added GE amplifiers.",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "809",
+        "reference": "Eq 24.59"
+      },
+      "equation": {
+        "formula": "A_GE(f) = A_GEDC / (1 + j * f / f_3dBGE)",
+        "explanation": "Single-pole roll-off model for the auxiliary GE amplifiers.",
+        "assumptions": "Assumes a dominant pole f_3dBGE in the auxiliary amplifiers."
+      },
+      "sky130_expected": {
+        "calculation": "f_3dBGE depends on C_cGE (240fF). f_3dBGE \u2248 1 / (2\u03c0 * 100k\u03a9 * 240fF) \u2248 6.6 MHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 6600000.0,
+          "max": 20000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the output resistance of the GE amp and its compensation capacitor."
+      },
+      "importance": "optional"
+    },
+    "total_open_loop_freq_response": {
+      "description": "Frequency response of the entire op-amp with GE.",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "809",
+        "reference": "Eq 24.60"
+      },
+      "equation": {
+        "formula": "A_0LGE(f) = (A_0LDC / (1 + j * f / f_3dB)) * (A_GEDC / (1 + j * f / f_3dBGE))",
+        "explanation": "Combines the frequency response of the main op-amp and the GE amplifiers, showing a potential doublet.",
+        "assumptions": "Assumes independent single-pole responses that multiply."
+      },
+      "sky130_expected": {
+        "calculation": "Pole-zero doublet occurs if f_3dBGE doesn't perfectly cancel. Not a single scalar value.",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "N/A"
+        },
+        "reasoning": "This is a transfer function, not a single metric."
+      },
+      "importance": "optional"
+    },
+    "dominant_pole_with_ge": {
+      "description": "Dominant pole frequency of the folded-cascode OTA with GE.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "810",
+        "reference": "Eq 24.61"
+      },
+      "equation": {
+        "formula": "f_3dB = 1 / (2\u03c0 * (R_ocasn || R_ocasp) * A_GE(f) * C_c)",
+        "explanation": "The dominant pole is pushed to a lower frequency due to the increased output resistance from GE.",
+        "assumptions": "Assumes C_c is the dominant capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "R_out_total \u2248 2M\u03a9, C_c = 240fF. f_3dB = 1 / (2\u03c0 * 2M\u03a9 * 240fF) \u2248 330 kHz.",
+        "range": {
+          "min": 100000.0,
+          "typical": 330000.0,
+          "max": 1000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The high DC gain results in a very low dominant pole frequency."
+      },
+      "importance": "essential"
+    },
+    "ideal_regulated_voltage": {
+      "description": "Ideal output voltage of a voltage regulator application.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "812",
+        "reference": "Eq 24.62"
+      },
+      "equation": {
+        "formula": "V_REG = V_REF * (1 + R_A / R_B)",
+        "explanation": "The output voltage set by the resistor divider in a non-inverting configuration.",
+        "assumptions": "Assumes infinite open-loop gain."
+      },
+      "sky130_expected": {
+        "calculation": "If V_REF = 0.9V and R_A = 0 (follower), V_REG = 0.9V.",
+        "range": {
+          "min": 0.9,
+          "typical": 0.9,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "Depends entirely on external components and reference."
+      },
+      "importance": "optional"
+    },
+    "finite_gain_regulated_voltage": {
+      "description": "Actual regulated voltage considering finite open-loop gain.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "813",
+        "reference": "Eq 24.65"
+      },
+      "equation": {
+        "formula": "V_REG = V_REF * (1 / (1/A_0L + R_B/(R_A + R_B)))",
+        "explanation": "Shows the gain error introduced by finite A_0L.",
+        "assumptions": "Assumes linear operation."
+      },
+      "sky130_expected": {
+        "calculation": "For follower (R_A=0, R_B=open), V_REG = 0.9 * (1 / (1/8000 + 1)) \u2248 0.8999V.",
+        "range": {
+          "min": 0.89,
+          "typical": 0.899,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "High gain from GE makes the error very small."
+      },
+      "importance": "optional"
+    },
+    "min_gate_voltage_m7": {
+      "description": "Minimum voltage swing on the gate of the pass transistor in a regulator.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "814",
+        "reference": "Eq 24.67"
+      },
+      "equation": {
+        "formula": "V_G7,min = V_REF - V_THN",
+        "explanation": "The lowest voltage the op-amp output can drive before the input differential pair drops out of saturation.",
+        "assumptions": "Assumes standard diff-pair input."
+      },
+      "sky130_expected": {
+        "calculation": "V_REF = 0.9V, V_THN = 0.42V. V_G7,min = 0.9 - 0.42 = 0.48V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.48,
+          "max": 0.6,
+          "unit": "V"
+        },
+        "reasoning": "Limited by the threshold voltage of the NMOS input pair."
+      },
+      "importance": "optional"
+    },
+    "two_stage_opamp_gain": {
+      "description": "Open-loop gain of a standard two-stage op-amp (used in regulator example).",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "815",
+        "reference": "Eq 24.68"
+      },
+      "equation": {
+        "formula": "A_0LDC = g_m1 * R_1 * g_m2 * R_2",
+        "explanation": "Product of the gains of the two stages.",
+        "assumptions": "Assumes simple two-stage topology."
+      },
+      "sky130_expected": {
+        "calculation": "g_m1*R_1 \u2248 20, g_m2*R_2 \u2248 20. A_0LDC \u2248 400 V/V.",
+        "range": {
+          "min": 200,
+          "typical": 400,
+          "max": 1000,
+          "unit": "V/V"
+        },
+        "reasoning": "Standard intrinsic gains for SKY130."
+      },
+      "importance": "optional"
+    },
+    "closed_loop_output_resistance": {
+      "description": "Output resistance of the op-amp in closed-loop.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "source": {
+        "page": "816",
+        "reference": "Eq 24.70"
+      },
+      "equation": {
+        "formula": "R_out,CL \u2248 (A_CL / A_0LDC) * R_2",
+        "explanation": "The open-loop output resistance divided by the loop gain.",
+        "assumptions": "Assumes loop gain is large."
+      },
+      "sky130_expected": {
+        "calculation": "A_CL = 1, A_0LDC = 8000, R_2 = 100k\u03a9. R_out,CL = (1/8000) * 100k\u03a9 = 12.5 \u03a9.",
+        "range": {
+          "min": 5,
+          "typical": 12.5,
+          "max": 50,
+          "unit": "ohm"
+        },
+        "reasoning": "High open-loop gain drastically reduces closed-loop output resistance."
+      },
+      "importance": "optional"
+    },
+    "output_pole_f2": {
+      "description": "Location of the output pole in the regulator.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "816",
+        "reference": "Eq 24.71"
+      },
+      "equation": {
+        "formula": "f_2 = A_0LDC / (2\u03c0 * R_2 * C_L * A_CL)",
+        "explanation": "The pole formed by the closed-loop output resistance and the load capacitance.",
+        "assumptions": "Assumes dominant pole compensation."
+      },
+      "sky130_expected": {
+        "calculation": "A_0LDC = 8000, R_2 = 100k\u03a9, C_L = 1pF, A_CL = 1. f_2 = 8000 / (2\u03c0 * 100k * 1p) \u2248 12.7 MHz.",
+        "range": {
+          "min": 5000000.0,
+          "typical": 12700000.0,
+          "max": 20000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the load capacitance."
+      },
+      "importance": "optional"
+    },
+    "first_stage_pole_f1": {
+      "description": "Location of the pole at the output of the first stage.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "816",
+        "reference": "Eq 24.72"
+      },
+      "equation": {
+        "formula": "f_1 \u2248 1 / (2\u03c0 * R_1 * C_gs7)",
+        "explanation": "Pole formed by the first stage output resistance and the gate capacitance of the second stage.",
+        "assumptions": "Assumes C_gs7 dominates the node capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "R_1 = 100k\u03a9, C_gs7 = 1pF. f_1 = 1 / (2\u03c0 * 100k * 1p) \u2248 1.59 MHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 1600000.0,
+          "max": 5000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on the size of the pass transistor (M7)."
+      },
+      "importance": "optional"
+    },
+    "unity_gain_freq_regulator": {
+      "description": "Unity-gain frequency of the regulator loop.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "817",
+        "reference": "Eq 24.74"
+      },
+      "equation": {
+        "formula": "f_un = A_0LDC * f_2 = A_0LDC^2 / (2\u03c0 * R_2 * C_Lmin * A_CL)",
+        "explanation": "The frequency where the loop gain drops to 0 dB.",
+        "assumptions": "Assumes single-pole roll-off."
+      },
+      "sky130_expected": {
+        "calculation": "f_un \u2248 100 MHz for the GE op-amp.",
+        "range": {
+          "min": 50000000.0,
+          "typical": 100000000.0,
+          "max": 400000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Text states 400MHz for 50nm, SKY130 might be slightly slower depending on bias."
+      },
+      "importance": "optional"
+    },
+    "min_load_capacitance": {
+      "description": "Minimum load capacitance required for stability in the regulator.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "817",
+        "reference": "Eq 24.75"
+      },
+      "equation": {
+        "formula": "C_Lmin = ((g_m1 * R_1 * g_m2)^2 * R_2) / (2\u03c0 * f_un * A_CL)",
+        "explanation": "The minimum C_L needed to push the output pole low enough to compensate the loop.",
+        "assumptions": "Assumes load capacitance is used for compensation."
+      },
+      "sky130_expected": {
+        "calculation": "Depends on specific regulator design, typically in the nF range for off-chip caps.",
+        "range": {
+          "min": 1e-09,
+          "typical": 1e-07,
+          "max": 1e-06,
+          "unit": "F"
+        },
+        "reasoning": "Large capacitance is needed to make the output pole dominant."
+      },
+      "importance": "optional"
+    },
+    "output_swing_limit": {
+      "description": "Minimum output voltage to keep the output stage in saturation.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "818",
+        "reference": "Eq 24.77"
+      },
+      "equation": {
+        "formula": "V_out \u2265 VDD - V_SG - V_THN",
+        "explanation": "The condition for the bottom transistor of the push-pull stage to remain in saturation.",
+        "assumptions": "Assumes a specific bad biasing scheme discussed in the text."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8V, V_SG \u2248 0.6V, V_THN = 0.42V. V_out \u2265 1.8 - 0.6 - 0.42 = 0.78V.",
+        "range": {
+          "min": 0.6,
+          "typical": 0.78,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "Limits the downward swing of the output."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the closed-loop bandwidth (approx unity-gain frequency), step response (overshoot, rise time), and power consumption of the GE op-amp configured as a voltage follower.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "f_3db_closed_loop",
+      "overshoot",
+      "t_rise"
+    ],
+    "spice": "* GE Op-Amp Testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameters to avoid errors if not passed externally\n.param W_xm1=2 L_xm1=1 W_xm2=2 L_xm2=1 W_xm3=10 L_xm3=1 W_xm4=10 L_xm4=1\n.param W_xm5=20 L_xm5=1 W_xm6=20 L_xm6=1 W_xm7=20 L_xm7=1 W_xm8=20 L_xm8=1\n.param W_xm9=2 L_xm9=1 W_xm10=2 L_xm10=1 W_xm11=10 L_xm11=1 W_xm12=10 L_xm12=1\n.param W_xm13=20 L_xm13=1 W_xm14=20 L_xm14=1 W_xm15=20 L_xm15=1 W_xm16=2 L_xm16=1\n.param W_xm18=40 L_xm18=1 W_xm19=40 L_xm19=1 W_xm28=20 L_xm28=1\n.param W_xmsu1=2 L_xmsu1=1 W_xmsu2=4 L_xmsu2=1 W_xmsu3=2 L_xmsu3=1\n.param W_xma3=4 L_xma3=1 W_xma4=4 L_xma4=1\n\n* DUT (Pasted directly)\nVDD VDD 0 1.8\nxm28 N001 N001 N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm28} l={L_xm28}\nxm1 N010 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm2 N010 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm3 N001 Vout N010 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N009 Vin N010 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm5 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N009 N001 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 N005 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 N002 N002 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N011 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N011 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N002 N009 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\nxm12 N003 N001 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\nxm13 N006 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm13} l={L_xm13}\nxm14 N003 N002 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\nxm15 N007 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\nxm16 Vout Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\nxm18 Vout N003 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\nxm19 N008 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\nCc1 N003 N001 2.4e-13\nCc2 Vout N005 2.4e-12\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\nC1 Vout 0 1e-12\n\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  R1 N004 0 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 0 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n.ends SUB_1\n\n* Stimulus\nV1 Vin 0 dc 0.9 ac 1 pulse(0.1 0.9 10n 1n 1n 200n 500n)\n\n.control\n* DC Operating Point\nop\nlet power = -i(VDD) * 1.8\nprint power\n\n* AC Analysis (Closed-loop)\nac dec 100 1 1G\nlet gain_db = vdb(Vout)\nmeas ac f_3db_closed_loop when gain_db=-3 fall=1\n\n* Transient Analysis\ntran 1n 600n\nmeas tran overshoot max v(Vout)\nmeas tran t_rise trig v(Vout) val=0.2 rise=1 targ v(Vout) val=0.8 rise=1\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 24.51\",\n    \"page\": \"810\",\n    \"circuit_type\": \"Folded-cascode op-amp with class AB output buffer and gain-enhancement\",\n    \"description\": \"A high-gain two-stage operational amplifier utilizing gain-enhancement (GE) in the folded-cascode first stage to boost the output resistance and overall DC open-loop gain. The provided netlist is configured as a unity-gain voltage follower (Vout tied to the inverting input).\"\n  },\n  \"step2_metrics\": {\n    \"gain_enhancement_amp_gain\": {\n      \"description\": \"Gain of the auxiliary differential amplifiers used for gain enhancement.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"808\",\n        \"reference\": \"Eq 24.55 and 24.56\"\n      },\n      \"equation\": {\n        \"formula\": \"A_GE = A_P = A_N = g_m * (r_on || r_op)\",\n        \"explanation\": \"The intrinsic gain of the auxiliary amplifiers regulating the cascode nodes.\",\n        \"assumptions\": \"Assumes symmetric N and P auxiliary amplifiers.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"g_m \u2248 200uS, r_o \u2248 1/(lambda*I_D) \u2248 1/(0.1 * 50uA) = 200k\u03a9. r_on || r_op \u2248 100k\u03a9. A_GE = 200uS * 100k\u03a9 = 20 V/V.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 20,\n          \"max\": 50,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Depends heavily on the bias current and channel lengths of the auxiliary amplifiers.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"open_loop_gain_no_ge\": {\n      \"description\": \"Low-frequency open-loop gain of the op-amp without gain enhancement.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"808\",\n        \"reference\": \"Eq 24.57\"\n      },\n      \"equation\": {\n        \"formula\": \"A_0LDC = g_mn * (R_ocasn || R_ocasp) * (g_mp + g_mn) * (r_on || r_op)\",\n        \"explanation\": \"The product of the first stage (folded cascode) gain and the second stage (class AB) gain.\",\n        \"assumptions\": \"Assumes standard output resistance without the GE regulation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"First stage gain \u2248 g_m * R_out \u2248 200uS * 200k\u03a9 = 40 V/V. Second stage gain \u2248 10 V/V. Total \u2248 400 V/V (52 dB).\",\n        \"range\": {\n          \"min\": 200,\n          \"typical\": 400,\n          \"max\": 1000,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Intrinsic gain (g_m * r_o) in SKY130 is typically 20-50 for minimum length devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"open_loop_gain_with_ge\": {\n      \"description\": \"Total low-frequency open-loop gain of the op-amp with gain enhancement.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"808\",\n        \"reference\": \"Eq 24.58\"\n      },\n      \"equation\": {\n        \"formula\": \"A_0LDC,GE = A_0LDC * A_GE\",\n        \"explanation\": \"The original open-loop gain multiplied by the gain of the enhancement amplifiers.\",\n        \"assumptions\": \"Assumes the GE amplifiers perfectly regulate the cascode nodes at DC.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A_0LDC \u2248 400 V/V, A_GE \u2248 20 V/V. A_0LDC,GE = 400 * 20 = 8000 V/V (78 dB).\",\n        \"range\": {\n          \"min\": 4000,\n          \"typical\": 8000,\n          \"max\": 20000,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"The GE technique boosts the output resistance of the first stage by A_GE, directly multiplying the total gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ge_amp_freq_response\": {\n      \"description\": \"Frequency response of the added GE amplifiers.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"809\",\n        \"reference\": \"Eq 24.59\"\n      },\n      \"equation\": {\n        \"formula\": \"A_GE(f) = A_GEDC / (1 + j * f / f_3dBGE)\",\n        \"explanation\": \"Single-pole roll-off model for the auxiliary GE amplifiers.\",\n        \"assumptions\": \"Assumes a dominant pole f_3dBGE in the auxiliary amplifiers.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dBGE depends on C_cGE (240fF). f_3dBGE \u2248 1 / (2\u03c0 * 100k\u03a9 * 240fF) \u2248 6.6 MHz.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 6.6e6,\n          \"max\": 20e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the output resistance of the GE amp and its compensation capacitor.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"total_open_loop_freq_response\": {\n      \"description\": \"Frequency response of the entire op-amp with GE.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"809\",\n        \"reference\": \"Eq 24.60\"\n      },\n      \"equation\": {\n        \"formula\": \"A_0LGE(f) = (A_0LDC / (1 + j * f / f_3dB)) * (A_GEDC / (1 + j * f / f_3dBGE))\",\n        \"explanation\": \"Combines the frequency response of the main op-amp and the GE amplifiers, showing a potential doublet.\",\n        \"assumptions\": \"Assumes independent single-pole responses that multiply.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pole-zero doublet occurs if f_3dBGE doesn't perfectly cancel. Not a single scalar value.\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"N/A\"\n        },\n        \"reasoning\": \"This is a transfer function, not a single metric.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"dominant_pole_with_ge\": {\n      \"description\": \"Dominant pole frequency of the folded-cascode OTA with GE.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"810\",\n        \"reference\": \"Eq 24.61\"\n      },\n      \"equation\": {\n        \"formula\": \"f_3dB = 1 / (2\u03c0 * (R_ocasn || R_ocasp) * A_GE(f) * C_c)\",\n        \"explanation\": \"The dominant pole is pushed to a lower frequency due to the increased output resistance from GE.\",\n        \"assumptions\": \"Assumes C_c is the dominant capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_out_total \u2248 2M\u03a9, C_c = 240fF. f_3dB = 1 / (2\u03c0 * 2M\u03a9 * 240fF) \u2248 330 kHz.\",\n        \"range\": {\n          \"min\": 100e3,\n          \"typical\": 330e3,\n          \"max\": 1e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The high DC gain results in a very low dominant pole frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ideal_regulated_voltage\": {\n      \"description\": \"Ideal output voltage of a voltage regulator application.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"812\",\n        \"reference\": \"Eq 24.62\"\n      },\n      \"equation\": {\n        \"formula\": \"V_REG = V_REF * (1 + R_A / R_B)\",\n        \"explanation\": \"The output voltage set by the resistor divider in a non-inverting configuration.\",\n        \"assumptions\": \"Assumes infinite open-loop gain.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"If V_REF = 0.9V and R_A = 0 (follower), V_REG = 0.9V.\",\n        \"range\": {\n          \"min\": 0.9,\n          \"typical\": 0.9,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends entirely on external components and reference.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"finite_gain_regulated_voltage\": {\n      \"description\": \"Actual regulated voltage considering finite open-loop gain.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"813\",\n        \"reference\": \"Eq 24.65\"\n      },\n      \"equation\": {\n        \"formula\": \"V_REG = V_REF * (1 / (1/A_0L + R_B/(R_A + R_B)))\",\n        \"explanation\": \"Shows the gain error introduced by finite A_0L.\",\n        \"assumptions\": \"Assumes linear operation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For follower (R_A=0, R_B=open), V_REG = 0.9 * (1 / (1/8000 + 1)) \u2248 0.8999V.\",\n        \"range\": {\n          \"min\": 0.89,\n          \"typical\": 0.899,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"High gain from GE makes the error very small.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"min_gate_voltage_m7\": {\n      \"description\": \"Minimum voltage swing on the gate of the pass transistor in a regulator.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"814\",\n        \"reference\": \"Eq 24.67\"\n      },\n      \"equation\": {\n        \"formula\": \"V_G7,min = V_REF - V_THN\",\n        \"explanation\": \"The lowest voltage the op-amp output can drive before the input differential pair drops out of saturation.\",\n        \"assumptions\": \"Assumes standard diff-pair input.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_REF = 0.9V, V_THN = 0.42V. V_G7,min = 0.9 - 0.42 = 0.48V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.48,\n          \"max\": 0.6,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Limited by the threshold voltage of the NMOS input pair.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"two_stage_opamp_gain\": {\n      \"description\": \"Open-loop gain of a standard two-stage op-amp (used in regulator example).\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"815\",\n        \"reference\": \"Eq 24.68\"\n      },\n      \"equation\": {\n        \"formula\": \"A_0LDC = g_m1 * R_1 * g_m2 * R_2\",\n        \"explanation\": \"Product of the gains of the two stages.\",\n        \"assumptions\": \"Assumes simple two-stage topology.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"g_m1*R_1 \u2248 20, g_m2*R_2 \u2248 20. A_0LDC \u2248 400 V/V.\",\n        \"range\": {\n          \"min\": 200,\n          \"typical\": 400,\n          \"max\": 1000,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Standard intrinsic gains for SKY130.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"closed_loop_output_resistance\": {\n      \"description\": \"Output resistance of the op-amp in closed-loop.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"816\",\n        \"reference\": \"Eq 24.70\"\n      },\n      \"equation\": {\n        \"formula\": \"R_out,CL \u2248 (A_CL / A_0LDC) * R_2\",\n        \"explanation\": \"The open-loop output resistance divided by the loop gain.\",\n        \"assumptions\": \"Assumes loop gain is large.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A_CL = 1, A_0LDC = 8000, R_2 = 100k\u03a9. R_out,CL = (1/8000) * 100k\u03a9 = 12.5 \u03a9.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 12.5,\n          \"max\": 50,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"High open-loop gain drastically reduces closed-loop output resistance.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"output_pole_f2\": {\n      \"description\": \"Location of the output pole in the regulator.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"816\",\n        \"reference\": \"Eq 24.71\"\n      },\n      \"equation\": {\n        \"formula\": \"f_2 = A_0LDC / (2\u03c0 * R_2 * C_L * A_CL)\",\n        \"explanation\": \"The pole formed by the closed-loop output resistance and the load capacitance.\",\n        \"assumptions\": \"Assumes dominant pole compensation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A_0LDC = 8000, R_2 = 100k\u03a9, C_L = 1pF, A_CL = 1. f_2 = 8000 / (2\u03c0 * 100k * 1p) \u2248 12.7 MHz.\",\n        \"range\": {\n          \"min\": 5e6,\n          \"typical\": 12.7e6,\n          \"max\": 20e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the load capacitance.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"first_stage_pole_f1\": {\n      \"description\": \"Location of the pole at the output of the first stage.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"816\",\n        \"reference\": \"Eq 24.72\"\n      },\n      \"equation\": {\n        \"formula\": \"f_1 \u2248 1 / (2\u03c0 * R_1 * C_gs7)\",\n        \"explanation\": \"Pole formed by the first stage output resistance and the gate capacitance of the second stage.\",\n        \"assumptions\": \"Assumes C_gs7 dominates the node capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_1 = 100k\u03a9, C_gs7 = 1pF. f_1 = 1 / (2\u03c0 * 100k * 1p) \u2248 1.59 MHz.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 1.6e6,\n          \"max\": 5e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends on the size of the pass transistor (M7).\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"unity_gain_freq_regulator\": {\n      \"description\": \"Unity-gain frequency of the regulator loop.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"817\",\n        \"reference\": \"Eq 24.74\"\n      },\n      \"equation\": {\n        \"formula\": \"f_un = A_0LDC * f_2 = A_0LDC^2 / (2\u03c0 * R_2 * C_Lmin * A_CL)\",\n        \"explanation\": \"The frequency where the loop gain drops to 0 dB.\",\n        \"assumptions\": \"Assumes single-pole roll-off.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_un \u2248 100 MHz for the GE op-amp.\",\n        \"range\": {\n          \"min\": 50e6,\n          \"typical\": 100e6,\n          \"max\": 400e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Text states 400MHz for 50nm, SKY130 might be slightly slower depending on bias.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"min_load_capacitance\": {\n      \"description\": \"Minimum load capacitance required for stability in the regulator.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"817\",\n        \"reference\": \"Eq 24.75\"\n      },\n      \"equation\": {\n        \"formula\": \"C_Lmin = ((g_m1 * R_1 * g_m2)^2 * R_2) / (2\u03c0 * f_un * A_CL)\",\n        \"explanation\": \"The minimum C_L needed to push the output pole low enough to compensate the loop.\",\n        \"assumptions\": \"Assumes load capacitance is used for compensation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on specific regulator design, typically in the nF range for off-chip caps.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 100e-9,\n          \"max\": 1e-6,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Large capacitance is needed to make the output pole dominant.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"output_swing_limit\": {\n      \"description\": \"Minimum output voltage to keep the output stage in saturation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"818\",\n        \"reference\": \"Eq 24.77\"\n      },\n      \"equation\": {\n        \"formula\": \"V_out \u2265 VDD - V_SG - V_THN\",\n        \"explanation\": \"The condition for the bottom transistor of the push-pull stage to remain in saturation.\",\n        \"assumptions\": \"Assumes a specific bad biasing scheme discussed in the text.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8V, V_SG \u2248 0.6V, V_THN = 0.42V. V_out \u2265 1.8 - 0.6 - 0.42 = 0.78V.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.78,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Limits the downward swing of the output.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the closed-loop bandwidth (approx unity-gain frequency), step response (overshoot, rise time), and power consumption of the GE op-amp configured as a voltage follower.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"f_3db_closed_loop\",\n      \"overshoot\",\n      \"t_rise\"\n    ],\n    \"spice\": \"* GE Op-Amp Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters to avoid errors if not passed externally\\n.param W_xm1=2 L_xm1=1 W_xm2=2 L_xm2=1 W_xm3=10 L_xm3=1 W_xm4=10 L_xm4=1\\n.param W_xm5=20 L_xm5=1 W_xm6=20 L_xm6=1 W_xm7=20 L_xm7=1 W_xm8=20 L_xm8=1\\n.param W_xm9=2 L_xm9=1 W_xm10=2 L_xm10=1 W_xm11=10 L_xm11=1 W_xm12=10 L_xm12=1\\n.param W_xm13=20 L_xm13=1 W_xm14=20 L_xm14=1 W_xm15=20 L_xm15=1 W_xm16=2 L_xm16=1\\n.param W_xm18=40 L_xm18=1 W_xm19=40 L_xm19=1 W_xm28=20 L_xm28=1\\n.param W_xmsu1=2 L_xmsu1=1 W_xmsu2=4 L_xmsu2=1 W_xmsu3=2 L_xmsu3=1\\n.param W_xma3=4 L_xma3=1 W_xma4=4 L_xma4=1\\n\\n* DUT (Pasted directly)\\nVDD VDD 0 1.8\\nxm28 N001 N001 N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm28} l={L_xm28}\\nxm1 N010 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 N010 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 N001 Vout N010 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N009 Vin N010 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N009 N001 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 N005 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 N002 N002 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N011 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N011 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N002 N009 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 N003 N001 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 N006 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 N003 N002 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 N007 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 Vout Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\nxm18 Vout N003 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\\nxm19 N008 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\\nCc1 N003 N001 2.4e-13\\nCc2 Vout N005 2.4e-12\\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\\nC1 Vout 0 1e-12\\n\\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  R1 N004 0 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 0 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n.ends SUB_1\\n\\n* Stimulus\\nV1 Vin 0 dc 0.9 ac 1 pulse(0.1 0.9 10n 1n 1n 200n 500n)\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\n* AC Analysis (Closed-loop)\\nac dec 100 1 1G\\nlet gain_db = vdb(Vout)\\nmeas ac f_3db_closed_loop when gain_db=-3 fall=1\\n\\n* Transient Analysis\\ntran 1n 600n\\nmeas tran overshoot max v(Vout)\\nmeas tran t_rise trig v(Vout) val=0.2 rise=1 targ v(Vout) val=0.8 rise=1\\n.endc\\n.end\"\n  }\n}\n```"
+}

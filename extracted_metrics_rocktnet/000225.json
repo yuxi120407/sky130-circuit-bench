@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Duty-Cycle Detector (DCD) / Source-Switched Charge Pump",
+    "description": "A source-switched charge pump used as a duty-cycle detector. It charges the output node VCTRL when the input pulses are low and discharges it when they are high, converting the duty cycle of the input clock into an analog control voltage. The source-switched architecture allows for high-speed, low-voltage operation.",
+    "node_mapping": {
+      "input": [
+        "PULSE1",
+        "PULSE2"
+      ],
+      "output": [
+        "VCTRL"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VQP",
+        "VQN"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low-Voltage Pulsewidth Control Loops for SOC Applications",
+      "figure": "Not specified",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "I_up": {
+      "description": "Pump-up current sourced to VCTRL when inputs are low",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "With VQP=0.9V, Vsg=0.9V, Vov=0.48V. Id = 0.5 * 50uA/V^2 * (5/0.5) * (0.48V)^2 = 57.6uA",
+        "range": {
+          "min": "40u",
+          "typical": "60u",
+          "max": "80u",
+          "unit": "A"
+        },
+        "reasoning": "Based on square-law estimation for SKY130 PMOS with W/L=5/0.5 and VQP=0.9V."
+      },
+      "importance": "essential"
+    },
+    "I_down": {
+      "description": "Pump-down current sinked from VCTRL when inputs are high",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "With VQN=0.6V, Vgs=0.6V, Vov=0.18V. Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.18V)^2 = 43.7uA",
+        "range": {
+          "min": "30u",
+          "typical": "45u",
+          "max": "60u",
+          "unit": "A"
+        },
+        "reasoning": "Based on square-law estimation for SKY130 NMOS with W/L=5/0.5 and VQN=0.6V. VQN is set lower than VQP to balance the higher mobility of NMOS."
+      },
+      "importance": "essential"
+    },
+    "VCTRL_ripple": {
+      "description": "Peak-to-peak voltage ripple on VCTRL during steady-state operation at 400MHz",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "dV = I * dt / C. With I=50uA, dt=1.25ns (half period of 400MHz), C=1pF. dV = 50uA * 1.25ns / 1pF = 62.5mV",
+        "range": {
+          "min": "40m",
+          "typical": "60m",
+          "max": "80m",
+          "unit": "V"
+        },
+        "reasoning": "Calculated using the expected charge pump current and a 1pF load capacitor at 400MHz."
+      },
+      "importance": "recommended"
+    },
+    "Operating_Frequency": {
+      "description": "Clock frequency the DCD can handle",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "400 MHz to 800 MHz",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": "400M",
+          "typical": "800M",
+          "max": "1G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 is a 130nm process, which is significantly faster than the 0.35um process in the paper, so it should easily achieve 800MHz+."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures pump-up current, pump-down current, and VCTRL ripple at 400MHz.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "I_up",
+      "I_down",
+      "VCTRL_ripple"
+    ],
+    "spice": "* Duty Cycle Detector Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmp2=5u L_xmp2=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmns=5u L_xmns=0.5u\n.param W_xmps=5u L_xmps=0.5u\n\n* DUT\nXMN1 B PULSE2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMP2 VCTRL VQP A VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\nXMN2 VCTRL VQN B GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMP1 A PULSE1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\nXMNS A PULSE1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmns} w={W_xmns}\nXMPS B PULSE2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmps} w={W_xmps}\n\n* Supplies and Biases\nVVDD VDD 0 1.8\nVVQP VQP 0 0.9\nVVQN VQN 0 0.6\n\n* Inputs (400MHz, 50% duty cycle)\nVPULSE1 PULSE1 0 dc 0 pulse(0 1.8 0 100p 100p 1.15n 2.5n)\nVPULSE2 PULSE2 0 dc 0 pulse(0 1.8 0 100p 100p 1.15n 2.5n)\n\n* Output Load and Forcing Network\nR_VCTRL VCTRL VCTRL_FORCE 1m\nVVCTRL VCTRL_FORCE 0 0.9\nC_VCTRL VCTRL 0 1p\n\n.ic v(VCTRL)=0.9\n\n.control\n  * 1. DC Analysis for I_up (Inputs = 0V)\n  alter @VPULSE1[dc] = 0\n  alter @VPULSE2[dc] = 0\n  dc VVCTRL 0 1.8 0.01\n  let i_up = i(VVCTRL)\n  meas dc i_up_900m find i_up at=0.9\n  print i_up_900m\n  \n  * 2. DC Analysis for I_down (Inputs = 1.8V)\n  alter @VPULSE1[dc] = 1.8\n  alter @VPULSE2[dc] = 1.8\n  dc VVCTRL 0 1.8 0.01\n  let i_down = -i(VVCTRL)\n  meas dc i_down_900m find i_down at=0.9\n  print i_down_900m\n  \n  * 3. Transient Analysis (400MHz operation)\n  alter @VPULSE1[dc] = 0\n  alter @VPULSE2[dc] = 0\n  alter R_VCTRL 1e12\n  tran 10p 20n uic\n  meas tran vctrl_min min v(VCTRL) from=10n to=20n\n  meas tran vctrl_max max v(VCTRL) from=10n to=20n\n  let vctrl_ripple = vctrl_max - vctrl_min\n  print vctrl_ripple\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Duty-Cycle Detector (DCD) / Source-Switched Charge Pump\",\n    \"description\": \"A source-switched charge pump used as a duty-cycle detector. It charges the output node VCTRL when the input pulses are low and discharges it when they are high, converting the duty cycle of the input clock into an analog control voltage. The source-switched architecture allows for high-speed, low-voltage operation.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"PULSE1\",\n        \"PULSE2\"\n      ],\n      \"output\": [\n        \"VCTRL\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VQP\",\n        \"VQN\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low-Voltage Pulsewidth Control Loops for SOC Applications\",\n      \"figure\": \"Not specified\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"I_up\": {\n      \"description\": \"Pump-up current sourced to VCTRL when inputs are low\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VQP=0.9V, Vsg=0.9V, Vov=0.48V. Id = 0.5 * 50uA/V^2 * (5/0.5) * (0.48V)^2 = 57.6uA\",\n        \"range\": {\n          \"min\": \"40u\",\n          \"typical\": \"60u\",\n          \"max\": \"80u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Based on square-law estimation for SKY130 PMOS with W/L=5/0.5 and VQP=0.9V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_down\": {\n      \"description\": \"Pump-down current sinked from VCTRL when inputs are high\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VQN=0.6V, Vgs=0.6V, Vov=0.18V. Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.18V)^2 = 43.7uA\",\n        \"range\": {\n          \"min\": \"30u\",\n          \"typical\": \"45u\",\n          \"max\": \"60u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Based on square-law estimation for SKY130 NMOS with W/L=5/0.5 and VQN=0.6V. VQN is set lower than VQP to balance the higher mobility of NMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"VCTRL_ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple on VCTRL during steady-state operation at 400MHz\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dV = I * dt / C. With I=50uA, dt=1.25ns (half period of 400MHz), C=1pF. dV = 50uA * 1.25ns / 1pF = 62.5mV\",\n        \"range\": {\n          \"min\": \"40m\",\n          \"typical\": \"60m\",\n          \"max\": \"80m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Calculated using the expected charge pump current and a 1pF load capacitor at 400MHz.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Operating_Frequency\": {\n      \"description\": \"Clock frequency the DCD can handle\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"400 MHz to 800 MHz\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": \"400M\",\n          \"typical\": \"800M\",\n          \"max\": \"1G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 is a 130nm process, which is significantly faster than the 0.35um process in the paper, so it should easily achieve 800MHz+.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures pump-up current, pump-down current, and VCTRL ripple at 400MHz.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"I_up\",\n      \"I_down\",\n      \"VCTRL_ripple\"\n    ],\n    \"spice\": \"* Duty Cycle Detector Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmp2=5u L_xmp2=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmns=5u L_xmns=0.5u\\n.param W_xmps=5u L_xmps=0.5u\\n\\n* DUT\\nXMN1 B PULSE2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMP2 VCTRL VQP A VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\\nXMN2 VCTRL VQN B GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMP1 A PULSE1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMNS A PULSE1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmns} w={W_xmns}\\nXMPS B PULSE2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmps} w={W_xmps}\\n\\n* Supplies and Biases\\nVVDD VDD 0 1.8\\nVVQP VQP 0 0.9\\nVVQN VQN 0 0.6\\n\\n* Inputs (400MHz, 50% duty cycle)\\nVPULSE1 PULSE1 0 dc 0 pulse(0 1.8 0 100p 100p 1.15n 2.5n)\\nVPULSE2 PULSE2 0 dc 0 pulse(0 1.8 0 100p 100p 1.15n 2.5n)\\n\\n* Output Load and Forcing Network\\nR_VCTRL VCTRL VCTRL_FORCE 1m\\nVVCTRL VCTRL_FORCE 0 0.9\\nC_VCTRL VCTRL 0 1p\\n\\n.ic v(VCTRL)=0.9\\n\\n.control\\n  * 1. DC Analysis for I_up (Inputs = 0V)\\n  alter @VPULSE1[dc] = 0\\n  alter @VPULSE2[dc] = 0\\n  dc VVCTRL 0 1.8 0.01\\n  let i_up = i(VVCTRL)\\n  meas dc i_up_900m find i_up at=0.9\\n  print i_up_900m\\n  \\n  * 2. DC Analysis for I_down (Inputs = 1.8V)\\n  alter @VPULSE1[dc] = 1.8\\n  alter @VPULSE2[dc] = 1.8\\n  dc VVCTRL 0 1.8 0.01\\n  let i_down = -i(VVCTRL)\\n  meas dc i_down_900m find i_down at=0.9\\n  print i_down_900m\\n  \\n  * 3. Transient Analysis (400MHz operation)\\n  alter @VPULSE1[dc] = 0\\n  alter @VPULSE2[dc] = 0\\n  alter R_VCTRL 1e12\\n  tran 10p 20n uic\\n  meas tran vctrl_min min v(VCTRL) from=10n to=20n\\n  meas tran vctrl_max max v(VCTRL) from=10n to=20n\\n  let vctrl_ripple = vctrl_max - vctrl_min\\n  print vctrl_ripple\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1035952",
+  "_case": "1035952_image_4"
+}

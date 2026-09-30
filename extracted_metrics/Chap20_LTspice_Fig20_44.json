@@ -1,0 +1,125 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 20.29 / Fig 20.31b / Example 20.7",
+    "page": "637, 639-640",
+    "circuit_type": "Wide-Swing Cascode Current Mirror / Cascode Current Source",
+    "description": "The netlist implements a wide-swing cascode current mirror (cascode current source/sink) biased by subcircuit SUB_1 (a complete Beta-multiplier and wide-swing cascode bias generator). As discussed in Section 20.2 and Example 20.7 (regenerating Fig. 20.29 with wide-swing biasing from Fig. 20.31b/20.32), a swept voltage source Vo tests the cascode output current, output compliance voltage, and cascode output resistance."
+  },
+  "step2_metrics": {
+    "output_current": {
+      "description": "DC output current delivered by the cascode current source/sink in saturation",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "637",
+        "reference": "Fig 20.29, Eq 20.54"
+      },
+      "equation": {
+        "formula": "I_o = (1/2) * mu * Cox * (W/L) * (VGS - Vth)^2",
+        "explanation": "Current set by the reference mirror devices operating in saturation",
+        "assumptions": "Devices operate in saturation neglecting channel length modulation"
+      },
+      "sky130_expected": {
+        "calculation": "With nominal reference current set around 10 uA to 20 uA (R1 = 6.5 kOhm in Beta-multiplier), I_o is approximately 15 uA.",
+        "range": {
+          "min": 5e-06,
+          "typical": 1.5e-05,
+          "max": 3e-05,
+          "unit": "A"
+        },
+        "reasoning": "Standard biasing in Chapter 20 targets around 10-20 uA nominal reference current."
+      },
+      "importance": "essential"
+    },
+    "cascode_output_resistance": {
+      "description": "Small-signal output resistance looking into the cascode current mirror output",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "source": {
+        "page": "638",
+        "reference": "Eq 20.53, Table 20.1"
+      },
+      "equation": {
+        "formula": "R_o = (2 + gm * ro) * ro \u2248 gm * ro^2",
+        "explanation": "The cascode transistor M4 boosts the output resistance of M2 by roughly its intrinsic gain gm4*ro4",
+        "assumptions": "M2 and M4 both in saturation with small-signal output resistance ro = 1/(lambda*ID)"
+      },
+      "sky130_expected": {
+        "calculation": "For ID \u2248 15 uA, ro \u2248 1/(0.1 * 15u) = 667 kOhm. gm \u2248 2*ID/Vov \u2248 2*15u/0.15V \u2248 200 uS. gm*ro \u2248 133. Ro \u2248 gm * ro^2 \u2248 133 * 667 kOhm \u2248 89 MOhm.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 80000000.0,
+          "max": 500000000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Short-channel/moderate-channel cascode in SKY130 gives tens to hundreds of megaohms, boosted by gm*ro."
+      },
+      "importance": "essential"
+    },
+    "minimum_output_voltage": {
+      "description": "Minimum output voltage Vo required to keep cascode transistors in saturation (compliance voltage)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "639",
+        "reference": "Fig 20.31b, Example 20.7"
+      },
+      "equation": {
+        "formula": "V_O,min = 2 * VDS,sat",
+        "explanation": "In a wide-swing cascode structure, M2 drain is kept at VDS,sat, allowing Vo to swing down to 2*VDS,sat before entering triode",
+        "assumptions": "Optimal wide-swing bias VG = 2*VDS,sat + Vth"
+      },
+      "sky130_expected": {
+        "calculation": "For VDS,sat \u2248 150 mV to 200 mV on SKY130, V_O,min = 2 * 0.15 V = 0.3 V (up to 0.45 V with safety margin).",
+        "range": {
+          "min": 0.2,
+          "typical": 0.35,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Wide-swing cascode eliminates the extra Vth required by standard cascode (which requires 2*VDS,sat + Vth \u2248 0.8-1.0 V)."
+      },
+      "importance": "essential"
+    },
+    "quiescent_power": {
+      "description": "Total quiescent power consumption of the reference generator and cascode mirror",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "630",
+        "reference": "Fig 20.23, Section 20.1"
+      },
+      "equation": {
+        "formula": "P_diss = VDD * I_total",
+        "explanation": "Total current drawn from the 1.8V power rail times VDD",
+        "assumptions": "Steady-state DC condition"
+      },
+      "sky130_expected": {
+        "calculation": "SUB_1 has approximately 6 bias branches drawing ~15 uA each (total ~100 uA) plus cascode output branch. Total current \u2248 115 uA. P_diss = 1.8 V * 115 uA \u2248 207 uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0002,
+          "max": 0.0004,
+          "unit": "W"
+        },
+        "reasoning": "Bias branches together with mirror branches dissipate around 100-200 uA at 1.8V."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "DC sweep testbench matching Baker's original simulation (.dc Vo 0 1.8) to measure cascode output current, output resistance (dV/dI), compliance voltage, and total power dissipation on SKY130.",
+    "analyses": [
+      "DC",
+      "OP"
+    ],
+    "metrics_measured": [
+      "output_current",
+      "cascode_output_resistance",
+      "minimum_output_voltage",
+      "quiescent_power"
+    ],
+    "spice": "* Wide-Swing Cascode Current Mirror Simulation Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Default W/L sizing parameters for SKY130\n.param W_n=2.0u L_n=0.5u\n.param W_p=6.0u L_p=0.5u\n.param W_n_ws=0.5u L_n_ws=2.0u\n.param W_p_ws=1.5u L_p_ws=2.0u\n\n* DUT parameters\n.param W_xm2={W_n} L_xm2={L_n}\n.param W_xmn={W_n} L_xmn={L_n}\n.param W_xm6b={W_p} L_xm6b={L_p}\n.param W_xmp={W_p} L_xmp={L_p}\n\n* SUB_1 parameters\n.param W_xmsu1=1.0u L_xmsu1=2.0u\n.param W_xmsu2=1.0u L_xmsu2=2.0u\n.param W_xmsu3=1.0u L_xmsu3=2.0u\n.param W_xm1={W_n} L_xm1={L_n}\n.param W_xm3={W_p} L_xm3={L_p}\n.param W_xm4={W_p} L_xm4={L_p}\n.param W_xm5={W_p} L_xm5={L_p}\n.param W_xm6={W_n} L_xm6={L_n}\n.param W_xm7={W_p} L_xm7={L_p}\n.param W_xm8={W_n} L_xm8={L_n}\n.param W_xm9={W_p} L_xm9={L_p}\n.param W_xm10={W_p} L_xm10={L_p}\n.param W_xm11={W_p} L_xm11={L_p}\n.param W_xm12={W_n_ws} L_xm12={L_n_ws}\n.param W_xm13={W_n} L_xm13={L_n}\n.param W_xm14={W_n} L_xm14={L_n}\n.param W_xm15={W_p} L_xm15={L_p}\n.param W_xm16={W_p} L_xm16={L_p}\n.param W_xm17={W_p} L_xm17={L_p}\n.param W_xm18={W_p} L_xm18={L_p}\n.param W_xm19={W_p} L_xm19={L_p}\n.param W_xm20={W_p} L_xm20={L_p}\n.param W_xm21={W_p_ws} L_xm21={L_p_ws}\n.param W_xm22={W_n} L_xm22={L_n}\n.param W_xm23={W_n} L_xm23={L_n}\n.param W_xm24={W_n} L_xm24={L_n}\n.param W_xm25={W_n} L_xm25={L_n}\n.param W_xm26={W_n} L_xm26={L_n}\n\n* Circuit netlist\nVDD VDD 0 1.8\nxm2 N003 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nVo N002 0 0.9\nxmn N002 Vbias3 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmn} l={L_xmn}\nxm6b N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6b} l={L_xm6b}\nxmp N002 Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xmp} l={L_xmp}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 N002 N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N002 Vbiasn N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N003 0 6.5k\n  xm5 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbias2 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 N005 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 Vbias1 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vbias1 Vbias2 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 Vncas Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vncas Vncas N009 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N009 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 N010 N009 GND 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N006 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\n  xm16 Vbias3 Vbias2 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N007 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 Vbias4 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\n  xm19 N008 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\n  xm20 N004 Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\n  xm21 Vpcas Vpcas N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\n  xm22 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\n  xm23 Vpcas Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\n  xm24 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\n  xm25 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm25} l={L_xm25}\n  xm26 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm26} l={L_xm26}\n.ends SUB_1\n\n.control\n* Operating point analysis\nop\nlet power = -i(VDD) * 1.8\nprint power\nprint v(Vbias1) v(Vbias2) v(Vbias3) v(Vbias4)\n\n* DC sweep of Vo from 0 to 1.8V to evaluate compliance and output resistance\ndc Vo 0 1.8 0.005\n\n* Current through Vo\nlet io = -i(Vo)\n\n* Output resistance Ro = dVo / dIo\nlet ro_out = deriv(v(N002)) / deriv(io)\n\n* Measure output current at mid-supply\nmeas dc io_mid find io at=0.9\n\n* Measure output resistance at mid-supply\nmeas dc ro_mid find ro_out at=0.9\n\n* Measure compliance voltage (where current drops by 10% from saturation level)\nlet io_target = 0.9 * io_mid\nmeas dc v_compliance when io=io_target fall=1\n\nprint io_mid ro_mid v_compliance power\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 20.29 / Fig 20.31b / Example 20.7\",\n    \"page\": \"637, 639-640\",\n    \"circuit_type\": \"Wide-Swing Cascode Current Mirror / Cascode Current Source\",\n    \"description\": \"The netlist implements a wide-swing cascode current mirror (cascode current source/sink) biased by subcircuit SUB_1 (a complete Beta-multiplier and wide-swing cascode bias generator). As discussed in Section 20.2 and Example 20.7 (regenerating Fig. 20.29 with wide-swing biasing from Fig. 20.31b/20.32), a swept voltage source Vo tests the cascode output current, output compliance voltage, and cascode output resistance.\"\n  },\n  \"step2_metrics\": {\n    \"output_current\": {\n      \"description\": \"DC output current delivered by the cascode current source/sink in saturation\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"637\", \"reference\": \"Fig 20.29, Eq 20.54\" },\n      \"equation\": {\n        \"formula\": \"I_o = (1/2) * mu * Cox * (W/L) * (VGS - Vth)^2\",\n        \"explanation\": \"Current set by the reference mirror devices operating in saturation\",\n        \"assumptions\": \"Devices operate in saturation neglecting channel length modulation\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With nominal reference current set around 10 uA to 20 uA (R1 = 6.5 kOhm in Beta-multiplier), I_o is approximately 15 uA.\",\n        \"range\": { \"min\": 5e-6, \"typical\": 1.5e-5, \"max\": 3e-5, \"unit\": \"A\" },\n        \"reasoning\": \"Standard biasing in Chapter 20 targets around 10-20 uA nominal reference current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cascode_output_resistance\": {\n      \"description\": \"Small-signal output resistance looking into the cascode current mirror output\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"638\", \"reference\": \"Eq 20.53, Table 20.1\" },\n      \"equation\": {\n        \"formula\": \"R_o = (2 + gm * ro) * ro \u2248 gm * ro^2\",\n        \"explanation\": \"The cascode transistor M4 boosts the output resistance of M2 by roughly its intrinsic gain gm4*ro4\",\n        \"assumptions\": \"M2 and M4 both in saturation with small-signal output resistance ro = 1/(lambda*ID)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For ID \u2248 15 uA, ro \u2248 1/(0.1 * 15u) = 667 kOhm. gm \u2248 2*ID/Vov \u2248 2*15u/0.15V \u2248 200 uS. gm*ro \u2248 133. Ro \u2248 gm * ro^2 \u2248 133 * 667 kOhm \u2248 89 MOhm.\",\n        \"range\": { \"min\": 1e7, \"typical\": 8e7, \"max\": 5e8, \"unit\": \"ohm\" },\n        \"reasoning\": \"Short-channel/moderate-channel cascode in SKY130 gives tens to hundreds of megaohms, boosted by gm*ro.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"minimum_output_voltage\": {\n      \"description\": \"Minimum output voltage Vo required to keep cascode transistors in saturation (compliance voltage)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"639\", \"reference\": \"Fig 20.31b, Example 20.7\" },\n      \"equation\": {\n        \"formula\": \"V_O,min = 2 * VDS,sat\",\n        \"explanation\": \"In a wide-swing cascode structure, M2 drain is kept at VDS,sat, allowing Vo to swing down to 2*VDS,sat before entering triode\",\n        \"assumptions\": \"Optimal wide-swing bias VG = 2*VDS,sat + Vth\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For VDS,sat \u2248 150 mV to 200 mV on SKY130, V_O,min = 2 * 0.15 V = 0.3 V (up to 0.45 V with safety margin).\",\n        \"range\": { \"min\": 0.2, \"typical\": 0.35, \"max\": 0.5, \"unit\": \"V\" },\n        \"reasoning\": \"Wide-swing cascode eliminates the extra Vth required by standard cascode (which requires 2*VDS,sat + Vth \u2248 0.8-1.0 V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quiescent_power\": {\n      \"description\": \"Total quiescent power consumption of the reference generator and cascode mirror\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"630\", \"reference\": \"Fig 20.23, Section 20.1\" },\n      \"equation\": {\n        \"formula\": \"P_diss = VDD * I_total\",\n        \"explanation\": \"Total current drawn from the 1.8V power rail times VDD\",\n        \"assumptions\": \"Steady-state DC condition\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SUB_1 has approximately 6 bias branches drawing ~15 uA each (total ~100 uA) plus cascode output branch. Total current \u2248 115 uA. P_diss = 1.8 V * 115 uA \u2248 207 uW.\",\n        \"range\": { \"min\": 1e-4, \"typical\": 2e-4, \"max\": 4e-4, \"unit\": \"W\" },\n        \"reasoning\": \"Bias branches together with mirror branches dissipate around 100-200 uA at 1.8V.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"DC sweep testbench matching Baker's original simulation (.dc Vo 0 1.8) to measure cascode output current, output resistance (dV/dI), compliance voltage, and total power dissipation on SKY130.\",\n    \"analyses\": [\"DC\", \"OP\"],\n    \"metrics_measured\": [\n      \"output_current\",\n      \"cascode_output_resistance\",\n      \"minimum_output_voltage\",\n      \"quiescent_power\"\n    ],\n    \"spice\": \"* Wide-Swing Cascode Current Mirror Simulation Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Default W/L sizing parameters for SKY130\\n.param W_n=2.0u L_n=0.5u\\n.param W_p=6.0u L_p=0.5u\\n.param W_n_ws=0.5u L_n_ws=2.0u\\n.param W_p_ws=1.5u L_p_ws=2.0u\\n\\n* DUT parameters\\n.param W_xm2={W_n} L_xm2={L_n}\\n.param W_xmn={W_n} L_xmn={L_n}\\n.param W_xm6b={W_p} L_xm6b={L_p}\\n.param W_xmp={W_p} L_xmp={L_p}\\n\\n* SUB_1 parameters\\n.param W_xmsu1=1.0u L_xmsu1=2.0u\\n.param W_xmsu2=1.0u L_xmsu2=2.0u\\n.param W_xmsu3=1.0u L_xmsu3=2.0u\\n.param W_xm1={W_n} L_xm1={L_n}\\n.param W_xm3={W_p} L_xm3={L_p}\\n.param W_xm4={W_p} L_xm4={L_p}\\n.param W_xm5={W_p} L_xm5={L_p}\\n.param W_xm6={W_n} L_xm6={L_n}\\n.param W_xm7={W_p} L_xm7={L_p}\\n.param W_xm8={W_n} L_xm8={L_n}\\n.param W_xm9={W_p} L_xm9={L_p}\\n.param W_xm10={W_p} L_xm10={L_p}\\n.param W_xm11={W_p} L_xm11={L_p}\\n.param W_xm12={W_n_ws} L_xm12={L_n_ws}\\n.param W_xm13={W_n} L_xm13={L_n}\\n.param W_xm14={W_n} L_xm14={L_n}\\n.param W_xm15={W_p} L_xm15={L_p}\\n.param W_xm16={W_p} L_xm16={L_p}\\n.param W_xm17={W_p} L_xm17={L_p}\\n.param W_xm18={W_p} L_xm18={L_p}\\n.param W_xm19={W_p} L_xm19={L_p}\\n.param W_xm20={W_p} L_xm20={L_p}\\n.param W_xm21={W_p_ws} L_xm21={L_p_ws}\\n.param W_xm22={W_n} L_xm22={L_n}\\n.param W_xm23={W_n} L_xm23={L_n}\\n.param W_xm24={W_n} L_xm24={L_n}\\n.param W_xm25={W_n} L_xm25={L_n}\\n.param W_xm26={W_n} L_xm26={L_n}\\n\\n* Circuit netlist\\nVDD VDD 0 1.8\\nxm2 N003 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nVo N002 0 0.9\\nxmn N002 Vbias3 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmn} l={L_xmn}\\nxm6b N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6b} l={L_xm6b}\\nxmp N002 Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xmp} l={L_xmp}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 N002 N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N002 Vbiasn N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N003 0 6.5k\\n  xm5 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbias2 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 N005 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 Vbias1 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vbias1 Vbias2 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 Vncas Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vncas Vncas N009 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N009 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 N010 N009 GND 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N006 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\\n  xm16 Vbias3 Vbias2 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N007 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 Vbias4 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\\n  xm19 N008 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\\n  xm20 N004 Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\\n  xm21 Vpcas Vpcas N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\\n  xm22 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\\n  xm23 Vpcas Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\\n  xm24 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\\n  xm25 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm25} l={L_xm25}\\n  xm26 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm26} l={L_xm26}\\n.ends SUB_1\\n\\n.control\\n* Operating point analysis\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\nprint v(Vbias1) v(Vbias2) v(Vbias3) v(Vbias4)\\n\\n* DC sweep of Vo from 0 to 1.8V to evaluate compliance and output resistance\\ndc Vo 0 1.8 0.005\\n\\n* Current through Vo\\nlet io = -i(Vo)\\n\\n* Output resistance Ro = dVo / dIo\\nlet ro_out = deriv(v(N002)) / deriv(io)\\n\\n* Measure output current at mid-supply\\nmeas dc io_mid find io at=0.9\\n\\n* Measure output resistance at mid-supply\\nmeas dc ro_mid find ro_out at=0.9\\n\\n* Measure compliance voltage (where current drops by 10% from saturation level)\\nlet io_target = 0.9 * io_mid\\nmeas dc v_compliance when io=io_target fall=1\\n\\nprint io_mid ro_mid v_compliance power\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

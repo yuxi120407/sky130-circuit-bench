@@ -1,0 +1,137 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Preamplifier / Comparator Front-End",
+    "description": "This circuit is a differential preamplifier with diode-connected PMOS loads (XM1, XM10, XM6, XM8), followed by a clocked reset/latch stage (XM7, XM9, XM2, XM5). Extracted from a Flash ADC, it serves as the front-end for a comparator to amplify the input difference, reduce kickback noise, and provide a reset mechanism between conversions.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN",
+        "CLK"
+      ],
+      "output": [
+        "N1",
+        "N6",
+        "OUTP"
+      ],
+      "supply": [
+        "VDD",
+        "N5",
+        "N2"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND",
+        "OUTN"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 6-bit 1.2-GS/s Low-Power Flash-ADC in 0.13-m Digital CMOS",
+      "figure": "Not specified",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Differential DC gain of the preamplifier stage (N1-N6).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported for pre-amp",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is roughly gm_n / gm_p. With W/L=5/0.5 for both, gm_n/gm_p = sqrt(un/up) = sqrt(270/50) = 2.32 V/V. 20*log10(2.32) = 7.3 dB.",
+        "range": {
+          "min": 5,
+          "typical": 7.3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Based on the square-law transconductance ratio of the NMOS input pair to the PMOS diode-connected loads."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "-3dB bandwidth of the preamplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "700 MHz (ERBW for whole ADC)",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the PMOS load resistance (1/gm_p) and parasitic capacitance at N1/N6.",
+        "range": {
+          "min": 500000000.0,
+          "typical": 2000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The low impedance of the diode-connected loads pushes the dominant pole to high frequencies, easily exceeding 1 GHz in 130nm."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total static power consumption.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "160 mW (Total ADC)",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail \u2248 1.05 mA (Vov=0.28V). Two stages \u2248 2.1 mA. Power = 1.8V * 2.1mA = 3.78 mW.",
+        "range": {
+          "min": 0.002,
+          "typical": 0.0038,
+          "max": 0.006,
+          "unit": "W"
+        },
+        "reasoning": "Calculated from the bias voltage (0.7V) and tail transistor dimensions. A 6-bit flash has 63 comparators, so ~3.8mW per slice aligns with the 160mW total."
+      },
+      "importance": "essential"
+    },
+    "input_capacitance": {
+      "description": "Input capacitance at the INP node.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "400 fF (Total ADC)",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Cgg = W * L * Cox = 5um * 0.5um * 10fF/um2 = 25 fF.",
+        "range": {
+          "min": 1.5e-14,
+          "typical": 2.5e-14,
+          "max": 4e-14,
+          "unit": "F"
+        },
+        "reasoning": "Based on the gate area of the input NMOS transistor XM10. 25fF per comparator * 63 comparators \u2248 1.5pF total, which is higher than the paper's 400fF due to the large 5um/0.5um sizing in this specific netlist."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures preamplifier differential gain, bandwidth, power consumption, input capacitance, and verifies the reset switch functionality.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "bw_3db",
+      "power",
+      "input_capacitance",
+      "outp_max",
+      "outp_min"
+    ],
+    "spice": "* Flash ADC Preamplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n\n* DUT\nXM1 N1 INN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUTP CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N4 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTP OUTP GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUTP CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N6 N6 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 OUTP N6 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 N1 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 OUTP N1 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N6 INP N4 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM11 OUTP OUTN GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\n\n* Fix floating nodes from extraction\nV_N5 N5 VDD 0\nV_N2 N2 VDD 0\nV_OUTN OUTN 0 0\n\n* Power and Bias\nVVDD VDD 0 1.8\nVBIAS BIAS 0 0.7\nVCLK CLK 0 DC 0 PULSE(0 1.8 5n 0.1n 0.1n 5n 10n)\n\n* Inputs\nVINP INP 0 DC 0.9 AC 0.5\nVINN INN 0 DC 0.9 AC -0.5\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis for Gain, Bandwidth, and Input Capacitance\n  ac dec 100 1Meg 100G\n  let vdiff = v(N1) - v(N6)\n  let gain_mag = mag(vdiff)\n  let gain_db = 20 * log10(gain_mag)\n  \n  meas ac dc_gain find gain_db at=1Meg\n  meas ac bw_3db when gain_db='dc_gain - 3' fall=1\n  \n  let i_in_mag = mag(i(VINP))\n  meas ac i_in_1g find i_in_mag at=1G\n  let cin = i_in_1g / (2 * 3.14159 * 1e9 * 0.5)\n  print cin\n\n  * 3. Transient Analysis for Reset Behavior\n  tran 0.1n 20n\n  meas tran outp_max max v(OUTP)\n  meas tran outp_min min v(OUTP)\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Preamplifier / Comparator Front-End\",\n    \"description\": \"This circuit is a differential preamplifier with diode-connected PMOS loads (XM1, XM10, XM6, XM8), followed by a clocked reset/latch stage (XM7, XM9, XM2, XM5). Extracted from a Flash ADC, it serves as the front-end for a comparator to amplify the input difference, reduce kickback noise, and provide a reset mechanism between conversions.\",\n    \"node_mapping\": {\n      \"input\": [\"INP\", \"INN\", \"CLK\"],\n      \"output\": [\"N1\", \"N6\", \"OUTP\"],\n      \"supply\": [\"VDD\", \"N5\", \"N2\"],\n      \"bias\": [\"BIAS\"],\n      \"ground\": [\"GND\", \"OUTN\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 6-bit 1.2-GS/s Low-Power Flash-ADC in 0.13-m Digital CMOS\",\n      \"figure\": \"Not specified\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Differential DC gain of the preamplifier stage (N1-N6).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported for pre-amp\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is roughly gm_n / gm_p. With W/L=5/0.5 for both, gm_n/gm_p = sqrt(un/up) = sqrt(270/50) = 2.32 V/V. 20*log10(2.32) = 7.3 dB.\",\n        \"range\": { \"min\": 5, \"typical\": 7.3, \"max\": 10, \"unit\": \"dB\" },\n        \"reasoning\": \"Based on the square-law transconductance ratio of the NMOS input pair to the PMOS diode-connected loads.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"-3dB bandwidth of the preamplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"700 MHz (ERBW for whole ADC)\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the PMOS load resistance (1/gm_p) and parasitic capacitance at N1/N6.\",\n        \"range\": { \"min\": 500e6, \"typical\": 2e9, \"max\": 5e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"The low impedance of the diode-connected loads pushes the dominant pole to high frequencies, easily exceeding 1 GHz in 130nm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total static power consumption.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"160 mW (Total ADC)\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail \u2248 1.05 mA (Vov=0.28V). Two stages \u2248 2.1 mA. Power = 1.8V * 2.1mA = 3.78 mW.\",\n        \"range\": { \"min\": 2e-3, \"typical\": 3.8e-3, \"max\": 6e-3, \"unit\": \"W\" },\n        \"reasoning\": \"Calculated from the bias voltage (0.7V) and tail transistor dimensions. A 6-bit flash has 63 comparators, so ~3.8mW per slice aligns with the 160mW total.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"Input capacitance at the INP node.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"400 fF (Total ADC)\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Cgg = W * L * Cox = 5um * 0.5um * 10fF/um2 = 25 fF.\",\n        \"range\": { \"min\": 15e-15, \"typical\": 25e-15, \"max\": 40e-15, \"unit\": \"F\" },\n        \"reasoning\": \"Based on the gate area of the input NMOS transistor XM10. 25fF per comparator * 63 comparators \u2248 1.5pF total, which is higher than the paper's 400fF due to the large 5um/0.5um sizing in this specific netlist.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures preamplifier differential gain, bandwidth, power consumption, input capacitance, and verifies the reset switch functionality.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"dc_gain\", \"bw_3db\", \"power\", \"input_capacitance\", \"outp_max\", \"outp_min\"],\n    \"spice\": \"* Flash ADC Preamplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n\\n* DUT\\nXM1 N1 INN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUTP CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N4 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTP OUTP GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUTP CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N6 N6 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 OUTP N6 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 N1 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 OUTP N1 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N6 INP N4 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 OUTP OUTN GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\n\\n* Fix floating nodes from extraction\\nV_N5 N5 VDD 0\\nV_N2 N2 VDD 0\\nV_OUTN OUTN 0 0\\n\\n* Power and Bias\\nVVDD VDD 0 1.8\\nVBIAS BIAS 0 0.7\\nVCLK CLK 0 DC 0 PULSE(0 1.8 5n 0.1n 0.1n 5n 10n)\\n\\n* Inputs\\nVINP INP 0 DC 0.9 AC 0.5\\nVINN INN 0 DC 0.9 AC -0.5\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis for Gain, Bandwidth, and Input Capacitance\\n  ac dec 100 1Meg 100G\\n  let vdiff = v(N1) - v(N6)\\n  let gain_mag = mag(vdiff)\\n  let gain_db = 20 * log10(gain_mag)\\n  \\n  meas ac dc_gain find gain_db at=1Meg\\n  meas ac bw_3db when gain_db='dc_gain - 3' fall=1\\n  \\n  let i_in_mag = mag(i(VINP))\\n  meas ac i_in_1g find i_in_mag at=1G\\n  let cin = i_in_1g / (2 * 3.14159 * 1e9 * 0.5)\\n  print cin\\n\\n  * 3. Transient Analysis for Reset Behavior\\n  tran 0.1n 20n\\n  meas tran outp_max max v(OUTP)\\n  meas tran outp_min min v(OUTP)\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1458993",
+  "_case": "1458993_image_7"
+}

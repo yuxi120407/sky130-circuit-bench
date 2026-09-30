@@ -1,0 +1,87 @@
+{
+  "step1_analysis": {
+    "circuit_type": "VCO Tuning / Bias Sub-circuit",
+    "description": "This circuit appears to be a bias generator and tuning control sub-circuit, likely part of a voltage-controlled oscillator (VCO) or switched-capacitor bank. It features diode-connected PMOS and NMOS transistors to establish a reference voltage, along with several dummy transistors (gates tied to GND or drain/source shorted) for layout matching and parasitic capacitance balancing.",
+    "node_mapping": {
+      "input": [
+        "VCTRL",
+        "COARSE_CONTROL"
+      ],
+      "output": [
+        "N1",
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fully Integrated 0.13\u00b5m CMOS 10Gb Ethernet Transceiver with XAUI Interface",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "bias_voltage_n0": {
+      "description": "DC reference voltage established by the diode-connected PMOS and NMOS voltage divider at node N0.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.13\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Equating currents of 2 parallel PMOS (XM1, XM9) and 2 parallel NMOS (XM3, XM5): 50uA/V^2 * (1.8 - V0 - 0.42)^2 = 270uA/V^2 * (V0 - 0.42)^2. Solving yields V0 \u2248 0.71V.",
+        "range": {
+          "min": 0.6,
+          "typical": 0.71,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "The NMOS has higher mobility than the PMOS in SKY130, pulling the divider voltage below VDD/2."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Static power dissipation of the bias branch.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "898mW (Full Transceiver)",
+        "technology": "0.13\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "I_VDD = 2 * 0.5 * 270uA/V^2 * (5/0.5) * (0.71 - 0.42)^2 \u2248 113\u00b5A. Power = 1.8V * 113\u00b5A \u2248 203\u00b5W.",
+        "range": {
+          "min": 0.00015,
+          "typical": 0.0002,
+          "max": 0.0003,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the saturation current of the diode-connected transistors. The paper's 898mW is for the entire 10GbE transceiver, not this isolated sub-block."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the DC bias voltage at N0 and the static power consumption of the sub-circuit. High-value dummy resistors are added to prevent floating node errors during simulation.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "bias_voltage_n0",
+      "power_consumption"
+    ],
+    "spice": "* VCO Tuning / Bias Sub-circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\n* Sources\nVVDD VDD 0 1.8\nVGND GND 0 0\nVVCTRL VCTRL 0 0.9\nVCOARSE COARSE_CONTROL 0 0\n\n* DUT\nXM1 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N5 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 COARSE_CONTROL N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 VCTRL N0 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N4 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N1 VCTRL N1 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\n* Dummy resistors to prevent floating nodes\nR1 N1 GND 1G\nR2 N2 GND 1G\nR3 N3 GND 1G\nR4 N4 GND 1G\nR5 N5 GND 1G\n\n.control\n* DC Operating Point Analysis\nop\nlet bias_voltage_n0 = v(N0)\nlet power_consumption = -i(VVDD) * 1.8\n\nprint bias_voltage_n0\nprint power_consumption\n\n* DC Sweep to observe VCTRL effect on N1\ndc VVCTRL 0 1.8 0.1\nprint v(N1)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"VCO Tuning / Bias Sub-circuit\",\n    \"description\": \"This circuit appears to be a bias generator and tuning control sub-circuit, likely part of a voltage-controlled oscillator (VCO) or switched-capacitor bank. It features diode-connected PMOS and NMOS transistors to establish a reference voltage, along with several dummy transistors (gates tied to GND or drain/source shorted) for layout matching and parasitic capacitance balancing.\",\n    \"node_mapping\": {\n      \"input\": [\"VCTRL\", \"COARSE_CONTROL\"],\n      \"output\": [\"N1\", \"N3\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N0\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fully Integrated 0.13\u00b5m CMOS 10Gb Ethernet Transceiver with XAUI Interface\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"bias_voltage_n0\": {\n      \"description\": \"DC reference voltage established by the diode-connected PMOS and NMOS voltage divider at node N0.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.13\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Equating currents of 2 parallel PMOS (XM1, XM9) and 2 parallel NMOS (XM3, XM5): 50uA/V^2 * (1.8 - V0 - 0.42)^2 = 270uA/V^2 * (V0 - 0.42)^2. Solving yields V0 \u2248 0.71V.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.71,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The NMOS has higher mobility than the PMOS in SKY130, pulling the divider voltage below VDD/2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Static power dissipation of the bias branch.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"898mW (Full Transceiver)\",\n        \"technology\": \"0.13\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_VDD = 2 * 0.5 * 270uA/V^2 * (5/0.5) * (0.71 - 0.42)^2 \u2248 113\u00b5A. Power = 1.8V * 113\u00b5A \u2248 203\u00b5W.\",\n        \"range\": {\n          \"min\": 150e-6,\n          \"typical\": 200e-6,\n          \"max\": 300e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the saturation current of the diode-connected transistors. The paper's 898mW is for the entire 10GbE transceiver, not this isolated sub-block.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the DC bias voltage at N0 and the static power consumption of the sub-circuit. High-value dummy resistors are added to prevent floating node errors during simulation.\",\n    \"analyses\": [\"OP\", \"DC\"],\n    \"metrics_measured\": [\"bias_voltage_n0\", \"power_consumption\"],\n    \"spice\": \"* VCO Tuning / Bias Sub-circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVGND GND 0 0\\nVVCTRL VCTRL 0 0.9\\nVCOARSE COARSE_CONTROL 0 0\\n\\n* DUT\\nXM1 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N5 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 COARSE_CONTROL N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 VCTRL N0 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N4 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N1 VCTRL N1 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Dummy resistors to prevent floating nodes\\nR1 N1 GND 1G\\nR2 N2 GND 1G\\nR3 N3 GND 1G\\nR4 N4 GND 1G\\nR5 N5 GND 1G\\n\\n.control\\n* DC Operating Point Analysis\\nop\\nlet bias_voltage_n0 = v(N0)\\nlet power_consumption = -i(VVDD) * 1.8\\n\\nprint bias_voltage_n0\\nprint power_consumption\\n\\n* DC Sweep to observe VCTRL effect on N1\\ndc VVCTRL 0 1.8 0.1\\nprint v(N1)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1332648",
+  "_case": "1332648_image_5_a"
+}

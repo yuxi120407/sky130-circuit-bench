@@ -1,0 +1,105 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Latch-Type Voltage Sense Amplifier",
+    "description": "A clocked sense amplifier that uses a high-impedance differential input pair to steer the discharge of a cross-coupled inverter latch. It precharges the outputs to VDD when disabled and amplifies small differential input voltages to full CMOS logic levels when enabled.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN",
+        "EN"
+      ],
+      "output": [
+        "SO",
+        "SON"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Yield and Speed Optimization of a Latch-Type Voltage Sense Amplifier",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "sensing_delay": {
+      "description": "Time from the enable signal (EN) rising to 50% VDD until the output resolves to 50% VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly given, but optimized for low sensitivity to DC bias",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on load capacitance and transistor sizing. With 1.8V supply, 1.26V input common-mode (70% VDD), and 100mV differential input, delay is dominated by the discharge path through M3, M6, and M9.",
+        "range": {
+          "min": "50p",
+          "typical": "150p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "Typical sense amplifier delays in 130nm-class nodes are in the 100-200ps range for moderate loads."
+      },
+      "importance": "essential"
+    },
+    "input_offset_voltage_std": {
+      "description": "Standard deviation of the differential input voltage required to flip the latch, caused by device mismatch.",
+      "unit": "V",
+      "analysis_type": "Monte Carlo Tran",
+      "paper_reported": {
+        "value": "8.5 mV (improved from 19 mV)",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mismatch is inversely proportional to sqrt(W*L). With W=5u, L=0.5u, the area is relatively large, leading to low mismatch.",
+        "range": {
+          "min": "2m",
+          "typical": "8m",
+          "max": "15m",
+          "unit": "V"
+        },
+        "reasoning": "The provided netlist uses large devices (5um/0.5um), which will yield a low offset standard deviation, comparable to the optimized 8.5mV reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumed during a sensing cycle.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly given",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power P = C_load * VDD^2 * f. For a single event, integrate the VDD current over the switching window.",
+        "range": {
+          "min": "10u",
+          "typical": "100u",
+          "max": "1m",
+          "unit": "W"
+        },
+        "reasoning": "Power is mostly dynamic, consumed by discharging internal nodes and load capacitors, plus short-circuit current during the latch flip."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure sensing delay and power consumption. Applies a 100mV differential input at the optimal 70% VDD common-mode level (1.26V for a 1.8V supply) as recommended by the paper.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "sensing_delay",
+      "power_consumption"
+    ],
+    "spice": "* Latch-Type Voltage Sense Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\nVVDD VDD 0 1.8\nVEN EN 0 PULSE(0 1.8 1n 50p 50p 2n 5n)\n* Input DC level = 1.26V (70% of 1.8V), diff = 100mV\nVINP INP 0 DC 1.31\nVINN INN 0 DC 1.21\n\nXM1 SO SON N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 SO SON VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 SON SO N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 SON SO VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 INN COM GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 INP COM GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 SO EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 SON EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 COM EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\n* Load capacitors\nC1 SO 0 10f\nC2 SON 0 10f\n\n.control\ntran 10p 5n\n* Measure delay from EN rising to SON falling (since INP > INN)\nmeas tran t_delay trig v(en) val=0.9 rise=1 targ v(son) val=0.9 fall=1\n\n* Measure average power during the sensing event\nlet pwr = -i(VVDD)*1.8\nmeas tran avg_pwr avg pwr from=1n to=3n\n\nprint t_delay avg_pwr\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Latch-Type Voltage Sense Amplifier\",\n    \"description\": \"A clocked sense amplifier that uses a high-impedance differential input pair to steer the discharge of a cross-coupled inverter latch. It precharges the outputs to VDD when disabled and amplifies small differential input voltages to full CMOS logic levels when enabled.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INN\",\n        \"EN\"\n      ],\n      \"output\": [\n        \"SO\",\n        \"SON\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Yield and Speed Optimization of a Latch-Type Voltage Sense Amplifier\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"sensing_delay\": {\n      \"description\": \"Time from the enable signal (EN) rising to 50% VDD until the output resolves to 50% VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly given, but optimized for low sensitivity to DC bias\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on load capacitance and transistor sizing. With 1.8V supply, 1.26V input common-mode (70% VDD), and 100mV differential input, delay is dominated by the discharge path through M3, M6, and M9.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"150p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Typical sense amplifier delays in 130nm-class nodes are in the 100-200ps range for moderate loads.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_offset_voltage_std\": {\n      \"description\": \"Standard deviation of the differential input voltage required to flip the latch, caused by device mismatch.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Monte Carlo Tran\",\n      \"paper_reported\": {\n        \"value\": \"8.5 mV (improved from 19 mV)\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mismatch is inversely proportional to sqrt(W*L). With W=5u, L=0.5u, the area is relatively large, leading to low mismatch.\",\n        \"range\": {\n          \"min\": \"2m\",\n          \"typical\": \"8m\",\n          \"max\": \"15m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The provided netlist uses large devices (5um/0.5um), which will yield a low offset standard deviation, comparable to the optimized 8.5mV reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumed during a sensing cycle.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly given\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power P = C_load * VDD^2 * f. For a single event, integrate the VDD current over the switching window.\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"100u\",\n          \"max\": \"1m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Power is mostly dynamic, consumed by discharging internal nodes and load capacitors, plus short-circuit current during the latch flip.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure sensing delay and power consumption. Applies a 100mV differential input at the optimal 70% VDD common-mode level (1.26V for a 1.8V supply) as recommended by the paper.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"sensing_delay\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Latch-Type Voltage Sense Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\nVVDD VDD 0 1.8\\nVEN EN 0 PULSE(0 1.8 1n 50p 50p 2n 5n)\\n* Input DC level = 1.26V (70% of 1.8V), diff = 100mV\\nVINP INP 0 DC 1.31\\nVINN INN 0 DC 1.21\\n\\nXM1 SO SON N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 SO SON VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 SON SO N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 SON SO VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 INN COM GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 INP COM GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 SO EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 SON EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 COM EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\n* Load capacitors\\nC1 SO 0 10f\\nC2 SON 0 10f\\n\\n.control\\ntran 10p 5n\\n* Measure delay from EN rising to SON falling (since INP > INN)\\nmeas tran t_delay trig v(en) val=0.9 rise=1 targ v(son) val=0.9 fall=1\\n\\n* Measure average power during the sensing event\\nlet pwr = -i(VVDD)*1.8\\nmeas tran avg_pwr avg pwr from=1n to=3n\\n\\nprint t_delay avg_pwr\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1308589",
+  "_case": "1308589_image_1_b"
+}

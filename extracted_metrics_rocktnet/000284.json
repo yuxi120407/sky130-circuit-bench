@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Voltage-Controlled Oscillator (VCO) Core",
+    "description": "A cross-coupled LC oscillator core with source-follower feedback and tail current tuning. It forms half of a quadrature VCO when coupled with an identical core.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "INN",
+        "TUNE1"
+      ],
+      "output": [
+        "OUT",
+        "OUTN",
+        "OUT_I_Q",
+        "OUTN_I_Q"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "N8",
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 28-GHz Monolithic Integrated Quadrature Oscillator in SiGe Bipolar Technology",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "The fundamental frequency of oscillation.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "28.9 GHz",
+        "technology": "0.4um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2*pi*sqrt(L*C)). With L=1nH and C=100fF (added in testbench), f ~ 15.9 GHz.",
+        "range": {
+          "min": "10G",
+          "typical": "15.9G",
+          "max": "20G",
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the chosen tank inductor and capacitor values in the testbench, as well as parasitic capacitances of the SKY130 MOSFETs."
+      },
+      "importance": "essential"
+    },
+    "output_power": {
+      "description": "RF output power delivered to a 50-ohm load.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "14.7 dBm",
+        "technology": "0.4um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = Vrms^2 / 50. For a 1Vpp swing, Vrms = 0.35V, P = 2.5mW = 4 dBm.",
+        "range": {
+          "min": "0",
+          "typical": "4",
+          "max": "10",
+          "unit": "dBm"
+        },
+        "reasoning": "Lower supply voltage (1.8V vs 5V) significantly reduces the maximum output voltage swing and thus the output power compared to the paper."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Single-sideband phase noise at a specific offset frequency (e.g., 1 MHz).",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-84.2 dBc/Hz @ 1MHz",
+        "technology": "0.4um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Typical CMOS LC VCO phase noise at ~15GHz is around -90 to -100 dBc/Hz @ 1MHz.",
+        "range": {
+          "min": "-110",
+          "typical": "-95",
+          "max": "-80",
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "CMOS typically has worse 1/f noise than SiGe HBTs, but the lower oscillation frequency in this testbench might compensate slightly."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the oscillator.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "129 mW (25.8 mA from 5V)",
+        "technology": "0.4um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With VDD=1.8V and I_total ~ 15mA, P = 27 mW.",
+        "range": {
+          "min": "10m",
+          "typical": "27m",
+          "max": "50m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down due to the lower supply voltage (1.8V) in the SKY130 process."
+      },
+      "importance": "essential"
+    },
+    "tuning_range": {
+      "description": "The range of frequencies over which the VCO can be tuned.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "4.1 GHz (24.8 to 28.9 GHz)",
+        "technology": "0.4um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Typically 10-20% of the center frequency for LC VCOs.",
+        "range": {
+          "min": "1G",
+          "typical": "2G",
+          "max": "4G",
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on the varactor tuning ratio, which is not explicitly modeled in this fixed-C testbench."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure oscillation frequency, output power, and DC power consumption.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "output_power",
+      "power_consumption"
+    ],
+    "spice": "* QVCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_core=10u L_core=0.15u\n.param W_tail=10u W_bias=5u W_buf=10u W_ef=10u\n\n* Modified DUT (BJTs mapped to SKY130 MOSFETs, missing inductor values added)\nXM1 N14 OUTN N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\nXM2 N8 N8 N5 GND sky130_fd_pr__nfet_01v8 W='W_bias' L='L_core'\nR2 OUT_I_Q GND 50\nR1 N0 TUNE1 1k\nR3 OUTN GND 1k\nR4 N5 GND 100\nR5 N10 GND 100\nR6 OUT GND 1k\nR7 N3 GND 100\nR8 N4 N15 100\nR9 OUTN_I_Q GND 50\nR10 N12 GND 100\nR11 N11 N15 100\nR12 VCC N8 1k\nXM3 N1 N8 N3 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\nXM4 N1 N0 N12 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\nXM5 N16 OUT N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\nXM6 N1 N0 N11 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\nXM7 N14 INN N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\nXM8 VCC OUT OUT_I_Q GND sky130_fd_pr__nfet_01v8 W='W_buf' L='L_core'\nXM9 N1 N8 N4 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\nXM10 N0 N0 N10 GND sky130_fd_pr__nfet_01v8 W='W_bias' L='L_core'\nXM11 VCC OUTN OUTN_I_Q GND sky130_fd_pr__nfet_01v8 W='W_buf' L='L_core'\nXM12 N16 IN N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\nL1 VCC N14 1n\nL2 VCC N16 1n\nXM13 VCC VCC VCC VCC sky130_fd_pr__pfet_01v8 W='W_bias' L='L_core'\nXM14 VCC N16 OUTN GND sky130_fd_pr__nfet_01v8 W='W_ef' L='L_core'\nXM15 VCC N14 OUT GND sky130_fd_pr__nfet_01v8 W='W_ef' L='L_core'\n\n* Fixes for floating nodes and missing tank capacitors\nVN15 N15 0 0\nC1 N14 GND 100f\nC2 N16 GND 100f\n\n* Sources\nVVCC VCC 0 DC 1.8\nVTUNE TUNE1 0 DC 1.8\nVINN INN 0 DC 0.9\nVIN IN 0 DC 0.9\n\n* Initial conditions to kickstart oscillation\n.ic v(N14)=1.8 v(N16)=0\n\n.control\n  tran 1p 5n\n  \n  * Measure oscillation frequency (Tank node oscillates around VDD)\n  meas tran t1 trig v(N14) val=1.8 rise=10 targ v(N14) val=1.8 rise=11\n  let freq = 1 / t1\n  print freq\n  \n  * Measure output power (dBm) into 50 ohms\n  meas tran vmax max v(OUT_I_Q) from=2n to=5n\n  meas tran vmin min v(OUT_I_Q) from=2n to=5n\n  let vpp = vmax - vmin\n  let pwr_w = (vpp * vpp) / 400\n  let pwr_dbm = 10 * log10(pwr_w * 1000)\n  print pwr_dbm\n  \n  * Measure power consumption\n  op\n  let power = -i(VVCC) * 1.8\n  print power\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Voltage-Controlled Oscillator (VCO) Core\",\n    \"description\": \"A cross-coupled LC oscillator core with source-follower feedback and tail current tuning. It forms half of a quadrature VCO when coupled with an identical core.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"INN\",\n        \"TUNE1\"\n      ],\n      \"output\": [\n        \"OUT\",\n        \"OUTN\",\n        \"OUT_I_Q\",\n        \"OUTN_I_Q\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"N8\",\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 28-GHz Monolithic Integrated Quadrature Oscillator in SiGe Bipolar Technology\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"The fundamental frequency of oscillation.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"28.9 GHz\",\n        \"technology\": \"0.4um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2*pi*sqrt(L*C)). With L=1nH and C=100fF (added in testbench), f ~ 15.9 GHz.\",\n        \"range\": {\n          \"min\": \"10G\",\n          \"typical\": \"15.9G\",\n          \"max\": \"20G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen tank inductor and capacitor values in the testbench, as well as parasitic capacitances of the SKY130 MOSFETs.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_power\": {\n      \"description\": \"RF output power delivered to a 50-ohm load.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"14.7 dBm\",\n        \"technology\": \"0.4um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = Vrms^2 / 50. For a 1Vpp swing, Vrms = 0.35V, P = 2.5mW = 4 dBm.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"4\",\n          \"max\": \"10\",\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Lower supply voltage (1.8V vs 5V) significantly reduces the maximum output voltage swing and thus the output power compared to the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Single-sideband phase noise at a specific offset frequency (e.g., 1 MHz).\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-84.2 dBc/Hz @ 1MHz\",\n        \"technology\": \"0.4um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Typical CMOS LC VCO phase noise at ~15GHz is around -90 to -100 dBc/Hz @ 1MHz.\",\n        \"range\": {\n          \"min\": \"-110\",\n          \"typical\": \"-95\",\n          \"max\": \"-80\",\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"CMOS typically has worse 1/f noise than SiGe HBTs, but the lower oscillation frequency in this testbench might compensate slightly.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the oscillator.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"129 mW (25.8 mA from 5V)\",\n        \"technology\": \"0.4um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With VDD=1.8V and I_total ~ 15mA, P = 27 mW.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"27m\",\n          \"max\": \"50m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down due to the lower supply voltage (1.8V) in the SKY130 process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tuning_range\": {\n      \"description\": \"The range of frequencies over which the VCO can be tuned.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"4.1 GHz (24.8 to 28.9 GHz)\",\n        \"technology\": \"0.4um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Typically 10-20% of the center frequency for LC VCOs.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"2G\",\n          \"max\": \"4G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends on the varactor tuning ratio, which is not explicitly modeled in this fixed-C testbench.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure oscillation frequency, output power, and DC power consumption.\",\n    \"analyses\": [\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"oscillation_frequency\",\n      \"output_power\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* QVCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_core=10u L_core=0.15u\\n.param W_tail=10u W_bias=5u W_buf=10u W_ef=10u\\n\\n* Modified DUT (BJTs mapped to SKY130 MOSFETs, missing inductor values added)\\nXM1 N14 OUTN N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\\nXM2 N8 N8 N5 GND sky130_fd_pr__nfet_01v8 W='W_bias' L='L_core'\\nR2 OUT_I_Q GND 50\\nR1 N0 TUNE1 1k\\nR3 OUTN GND 1k\\nR4 N5 GND 100\\nR5 N10 GND 100\\nR6 OUT GND 1k\\nR7 N3 GND 100\\nR8 N4 N15 100\\nR9 OUTN_I_Q GND 50\\nR10 N12 GND 100\\nR11 N11 N15 100\\nR12 VCC N8 1k\\nXM3 N1 N8 N3 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\\nXM4 N1 N0 N12 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\\nXM5 N16 OUT N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\\nXM6 N1 N0 N11 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\\nXM7 N14 INN N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\\nXM8 VCC OUT OUT_I_Q GND sky130_fd_pr__nfet_01v8 W='W_buf' L='L_core'\\nXM9 N1 N8 N4 GND sky130_fd_pr__nfet_01v8 W='W_tail' L='L_core'\\nXM10 N0 N0 N10 GND sky130_fd_pr__nfet_01v8 W='W_bias' L='L_core'\\nXM11 VCC OUTN OUTN_I_Q GND sky130_fd_pr__nfet_01v8 W='W_buf' L='L_core'\\nXM12 N16 IN N1 GND sky130_fd_pr__nfet_01v8 W='W_core' L='L_core'\\nL1 VCC N14 1n\\nL2 VCC N16 1n\\nXM13 VCC VCC VCC VCC sky130_fd_pr__pfet_01v8 W='W_bias' L='L_core'\\nXM14 VCC N16 OUTN GND sky130_fd_pr__nfet_01v8 W='W_ef' L='L_core'\\nXM15 VCC N14 OUT GND sky130_fd_pr__nfet_01v8 W='W_ef' L='L_core'\\n\\n* Fixes for floating nodes and missing tank capacitors\\nVN15 N15 0 0\\nC1 N14 GND 100f\\nC2 N16 GND 100f\\n\\n* Sources\\nVVCC VCC 0 DC 1.8\\nVTUNE TUNE1 0 DC 1.8\\nVINN INN 0 DC 0.9\\nVIN IN 0 DC 0.9\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(N14)=1.8 v(N16)=0\\n\\n.control\\n  tran 1p 5n\\n  \\n  * Measure oscillation frequency (Tank node oscillates around VDD)\\n  meas tran t1 trig v(N14) val=1.8 rise=10 targ v(N14) val=1.8 rise=11\\n  let freq = 1 / t1\\n  print freq\\n  \\n  * Measure output power (dBm) into 50 ohms\\n  meas tran vmax max v(OUT_I_Q) from=2n to=5n\\n  meas tran vmin min v(OUT_I_Q) from=2n to=5n\\n  let vpp = vmax - vmin\\n  let pwr_w = (vpp * vpp) / 400\\n  let pwr_dbm = 10 * log10(pwr_w * 1000)\\n  print pwr_dbm\\n  \\n  * Measure power consumption\\n  op\\n  let power = -i(VVCC) * 1.8\\n  print power\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1158791",
+  "_case": "1158791_image_1"
+}

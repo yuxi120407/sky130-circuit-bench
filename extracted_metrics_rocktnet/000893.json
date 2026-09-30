@@ -1,0 +1,173 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Low-Noise Amplifier (LNA) with Active Balun",
+    "description": "An LC-degenerated emitter-coupled pair that acts as an active balun and low-noise amplifier. It converts a single-ended RF input to a differential output while providing low-noise amplification at high frequencies.",
+    "node_mapping": {
+      "input": [
+        "Vin",
+        "VIN2"
+      ],
+      "output": [
+        "Vout_plus",
+        "Vout_minus",
+        "VOUT_P",
+        "VOUT_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "Vin",
+        "VIN2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 20-GHz Low-Noise Amplifier With Active Balun in a 0.25-m SiGe BICMOS Technology",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "center_frequency": {
+      "description": "Frequency at which the amplifier achieves maximum gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20 GHz",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the LC tank resonance: f = 1 / (2 * pi * sqrt(L * C)). Tuned to 20 GHz.",
+        "range": {
+          "min": "18G",
+          "typical": "20G",
+          "max": "22G",
+          "unit": "Hz"
+        },
+        "reasoning": "The LC tank can be sized to resonate at 20 GHz in SKY130, though parasitic capacitances will require smaller explicit capacitors."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Maximum differential voltage gain at the center frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "7 dB",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain ~ gm * Z_tank. For Id=5mA, gm~50mS. Z_tank at 20GHz is limited by low Q of inductors in CMOS.",
+        "range": {
+          "min": "3",
+          "typical": "5",
+          "max": "8",
+          "unit": "dB"
+        },
+        "reasoning": "SKY130 NMOS has lower fT and transconductance compared to SiGe BJTs, resulting in lower achievable gain at 20 GHz."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "46.2 mW (14 mA from 3.3 V)",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Assuming 10 mA total current from 1.8V supply.",
+        "range": {
+          "min": "10m",
+          "typical": "18m",
+          "max": "25m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for 1.8V VDD in SKY130, maintaining sufficient current for high-frequency gm."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Signal-to-noise ratio degradation through the amplifier.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "4.9 dB",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "CMOS NFmin at 20GHz is typically 3-4 dB. Active balun adds noise from the common-source/common-gate paths.",
+        "range": {
+          "min": "5",
+          "typical": "6.5",
+          "max": "8",
+          "unit": "dB"
+        },
+        "reasoning": "SiGe BJTs have superior noise performance at mm-wave frequencies compared to 130nm CMOS."
+      },
+      "importance": "essential"
+    },
+    "amplitude_imbalance": {
+      "description": "Ratio of the magnitudes of the two single-ended outputs.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20*log10(Vout_p / Vout_n). Ideally 0 dB.",
+        "range": {
+          "min": "-1",
+          "typical": "0.5",
+          "max": "1",
+          "unit": "dB"
+        },
+        "reasoning": "Active baluns typically achieve <1 dB imbalance near resonance."
+      },
+      "importance": "recommended"
+    },
+    "phase_difference": {
+      "description": "Phase difference between the two single-ended outputs.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Phase(Vout_p) - Phase(Vout_n). Ideally 180 degrees.",
+        "range": {
+          "min": "170",
+          "typical": "180",
+          "max": "190",
+          "unit": "degrees"
+        },
+        "reasoning": "Degeneration and parasitic mismatches cause slight deviations from the ideal 180 degrees."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, center frequency, amplitude imbalance, and phase difference of the active balun LNA.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "center_frequency",
+      "amplitude_imbalance",
+      "phase_difference"
+    ],
+    "spice": "* 20-GHz LNA with Active Balun Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model for simulation since SKY130 parasitic NPNs are too slow for 20GHz\n.model npn NPN(IS=1e-16 BF=100 VAF=50 CJC=10f CJE=20f TF=5p)\n\n* DUT (with added component values for simulation)\nQ2 Vout_plus Vin N_EMIT npn\nQ3 Vout_minus VIN2 N_EMIT npn\nCe2 N_EMIT GND 100f\nLc2 VDD Vout_plus 1n\nLc3 VDD Vout_minus 1n\nV1 Vout_plus VOUT_P 0\nLe2 N_EMIT GND 0.5n\nV2 VOUT_N Vout_minus 0\n\n* Load Capacitors\nCload1 VOUT_P GND 50f\nCload2 VOUT_N GND 50f\n\n* Biasing and Sources\nVVDD VDD 0 1.8\n* Vin is the RF input, VIN2 is AC grounded for active balun operation\nVVIN VIN 0 DC 0.9 AC 1\nVVIN2 VIN2 0 DC 0.9 AC 0\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1G 100G\nlet vout_diff = v(VOUT_P) - v(VOUT_N)\nlet gain_db = 20*log10(mag(vout_diff))\nlet amp_imb_db = 20*log10(mag(v(VOUT_P)) / mag(v(VOUT_N)))\nlet phase_diff = 180/PI * (cph(v(VOUT_P)) - cph(v(VOUT_N)))\n\nmeas ac max_gain max gain_db\nmeas ac gain_at_20G find gain_db at=20G\nmeas ac amp_imb_at_20G find amp_imb_db at=20G\nmeas ac phase_diff_at_20G find phase_diff at=20G\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Low-Noise Amplifier (LNA) with Active Balun\",\n    \"description\": \"An LC-degenerated emitter-coupled pair that acts as an active balun and low-noise amplifier. It converts a single-ended RF input to a differential output while providing low-noise amplification at high frequencies.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vin\",\n        \"VIN2\"\n      ],\n      \"output\": [\n        \"Vout_plus\",\n        \"Vout_minus\",\n        \"VOUT_P\",\n        \"VOUT_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"Vin\",\n        \"VIN2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 20-GHz Low-Noise Amplifier With Active Balun in a 0.25-m SiGe BICMOS Technology\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"center_frequency\": {\n      \"description\": \"Frequency at which the amplifier achieves maximum gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20 GHz\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the LC tank resonance: f = 1 / (2 * pi * sqrt(L * C)). Tuned to 20 GHz.\",\n        \"range\": {\n          \"min\": \"18G\",\n          \"typical\": \"20G\",\n          \"max\": \"22G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The LC tank can be sized to resonate at 20 GHz in SKY130, though parasitic capacitances will require smaller explicit capacitors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Maximum differential voltage gain at the center frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"7 dB\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain ~ gm * Z_tank. For Id=5mA, gm~50mS. Z_tank at 20GHz is limited by low Q of inductors in CMOS.\",\n        \"range\": {\n          \"min\": \"3\",\n          \"typical\": \"5\",\n          \"max\": \"8\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SKY130 NMOS has lower fT and transconductance compared to SiGe BJTs, resulting in lower achievable gain at 20 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"46.2 mW (14 mA from 3.3 V)\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Assuming 10 mA total current from 1.8V supply.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"18m\",\n          \"max\": \"25m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down for 1.8V VDD in SKY130, maintaining sufficient current for high-frequency gm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Signal-to-noise ratio degradation through the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"4.9 dB\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"CMOS NFmin at 20GHz is typically 3-4 dB. Active balun adds noise from the common-source/common-gate paths.\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"6.5\",\n          \"max\": \"8\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SiGe BJTs have superior noise performance at mm-wave frequencies compared to 130nm CMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"amplitude_imbalance\": {\n      \"description\": \"Ratio of the magnitudes of the two single-ended outputs.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20*log10(Vout_p / Vout_n). Ideally 0 dB.\",\n        \"range\": {\n          \"min\": \"-1\",\n          \"typical\": \"0.5\",\n          \"max\": \"1\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Active baluns typically achieve <1 dB imbalance near resonance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"phase_difference\": {\n      \"description\": \"Phase difference between the two single-ended outputs.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Phase(Vout_p) - Phase(Vout_n). Ideally 180 degrees.\",\n        \"range\": {\n          \"min\": \"170\",\n          \"typical\": \"180\",\n          \"max\": \"190\",\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Degeneration and parasitic mismatches cause slight deviations from the ideal 180 degrees.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, center frequency, amplitude imbalance, and phase difference of the active balun LNA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"center_frequency\",\n      \"amplitude_imbalance\",\n      \"phase_difference\"\n    ],\n    \"spice\": \"* 20-GHz LNA with Active Balun Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model for simulation since SKY130 parasitic NPNs are too slow for 20GHz\\n.model npn NPN(IS=1e-16 BF=100 VAF=50 CJC=10f CJE=20f TF=5p)\\n\\n* DUT (with added component values for simulation)\\nQ2 Vout_plus Vin N_EMIT npn\\nQ3 Vout_minus VIN2 N_EMIT npn\\nCe2 N_EMIT GND 100f\\nLc2 VDD Vout_plus 1n\\nLc3 VDD Vout_minus 1n\\nV1 Vout_plus VOUT_P 0\\nLe2 N_EMIT GND 0.5n\\nV2 VOUT_N Vout_minus 0\\n\\n* Load Capacitors\\nCload1 VOUT_P GND 50f\\nCload2 VOUT_N GND 50f\\n\\n* Biasing and Sources\\nVVDD VDD 0 1.8\\n* Vin is the RF input, VIN2 is AC grounded for active balun operation\\nVVIN VIN 0 DC 0.9 AC 1\\nVVIN2 VIN2 0 DC 0.9 AC 0\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1G 100G\\nlet vout_diff = v(VOUT_P) - v(VOUT_N)\\nlet gain_db = 20*log10(mag(vout_diff))\\nlet amp_imb_db = 20*log10(mag(v(VOUT_P)) / mag(v(VOUT_N)))\\nlet phase_diff = 180/PI * (cph(v(VOUT_P)) - cph(v(VOUT_N)))\\n\\nmeas ac max_gain max gain_db\\nmeas ac gain_at_20G find gain_db at=20G\\nmeas ac amp_imb_at_20G find amp_imb_db at=20G\\nmeas ac phase_diff_at_20G find phase_diff at=20G\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1506899",
+  "_case": "1506899_image_3"
+}

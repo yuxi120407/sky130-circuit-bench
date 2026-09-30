@@ -1,0 +1,169 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Symmetric NAND2 Gate (Delay Cell)",
+    "description": "A 2-input symmetric NAND gate with redundant parallel pull-down paths. It is typically used as a delay cell in a voltage-controlled oscillator (VCO) or as a phase detector component in a DLL/PLL to ensure equal propagation delays for both inputs.",
+    "node_mapping": {
+      "input": [
+        "A",
+        "B"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Techniques for Phase Noise Suppression in Recirculating DLLs",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "operating_frequency": {
+      "description": "Maximum operating frequency (proxy for VCO frequency)",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "160 MHz, 190 MHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * (tpHL + tpLH))",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 2000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "A single gate is much faster than the full VCO loop. The 160-190MHz reported is for the entire multi-stage VCO."
+      },
+      "importance": "essential"
+    },
+    "gain": {
+      "description": "Small-signal voltage gain at the switching threshold (proxy for phase noise suppression gain)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 dB, 21.5 dB",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm * Rout",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "Standard CMOS inverter/NAND gain in the transition region."
+      },
+      "importance": "recommended"
+    },
+    "capacitance": {
+      "description": "Input capacitance of the gate (proxy for loop filter capacitance)",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "680 pF, 2 nF",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Cgs + Cgd of M1, M4, M5",
+        "range": {
+          "min": 1e-14,
+          "typical": 2.5e-14,
+          "max": 5e-14,
+          "unit": "F"
+        },
+        "reasoning": "Gate capacitance for W=5u L=0.5u is roughly 5u*0.5u*10fF/um2 = 25fF. The nF values in the paper refer to the system loop filter."
+      },
+      "importance": "recommended"
+    },
+    "efficiency_ratio": {
+      "description": "Switching threshold voltage ratio Vth/VDD (proxy for efficiency/ratio)",
+      "unit": "%",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "5%",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vth_switching / VDD * 100",
+        "range": {
+          "min": 40,
+          "typical": 50,
+          "max": 60,
+          "unit": "%"
+        },
+        "reasoning": "A symmetric NAND should switch near VDD/2 (50%)."
+      },
+      "importance": "optional"
+    },
+    "t_delay": {
+      "description": "Average propagation delay (tpHL + tpLH)/2",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Simulated from transient",
+        "range": {
+          "min": 5e-11,
+          "typical": 1.5e-10,
+          "max": 3e-10,
+          "unit": "s"
+        },
+        "reasoning": "Expected delay for 0.5um length devices driving a 50fF load."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Average power consumption during switching",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "V * I_avg",
+        "range": {
+          "min": 1e-06,
+          "typical": 1e-05,
+          "max": 5e-05,
+          "unit": "W"
+        },
+        "reasoning": "Dynamic power P = C*V^2*f."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure transient delay, power, AC gain, input capacitance, and DC switching threshold of the symmetric NAND gate.",
+    "analyses": [
+      "Tran",
+      "AC",
+      "DC"
+    ],
+    "metrics_measured": [
+      "operating_frequency",
+      "gain",
+      "capacitance",
+      "efficiency_ratio",
+      "t_delay",
+      "power"
+    ],
+    "spice": "* Symmetric NAND2 Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nVVDD VDD 0 1.8\n* Input A configured for DC sweep, AC analysis, and Transient pulse\nVA A 0 DC 0.9 AC 1 PULSE(0 1.8 1n 50p 50p 2n 4n)\nVB B 0 DC 1.8\n\n* DUT\nXM1 N4 A GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N5 B GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 OUT B N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUT A N5 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUT A VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUT B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\nCload OUT 0 50f\n\n.control\n* 1. Transient Analysis\ntran 10p 10n\nmeas tran t_delay_fall trig v(A) val=0.9 rise=1 targ v(OUT) val=0.9 fall=1\nmeas tran t_delay_rise trig v(A) val=0.9 fall=1 targ v(OUT) val=0.9 rise=1\nlet pwr = -i(VVDD)*1.8\nmeas tran power_avg avg pwr\nlet t_delay_avg = (t_delay_fall + t_delay_rise) / 2\nlet operating_frequency = 1 / (2 * t_delay_avg)\nprint t_delay_avg operating_frequency\n\n* 2. AC Analysis\nac dec 10 1Meg 1Gig\nmeas ac max_gain_db max vdb(OUT)\nlet omega = 2 * pi * frequency\nlet cap = abs(im(i(VA))) / omega\nmeas ac capacitance avg cap\nprint max_gain_db capacitance\n\n* 3. DC Sweep\ndc VA 0 1.8 0.01\nmeas dc vth_switching find v(A) when v(OUT)=0.9 fall=1\nlet efficiency_ratio = (vth_switching / 1.8) * 100\nprint efficiency_ratio\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Symmetric NAND2 Gate (Delay Cell)\",\n    \"description\": \"A 2-input symmetric NAND gate with redundant parallel pull-down paths. It is typically used as a delay cell in a voltage-controlled oscillator (VCO) or as a phase detector component in a DLL/PLL to ensure equal propagation delays for both inputs.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"A\",\n        \"B\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Techniques for Phase Noise Suppression in Recirculating DLLs\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"operating_frequency\": {\n      \"description\": \"Maximum operating frequency (proxy for VCO frequency)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"160 MHz, 190 MHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * (tpHL + tpLH))\",\n        \"range\": {\n          \"min\": 1000000000.0,\n          \"typical\": 2000000000.0,\n          \"max\": 5000000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"A single gate is much faster than the full VCO loop. The 160-190MHz reported is for the entire multi-stage VCO.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain\": {\n      \"description\": \"Small-signal voltage gain at the switching threshold (proxy for phase noise suppression gain)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 dB, 21.5 dB\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm * Rout\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard CMOS inverter/NAND gain in the transition region.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"capacitance\": {\n      \"description\": \"Input capacitance of the gate (proxy for loop filter capacitance)\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"680 pF, 2 nF\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Cgs + Cgd of M1, M4, M5\",\n        \"range\": {\n          \"min\": 1e-14,\n          \"typical\": 2.5e-14,\n          \"max\": 5e-14,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Gate capacitance for W=5u L=0.5u is roughly 5u*0.5u*10fF/um2 = 25fF. The nF values in the paper refer to the system loop filter.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"efficiency_ratio\": {\n      \"description\": \"Switching threshold voltage ratio Vth/VDD (proxy for efficiency/ratio)\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"5%\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vth_switching / VDD * 100\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 50,\n          \"max\": 60,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"A symmetric NAND should switch near VDD/2 (50%).\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"t_delay\": {\n      \"description\": \"Average propagation delay (tpHL + tpLH)/2\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Simulated from transient\",\n        \"range\": {\n          \"min\": 5e-11,\n          \"typical\": 1.5e-10,\n          \"max\": 3e-10,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Expected delay for 0.5um length devices driving a 50fF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Average power consumption during switching\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V * I_avg\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 1e-05,\n          \"max\": 5e-05,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dynamic power P = C*V^2*f.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure transient delay, power, AC gain, input capacitance, and DC switching threshold of the symmetric NAND gate.\",\n    \"analyses\": [\n      \"Tran\",\n      \"AC\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"operating_frequency\",\n      \"gain\",\n      \"capacitance\",\n      \"efficiency_ratio\",\n      \"t_delay\",\n      \"power\"\n    ],\n    \"spice\": \"* Symmetric NAND2 Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nVVDD VDD 0 1.8\\n* Input A configured for DC sweep, AC analysis, and Transient pulse\\nVA A 0 DC 0.9 AC 1 PULSE(0 1.8 1n 50p 50p 2n 4n)\\nVB B 0 DC 1.8\\n\\n* DUT\\nXM1 N4 A GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N5 B GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 OUT B N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUT A N5 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUT A VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUT B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\nCload OUT 0 50f\\n\\n.control\\n* 1. Transient Analysis\\ntran 10p 10n\\nmeas tran t_delay_fall trig v(A) val=0.9 rise=1 targ v(OUT) val=0.9 fall=1\\nmeas tran t_delay_rise trig v(A) val=0.9 fall=1 targ v(OUT) val=0.9 rise=1\\nlet pwr = -i(VVDD)*1.8\\nmeas tran power_avg avg pwr\\nlet t_delay_avg = (t_delay_fall + t_delay_rise) / 2\\nlet operating_frequency = 1 / (2 * t_delay_avg)\\nprint t_delay_avg operating_frequency\\n\\n* 2. AC Analysis\\nac dec 10 1Meg 1Gig\\nmeas ac max_gain_db max vdb(OUT)\\nlet omega = 2 * pi * frequency\\nlet cap = abs(im(i(VA))) / omega\\nmeas ac capacitance avg cap\\nprint max_gain_db capacitance\\n\\n* 3. DC Sweep\\ndc VA 0 1.8 0.01\\nmeas dc vth_switching find v(A) when v(OUT)=0.9 fall=1\\nlet efficiency_ratio = (vth_switching / 1.8) * 100\\nprint efficiency_ratio\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1317046",
+  "_case": "1317046_image_7_b"
+}

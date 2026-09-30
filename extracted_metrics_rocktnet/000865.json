@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Delay Element / Current-Starved Inverter",
+    "description": "A CMOS inverter with exposed source terminals, acting as a delay element. It is likely part of a current-starved delay line used in a time-to-digital converter, where the delay is controlled by a temperature-dependent current.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD",
+        "N2"
+      ],
+      "bias": [],
+      "ground": [
+        "GND",
+        "N4"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Time-to-Digital-Converter-Based CMOS Smart Temperature Sensor",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "t_pd": {
+      "description": "Average propagation delay",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "t_pd = C_load * VDD / (2 * I_avg). With C_load=50fF, I_dn ~ 2.5mA, I_dp ~ 0.47mA, t_pd_hl ~ 18ps, t_pd_lh ~ 95ps.",
+        "range": {
+          "min": "20p",
+          "typical": "56p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Calculated based on SKY130 mobility and threshold voltages with a 50fF load. The PMOS is weaker than the NMOS due to equal sizing, leading to asymmetric delays."
+      },
+      "importance": "essential"
+    },
+    "v_th": {
+      "description": "Switching threshold voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "V_th = (VDD - |Vtp| + Vtn * sqrt(Beta_n/Beta_p)) / (1 + sqrt(Beta_n/Beta_p)). Beta_n/Beta_p ~ 5.4.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.71",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "NMOS is much stronger than PMOS due to equal sizing (W=5u) and higher electron mobility, shifting V_th below VDD/2 (0.9V)."
+      },
+      "importance": "recommended"
+    },
+    "power": {
+      "description": "Average power consumption",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10 uW (OCR likely missed 'u')",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "P = C * VDD^2 * f. At 50MHz with 50fF load, P = 50f * 1.8^2 * 50e6 = 8.1uW.",
+        "range": {
+          "min": "1u",
+          "typical": "8.1u",
+          "max": "20u",
+          "unit": "W"
+        },
+        "reasoning": "Dynamic power dominates. Scaled to a 50MHz testbench frequency to match the order of magnitude of the paper's reported power while keeping simulation time short."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure propagation delay, switching threshold, and power consumption of the delay element.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_th",
+      "t_rise",
+      "t_fall",
+      "t_pd",
+      "avg_power"
+    ],
+    "spice": "* Delay Element Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\nXM2 OUT IN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM7 OUT IN N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\n\n* Supply and Bias Connections (Tying exposed sources to rails for standard inverter operation)\nVVDD VDD 0 1.8\nVN2 N2 0 1.8\nVN4 N4 0 0\n\n* Input Signal (50 MHz)\nVIN IN 0 PULSE(0 1.8 5n 0.1n 0.1n 10n 20n)\n\n* Load Capacitor\nCL OUT 0 50f\n\n.control\n* DC Analysis for Switching Threshold\ndc VIN 0 1.8 0.01\nmeas dc v_th when v(out)=0.9 rise=1\n\n* Transient Analysis for Delay and Power\ntran 10p 40n\nmeas tran t_rise trig v(out) val=0.36 rise=1 targ v(out) val=1.44 rise=1\nmeas tran t_fall trig v(out) val=1.44 fall=1 targ v(out) val=0.36 fall=1\nmeas tran t_pd_hl trig v(in) val=0.9 rise=1 targ v(out) val=0.9 fall=1\nmeas tran t_pd_lh trig v(in) val=0.9 fall=1 targ v(out) val=0.9 rise=1\nlet t_pd = (t_pd_hl + t_pd_lh) / 2\nprint t_pd\n\n* Power Measurement\nlet inst_power = -i(VVDD)*1.8 - i(VN2)*1.8\nmeas tran avg_power avg inst_power from=0 to=40n\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Delay Element / Current-Starved Inverter\",\n    \"description\": \"A CMOS inverter with exposed source terminals, acting as a delay element. It is likely part of a current-starved delay line used in a time-to-digital converter, where the delay is controlled by a temperature-dependent current.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"OUT\"],\n      \"supply\": [\"VDD\", \"N2\"],\n      \"bias\": [],\n      \"ground\": [\"GND\", \"N4\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Time-to-Digital-Converter-Based CMOS Smart Temperature Sensor\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"t_pd\": {\n      \"description\": \"Average propagation delay\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_pd = C_load * VDD / (2 * I_avg). With C_load=50fF, I_dn ~ 2.5mA, I_dp ~ 0.47mA, t_pd_hl ~ 18ps, t_pd_lh ~ 95ps.\",\n        \"range\": { \"min\": \"20p\", \"typical\": \"56p\", \"max\": \"100p\", \"unit\": \"s\" },\n        \"reasoning\": \"Calculated based on SKY130 mobility and threshold voltages with a 50fF load. The PMOS is weaker than the NMOS due to equal sizing, leading to asymmetric delays.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_th\": {\n      \"description\": \"Switching threshold voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_th = (VDD - |Vtp| + Vtn * sqrt(Beta_n/Beta_p)) / (1 + sqrt(Beta_n/Beta_p)). Beta_n/Beta_p ~ 5.4.\",\n        \"range\": { \"min\": \"0.6\", \"typical\": \"0.71\", \"max\": \"0.9\", \"unit\": \"V\" },\n        \"reasoning\": \"NMOS is much stronger than PMOS due to equal sizing (W=5u) and higher electron mobility, shifting V_th below VDD/2 (0.9V).\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power\": {\n      \"description\": \"Average power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10 uW (OCR likely missed 'u')\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C * VDD^2 * f. At 50MHz with 50fF load, P = 50f * 1.8^2 * 50e6 = 8.1uW.\",\n        \"range\": { \"min\": \"1u\", \"typical\": \"8.1u\", \"max\": \"20u\", \"unit\": \"W\" },\n        \"reasoning\": \"Dynamic power dominates. Scaled to a 50MHz testbench frequency to match the order of magnitude of the paper's reported power while keeping simulation time short.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure propagation delay, switching threshold, and power consumption of the delay element.\",\n    \"analyses\": [\"DC\", \"Tran\"],\n    \"metrics_measured\": [\"v_th\", \"t_rise\", \"t_fall\", \"t_pd\", \"avg_power\"],\n    \"spice\": \"* Delay Element Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\nXM2 OUT IN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM7 OUT IN N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Supply and Bias Connections (Tying exposed sources to rails for standard inverter operation)\\nVVDD VDD 0 1.8\\nVN2 N2 0 1.8\\nVN4 N4 0 0\\n\\n* Input Signal (50 MHz)\\nVIN IN 0 PULSE(0 1.8 5n 0.1n 0.1n 10n 20n)\\n\\n* Load Capacitor\\nCL OUT 0 50f\\n\\n.control\\n* DC Analysis for Switching Threshold\\ndc VIN 0 1.8 0.01\\nmeas dc v_th when v(out)=0.9 rise=1\\n\\n* Transient Analysis for Delay and Power\\ntran 10p 40n\\nmeas tran t_rise trig v(out) val=0.36 rise=1 targ v(out) val=1.44 rise=1\\nmeas tran t_fall trig v(out) val=1.44 fall=1 targ v(out) val=0.36 fall=1\\nmeas tran t_pd_hl trig v(in) val=0.9 rise=1 targ v(out) val=0.9 fall=1\\nmeas tran t_pd_lh trig v(in) val=0.9 fall=1 targ v(out) val=0.9 rise=1\\nlet t_pd = (t_pd_hl + t_pd_lh) / 2\\nprint t_pd\\n\\n* Power Measurement\\nlet inst_power = -i(VVDD)*1.8 - i(VN2)*1.8\\nmeas tran avg_power avg inst_power from=0 to=40n\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1487607",
+  "_case": "1487607_image_6"
+}

@@ -1,0 +1,151 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 26.24",
+    "page": "880",
+    "circuit_type": "Closed-loop step response testbench for a two-stage class-AB op-amp without CMFB",
+    "description": "The netlist describes the testbench from Fig 26.24, which places the basic two-stage op-amp (detailed in Fig 26.22) in a closed-loop configuration with 20k feedback resistors and 250fF load capacitors to evaluate its step response and stability."
+  },
+  "step2_metrics": {
+    "slew_rate": {
+      "description": "Slew rate of the op-amp, limited by the first stage tail current charging the compensation capacitors.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "878",
+        "reference": "Text discussion referencing Eq 22.34"
+      },
+      "equation": {
+        "formula": "SR = I_tail / C_c",
+        "explanation": "The maximum rate of change of the output voltage is determined by the available tail current from the diff-pair charging the Miller compensation capacitor.",
+        "assumptions": "Assumes the second stage (class-AB) can source/sink significantly more current than the first stage, making the first stage the bottleneck."
+      },
+      "sky130_expected": {
+        "calculation": "With a typical bias current of 20 uA from the beta-multiplier and C_c = 50 fF, SR = 20 uA / 50 fF = 400 V/us.",
+        "range": {
+          "min": 200,
+          "typical": 400,
+          "max": 600,
+          "unit": "V/us"
+        },
+        "reasoning": "Bias current varies with process corners and temperature, typically +/- 30%, affecting the slew rate proportionally."
+      },
+      "importance": "essential"
+    },
+    "quiescent_current": {
+      "description": "Total current drawn from the supply under DC quiescent conditions.",
+      "unit": "A",
+      "analysis_type": "OP",
+      "source": {
+        "page": "878",
+        "reference": "Text discussion"
+      },
+      "equation": {
+        "formula": "I_DD = N_branches * I_bias",
+        "explanation": "The total current is the sum of the currents in all parallel branches of the op-amp and bias circuit.",
+        "assumptions": "Assumes all branches are perfectly mirrored with a 1:1 ratio from the bias circuit."
+      },
+      "sky130_expected": {
+        "calculation": "The op-amp has 8 branches. Assuming I_bias = 20 uA, I_DD = 8 * 20 uA = 160 uA. The bias circuit adds a few more branches, bringing the total to ~200 uA.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0002,
+          "max": 0.0003,
+          "unit": "A"
+        },
+        "reasoning": "Depends heavily on the exact resistor value in the beta-multiplier and the threshold voltages of the SKY130 devices."
+      },
+      "importance": "essential"
+    },
+    "open_loop_dc_gain": {
+      "description": "Open-loop DC voltage gain of the two-stage op-amp.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "879",
+        "reference": "Fig 26.23"
+      },
+      "equation": {
+        "formula": "A_v = A_v1 * A_v2",
+        "explanation": "The total gain is the product of the first stage (cascode diff-amp) gain and the second stage (class-AB common-source) gain.",
+        "assumptions": "Assumes no resistive loading on the output."
+      },
+      "sky130_expected": {
+        "calculation": "First stage gain ~ 40 V/V. Second stage gain ~ 12.5 V/V. Total gain ~ 500 V/V. In dB: 20 * log10(500) = 54 dB.",
+        "range": {
+          "min": 40,
+          "typical": 54,
+          "max": 65,
+          "unit": "dB"
+        },
+        "reasoning": "Intrinsic gain (gm*ro) in SKY130 130nm is lower than older long-channel processes, so 50-60 dB is expected for a two-stage topology."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the output to settle within a specified error band after a step input.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "880",
+        "reference": "Fig 26.24"
+      },
+      "equation": {
+        "formula": "t_s = -ln(error) / (omega_n * zeta)",
+        "explanation": "Settling time depends on the closed-loop bandwidth and phase margin (damping factor).",
+        "assumptions": "Assumes linear settling (no slewing) for small steps, though large steps will include slew time."
+      },
+      "sky130_expected": {
+        "calculation": "Based on the 400 V/us slew rate and high bandwidth, a 400mV step takes ~1ns to slew, plus ~1.5ns to settle linearly. Total ~2.5 ns.",
+        "range": {
+          "min": 1e-09,
+          "typical": 2.5e-09,
+          "max": 5e-09,
+          "unit": "s"
+        },
+        "reasoning": "Load capacitance (250fF) and feedback resistors (20k) create a pole that affects the damping and settling time."
+      },
+      "importance": "recommended"
+    },
+    "common_mode_gain": {
+      "description": "Gain from the input common-mode voltage to the output common-mode voltage of the first stage.",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "877",
+        "reference": "Fig 26.20"
+      },
+      "equation": {
+        "formula": "A_cm = Delta V_out_cm / Delta V_in_cm",
+        "explanation": "Measures how much the output common-mode level shifts when the input common-mode level changes.",
+        "assumptions": "Assumes the tail current source has finite output resistance."
+      },
+      "sky130_expected": {
+        "calculation": "From the text, a 200mV change in V_CM results in a 50mV change in output. A_cm = 50/200 = 0.25 V/V.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.25,
+          "max": 0.5,
+          "unit": "V/V"
+        },
+        "reasoning": "Depends on the output resistance of the tail current source (xm15, xm16) in the SKY130 process."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure quiescent current, open-loop gain (via AC analysis of the error signal in closed-loop), slew rate, and settling time.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "quiescent_current",
+      "open_loop_dc_gain",
+      "slew_rate",
+      "settling_time"
+    ],
+    "spice": "* Testbench for Fig 26.24 Op-Amp Step Response\n.lib ${SKY130_PDK} tt\n\n* --- DUT (Device Under Test) ---\nVDD VDD 0 1.8\nxm2 N001 N001 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 N001 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm4 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm3 vodm Vbiasn N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nVCM VCM 0 500m\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\nxm6 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 vodp Vbiasn N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm12 vodp N001 ncr 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\nxm13 vodm N001 ncl 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\nxm5 N008 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm14 N008 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\nxm15 N007 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\nxm16 N007 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\nxm17 ncr Vm N007 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\nxm18 ncl Vp N007 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\nxm19 N005 Vp N008 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\nxm20 N006 Vm N008 0 sky130_fd_pr__nfet_01v8 w={W_xm20} l={L_xm20}\nxm21 vom vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\nxm22 N010 vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\nxm23 vom N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\nxm24 N010 N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\nC1 vom ncr 5e-14\nxm25 vop vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm25} l={L_xm25}\nxm26 N009 vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm26} l={L_xm26}\nxm27 vop N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm27} l={L_xm27}\nxm28 N009 N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm28} l={L_xm28}\nC2 vop ncl 5e-14\nR1 vop vm 20000.0\nR2 vm vip 20000.0\nR3 vom vp 20000.0\nR4 vp vim 20000.0\nC3 vom 0 2.5e-13\nC4 vop 0 2.5e-13\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  R1 N004 0 4k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n.ends SUB_1\n\n* --- Stimulus ---\n* Common mode is 500mV. Step is +/- 200mV.\nV_vip vip 0 DC 0.5 AC 0.5 PULSE(0.3 0.7 5n 100p 100p 20n 40n)\nV_vim vim 0 DC 0.5 AC -0.5 PULSE(0.7 0.3 5n 100p 100p 20n 40n)\n\n* --- Analyses ---\n.control\n  * 1. DC Operating Point\n  op\n  let i_q = -i(VDD)\n  print i_q\n\n  * 2. AC Analysis (Extract Open-Loop Gain from Closed-Loop Error Signal)\n  ac dec 100 1 1G\n  let out_diff = v(vop) - v(vom)\n  let in_diff = v(vp) - v(vm)\n  let A_OL = out_diff / in_diff\n  let A_OL_db = 20 * log10(mag(A_OL))\n  meas ac dc_gain_db find A_OL_db at=10\n  \n  * 3. Transient Analysis\n  tran 10p 30n\n  * Measure Slew Rate during the rising transition (around 5ns)\n  meas tran sr_rise deriv v(vop) when v(vop)=0.5 rise=1\n  \n  * Measure Settling Time (Time to reach within ~1.5% of final 0.7V value)\n  meas tran t_cross when v(vop)=0.69 rise=1\n  let t_settle = t_cross - 5n\n  print t_settle\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 26.24\",\n    \"page\": \"880\",\n    \"circuit_type\": \"Closed-loop step response testbench for a two-stage class-AB op-amp without CMFB\",\n    \"description\": \"The netlist describes the testbench from Fig 26.24, which places the basic two-stage op-amp (detailed in Fig 26.22) in a closed-loop configuration with 20k feedback resistors and 250fF load capacitors to evaluate its step response and stability.\"\n  },\n  \"step2_metrics\": {\n    \"slew_rate\": {\n      \"description\": \"Slew rate of the op-amp, limited by the first stage tail current charging the compensation capacitors.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"878\", \"reference\": \"Text discussion referencing Eq 22.34\" },\n      \"equation\": { \n        \"formula\": \"SR = I_tail / C_c\", \n        \"explanation\": \"The maximum rate of change of the output voltage is determined by the available tail current from the diff-pair charging the Miller compensation capacitor.\", \n        \"assumptions\": \"Assumes the second stage (class-AB) can source/sink significantly more current than the first stage, making the first stage the bottleneck.\" \n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a typical bias current of 20 uA from the beta-multiplier and C_c = 50 fF, SR = 20 uA / 50 fF = 400 V/us.\",\n        \"range\": { \"min\": 200, \"typical\": 400, \"max\": 600, \"unit\": \"V/us\" },\n        \"reasoning\": \"Bias current varies with process corners and temperature, typically +/- 30%, affecting the slew rate proportionally.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quiescent_current\": {\n      \"description\": \"Total current drawn from the supply under DC quiescent conditions.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"878\", \"reference\": \"Text discussion\" },\n      \"equation\": { \n        \"formula\": \"I_DD = N_branches * I_bias\", \n        \"explanation\": \"The total current is the sum of the currents in all parallel branches of the op-amp and bias circuit.\", \n        \"assumptions\": \"Assumes all branches are perfectly mirrored with a 1:1 ratio from the bias circuit.\" \n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The op-amp has 8 branches. Assuming I_bias = 20 uA, I_DD = 8 * 20 uA = 160 uA. The bias circuit adds a few more branches, bringing the total to ~200 uA.\",\n        \"range\": { \"min\": 100e-6, \"typical\": 200e-6, \"max\": 300e-6, \"unit\": \"A\" },\n        \"reasoning\": \"Depends heavily on the exact resistor value in the beta-multiplier and the threshold voltages of the SKY130 devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"open_loop_dc_gain\": {\n      \"description\": \"Open-loop DC voltage gain of the two-stage op-amp.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"879\", \"reference\": \"Fig 26.23\" },\n      \"equation\": { \n        \"formula\": \"A_v = A_v1 * A_v2\", \n        \"explanation\": \"The total gain is the product of the first stage (cascode diff-amp) gain and the second stage (class-AB common-source) gain.\", \n        \"assumptions\": \"Assumes no resistive loading on the output.\" \n      },\n      \"sky130_expected\": {\n        \"calculation\": \"First stage gain ~ 40 V/V. Second stage gain ~ 12.5 V/V. Total gain ~ 500 V/V. In dB: 20 * log10(500) = 54 dB.\",\n        \"range\": { \"min\": 40, \"typical\": 54, \"max\": 65, \"unit\": \"dB\" },\n        \"reasoning\": \"Intrinsic gain (gm*ro) in SKY130 130nm is lower than older long-channel processes, so 50-60 dB is expected for a two-stage topology.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the output to settle within a specified error band after a step input.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"880\", \"reference\": \"Fig 26.24\" },\n      \"equation\": { \n        \"formula\": \"t_s = -ln(error) / (omega_n * zeta)\", \n        \"explanation\": \"Settling time depends on the closed-loop bandwidth and phase margin (damping factor).\", \n        \"assumptions\": \"Assumes linear settling (no slewing) for small steps, though large steps will include slew time.\" \n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Based on the 400 V/us slew rate and high bandwidth, a 400mV step takes ~1ns to slew, plus ~1.5ns to settle linearly. Total ~2.5 ns.\",\n        \"range\": { \"min\": 1e-9, \"typical\": 2.5e-9, \"max\": 5e-9, \"unit\": \"s\" },\n        \"reasoning\": \"Load capacitance (250fF) and feedback resistors (20k) create a pole that affects the damping and settling time.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"common_mode_gain\": {\n      \"description\": \"Gain from the input common-mode voltage to the output common-mode voltage of the first stage.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"877\", \"reference\": \"Fig 26.20\" },\n      \"equation\": { \n        \"formula\": \"A_cm = Delta V_out_cm / Delta V_in_cm\", \n        \"explanation\": \"Measures how much the output common-mode level shifts when the input common-mode level changes.\", \n        \"assumptions\": \"Assumes the tail current source has finite output resistance.\" \n      },\n      \"sky130_expected\": {\n        \"calculation\": \"From the text, a 200mV change in V_CM results in a 50mV change in output. A_cm = 50/200 = 0.25 V/V.\",\n        \"range\": { \"min\": 0.1, \"typical\": 0.25, \"max\": 0.5, \"unit\": \"V/V\" },\n        \"reasoning\": \"Depends on the output resistance of the tail current source (xm15, xm16) in the SKY130 process.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure quiescent current, open-loop gain (via AC analysis of the error signal in closed-loop), slew rate, and settling time.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"quiescent_current\", \"open_loop_dc_gain\", \"slew_rate\", \"settling_time\"],\n    \"spice\": \"* Testbench for Fig 26.24 Op-Amp Step Response\\n.lib ${SKY130_PDK} tt\\n\\n* --- DUT (Device Under Test) ---\\nVDD VDD 0 1.8\\nxm2 N001 N001 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 N001 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm4 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm3 vodm Vbiasn N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nVCM VCM 0 500m\\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\\nxm6 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 vodp Vbiasn N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 vodp N001 ncr 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 vodm N001 ncl 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\nxm5 N008 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm14 N008 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 N007 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 N007 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\nxm17 ncr Vm N007 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\nxm18 ncl Vp N007 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\nxm19 N005 Vp N008 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\\nxm20 N006 Vm N008 0 sky130_fd_pr__nfet_01v8 w={W_xm20} l={L_xm20}\\nxm21 vom vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\\nxm22 N010 vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\\nxm23 vom N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\\nxm24 N010 N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\\nC1 vom ncr 5e-14\\nxm25 vop vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm25} l={L_xm25}\\nxm26 N009 vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm26} l={L_xm26}\\nxm27 vop N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm27} l={L_xm27}\\nxm28 N009 N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm28} l={L_xm28}\\nC2 vop ncl 5e-14\\nR1 vop vm 20000.0\\nR2 vm vip 20000.0\\nR3 vom vp 20000.0\\nR4 vp vim 20000.0\\nC3 vom 0 2.5e-13\\nC4 vop 0 2.5e-13\\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  R1 N004 0 4k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n.ends SUB_1\\n\\n* --- Stimulus ---\\n* Common mode is 500mV. Step is +/- 200mV.\\nV_vip vip 0 DC 0.5 AC 0.5 PULSE(0.3 0.7 5n 100p 100p 20n 40n)\\nV_vim vim 0 DC 0.5 AC -0.5 PULSE(0.7 0.3 5n 100p 100p 20n 40n)\\n\\n* --- Analyses ---\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let i_q = -i(VDD)\\n  print i_q\\n\\n  * 2. AC Analysis (Extract Open-Loop Gain from Closed-Loop Error Signal)\\n  ac dec 100 1 1G\\n  let out_diff = v(vop) - v(vom)\\n  let in_diff = v(vp) - v(vm)\\n  let A_OL = out_diff / in_diff\\n  let A_OL_db = 20 * log10(mag(A_OL))\\n  meas ac dc_gain_db find A_OL_db at=10\\n  \\n  * 3. Transient Analysis\\n  tran 10p 30n\\n  * Measure Slew Rate during the rising transition (around 5ns)\\n  meas tran sr_rise deriv v(vop) when v(vop)=0.5 rise=1\\n  \\n  * Measure Settling Time (Time to reach within ~1.5% of final 0.7V value)\\n  meas tran t_cross when v(vop)=0.69 rise=1\\n  let t_settle = t_cross - 5n\\n  print t_settle\\n.endc\\n.end\"\n  }\n}\n```"
+}

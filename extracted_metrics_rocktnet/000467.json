@@ -1,0 +1,123 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LDO Feedback Network",
+    "description": "A resistive voltage divider with a feedforward capacitor used in a Low-Dropout (LDO) regulator. It scales down the output voltage for the error amplifier and introduces a left-half-plane zero to improve the loop phase margin and transient response.",
+    "node_mapping": {
+      "input": [
+        "Vs"
+      ],
+      "output": [
+        "Vx"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Capacitor-Free CMOS Low-Dropout Regulator With Damping-Factor-Control Frequency Compensation",
+      "figure": "unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "dc_feedback_factor": {
+      "description": "DC voltage attenuation ratio (Vx/Vs)",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "R2 / (R1 + R2) = 100k / 200k = 0.5",
+        "range": {
+          "min": 0.49,
+          "typical": 0.5,
+          "max": 0.51,
+          "unit": "V/V"
+        },
+        "reasoning": "Assuming equal resistors for a typical 1.8V to 0.9V step-down to the reference voltage."
+      },
+      "importance": "essential"
+    },
+    "zero_frequency": {
+      "description": "Frequency of the left-half-plane zero introduced by CF1",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 MHz",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * R1 * C1) = 1 / (2 * pi * 100k * 5pF) = 318 kHz",
+        "range": {
+          "min": 250000,
+          "typical": 318000,
+          "max": 400000,
+          "unit": "Hz"
+        },
+        "reasoning": "Based on typical feedback resistor values (100k) and the paper's reported 5pF capacitance."
+      },
+      "importance": "essential"
+    },
+    "pole_frequency": {
+      "description": "Frequency of the left-half-plane pole",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * (R1 || R2) * C1) = 1 / (2 * pi * 50k * 5pF) = 636 kHz",
+        "range": {
+          "min": 500000,
+          "typical": 636000,
+          "max": 800000,
+          "unit": "Hz"
+        },
+        "reasoning": "The pole is formed by the parallel combination of R1 and R2 interacting with C1."
+      },
+      "importance": "essential"
+    },
+    "transient_overshoot": {
+      "description": "Overshoot percentage at the feedback node during a fast input step",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "(V_peak - V_final) / V_final * 100 = (1.8 - 0.9) / 0.9 * 100 = 100%",
+        "range": {
+          "min": 90,
+          "typical": 100,
+          "max": 110,
+          "unit": "%"
+        },
+        "reasoning": "High-frequency gain is 1 (due to CF1 shorting R1), while DC gain is 0.5. A full step will initially pass completely to Vx before settling."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC feedback factor, zero frequency, pole frequency, and step response of the LDO feedback network.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_feedback_factor",
+      "zero_frequency",
+      "pole_frequency",
+      "transient_overshoot"
+    ],
+    "spice": "* LDO Feedback Network Testbench\n\n.param R1_val=100k\n.param R2_val=100k\n.param C1_val=5p\n\n* DUT (Values parameterized to fix extraction syntax)\nRF1 Vs Vx {R1_val}\nRF2 Vx GND {R2_val}\nCF1 Vs Vx {C1_val}\n\n* Stimulus\nV_Vs Vs GND DC 1.8 AC 1\nV_GND GND 0 0\n\n.control\n  * AC Analysis\n  ac dec 100 1k 10Meg\n  let gain_mag = v(Vx)/v(Vs)\n  let phase = 180/PI * (cph(v(Vx)) - cph(v(Vs)))\n  \n  * Measure DC feedback factor at low frequency (1kHz)\n  meas ac dc_feedback_factor find gain_mag at=1k\n  \n  * Measure zero frequency (approximate by phase reaching 10 degrees)\n  meas ac zero_frequency when phase=10 rise=1\n  \n  * Measure pole frequency (approximate by phase returning to 10 degrees)\n  meas ac pole_frequency when phase=10 fall=1\n\n  * Transient Analysis\n  * Step Vs from 0 to 1.8V to observe feedforward effect\n  alter V_Vs = pulse(0 1.8 1n 1n 1n 10u 20u)\n  tran 1n 5u\n  meas tran vx_max max v(Vx)\n  meas tran vx_final find v(Vx) at=4u\n  let overshoot_pct = (vx_max - vx_final)/vx_final * 100\n  print overshoot_pct\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LDO Feedback Network\",\n    \"description\": \"A resistive voltage divider with a feedforward capacitor used in a Low-Dropout (LDO) regulator. It scales down the output voltage for the error amplifier and introduces a left-half-plane zero to improve the loop phase margin and transient response.\",\n    \"node_mapping\": {\n      \"input\": [\"Vs\"],\n      \"output\": [\"Vx\"],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Capacitor-Free CMOS Low-Dropout Regulator With Damping-Factor-Control Frequency Compensation\",\n      \"figure\": \"unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_feedback_factor\": {\n      \"description\": \"DC voltage attenuation ratio (Vx/Vs)\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R2 / (R1 + R2) = 100k / 200k = 0.5\",\n        \"range\": { \"min\": 0.49, \"typical\": 0.5, \"max\": 0.51, \"unit\": \"V/V\" },\n        \"reasoning\": \"Assuming equal resistors for a typical 1.8V to 0.9V step-down to the reference voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"zero_frequency\": {\n      \"description\": \"Frequency of the left-half-plane zero introduced by CF1\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 MHz\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * R1 * C1) = 1 / (2 * pi * 100k * 5pF) = 318 kHz\",\n        \"range\": { \"min\": 250000, \"typical\": 318000, \"max\": 400000, \"unit\": \"Hz\" },\n        \"reasoning\": \"Based on typical feedback resistor values (100k) and the paper's reported 5pF capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"pole_frequency\": {\n      \"description\": \"Frequency of the left-half-plane pole\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * (R1 || R2) * C1) = 1 / (2 * pi * 50k * 5pF) = 636 kHz\",\n        \"range\": { \"min\": 500000, \"typical\": 636000, \"max\": 800000, \"unit\": \"Hz\" },\n        \"reasoning\": \"The pole is formed by the parallel combination of R1 and R2 interacting with C1.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transient_overshoot\": {\n      \"description\": \"Overshoot percentage at the feedback node during a fast input step\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"(V_peak - V_final) / V_final * 100 = (1.8 - 0.9) / 0.9 * 100 = 100%\",\n        \"range\": { \"min\": 90, \"typical\": 100, \"max\": 110, \"unit\": \"%\" },\n        \"reasoning\": \"High-frequency gain is 1 (due to CF1 shorting R1), while DC gain is 0.5. A full step will initially pass completely to Vx before settling.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC feedback factor, zero frequency, pole frequency, and step response of the LDO feedback network.\",\n    \"analyses\": [\"AC\", \"Tran\"],\n    \"metrics_measured\": [\"dc_feedback_factor\", \"zero_frequency\", \"pole_frequency\", \"transient_overshoot\"],\n    \"spice\": \"* LDO Feedback Network Testbench\\n\\n.param R1_val=100k\\n.param R2_val=100k\\n.param C1_val=5p\\n\\n* DUT (Values parameterized to fix extraction syntax)\\nRF1 Vs Vx {R1_val}\\nRF2 Vx GND {R2_val}\\nCF1 Vs Vx {C1_val}\\n\\n* Stimulus\\nV_Vs Vs GND DC 1.8 AC 1\\nV_GND GND 0 0\\n\\n.control\\n  * AC Analysis\\n  ac dec 100 1k 10Meg\\n  let gain_mag = v(Vx)/v(Vs)\\n  let phase = 180/PI * (cph(v(Vx)) - cph(v(Vs)))\\n  \\n  * Measure DC feedback factor at low frequency (1kHz)\\n  meas ac dc_feedback_factor find gain_mag at=1k\\n  \\n  * Measure zero frequency (approximate by phase reaching 10 degrees)\\n  meas ac zero_frequency when phase=10 rise=1\\n  \\n  * Measure pole frequency (approximate by phase returning to 10 degrees)\\n  meas ac pole_frequency when phase=10 fall=1\\n\\n  * Transient Analysis\\n  * Step Vs from 0 to 1.8V to observe feedforward effect\\n  alter V_Vs = pulse(0 1.8 1n 1n 1n 10u 20u)\\n  tran 1n 5u\\n  meas tran vx_max max v(Vx)\\n  meas tran vx_final find v(Vx) at=4u\\n  let overshoot_pct = (vx_max - vx_final)/vx_final * 100\\n  print overshoot_pct\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1233757",
+  "_case": "1233757_image_5"
+}

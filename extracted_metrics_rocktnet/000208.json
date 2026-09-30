@@ -1,0 +1,171 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Variable Gain Amplifier (VGA) / Active Feedback Amplifier",
+    "description": "A wideband amplifier stage utilizing an active feedback loop to cancel low-frequency variations and stabilize the operating point. The forward path consists of cascaded amplifier stages with current mirror biasing, originally designed with BJTs for linear-in-dB gain control.",
+    "node_mapping": {
+      "input": [
+        "Vg"
+      ],
+      "output": [
+        "A",
+        "N6"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "Vr"
+      ],
+      "ground": [
+        "GND",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Variable Gain Amplifier With 50-dB Control Range for 900-MHz Applications",
+      "figure": "Fig. 1",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "max_gain": {
+      "description": "Maximum AC voltage gain of the amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "28 dB",
+        "technology": "24-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is determined by the transconductance of the forward path and the active feedback factor. With NMOS gm ~ 10mS at 1mA bias, closed-loop gain is lower than the BJT equivalent.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "MOSFETs have lower intrinsic gm/Id compared to BJTs, leading to a reduced maximum open-loop and closed-loop gain under similar bias currents."
+      },
+      "importance": "essential"
+    },
+    "gain_900MHz": {
+      "description": "Voltage gain at the target operating frequency of 900 MHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "28 dB (at 900 MHz)",
+        "technology": "24-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Evaluated at 900 MHz. Since SKY130 fT is ~30 GHz, the gain at 900 MHz should be very close to the maximum low-frequency gain.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "900 MHz is well within the bandwidth of the SKY130 130nm process."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3dB": {
+      "description": "Upper 3-dB cutoff frequency of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "> 900 MHz",
+        "technology": "24-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the dominant pole at node A or N4. Cgs of SKY130 NMOS is small enough to push the pole beyond 1 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 2000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The active feedback and low node impedances (due to diode-connected M15 and source followers) inherently broadband the circuit."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "84 mW (30 mA from 2.8 V)",
+        "technology": "24-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With VDD=1.8V and estimated total bias current of 5-8 mA across the branches.",
+        "range": {
+          "min": 0.009,
+          "typical": 0.012,
+          "max": 0.018,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for 1.8V supply and typical CMOS bias currents used in the testbench."
+      },
+      "importance": "essential"
+    },
+    "output_swing_pp": {
+      "description": "Peak-to-peak transient output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported (P1dB is 8.7 dBm)",
+        "technology": "24-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by VDD (1.8V) and the Vdsat of the cascaded transistors.",
+        "range": {
+          "min": 0.2,
+          "typical": 0.5,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "The stacked configuration (e.g., M13, M15) restricts the maximum linear voltage swing before transistors enter the triode region."
+      },
+      "importance": "recommended"
+    },
+    "OIP3": {
+      "description": "Third-order output intercept point",
+      "unit": "dBm",
+      "analysis_type": "AC/Tran (Two-tone)",
+      "paper_reported": {
+        "value": "13.7 dBm",
+        "technology": "24-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Typically 10-15 dB higher than P1dB. With lower VDD, linearity degrades.",
+        "range": {
+          "min": 0,
+          "typical": 5,
+          "max": 10,
+          "unit": "dBm"
+        },
+        "reasoning": "Lower supply voltage (1.8V vs 2.8V) and CMOS non-linearities reduce the absolute OIP3 compared to the BiCMOS original."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, bandwidth, and transient output swing of the VGA core. Original NPN BJTs are mapped to SKY130 NMOS transistors to evaluate the topology in a modern CMOS process.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "max_gain",
+      "gain_900MHz",
+      "bandwidth_3dB",
+      "output_swing_pp"
+    ],
+    "spice": "* VGA Active Feedback Amplifier Testbench\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n* Parameterized dimensions for the mapped MOSFETs\n.param W_bias=10u L_bias=0.15u\n.param W_amp=20u L_amp=0.15u\n\n* Supply and Bias Sources\nVVDD VDD 0 1.8\nVVR Vr 0 1.2\n* Input signal at Vg (DC bias + AC + Transient sine wave at 900MHz)\nVVG Vg 0 dc 1.2 ac 1 sin(1.2 0.01 900Meg)\n\n* Current sources from original netlist\nI15 VDD A 2m\nI12 N3 0 1m\n\n* Passive components\nR4 Vr N1 1k\nR5 Vg N3 50\nR6 N5 0 1k\n\n* DUT: Original NPNs mapped to SKY130 NMOS (D G S B)\nXM18 N1 N1 0 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\nXM19 N2 N1 0 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\nXM11 VDD N3 N2 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\nXM16 N4 N2 0 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\nXM15 A A N4 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\nXM13 A N4 N5 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\nXM20 N5 N1 0 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\nXM14 N6 N5 0 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\nXM17 VDD A N6 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\nXM12 VDD A N3 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power_consumption = -i(VVDD) * 1.8\n  print power_consumption\n\n  * 2. AC Analysis for Gain and Bandwidth\n  ac dec 50 1Meg 10Gig\n  let gain_db = vdb(N6)\n  \n  meas ac max_gain max gain_db\n  meas ac gain_900MHz find gain_db at=900Meg\n  \n  let gain_3db = max_gain - 3\n  meas ac bandwidth_3db when gain_db=gain_3db fall=1\n\n  * 3. Transient Analysis for Output Swing\n  tran 10p 5n\n  meas tran vout_max max v(N6)\n  meas tran vout_min min v(N6)\n  meas tran output_swing_pp pp v(N6)\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Variable Gain Amplifier (VGA) / Active Feedback Amplifier\",\n    \"description\": \"A wideband amplifier stage utilizing an active feedback loop to cancel low-frequency variations and stabilize the operating point. The forward path consists of cascaded amplifier stages with current mirror biasing, originally designed with BJTs for linear-in-dB gain control.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vg\"\n      ],\n      \"output\": [\n        \"A\",\n        \"N6\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"Vr\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Variable Gain Amplifier With 50-dB Control Range for 900-MHz Applications\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"max_gain\": {\n      \"description\": \"Maximum AC voltage gain of the amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"28 dB\",\n        \"technology\": \"24-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is determined by the transconductance of the forward path and the active feedback factor. With NMOS gm ~ 10mS at 1mA bias, closed-loop gain is lower than the BJT equivalent.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"MOSFETs have lower intrinsic gm/Id compared to BJTs, leading to a reduced maximum open-loop and closed-loop gain under similar bias currents.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_900MHz\": {\n      \"description\": \"Voltage gain at the target operating frequency of 900 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"28 dB (at 900 MHz)\",\n        \"technology\": \"24-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Evaluated at 900 MHz. Since SKY130 fT is ~30 GHz, the gain at 900 MHz should be very close to the maximum low-frequency gain.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"900 MHz is well within the bandwidth of the SKY130 130nm process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3dB\": {\n      \"description\": \"Upper 3-dB cutoff frequency of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"> 900 MHz\",\n        \"technology\": \"24-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the dominant pole at node A or N4. Cgs of SKY130 NMOS is small enough to push the pole beyond 1 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 2e9,\n          \"max\": 5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The active feedback and low node impedances (due to diode-connected M15 and source followers) inherently broadband the circuit.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"84 mW (30 mA from 2.8 V)\",\n        \"technology\": \"24-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With VDD=1.8V and estimated total bias current of 5-8 mA across the branches.\",\n        \"range\": {\n          \"min\": 0.009,\n          \"typical\": 0.012,\n          \"max\": 0.018,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down for 1.8V supply and typical CMOS bias currents used in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing_pp\": {\n      \"description\": \"Peak-to-peak transient output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported (P1dB is 8.7 dBm)\",\n        \"technology\": \"24-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by VDD (1.8V) and the Vdsat of the cascaded transistors.\",\n        \"range\": {\n          \"min\": 0.2,\n          \"typical\": 0.5,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The stacked configuration (e.g., M13, M15) restricts the maximum linear voltage swing before transistors enter the triode region.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"OIP3\": {\n      \"description\": \"Third-order output intercept point\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"AC/Tran (Two-tone)\",\n      \"paper_reported\": {\n        \"value\": \"13.7 dBm\",\n        \"technology\": \"24-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Typically 10-15 dB higher than P1dB. With lower VDD, linearity degrades.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 5,\n          \"max\": 10,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Lower supply voltage (1.8V vs 2.8V) and CMOS non-linearities reduce the absolute OIP3 compared to the BiCMOS original.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, bandwidth, and transient output swing of the VGA core. Original NPN BJTs are mapped to SKY130 NMOS transistors to evaluate the topology in a modern CMOS process.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"max_gain\",\n      \"gain_900MHz\",\n      \"bandwidth_3dB\",\n      \"output_swing_pp\"\n    ],\n    \"spice\": \"* VGA Active Feedback Amplifier Testbench\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n* Parameterized dimensions for the mapped MOSFETs\\n.param W_bias=10u L_bias=0.15u\\n.param W_amp=20u L_amp=0.15u\\n\\n* Supply and Bias Sources\\nVVDD VDD 0 1.8\\nVVR Vr 0 1.2\\n* Input signal at Vg (DC bias + AC + Transient sine wave at 900MHz)\\nVVG Vg 0 dc 1.2 ac 1 sin(1.2 0.01 900Meg)\\n\\n* Current sources from original netlist\\nI15 VDD A 2m\\nI12 N3 0 1m\\n\\n* Passive components\\nR4 Vr N1 1k\\nR5 Vg N3 50\\nR6 N5 0 1k\\n\\n* DUT: Original NPNs mapped to SKY130 NMOS (D G S B)\\nXM18 N1 N1 0 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\\nXM19 N2 N1 0 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\\nXM11 VDD N3 N2 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\\nXM16 N4 N2 0 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\\nXM15 A A N4 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\\nXM13 A N4 N5 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\\nXM20 N5 N1 0 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\\nXM14 N6 N5 0 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\\nXM17 VDD A N6 0 sky130_fd_pr__nfet_01v8 W=W_amp L=L_amp\\nXM12 VDD A N3 0 sky130_fd_pr__nfet_01v8 W=W_bias L=L_bias\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power_consumption = -i(VVDD) * 1.8\\n  print power_consumption\\n\\n  * 2. AC Analysis for Gain and Bandwidth\\n  ac dec 50 1Meg 10Gig\\n  let gain_db = vdb(N6)\\n  \\n  meas ac max_gain max gain_db\\n  meas ac gain_900MHz find gain_db at=900Meg\\n  \\n  let gain_3db = max_gain - 3\\n  meas ac bandwidth_3db when gain_db=gain_3db fall=1\\n\\n  * 3. Transient Analysis for Output Swing\\n  tran 10p 5n\\n  meas tran vout_max max v(N6)\\n  meas tran vout_min min v(N6)\\n  meas tran output_swing_pp pp v(N6)\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1028096",
+  "_case": "1028096_image_5"
+}

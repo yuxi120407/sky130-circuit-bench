@@ -1,0 +1,159 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Transimpedance-Limiting Amplifier (TIALA)",
+    "description": "A high-speed optical receiver front-end consisting of a transimpedance amplifier (TIA) stage with RC feedback and a limiting amplifier (LA) stage. It converts a small differential input current from a photodiode into a limited differential output voltage.",
+    "node_mapping": {
+      "input": [
+        "N2",
+        "N3",
+        "DINP",
+        "DINN"
+      ],
+      "output": [
+        "N9",
+        "N13",
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "N8",
+        "N5",
+        "N7",
+        "N6",
+        "N12"
+      ],
+      "bias": [
+        "IFDB",
+        "N10"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "6-k 43-Gb/s Differential Transimpedance-Limiting Amplifier With Auto-Zero Feedback and High Dynamic Range",
+      "figure": "Schematic",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipation from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "450 mW",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 1.8V supply and ~2mA total bias current for the two differential stages.",
+        "range": {
+          "min": "2m",
+          "typical": "5m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "CMOS implementations at 1.8V consume significantly less power than 43Gb/s InP HBT circuits operating at 3.3V."
+      },
+      "importance": "essential"
+    },
+    "transimpedance_gain": {
+      "description": "Differential transimpedance gain of the TIA stage.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "76 dB",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(R_feedback_diff). With 3k single-ended feedback resistors, Zt_diff = 6k Ohm = 75.5 dB.",
+        "range": {
+          "min": "70",
+          "typical": "75",
+          "max": "80",
+          "unit": "dB"
+        },
+        "reasoning": "Determined primarily by the feedback resistor values, which are chosen to match the paper's 6-kOhm specification."
+      },
+      "importance": "essential"
+    },
+    "tia_bandwidth": {
+      "description": "-3dB bandwidth of the TIA stage.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "35 GHz",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by the RC time constant of the feedback network and transistor parasitic capacitances in 130nm CMOS.",
+        "range": {
+          "min": "500M",
+          "typical": "2G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 (130nm CMOS) is much slower than InP HBT, so the bandwidth will be an order of magnitude lower."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Differential voltage gain of the Limiting Amplifier stage.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 dB",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rload. For gm=10mS and Rload=500, Gain = 5 V/V = 14 dB.",
+        "range": {
+          "min": "10",
+          "typical": "15",
+          "max": "25",
+          "unit": "dB"
+        },
+        "reasoning": "A single differential pair in CMOS with 500-ohm loads will yield moderate gain. The paper's 40dB likely comes from multiple cascaded stages not fully captured in this single-stage netlist."
+      },
+      "importance": "essential"
+    },
+    "sensitivity": {
+      "description": "Minimum input voltage swing required to achieve a specified output swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "8 mVpp",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on noise figure and gain. With lower gain in CMOS, sensitivity will be worse.",
+        "range": {
+          "min": "10m",
+          "typical": "20m",
+          "max": "50m",
+          "unit": "V"
+        },
+        "reasoning": "CMOS has higher noise and lower gain-bandwidth product than InP HBT, degrading sensitivity."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power consumption, TIA transimpedance gain and bandwidth, and LA voltage gain and bandwidth. The original netlist was modified to use NMOS transistors and missing resistor values were populated to allow simulation.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "transimpedance_gain",
+      "tia_bandwidth",
+      "voltage_gain",
+      "la_bandwidth"
+    ],
+    "spice": "* TIALA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_nmos=10u L_nmos=0.15u\n\n* Modified DUT: Changed Q to M (NMOS), added missing resistor values\nM1 N0 DINP N4 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\nC1 N2 N3 1.1p\nR1 N11 GND 1k\nM2 N9 N3 N14 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\nM3 N13 N2 N14 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\nR2 N5 N13 500\nM4 N1 DINN N4 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\nR3 N5 N9 500\nM5 N14 N10 N18 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\nR4 N7 N12 500\nR5 N5 N8 10\nR6 N18 GND 100\nR8 N15 GND 100\nR7 N7 N8 10\nC2 N13 N16 1.1p\nR9 N6 N7 10\nR10 N1 N12 500\nC3 N9 N19 1.1p\nM6 N10 IFDB N11 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\nR11 N1 N0 10k\nR12 N3 N2 10k\nR15 N2 N3 10k\nR14 N0 N6 500\nR13 N2 N16 3k\nM7 N4 N10 N15 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\nR16 N0 N1 10k\nR17 N3 N19 3k\n\n* Power Supply\nVvdd N8 0 1.8\n\n* Bias\nVifdb IFDB 0 0.9\n\n* TIA Inputs (AC Current for Transimpedance)\nIin_p 0 N3 AC 0.5 DC 0\nIin_n 0 N2 AC -0.5 DC 0\n* DC bias for TIA inputs (floating in netlist)\nVbias_tia bias_tia 0 0.9\nRbias_tia_p bias_tia N3 100k\nRbias_tia_n bias_tia N2 100k\n\n* LA Inputs (AC Voltage for Voltage Gain)\nVbias_la bias_la 0 0.9\nVla_p DINP bias_la AC 0.5\nVla_n DINN bias_la AC -0.5\n\n.control\n* DC Operating Point\nop\nlet power = -i(Vvdd) * 1.8\nprint power\n\n* AC Analysis\nac dec 100 1M 100G\n\n* TIA Metrics\nlet vout_tia = v(N9) - v(N13)\nlet zt_db = 20 * log10(mag(vout_tia))\nmeas ac zt_max max zt_db\nmeas ac tia_bw when zt_db='zt_max-3' fall=1\n\n* LA Metrics\nlet vout_la = v(N0) - v(N1)\nlet gain_la_db = 20 * log10(mag(vout_la))\nmeas ac gain_la_max max gain_la_db\nmeas ac la_bw when gain_la_db='gain_la_max-3' fall=1\n\nprint zt_max tia_bw gain_la_max la_bw\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Transimpedance-Limiting Amplifier (TIALA)\",\n    \"description\": \"A high-speed optical receiver front-end consisting of a transimpedance amplifier (TIA) stage with RC feedback and a limiting amplifier (LA) stage. It converts a small differential input current from a photodiode into a limited differential output voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\",\n        \"N3\",\n        \"DINP\",\n        \"DINN\"\n      ],\n      \"output\": [\n        \"N9\",\n        \"N13\",\n        \"N0\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"N8\",\n        \"N5\",\n        \"N7\",\n        \"N6\",\n        \"N12\"\n      ],\n      \"bias\": [\n        \"IFDB\",\n        \"N10\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"6-k 43-Gb/s Differential Transimpedance-Limiting Amplifier With Auto-Zero Feedback and High Dynamic Range\",\n      \"figure\": \"Schematic\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"450 mW\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 1.8V supply and ~2mA total bias current for the two differential stages.\",\n        \"range\": {\n          \"min\": \"2m\",\n          \"typical\": \"5m\",\n          \"max\": \"10m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"CMOS implementations at 1.8V consume significantly less power than 43Gb/s InP HBT circuits operating at 3.3V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transimpedance_gain\": {\n      \"description\": \"Differential transimpedance gain of the TIA stage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"76 dB\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(R_feedback_diff). With 3k single-ended feedback resistors, Zt_diff = 6k Ohm = 75.5 dB.\",\n        \"range\": {\n          \"min\": \"70\",\n          \"typical\": \"75\",\n          \"max\": \"80\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined primarily by the feedback resistor values, which are chosen to match the paper's 6-kOhm specification.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tia_bandwidth\": {\n      \"description\": \"-3dB bandwidth of the TIA stage.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"35 GHz\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by the RC time constant of the feedback network and transistor parasitic capacitances in 130nm CMOS.\",\n        \"range\": {\n          \"min\": \"500M\",\n          \"typical\": \"2G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 (130nm CMOS) is much slower than InP HBT, so the bandwidth will be an order of magnitude lower.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Differential voltage gain of the Limiting Amplifier stage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 dB\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rload. For gm=10mS and Rload=500, Gain = 5 V/V = 14 dB.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"15\",\n          \"max\": \"25\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A single differential pair in CMOS with 500-ohm loads will yield moderate gain. The paper's 40dB likely comes from multiple cascaded stages not fully captured in this single-stage netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"sensitivity\": {\n      \"description\": \"Minimum input voltage swing required to achieve a specified output swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"8 mVpp\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on noise figure and gain. With lower gain in CMOS, sensitivity will be worse.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"20m\",\n          \"max\": \"50m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CMOS has higher noise and lower gain-bandwidth product than InP HBT, degrading sensitivity.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power consumption, TIA transimpedance gain and bandwidth, and LA voltage gain and bandwidth. The original netlist was modified to use NMOS transistors and missing resistor values were populated to allow simulation.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"transimpedance_gain\",\n      \"tia_bandwidth\",\n      \"voltage_gain\",\n      \"la_bandwidth\"\n    ],\n    \"spice\": \"* TIALA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_nmos=10u L_nmos=0.15u\\n\\n* Modified DUT: Changed Q to M (NMOS), added missing resistor values\\nM1 N0 DINP N4 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\\nC1 N2 N3 1.1p\\nR1 N11 GND 1k\\nM2 N9 N3 N14 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\\nM3 N13 N2 N14 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\\nR2 N5 N13 500\\nM4 N1 DINN N4 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\\nR3 N5 N9 500\\nM5 N14 N10 N18 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\\nR4 N7 N12 500\\nR5 N5 N8 10\\nR6 N18 GND 100\\nR8 N15 GND 100\\nR7 N7 N8 10\\nC2 N13 N16 1.1p\\nR9 N6 N7 10\\nR10 N1 N12 500\\nC3 N9 N19 1.1p\\nM6 N10 IFDB N11 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\\nR11 N1 N0 10k\\nR12 N3 N2 10k\\nR15 N2 N3 10k\\nR14 N0 N6 500\\nR13 N2 N16 3k\\nM7 N4 N10 N15 GND sky130_fd_pr__nfet_01v8 W={W_nmos} L={L_nmos}\\nR16 N0 N1 10k\\nR17 N3 N19 3k\\n\\n* Power Supply\\nVvdd N8 0 1.8\\n\\n* Bias\\nVifdb IFDB 0 0.9\\n\\n* TIA Inputs (AC Current for Transimpedance)\\nIin_p 0 N3 AC 0.5 DC 0\\nIin_n 0 N2 AC -0.5 DC 0\\n* DC bias for TIA inputs (floating in netlist)\\nVbias_tia bias_tia 0 0.9\\nRbias_tia_p bias_tia N3 100k\\nRbias_tia_n bias_tia N2 100k\\n\\n* LA Inputs (AC Voltage for Voltage Gain)\\nVbias_la bias_la 0 0.9\\nVla_p DINP bias_la AC 0.5\\nVla_n DINN bias_la AC -0.5\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(Vvdd) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1M 100G\\n\\n* TIA Metrics\\nlet vout_tia = v(N9) - v(N13)\\nlet zt_db = 20 * log10(mag(vout_tia))\\nmeas ac zt_max max zt_db\\nmeas ac tia_bw when zt_db='zt_max-3' fall=1\\n\\n* LA Metrics\\nlet vout_la = v(N0) - v(N1)\\nlet gain_la_db = 20 * log10(mag(vout_la))\\nmeas ac gain_la_max max gain_la_db\\nmeas ac la_bw when gain_la_db='gain_la_max-3' fall=1\\n\\nprint zt_max tia_bw gain_la_max la_bw\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1336996",
+  "_case": "1336996_image_9"
+}

@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Continuous-Time Common-Mode Feedback (CMFB) Amplifier",
+    "description": "A continuous-time common-mode feedback circuit that detects the common-mode voltage of a fully differential amplifier and generates a control voltage to regulate it. It uses parallel differential pairs or triode-operated tail currents to achieve common-mode detection while inherently rejecting differential signals.",
+    "node_mapping": {
+      "input": [
+        "VOUT_PLUS",
+        "VOUT_MINUS"
+      ],
+      "output": [
+        "TO_CMFB_PLUS",
+        "TO_CMFB_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBP1",
+        "VBN2"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "Continuous-Time Common-Mode Feedback for High-Speed Switched-Capacitor Networks",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "cm_gain": {
+      "description": "Common-mode voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "22 dB",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is determined by the transconductance of the input/tail network and the output resistance of the PMOS loads. Assuming gm ~ 100uS and Rout ~ 100kOhm, Gain = gm * Rout = 10 V/V = 20 dB.",
+        "range": {
+          "min": 10,
+          "typical": 22,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Matches the lower gain value reported in the paper, typical for a single-stage CMFB error amplifier."
+      },
+      "importance": "essential"
+    },
+    "dm_gain": {
+      "description": "Differential-mode voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Due to the symmetric cross-connection of the input pairs (XM7A-D), differential signals cancel out at the output nodes.",
+        "range": {
+          "min": -120,
+          "typical": -80,
+          "max": -40,
+          "unit": "dB"
+        },
+        "reasoning": "Ideally zero (-infinity dB), but limited by numerical precision and any slight asymmetries in simulation."
+      },
+      "importance": "essential"
+    },
+    "cm_bw": {
+      "description": "Common-mode bandwidth (-3dB)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "72 MHz / 100 MHz",
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rout * Cload). With Rout ~ 100kOhm and Cload = 150fF, BW ~ 10.6 MHz. Without explicit load, parasitic capacitance dominates, pushing BW higher.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 70000000.0,
+          "max": 200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The paper targets high-speed operation, reporting frequencies around 72-100 MHz."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Two PMOS loads biased at VBP1=0.99V. |Vov| = 1.8 - 0.99 - 0.42 = 0.39V. Id ~ 37.5uA each. Total current ~ 75uA. Power = 1.8V * 75uA = 135uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.000135,
+          "max": 0.0003,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the provided bias voltages and SKY130 typical parameters."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure common-mode gain, differential-mode rejection, bandwidth, and power consumption of the CMFB circuit.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "cm_gain",
+      "dm_gain",
+      "cm_bw",
+      "power",
+      "v_out_max",
+      "v_out_min"
+    ],
+    "spice": "* Continuous-Time CMFB Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm7a=5u L_xm7a=0.5u\n.param W_xm7b=5u L_xm7b=0.5u\n.param W_xm7c=5u L_xm7c=0.5u\n.param W_xm7d=5u L_xm7d=0.5u\n.param W_xm8_l=5u L_xm8_l=0.5u\n.param W_xm8_r=5u L_xm8_r=0.5u\n.param W_xm9_l=5u L_xm9_l=0.5u\n.param W_xm9_r=5u L_xm9_r=0.5u\n\n* DUT\nXM7A TO_CMFB_MINUS VOUT_MINUS N3 VSS sky130_fd_pr__nfet_01v8 l={L_xm7a} w={W_xm7a}\nXM7B TO_CMFB_PLUS VOUT_MINUS N3 VSS sky130_fd_pr__nfet_01v8 l={L_xm7b} w={W_xm7b}\nXM7C TO_CMFB_MINUS VOUT_PLUS N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm7c} w={W_xm7c}\nXM7D TO_CMFB_PLUS VOUT_PLUS N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm7d} w={W_xm7d}\nXM8_L TO_CMFB_MINUS VBP1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8_l} w={W_xm8_l}\nXM8_R TO_CMFB_PLUS VBP1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8_r} w={W_xm8_r}\nXM9_L N3 VBN2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm9_l} w={W_xm9_l}\nXM9_R N1 VBN2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm9_r} w={W_xm9_r}\n\n* DC Sources\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVBP1 VBP1 0 0.99\nVVBN2 VBN2 0 0.54\n\n* Input Signals (Common-Mode and Differential-Mode)\nVCM_ac VCM_node 0 dc 0.9 ac 1 pulse(0.9 1.0 1n 1n 1n 50n 100n)\nVDM_ac VDM_node 0 dc 0 ac 0\n\n* Voltage-controlled voltage sources to generate VOUT_PLUS and VOUT_MINUS\nE1 VOUT_PLUS 0 vol='v(VCM_node) + 0.5*v(VDM_node)'\nE2 VOUT_MINUS 0 vol='v(VCM_node) - 0.5*v(VDM_node)'\n\n* Load Capacitance (simulating the main amplifier's bias node)\nCload1 TO_CMFB_PLUS 0 150f\nCload2 TO_CMFB_MINUS 0 150f\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  print v(TO_CMFB_PLUS) v(TO_CMFB_MINUS)\n\n  * Common-Mode AC Analysis\n  ac dec 20 1 1G\n  let cm_gain = vdb(TO_CMFB_PLUS)\n  meas ac cm_gain_1k find cm_gain at=1k\n  let cm_gain_3db = cm_gain_1k - 3\n  meas ac cm_bw when cm_gain=cm_gain_3db fall=1\n\n  * Differential-Mode AC Analysis\n  alter VCM_ac ac=0\n  alter VDM_ac ac=1\n  ac dec 20 1 1G\n  let dm_gain = vdb(TO_CMFB_PLUS)\n  meas ac dm_gain_1k find dm_gain at=1k\n\n  * Transient Analysis (Common-Mode Step Response)\n  tran 0.1n 100n\n  meas tran v_out_max max v(TO_CMFB_PLUS)\n  meas tran v_out_min min v(TO_CMFB_PLUS)\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Continuous-Time Common-Mode Feedback (CMFB) Amplifier\",\n    \"description\": \"A continuous-time common-mode feedback circuit that detects the common-mode voltage of a fully differential amplifier and generates a control voltage to regulate it. It uses parallel differential pairs or triode-operated tail currents to achieve common-mode detection while inherently rejecting differential signals.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VOUT_PLUS\",\n        \"VOUT_MINUS\"\n      ],\n      \"output\": [\n        \"TO_CMFB_PLUS\",\n        \"TO_CMFB_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBP1\",\n        \"VBN2\"\n      ],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Continuous-Time Common-Mode Feedback for High-Speed Switched-Capacitor Networks\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"cm_gain\": {\n      \"description\": \"Common-mode voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"22 dB\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is determined by the transconductance of the input/tail network and the output resistance of the PMOS loads. Assuming gm ~ 100uS and Rout ~ 100kOhm, Gain = gm * Rout = 10 V/V = 20 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 22,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Matches the lower gain value reported in the paper, typical for a single-stage CMFB error amplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dm_gain\": {\n      \"description\": \"Differential-mode voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Due to the symmetric cross-connection of the input pairs (XM7A-D), differential signals cancel out at the output nodes.\",\n        \"range\": {\n          \"min\": -120,\n          \"typical\": -80,\n          \"max\": -40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Ideally zero (-infinity dB), but limited by numerical precision and any slight asymmetries in simulation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cm_bw\": {\n      \"description\": \"Common-mode bandwidth (-3dB)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"72 MHz / 100 MHz\",\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rout * Cload). With Rout ~ 100kOhm and Cload = 150fF, BW ~ 10.6 MHz. Without explicit load, parasitic capacitance dominates, pushing BW higher.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 70e6,\n          \"max\": 200e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The paper targets high-speed operation, reporting frequencies around 72-100 MHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Two PMOS loads biased at VBP1=0.99V. |Vov| = 1.8 - 0.99 - 0.42 = 0.39V. Id ~ 37.5uA each. Total current ~ 75uA. Power = 1.8V * 75uA = 135uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 135e-6,\n          \"max\": 300e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the provided bias voltages and SKY130 typical parameters.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure common-mode gain, differential-mode rejection, bandwidth, and power consumption of the CMFB circuit.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"cm_gain\",\n      \"dm_gain\",\n      \"cm_bw\",\n      \"power\",\n      \"v_out_max\",\n      \"v_out_min\"\n    ],\n    \"spice\": \"* Continuous-Time CMFB Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm7a=5u L_xm7a=0.5u\\n.param W_xm7b=5u L_xm7b=0.5u\\n.param W_xm7c=5u L_xm7c=0.5u\\n.param W_xm7d=5u L_xm7d=0.5u\\n.param W_xm8_l=5u L_xm8_l=0.5u\\n.param W_xm8_r=5u L_xm8_r=0.5u\\n.param W_xm9_l=5u L_xm9_l=0.5u\\n.param W_xm9_r=5u L_xm9_r=0.5u\\n\\n* DUT\\nXM7A TO_CMFB_MINUS VOUT_MINUS N3 VSS sky130_fd_pr__nfet_01v8 l={L_xm7a} w={W_xm7a}\\nXM7B TO_CMFB_PLUS VOUT_MINUS N3 VSS sky130_fd_pr__nfet_01v8 l={L_xm7b} w={W_xm7b}\\nXM7C TO_CMFB_MINUS VOUT_PLUS N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm7c} w={W_xm7c}\\nXM7D TO_CMFB_PLUS VOUT_PLUS N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm7d} w={W_xm7d}\\nXM8_L TO_CMFB_MINUS VBP1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8_l} w={W_xm8_l}\\nXM8_R TO_CMFB_PLUS VBP1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8_r} w={W_xm8_r}\\nXM9_L N3 VBN2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm9_l} w={W_xm9_l}\\nXM9_R N1 VBN2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm9_r} w={W_xm9_r}\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVBP1 VBP1 0 0.99\\nVVBN2 VBN2 0 0.54\\n\\n* Input Signals (Common-Mode and Differential-Mode)\\nVCM_ac VCM_node 0 dc 0.9 ac 1 pulse(0.9 1.0 1n 1n 1n 50n 100n)\\nVDM_ac VDM_node 0 dc 0 ac 0\\n\\n* Voltage-controlled voltage sources to generate VOUT_PLUS and VOUT_MINUS\\nE1 VOUT_PLUS 0 vol='v(VCM_node) + 0.5*v(VDM_node)'\\nE2 VOUT_MINUS 0 vol='v(VCM_node) - 0.5*v(VDM_node)'\\n\\n* Load Capacitance (simulating the main amplifier's bias node)\\nCload1 TO_CMFB_PLUS 0 150f\\nCload2 TO_CMFB_MINUS 0 150f\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  print v(TO_CMFB_PLUS) v(TO_CMFB_MINUS)\\n\\n  * Common-Mode AC Analysis\\n  ac dec 20 1 1G\\n  let cm_gain = vdb(TO_CMFB_PLUS)\\n  meas ac cm_gain_1k find cm_gain at=1k\\n  let cm_gain_3db = cm_gain_1k - 3\\n  meas ac cm_bw when cm_gain=cm_gain_3db fall=1\\n\\n  * Differential-Mode AC Analysis\\n  alter VCM_ac ac=0\\n  alter VDM_ac ac=1\\n  ac dec 20 1 1G\\n  let dm_gain = vdb(TO_CMFB_PLUS)\\n  meas ac dm_gain_1k find dm_gain at=1k\\n\\n  * Transient Analysis (Common-Mode Step Response)\\n  tran 0.1n 100n\\n  meas tran v_out_max max v(TO_CMFB_PLUS)\\n  meas tran v_out_min min v(TO_CMFB_PLUS)\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1487604",
+  "_case": "1487604_image_2_b"
+}

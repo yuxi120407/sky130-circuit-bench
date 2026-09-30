@@ -1,0 +1,148 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current Mirror (Sub-block of Sense Amplifier)",
+    "description": "A basic NMOS current mirror extracted from a sense amplifier circuit. It mirrors the input current at the bitline (BL) to the output node (OUT1).",
+    "node_mapping": {
+      "input": [
+        "BL"
+      ],
+      "output": [
+        "OUT1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A High-Performance Very Low-Voltage Current Sense Amplifier for Nonvolatile Memories",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "current_mirror_ratio": {
+      "description": "Ratio of output current to input current",
+      "unit": "A/A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "W1=W2 and L1=L2, so ratio is ideally 1.",
+        "range": {
+          "min": 0.95,
+          "typical": 1.0,
+          "max": 1.05,
+          "unit": "A/A"
+        },
+        "reasoning": "Matched transistors yield a 1:1 current ratio, with slight deviations due to channel length modulation if Vds1 != Vds2."
+      },
+      "importance": "essential"
+    },
+    "output_resistance": {
+      "description": "Small-signal output resistance (Rout)",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Rout = 1 / (lambda * Iout) = 1 / (0.1 * 10uA) = 1 MOhm",
+        "range": {
+          "min": 500000,
+          "typical": 1000000,
+          "max": 2000000,
+          "unit": "ohm"
+        },
+        "reasoning": "Depends on the channel length modulation parameter (lambda) of the SKY130 NMOS at L=0.5um."
+      },
+      "importance": "essential"
+    },
+    "minimum_output_voltage": {
+      "description": "Minimum output voltage to keep the output transistor in saturation (Vdsat)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Vdsat = sqrt(2 * Iout / (un*Cox * W/L)) = sqrt(2 * 10uA / (270uA/V^2 * 10)) = 86 mV",
+        "range": {
+          "min": 0.05,
+          "typical": 0.09,
+          "max": 0.15,
+          "unit": "V"
+        },
+        "reasoning": "Calculated using square-law model for SKY130 NMOS parameters."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the current transfer function",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*I/Vdsat = 232uS. Cgs ~ 8fF. fT = gm / (2*pi*Cgs) ~ 4.6 GHz",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 4000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is determined by the pole at the diode-connected node, which depends on gm and parasitic capacitances."
+      },
+      "importance": "recommended"
+    },
+    "delay": {
+      "description": "Transient delay from input current step to output current step",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "30 ns",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Delay ~ 1 / (2*pi*fT) ~ 30 ps for the mirror alone.",
+        "range": {
+          "min": 1e-11,
+          "typical": 5e-11,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "The paper reports 30ns for the entire sense amplifier. The isolated current mirror is much faster."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure current mirror ratio, output resistance, minimum output voltage, bandwidth, and delay.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "current_mirror_ratio",
+      "output_resistance",
+      "minimum_output_voltage",
+      "bandwidth",
+      "delay"
+    ],
+    "spice": "* Current Mirror Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n\nXM2 OUT1 BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 BL BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* Power supply (used as reference)\nVVDD VDD 0 1.8\n\n* Output voltage source (holds OUT1 at 0.9V for nominal operation)\nVout OUT1 0 0.9\n\n* Input current source (DC 10uA, AC 1A, Pulse 0 to 10uA)\nIin VDD BL_in DC 10u AC 1 PULSE(0 10u 1n 0.1n 0.1n 10n 20n)\nVmeas_in BL_in BL 0\n\n* CCVS to convert currents to voltages for AC measurement\nH1 out_meas 0 Vout -1\nH2 in_meas 0 Vmeas_in 1\n\n.control\n* 1. DC Sweep for Output Resistance and Vmin\ndc Vout 0 1.8 0.01\nlet i_out = -i(Vout)\nmeas dc iout_09 find i_out at=0.9\nmeas dc iout_10 find i_out at=1.0\nlet rout_approx = 0.1 / (iout_10 - iout_09)\nprint rout_approx\n\nlet iout_target = 0.9 * iout_09\nmeas dc vmin find v(OUT1) when i_out=iout_target\n\n* 2. AC Analysis for Bandwidth\nac dec 20 1k 100G\nlet gain_db = vdb(out_meas) - vdb(in_meas)\nmeas ac dc_gain_db find gain_db at=1k\nlet gain_db_3db = dc_gain_db - 3\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\n\n* 3. Transient Analysis for Delay\ntran 0.1n 20n\nlet i_out_tran = -i(Vout)\nlet i_in_tran = i(Vmeas_in)\nmeas tran t_delay trig i_in_tran val=5u rise=1 targ i_out_tran val=5u rise=1\n\n* 4. DC Operating Point for Current Ratio\nop\nlet i_out_op = -i(Vout)\nlet i_in_op = i(Vmeas_in)\nlet current_ratio = i_out_op / i_in_op\nprint current_ratio\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current Mirror (Sub-block of Sense Amplifier)\",\n    \"description\": \"A basic NMOS current mirror extracted from a sense amplifier circuit. It mirrors the input current at the bitline (BL) to the output node (OUT1).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"BL\"\n      ],\n      \"output\": [\n        \"OUT1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A High-Performance Very Low-Voltage Current Sense Amplifier for Nonvolatile Memories\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"current_mirror_ratio\": {\n      \"description\": \"Ratio of output current to input current\",\n      \"unit\": \"A/A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"W1=W2 and L1=L2, so ratio is ideally 1.\",\n        \"range\": {\n          \"min\": 0.95,\n          \"typical\": 1.0,\n          \"max\": 1.05,\n          \"unit\": \"A/A\"\n        },\n        \"reasoning\": \"Matched transistors yield a 1:1 current ratio, with slight deviations due to channel length modulation if Vds1 != Vds2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal output resistance (Rout)\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = 1 / (lambda * Iout) = 1 / (0.1 * 10uA) = 1 MOhm\",\n        \"range\": {\n          \"min\": 500000,\n          \"typical\": 1000000,\n          \"max\": 2000000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Depends on the channel length modulation parameter (lambda) of the SKY130 NMOS at L=0.5um.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"minimum_output_voltage\": {\n      \"description\": \"Minimum output voltage to keep the output transistor in saturation (Vdsat)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vdsat = sqrt(2 * Iout / (un*Cox * W/L)) = sqrt(2 * 10uA / (270uA/V^2 * 10)) = 86 mV\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.09,\n          \"max\": 0.15,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Calculated using square-law model for SKY130 NMOS parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the current transfer function\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*I/Vdsat = 232uS. Cgs ~ 8fF. fT = gm / (2*pi*Cgs) ~ 4.6 GHz\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 4e9,\n          \"max\": 10e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is determined by the pole at the diode-connected node, which depends on gm and parasitic capacitances.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"delay\": {\n      \"description\": \"Transient delay from input current step to output current step\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"30 ns\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay ~ 1 / (2*pi*fT) ~ 30 ps for the mirror alone.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 50e-12,\n          \"max\": 200e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The paper reports 30ns for the entire sense amplifier. The isolated current mirror is much faster.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure current mirror ratio, output resistance, minimum output voltage, bandwidth, and delay.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"current_mirror_ratio\",\n      \"output_resistance\",\n      \"minimum_output_voltage\",\n      \"bandwidth\",\n      \"delay\"\n    ],\n    \"spice\": \"* Current Mirror Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM2 OUT1 BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 BL BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Power supply (used as reference)\\nVVDD VDD 0 1.8\\n\\n* Output voltage source (holds OUT1 at 0.9V for nominal operation)\\nVout OUT1 0 0.9\\n\\n* Input current source (DC 10uA, AC 1A, Pulse 0 to 10uA)\\nIin VDD BL_in DC 10u AC 1 PULSE(0 10u 1n 0.1n 0.1n 10n 20n)\\nVmeas_in BL_in BL 0\\n\\n* CCVS to convert currents to voltages for AC measurement\\nH1 out_meas 0 Vout -1\\nH2 in_meas 0 Vmeas_in 1\\n\\n.control\\n* 1. DC Sweep for Output Resistance and Vmin\\ndc Vout 0 1.8 0.01\\nlet i_out = -i(Vout)\\nmeas dc iout_09 find i_out at=0.9\\nmeas dc iout_10 find i_out at=1.0\\nlet rout_approx = 0.1 / (iout_10 - iout_09)\\nprint rout_approx\\n\\nlet iout_target = 0.9 * iout_09\\nmeas dc vmin find v(OUT1) when i_out=iout_target\\n\\n* 2. AC Analysis for Bandwidth\\nac dec 20 1k 100G\\nlet gain_db = vdb(out_meas) - vdb(in_meas)\\nmeas ac dc_gain_db find gain_db at=1k\\nlet gain_db_3db = dc_gain_db - 3\\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\\n\\n* 3. Transient Analysis for Delay\\ntran 0.1n 20n\\nlet i_out_tran = -i(Vout)\\nlet i_in_tran = i(Vmeas_in)\\nmeas tran t_delay trig i_in_tran val=5u rise=1 targ i_out_tran val=5u rise=1\\n\\n* 4. DC Operating Point for Current Ratio\\nop\\nlet i_out_op = -i(Vout)\\nlet i_in_op = i(Vmeas_in)\\nlet current_ratio = i_out_op / i_in_op\\nprint current_ratio\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1388640",
+  "_case": "1388640_image_2"
+}

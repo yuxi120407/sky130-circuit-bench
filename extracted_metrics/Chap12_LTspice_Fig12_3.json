@@ -1,0 +1,99 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 12.2",
+    "page": "355",
+    "circuit_type": "3-input NAND gate",
+    "description": "A static CMOS 3-input NAND gate consisting of three PMOS transistors in parallel and three NMOS transistors in series. The netlist ties all three inputs together to a single source (Vin), effectively operating the gate as an inverter for characterization."
+  },
+  "step2_metrics": {
+    "switching_point_voltage": {
+      "description": "The input voltage (V_SP) at which the output voltage equals the input voltage (or VDD/2), representing the switching threshold of the logic gate.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "355",
+        "reference": "Eq 12.6 and Eq 12.7"
+      },
+      "equation": {
+        "formula": "V_SP = (sqrt(beta_n / (N^2 * beta_p)) * V_THN + (VDD - V_THP)) / (1 + sqrt(beta_n / (N^2 * beta_p)))",
+        "explanation": "Calculates the switching point voltage for an n-input NAND gate with all inputs tied together.",
+        "assumptions": "All inputs are tied together and switch simultaneously. Uses long-channel square-law MOSFET equations."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming equal sizing W/L=1 for all devices and N=3 inputs. beta_n = 270 uA/V^2, beta_p = 50 uA/V^2. Ratio term = sqrt(270 / (3^2 * 50)) = sqrt(270 / 450) = sqrt(0.6) = 0.7746. V_SP = (0.7746 * 0.42 + (1.8 - 0.42)) / (1 + 0.7746) = (0.3253 + 1.38) / 1.7746 = 1.7053 / 1.7746 = 0.961 V.",
+        "range": {
+          "min": 0.85,
+          "typical": 0.96,
+          "max": 1.1,
+          "unit": "V"
+        },
+        "reasoning": "With equal W/L sizes, the series NMOS stack is weaker than the parallel PMOS network, pushing the switching point slightly above the ideal VDD/2 (0.9V)."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay_lh": {
+      "description": "Low-to-high propagation delay time (t_PLH) of the gate.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "360-361",
+        "reference": "Eq 12.10, Eq 12.15, and Eq 12.16"
+      },
+      "equation": {
+        "formula": "t_PLH = 0.7 * (R_p / N) * (N * C_outp + C_outn / N + C_load) \u2248 0.7 * (R_p / N) * C_load",
+        "explanation": "Estimates the time required for the output to transition from low to high. The simplified Eq 12.16 applies when the external load capacitance dominates.",
+        "assumptions": "Inputs are tied together. External load capacitance C_load is much greater than the intrinsic parasitic capacitances of the gate."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming W/L=1 and a dominant C_load = 50 fF. Equivalent PMOS resistance R_p \u2248 1 / (beta_p * (VDD - |V_THP|)) = 1 / (50e-6 * (1.8 - 0.42)) = 14.49 kOhm. t_PLH \u2248 0.7 * (14.49k / 3) * 50e-15 = 169 ps.",
+        "range": {
+          "min": 1e-10,
+          "typical": 1.69e-10,
+          "max": 2.5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Delay is directly proportional to the load capacitance and inversely proportional to the effective width of the parallel PMOS pull-up network."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay_hl": {
+      "description": "High-to-low propagation delay time (t_PHL) of the gate.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "359-361",
+        "reference": "Eq 12.13, Eq 12.17, and Eq 12.18"
+      },
+      "equation": {
+        "formula": "t_PHL = 0.7 * N * R_n * (N * C_outp + C_outn / N + C_load) + 0.35 * R_n * C_oxn * N^2 \u2248 0.7 * N * R_n * C_load",
+        "explanation": "Estimates the time required for the output to transition from high to low through the series NMOS stack. Eq 12.18 is the simplified form for a dominant load.",
+        "assumptions": "Inputs are tied together. External load capacitance C_load is much greater than the intrinsic parasitic capacitances."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming W/L=1 and a dominant C_load = 50 fF. Equivalent NMOS resistance R_n \u2248 1 / (beta_n * (VDD - V_THN)) = 1 / (270e-6 * (1.8 - 0.42)) = 2.68 kOhm. t_PHL \u2248 0.7 * 3 * 2.68k * 50e-15 = 281 ps.",
+        "range": {
+          "min": 2e-10,
+          "typical": 2.81e-10,
+          "max": 4e-10,
+          "unit": "s"
+        },
+        "reasoning": "The series connection of N NMOS transistors multiplies the effective pull-down resistance by N, making the high-to-low transition slower than a simple inverter of the same size."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the switching point voltage (V_SP) via DC sweep and the propagation delays (t_PLH, t_PHL) via Transient analysis for a 3-input NAND gate driving a 50fF load.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "switching_point_voltage",
+      "propagation_delay_lh",
+      "propagation_delay_hl"
+    ],
+    "spice": "* 3-input NAND gate characterization testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameterized widths and lengths (assuming minimum size for baseline)\n.param W_xm1=1u L_xm1=0.15u\n.param W_xm2=1u L_xm2=0.15u\n.param W_xm3=1u L_xm3=0.15u\n.param W_xm4=1u L_xm4=0.15u\n.param W_xm5=1u L_xm5=0.15u\n.param W_xm6=1u L_xm6=0.15u\n\n* --- DUT (Device Under Test) ---\nxm2 P001 Vin P002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nVin Vin 0 0\nVDD VDD 0 1.8\nxm4 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm3 Vout Vin P001 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm1 P002 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm6 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\n\n* --- Load Capacitance ---\nCload Vout 0 50f\n\n.control\n* 1. DC Analysis for Switching Point Voltage (V_SP)\ndc Vin 0 1.8 0.01\nmeas dc vsp when v(Vout)=0.9\nprint vsp\n\n* 2. Transient Analysis for Propagation Delays (t_PLH, t_PHL)\n* Alter the Vin source to act as a pulse generator for the transient run\nalter @Vin[pulse] = [ 0 1.8 1n 0.05n 0.05n 2n 4n ]\ntran 10p 6n\n\n* Measure delays at 50% of VDD (0.9V)\nmeas tran tplh trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\nmeas tran tphl trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\nprint tplh tphl\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 12.2\",\n    \"page\": \"355\",\n    \"circuit_type\": \"3-input NAND gate\",\n    \"description\": \"A static CMOS 3-input NAND gate consisting of three PMOS transistors in parallel and three NMOS transistors in series. The netlist ties all three inputs together to a single source (Vin), effectively operating the gate as an inverter for characterization.\"\n  },\n  \"step2_metrics\": {\n    \"switching_point_voltage\": {\n      \"description\": \"The input voltage (V_SP) at which the output voltage equals the input voltage (or VDD/2), representing the switching threshold of the logic gate.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"355\",\n        \"reference\": \"Eq 12.6 and Eq 12.7\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = (sqrt(beta_n / (N^2 * beta_p)) * V_THN + (VDD - V_THP)) / (1 + sqrt(beta_n / (N^2 * beta_p)))\",\n        \"explanation\": \"Calculates the switching point voltage for an n-input NAND gate with all inputs tied together.\",\n        \"assumptions\": \"All inputs are tied together and switch simultaneously. Uses long-channel square-law MOSFET equations.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming equal sizing W/L=1 for all devices and N=3 inputs. beta_n = 270 uA/V^2, beta_p = 50 uA/V^2. Ratio term = sqrt(270 / (3^2 * 50)) = sqrt(270 / 450) = sqrt(0.6) = 0.7746. V_SP = (0.7746 * 0.42 + (1.8 - 0.42)) / (1 + 0.7746) = (0.3253 + 1.38) / 1.7746 = 1.7053 / 1.7746 = 0.961 V.\",\n        \"range\": {\n          \"min\": 0.85,\n          \"typical\": 0.96,\n          \"max\": 1.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"With equal W/L sizes, the series NMOS stack is weaker than the parallel PMOS network, pushing the switching point slightly above the ideal VDD/2 (0.9V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay_lh\": {\n      \"description\": \"Low-to-high propagation delay time (t_PLH) of the gate.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"360-361\",\n        \"reference\": \"Eq 12.10, Eq 12.15, and Eq 12.16\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PLH = 0.7 * (R_p / N) * (N * C_outp + C_outn / N + C_load) \u2248 0.7 * (R_p / N) * C_load\",\n        \"explanation\": \"Estimates the time required for the output to transition from low to high. The simplified Eq 12.16 applies when the external load capacitance dominates.\",\n        \"assumptions\": \"Inputs are tied together. External load capacitance C_load is much greater than the intrinsic parasitic capacitances of the gate.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming W/L=1 and a dominant C_load = 50 fF. Equivalent PMOS resistance R_p \u2248 1 / (beta_p * (VDD - |V_THP|)) = 1 / (50e-6 * (1.8 - 0.42)) = 14.49 kOhm. t_PLH \u2248 0.7 * (14.49k / 3) * 50e-15 = 169 ps.\",\n        \"range\": {\n          \"min\": 100e-12,\n          \"typical\": 169e-12,\n          \"max\": 250e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Delay is directly proportional to the load capacitance and inversely proportional to the effective width of the parallel PMOS pull-up network.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay_hl\": {\n      \"description\": \"High-to-low propagation delay time (t_PHL) of the gate.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"359-361\",\n        \"reference\": \"Eq 12.13, Eq 12.17, and Eq 12.18\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL = 0.7 * N * R_n * (N * C_outp + C_outn / N + C_load) + 0.35 * R_n * C_oxn * N^2 \u2248 0.7 * N * R_n * C_load\",\n        \"explanation\": \"Estimates the time required for the output to transition from high to low through the series NMOS stack. Eq 12.18 is the simplified form for a dominant load.\",\n        \"assumptions\": \"Inputs are tied together. External load capacitance C_load is much greater than the intrinsic parasitic capacitances.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming W/L=1 and a dominant C_load = 50 fF. Equivalent NMOS resistance R_n \u2248 1 / (beta_n * (VDD - V_THN)) = 1 / (270e-6 * (1.8 - 0.42)) = 2.68 kOhm. t_PHL \u2248 0.7 * 3 * 2.68k * 50e-15 = 281 ps.\",\n        \"range\": {\n          \"min\": 200e-12,\n          \"typical\": 281e-12,\n          \"max\": 400e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The series connection of N NMOS transistors multiplies the effective pull-down resistance by N, making the high-to-low transition slower than a simple inverter of the same size.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the switching point voltage (V_SP) via DC sweep and the propagation delays (t_PLH, t_PHL) via Transient analysis for a 3-input NAND gate driving a 50fF load.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"switching_point_voltage\",\n      \"propagation_delay_lh\",\n      \"propagation_delay_hl\"\n    ],\n    \"spice\": \"* 3-input NAND gate characterization testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameterized widths and lengths (assuming minimum size for baseline)\\n.param W_xm1=1u L_xm1=0.15u\\n.param W_xm2=1u L_xm2=0.15u\\n.param W_xm3=1u L_xm3=0.15u\\n.param W_xm4=1u L_xm4=0.15u\\n.param W_xm5=1u L_xm5=0.15u\\n.param W_xm6=1u L_xm6=0.15u\\n\\n* --- DUT (Device Under Test) ---\\nxm2 P001 Vin P002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nVin Vin 0 0\\nVDD VDD 0 1.8\\nxm4 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm3 Vout Vin P001 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm1 P002 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm6 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\n\\n* --- Load Capacitance ---\\nCload Vout 0 50f\\n\\n.control\\n* 1. DC Analysis for Switching Point Voltage (V_SP)\\ndc Vin 0 1.8 0.01\\nmeas dc vsp when v(Vout)=0.9\\nprint vsp\\n\\n* 2. Transient Analysis for Propagation Delays (t_PLH, t_PHL)\\n* Alter the Vin source to act as a pulse generator for the transient run\\nalter @Vin[pulse] = [ 0 1.8 1n 0.05n 0.05n 2n 4n ]\\ntran 10p 6n\\n\\n* Measure delays at 50% of VDD (0.9V)\\nmeas tran tplh trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\\nmeas tran tphl trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\\nprint tplh tphl\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

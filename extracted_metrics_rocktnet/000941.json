@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CMOS Temperature Sensor Front-End",
+    "description": "Extracts the base-emitter voltage difference (Delta VBE) from two diode-connected PNP transistors biased at different current densities, and amplifies it using a capacitive feedback amplifier.",
+    "node_mapping": {
+      "input": [
+        "VIN_P",
+        "VIN_N"
+      ],
+      "output": [
+        "VINT_P",
+        "VINT_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Temperature Sensor with a VoltageCalibrated Inaccuracy of \u00b10.15\u00b0C (3\u03c3) From -55 to 125\u00b0C",
+      "figure": "N/A",
+      "year": 2012
+    }
+  },
+  "step2_metrics": {
+    "delta_vbe": {
+      "description": "Difference in base-emitter voltage between the two PNPs at 25\u00b0C",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "kT/q * ln(5) at 300K = 25.85mV * 1.609 = 41.6mV",
+        "range": {
+          "min": 0.038,
+          "typical": 0.041,
+          "max": 0.045,
+          "unit": "V"
+        },
+        "reasoning": "Standard Delta VBE for a 1:5 current ratio at room temperature."
+      },
+      "importance": "essential"
+    },
+    "vbe": {
+      "description": "Base-emitter voltage of the PNP at 25\u00b0C",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Standard forward voltage for a diode-connected BJT at ~2uA",
+        "range": {
+          "min": 0.55,
+          "typical": 0.65,
+          "max": 0.75,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact saturation current (Is) of the PNP model used."
+      },
+      "importance": "essential"
+    },
+    "tc_delta_vbe": {
+      "description": "Temperature coefficient of Delta VBE",
+      "unit": "V/K",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "(k/q) * ln(5) = 86.17uV/K * 1.609 = 138.6uV/K",
+        "range": {
+          "min": 0.000135,
+          "typical": 0.000138,
+          "max": 0.00014,
+          "unit": "V/K"
+        },
+        "reasoning": "Fundamental physical constant, highly predictable across processes."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption of the front-end",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "11pJ energy per conversion / 27nJ total",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "1.8V * (2uA + 10uA) = 21.6uW",
+        "range": {
+          "min": 1.5e-05,
+          "typical": 2.16e-05,
+          "max": 3e-05,
+          "unit": "W"
+        },
+        "reasoning": "Based on the assumed 2uA and 10uA bias currents for the 1:5 PNP ratio."
+      },
+      "importance": "essential"
+    },
+    "midband_gain_db": {
+      "description": "Closed-loop AC gain of the capacitive amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "76dB (likely open-loop op-amp gain)",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(C1/C4) = 20 * log10(1/2) = -6dB",
+        "range": {
+          "min": -7,
+          "typical": -6,
+          "max": -5,
+          "unit": "dB"
+        },
+        "reasoning": "Closed-loop gain is determined by the capacitor ratio C1/C4 in the feedback network."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC power, Delta VBE temperature coefficient via DC sweep, and closed-loop AC gain of the capacitive front-end.",
+    "analyses": [
+      "OP",
+      "DC",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power",
+      "delta_vbe_25",
+      "vbe_25",
+      "tc_delta_vbe",
+      "midband_gain_db"
+    ],
+    "spice": "* CMOS Temperature Sensor Front-End Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic PNP model for temperature sensing\n.model pnp pnp (is=1e-16)\n\n* Parameterized values based on paper metrics\n.param CVAL=120f\n.param I_UNIT=2u\n\n* DUT Netlist\nI2I VDD VIN_N DC {I_UNIT}\nI10I VDD VIN_P DC {5*I_UNIT} AC 1u\nQR GND GND VIN_N pnp\nQL GND GND VIN_P pnp\n\nC1 VIN_P N4 {CVAL}\nC2 N3 VIN_N {CVAL}\nC3 N4 LABEL_NET_0 {CVAL}\nC4 VINT_P N4 {2*CVAL}\nC5 VINT_N N3 {2*CVAL}\nC6 N3 VIN_N {CVAL}\n\nX1 VINT_P VINT_N N4 N3 amplifier\n\n* Ideal Fully-Differential Amplifier Subcircuit\n.subckt amplifier out+ out- in+ in-\nE_diff out_diff 0 in+ in- 10000\nE_out+ out+ 0 VALUE={0.9 + V(out_diff)/2}\nE_out- out- 0 VALUE={0.9 - V(out_diff)/2}\n.ends\n\n* DC feedback resistors to prevent floating nodes in AC/DC analysis\nR_dc1 VINT_P N4 1G\nR_dc2 VINT_N N3 1G\n\n* Voltage Sources\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\n\n* Differential voltage extractors for AC measurement\nE_diff_out diff_out 0 VINT_P VINT_N 1\nE_diff_in diff_in 0 VIN_P VIN_N 1\n\n.control\n  * 1. Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. Temperature Sweep for Delta VBE\n  dc temp -55 125 5\n  let dvbe = v(vin_p) - v(vin_n)\n  meas dc delta_vbe_25 find dvbe at=25\n  meas dc vbe_25 find v(vin_n) at=25\n  meas dc delta_vbe_125 find dvbe at=125\n  meas dc delta_vbe_m55 find dvbe at=-55\n  let tc_delta_vbe = (delta_vbe_125 - delta_vbe_m55) / (125 - (-55))\n  print tc_delta_vbe\n\n  * 3. AC Analysis for Closed-Loop Gain\n  ac dec 10 1 1Meg\n  let gain_db = vdb(diff_out) - vdb(diff_in)\n  meas ac midband_gain_db find gain_db at=1k\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CMOS Temperature Sensor Front-End\",\n    \"description\": \"Extracts the base-emitter voltage difference (Delta VBE) from two diode-connected PNP transistors biased at different current densities, and amplifies it using a capacitive feedback amplifier.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_P\",\n        \"VIN_N\"\n      ],\n      \"output\": [\n        \"VINT_P\",\n        \"VINT_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Temperature Sensor with a VoltageCalibrated Inaccuracy of \u00b10.15\u00b0C (3\u03c3) From -55 to 125\u00b0C\",\n      \"figure\": \"N/A\",\n      \"year\": 2012\n    }\n  },\n  \"step2_metrics\": {\n    \"delta_vbe\": {\n      \"description\": \"Difference in base-emitter voltage between the two PNPs at 25\u00b0C\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"kT/q * ln(5) at 300K = 25.85mV * 1.609 = 41.6mV\",\n        \"range\": {\n          \"min\": 0.038,\n          \"typical\": 0.041,\n          \"max\": 0.045,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard Delta VBE for a 1:5 current ratio at room temperature.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vbe\": {\n      \"description\": \"Base-emitter voltage of the PNP at 25\u00b0C\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard forward voltage for a diode-connected BJT at ~2uA\",\n        \"range\": {\n          \"min\": 0.55,\n          \"typical\": 0.65,\n          \"max\": 0.75,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact saturation current (Is) of the PNP model used.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tc_delta_vbe\": {\n      \"description\": \"Temperature coefficient of Delta VBE\",\n      \"unit\": \"V/K\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"(k/q) * ln(5) = 86.17uV/K * 1.609 = 138.6uV/K\",\n        \"range\": {\n          \"min\": 135e-6,\n          \"typical\": 138e-6,\n          \"max\": 140e-6,\n          \"unit\": \"V/K\"\n        },\n        \"reasoning\": \"Fundamental physical constant, highly predictable across processes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption of the front-end\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"11pJ energy per conversion / 27nJ total\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.8V * (2uA + 10uA) = 21.6uW\",\n        \"range\": {\n          \"min\": 15e-6,\n          \"typical\": 21.6e-6,\n          \"max\": 30e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the assumed 2uA and 10uA bias currents for the 1:5 PNP ratio.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"midband_gain_db\": {\n      \"description\": \"Closed-loop AC gain of the capacitive amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"76dB (likely open-loop op-amp gain)\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(C1/C4) = 20 * log10(1/2) = -6dB\",\n        \"range\": {\n          \"min\": -7,\n          \"typical\": -6,\n          \"max\": -5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Closed-loop gain is determined by the capacitor ratio C1/C4 in the feedback network.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC power, Delta VBE temperature coefficient via DC sweep, and closed-loop AC gain of the capacitive front-end.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"delta_vbe_25\",\n      \"vbe_25\",\n      \"tc_delta_vbe\",\n      \"midband_gain_db\"\n    ],\n    \"spice\": \"* CMOS Temperature Sensor Front-End Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic PNP model for temperature sensing\\n.model pnp pnp (is=1e-16)\\n\\n* Parameterized values based on paper metrics\\n.param CVAL=120f\\n.param I_UNIT=2u\\n\\n* DUT Netlist\\nI2I VDD VIN_N DC {I_UNIT}\\nI10I VDD VIN_P DC {5*I_UNIT} AC 1u\\nQR GND GND VIN_N pnp\\nQL GND GND VIN_P pnp\\n\\nC1 VIN_P N4 {CVAL}\\nC2 N3 VIN_N {CVAL}\\nC3 N4 LABEL_NET_0 {CVAL}\\nC4 VINT_P N4 {2*CVAL}\\nC5 VINT_N N3 {2*CVAL}\\nC6 N3 VIN_N {CVAL}\\n\\nX1 VINT_P VINT_N N4 N3 amplifier\\n\\n* Ideal Fully-Differential Amplifier Subcircuit\\n.subckt amplifier out+ out- in+ in-\\nE_diff out_diff 0 in+ in- 10000\\nE_out+ out+ 0 VALUE={0.9 + V(out_diff)/2}\\nE_out- out- 0 VALUE={0.9 - V(out_diff)/2}\\n.ends\\n\\n* DC feedback resistors to prevent floating nodes in AC/DC analysis\\nR_dc1 VINT_P N4 1G\\nR_dc2 VINT_N N3 1G\\n\\n* Voltage Sources\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\n\\n* Differential voltage extractors for AC measurement\\nE_diff_out diff_out 0 VINT_P VINT_N 1\\nE_diff_in diff_in 0 VIN_P VIN_N 1\\n\\n.control\\n  * 1. Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. Temperature Sweep for Delta VBE\\n  dc temp -55 125 5\\n  let dvbe = v(vin_p) - v(vin_n)\\n  meas dc delta_vbe_25 find dvbe at=25\\n  meas dc vbe_25 find v(vin_n) at=25\\n  meas dc delta_vbe_125 find dvbe at=125\\n  meas dc delta_vbe_m55 find dvbe at=-55\\n  let tc_delta_vbe = (delta_vbe_125 - delta_vbe_m55) / (125 - (-55))\\n  print tc_delta_vbe\\n\\n  * 3. AC Analysis for Closed-Loop Gain\\n  ac dec 10 1 1Meg\\n  let gain_db = vdb(diff_out) - vdb(diff_in)\\n  meas ac midband_gain_db find gain_db at=1k\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "6176978",
+  "_case": "6176978_image_3_b"
+}

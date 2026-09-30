@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Small-signal equivalent model of a frequency divider stage",
+    "description": "This is a small-signal equivalent circuit used to estimate the operating frequency of a dynamic-loading frequency divider. It models the transconductances (gmn3, gmn1), load conductances (gmp1, GL), and parasitic capacitance (CL) of the divider's internal nodes to analyze its frequency response.",
+    "node_mapping": {
+      "input": [
+        "Vin"
+      ],
+      "output": [
+        "Vo"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 2.5-mW 5.2-GHz Frequency Divider in a 0.35-m CMOS Process",
+      "figure": "Small-signal model",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low-frequency voltage gain of the small-signal model",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gmn3 / (gmp1 + GL + gmn1). Assuming typical values for 130nm (gmn3=1mS, total G=314uS), the linear gain is ~3.18, which is ~10 dB.",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "Sufficient loop gain is required for the latch to regenerate and oscillate reliably."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth_3dB": {
+      "description": "3dB bandwidth (pole frequency) of the stage",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5.2 GHz (maximum operating frequency)",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "BW = (gmp1 + GL + gmn1) / (2 * pi * CL). In 130nm, parasitic capacitance CL is smaller (~5fF), leading to a higher pole frequency.",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 10000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 is a significantly faster process than 0.35um, so the pole frequency should easily exceed 10 GHz, allowing for higher division frequencies."
+      },
+      "importance": "essential"
+    },
+    "Unity_Gain_Frequency": {
+      "description": "Frequency where the voltage gain drops to 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "UGF = DC_Gain * BW_3dB = 3.18 * 10 GHz = 31.8 GHz.",
+        "range": {
+          "min": 15000000000.0,
+          "typical": 30000000000.0,
+          "max": 50000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The UGF determines the maximum theoretical switching speed and tracking bandwidth of the divider stage."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis of the small-signal model to measure DC gain, 3dB bandwidth, and unity gain frequency. The pseudo-netlist from the paper has been translated into valid SPICE elements (G for VCCS, parameterized R and C).",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "DC_Gain",
+      "Bandwidth_3dB",
+      "Unity_Gain_Frequency"
+    ],
+    "spice": "* Small-Signal Model Testbench for Frequency Divider\n\n* Define small-signal parameters for SKY130 estimation\n.param gmp1_val=100u GL_val=100u gmn3_val=1m CL_val=5f gmn1_val=114u\n\n* DUT (Translated from paper's small-signal pseudo-netlist)\nR1 VDD Vo {1/gmp1_val}\nR2 VDD Vo {1/GL_val}\nG1 Vo 0 Vin 0 {gmn3_val}\nC1 Vo 0 {CL_val}\nG2 Vo 0 Vo 0 {gmn1_val}\n\n* Sources\nVVDD VDD 0 DC 1.8\nVVin Vin 0 DC 0 AC 1\n\n* Analysis\n.control\nac dec 100 1M 100G\n\n* Measure DC Gain\nlet gain_db = vdb(Vo)\nmeas ac dc_gain find gain_db at=1M\n\n* Measure 3dB Bandwidth\nlet gain_3db = dc_gain - 3\nmeas ac bw_3db when gain_db=gain_3db fall=1\n\n* Measure Unity Gain Frequency\nmeas ac ugf when gain_db=0 fall=1\n\nprint dc_gain bw_3db ugf\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Small-signal equivalent model of a frequency divider stage\",\n    \"description\": \"This is a small-signal equivalent circuit used to estimate the operating frequency of a dynamic-loading frequency divider. It models the transconductances (gmn3, gmn1), load conductances (gmp1, GL), and parasitic capacitance (CL) of the divider's internal nodes to analyze its frequency response.\",\n    \"node_mapping\": {\n      \"input\": [\"Vin\"],\n      \"output\": [\"Vo\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 2.5-mW 5.2-GHz Frequency Divider in a 0.35-m CMOS Process\",\n      \"figure\": \"Small-signal model\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low-frequency voltage gain of the small-signal model\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gmn3 / (gmp1 + GL + gmn1). Assuming typical values for 130nm (gmn3=1mS, total G=314uS), the linear gain is ~3.18, which is ~10 dB.\",\n        \"range\": { \"min\": 5, \"typical\": 10, \"max\": 15, \"unit\": \"dB\" },\n        \"reasoning\": \"Sufficient loop gain is required for the latch to regenerate and oscillate reliably.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth_3dB\": {\n      \"description\": \"3dB bandwidth (pole frequency) of the stage\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz (maximum operating frequency)\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = (gmp1 + GL + gmn1) / (2 * pi * CL). In 130nm, parasitic capacitance CL is smaller (~5fF), leading to a higher pole frequency.\",\n        \"range\": { \"min\": 5e9, \"typical\": 10e9, \"max\": 20e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"SKY130 is a significantly faster process than 0.35um, so the pole frequency should easily exceed 10 GHz, allowing for higher division frequencies.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unity_Gain_Frequency\": {\n      \"description\": \"Frequency where the voltage gain drops to 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = DC_Gain * BW_3dB = 3.18 * 10 GHz = 31.8 GHz.\",\n        \"range\": { \"min\": 15e9, \"typical\": 30e9, \"max\": 50e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"The UGF determines the maximum theoretical switching speed and tracking bandwidth of the divider stage.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis of the small-signal model to measure DC gain, 3dB bandwidth, and unity gain frequency. The pseudo-netlist from the paper has been translated into valid SPICE elements (G for VCCS, parameterized R and C).\",\n    \"analyses\": [\"AC\"],\n    \"metrics_measured\": [\"DC_Gain\", \"Bandwidth_3dB\", \"Unity_Gain_Frequency\"],\n    \"spice\": \"* Small-Signal Model Testbench for Frequency Divider\\n\\n* Define small-signal parameters for SKY130 estimation\\n.param gmp1_val=100u GL_val=100u gmn3_val=1m CL_val=5f gmn1_val=114u\\n\\n* DUT (Translated from paper's small-signal pseudo-netlist)\\nR1 VDD Vo {1/gmp1_val}\\nR2 VDD Vo {1/GL_val}\\nG1 Vo 0 Vin 0 {gmn3_val}\\nC1 Vo 0 {CL_val}\\nG2 Vo 0 Vo 0 {gmn1_val}\\n\\n* Sources\\nVVDD VDD 0 DC 1.8\\nVVin Vin 0 DC 0 AC 1\\n\\n* Analysis\\n.control\\nac dec 100 1M 100G\\n\\n* Measure DC Gain\\nlet gain_db = vdb(Vo)\\nmeas ac dc_gain find gain_db at=1M\\n\\n* Measure 3dB Bandwidth\\nlet gain_3db = dc_gain - 3\\nmeas ac bw_3db when gain_db=gain_3db fall=1\\n\\n* Measure Unity Gain Frequency\\nmeas ac ugf when gain_db=0 fall=1\\n\\nprint dc_gain bw_3db ugf\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1233750",
+  "_case": "1233750_image_5_b"
+}

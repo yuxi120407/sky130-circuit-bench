@@ -1,0 +1,153 @@
+{
+  "step1_analysis": {
+    "circuit_type": "DC Offset Cancellation (DCOC) / Active Feedback Loop",
+    "description": "This circuit forms an active negative feedback loop (Gm-C filter) for an Intermediate Frequency (IF) amplifier. It senses the DC voltage at the IF node, integrates the error on capacitor C, and feeds back a correction current via T10/T11 to stabilize the DC operating point and remove low-frequency offsets.",
+    "node_mapping": {
+      "input": [
+        "IF"
+      ],
+      "output": [
+        "IF"
+      ],
+      "supply": [
+        "VDD",
+        "V_PLUS"
+      ],
+      "bias": [
+        "Iref_p",
+        "Iref_n",
+        "IF_enable"
+      ],
+      "ground": [
+        "GND",
+        "V_MINUS"
+      ]
+    },
+    "paper_reference": {
+      "title": "Remotely Powered Addressable UHF RFID Integrated System",
+      "figure": "5",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "Total DC power consumption of the feedback loop.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5 um SOS"
+      },
+      "sky130_expected": {
+        "calculation": "4 bias branches * ~25uA per branch * 1.8V = 180uW",
+        "range": {
+          "min": "50u",
+          "typical": "180u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Depends on the exact bias voltages applied to Iref_p and Iref_n, but typical baseband analog blocks in RFID consume very low power."
+      },
+      "importance": "essential"
+    },
+    "if_dc_voltage": {
+      "description": "Steady-state DC bias voltage established at the IF node by the feedback loop.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5 um SOS"
+      },
+      "sky130_expected": {
+        "calculation": "The T1/T4 inverter threshold determines the settling point. With VDD=1.8V, it settles near VDD/2.",
+        "range": {
+          "min": "0.7",
+          "typical": "0.9",
+          "max": "1.1",
+          "unit": "V"
+        },
+        "reasoning": "Negative feedback forces the IF node to the switching threshold of the T1/T4 input stage."
+      },
+      "importance": "essential"
+    },
+    "ac_impedance_100k": {
+      "description": "AC impedance magnitude at 100 kHz, showing the active inductor / high-pass effect.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5 um SOS"
+      },
+      "sky130_expected": {
+        "calculation": "At low frequencies, the high loop gain reduces the impedance at the IF node.",
+        "range": {
+          "min": "20",
+          "typical": "40",
+          "max": "60",
+          "unit": "dB"
+        },
+        "reasoning": "The feedback loop is active at 100 kHz, shunting AC currents to maintain the DC point."
+      },
+      "importance": "recommended"
+    },
+    "ac_impedance_10M": {
+      "description": "AC impedance magnitude at 10 MHz, where the feedback loop is disabled by the capacitor.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5 um SOS"
+      },
+      "sky130_expected": {
+        "calculation": "At high frequencies, C1 shorts V_C to ground, breaking the loop. Impedance is determined by parasitic capacitance.",
+        "range": {
+          "min": "60",
+          "typical": "80",
+          "max": "100",
+          "unit": "dB"
+        },
+        "reasoning": "The circuit acts as a high-pass filter for the IF signal, so high-frequency impedance must be large to avoid attenuating the signal."
+      },
+      "importance": "recommended"
+    },
+    "settling_time": {
+      "description": "Time required for the IF node to return to its DC bias point after a transient current step.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "200 ns",
+        "technology": "0.5 um SOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the loop bandwidth (Gm/C).",
+        "range": {
+          "min": "50n",
+          "typical": "200n",
+          "max": "1u",
+          "unit": "s"
+        },
+        "reasoning": "Matches the typical timing metrics reported in the paper for baseband settling."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, power consumption, AC impedance profile (active inductor behavior), and transient settling time of the DCOC loop.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "if_dc_voltage",
+      "ac_impedance_100k",
+      "ac_impedance_10M",
+      "settling_time"
+    ],
+    "spice": "* Testbench for IF DCOC Loop\n.lib \"${SKY130_PDK}\" tt\n\n.param W_n=2u L_n=0.15u\n.param W_p=4u L_p=0.15u\n\n* Supplies and Bias\nVVDD VDD 0 1.8\nVPLUS V_PLUS 0 1.8\nVMINUS V_MINUS 0 0\nVREF_P Iref_p 0 1.0\nVREF_N Iref_n 0 0.8\nV_EN IF_enable 0 1.8\n\n* Stimulus: AC current for impedance measurement, PWL for transient step\nI_in 0 IF DC 0 AC 1 PWL(0 0 10n 0 11n 10u)\n\n* DUT\nT3 V_C Iref_n N11 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nT11 IF N9 N8 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nT6 N3 V_C GND GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nT8 N9 Iref_n N12 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nT5 N3 Iref_p V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nT12 N8 IF_enable V_MINUS GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nT7 N9 V_C GND VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nT13 IF IF_enable V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nT9 N12 IF_enable V_MINUS GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nT10 IF N3 V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nT1 N13 IF V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nT2 V_C Iref_p N13 VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nT4 N11 IF V_MINUS GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nC1 V_C V_MINUS 10p\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD)*1.8 - i(VPLUS)*1.8\n  print power\n  let if_dc = v(IF)\n  print if_dc\n\n  * AC Analysis for Impedance Profile\n  ac dec 20 1k 100Meg\n  let z_mag = vdb(IF)\n  meas ac z_100k find z_mag at=100k\n  meas ac z_10meg find z_mag at=10Meg\n\n  * Transient Analysis for Settling\n  tran 1n 2u\n  meas tran v_peak max v(IF)\n  meas tran v_steady find v(IF) at=1.9u\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"DC Offset Cancellation (DCOC) / Active Feedback Loop\",\n    \"description\": \"This circuit forms an active negative feedback loop (Gm-C filter) for an Intermediate Frequency (IF) amplifier. It senses the DC voltage at the IF node, integrates the error on capacitor C, and feeds back a correction current via T10/T11 to stabilize the DC operating point and remove low-frequency offsets.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IF\"\n      ],\n      \"output\": [\n        \"IF\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"V_PLUS\"\n      ],\n      \"bias\": [\n        \"Iref_p\",\n        \"Iref_n\",\n        \"IF_enable\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"V_MINUS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Remotely Powered Addressable UHF RFID Integrated System\",\n      \"figure\": \"5\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the feedback loop.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5 um SOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"4 bias branches * ~25uA per branch * 1.8V = 180uW\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"180u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on the exact bias voltages applied to Iref_p and Iref_n, but typical baseband analog blocks in RFID consume very low power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"if_dc_voltage\": {\n      \"description\": \"Steady-state DC bias voltage established at the IF node by the feedback loop.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5 um SOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The T1/T4 inverter threshold determines the settling point. With VDD=1.8V, it settles near VDD/2.\",\n        \"range\": {\n          \"min\": \"0.7\",\n          \"typical\": \"0.9\",\n          \"max\": \"1.1\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Negative feedback forces the IF node to the switching threshold of the T1/T4 input stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ac_impedance_100k\": {\n      \"description\": \"AC impedance magnitude at 100 kHz, showing the active inductor / high-pass effect.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5 um SOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At low frequencies, the high loop gain reduces the impedance at the IF node.\",\n        \"range\": {\n          \"min\": \"20\",\n          \"typical\": \"40\",\n          \"max\": \"60\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The feedback loop is active at 100 kHz, shunting AC currents to maintain the DC point.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"ac_impedance_10M\": {\n      \"description\": \"AC impedance magnitude at 10 MHz, where the feedback loop is disabled by the capacitor.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5 um SOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At high frequencies, C1 shorts V_C to ground, breaking the loop. Impedance is determined by parasitic capacitance.\",\n        \"range\": {\n          \"min\": \"60\",\n          \"typical\": \"80\",\n          \"max\": \"100\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The circuit acts as a high-pass filter for the IF signal, so high-frequency impedance must be large to avoid attenuating the signal.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the IF node to return to its DC bias point after a transient current step.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"200 ns\",\n        \"technology\": \"0.5 um SOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the loop bandwidth (Gm/C).\",\n        \"range\": {\n          \"min\": \"50n\",\n          \"typical\": \"200n\",\n          \"max\": \"1u\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Matches the typical timing metrics reported in the paper for baseband settling.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, power consumption, AC impedance profile (active inductor behavior), and transient settling time of the DCOC loop.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"if_dc_voltage\",\n      \"ac_impedance_100k\",\n      \"ac_impedance_10M\",\n      \"settling_time\"\n    ],\n    \"spice\": \"* Testbench for IF DCOC Loop\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_n=2u L_n=0.15u\\n.param W_p=4u L_p=0.15u\\n\\n* Supplies and Bias\\nVVDD VDD 0 1.8\\nVPLUS V_PLUS 0 1.8\\nVMINUS V_MINUS 0 0\\nVREF_P Iref_p 0 1.0\\nVREF_N Iref_n 0 0.8\\nV_EN IF_enable 0 1.8\\n\\n* Stimulus: AC current for impedance measurement, PWL for transient step\\nI_in 0 IF DC 0 AC 1 PWL(0 0 10n 0 11n 10u)\\n\\n* DUT\\nT3 V_C Iref_n N11 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nT11 IF N9 N8 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nT6 N3 V_C GND GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nT8 N9 Iref_n N12 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nT5 N3 Iref_p V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nT12 N8 IF_enable V_MINUS GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nT7 N9 V_C GND VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nT13 IF IF_enable V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nT9 N12 IF_enable V_MINUS GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nT10 IF N3 V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nT1 N13 IF V_PLUS VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nT2 V_C Iref_p N13 VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nT4 N11 IF V_MINUS GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nC1 V_C V_MINUS 10p\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD)*1.8 - i(VPLUS)*1.8\\n  print power\\n  let if_dc = v(IF)\\n  print if_dc\\n\\n  * AC Analysis for Impedance Profile\\n  ac dec 20 1k 100Meg\\n  let z_mag = vdb(IF)\\n  meas ac z_100k find z_mag at=100k\\n  meas ac z_10meg find z_mag at=10Meg\\n\\n  * Transient Analysis for Settling\\n  tran 1n 2u\\n  meas tran v_peak max v(IF)\\n  meas tran v_steady find v(IF) at=1.9u\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1522559",
+  "_case": "1522559_image_10"
+}

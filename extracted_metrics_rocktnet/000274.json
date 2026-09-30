@@ -1,0 +1,125 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Programmable Bandpass Filter (Incomplete Netlist)",
+    "description": "A micropower programmable bandpass filter designed for bionic ears (cochlear implants) utilizing a capacitive-attenuation technique to increase the linear range. The provided netlist is incomplete and only contains two capacitors, likely representing the capacitive attenuator portion.",
+    "node_mapping": {
+      "input": [
+        "Vin"
+      ],
+      "output": [
+        "Vout"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Practical Micropower Programmable Bandpass Filter for Use in Bionic Ears",
+      "figure": "unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "center_frequency": {
+      "description": "The frequency at which the bandpass filter has its maximum gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "100 Hz to 10 kHz (tunable)",
+        "technology": "2.8-V BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC/Gm-C time constants of the filter. Assuming similar bias currents in SKY130, the tunable range should remain the same.",
+        "range": {
+          "min": 100,
+          "typical": 5000,
+          "max": 10000,
+          "unit": "Hz"
+        },
+        "reasoning": "The filter is designed to cover the audio range for cochlear implants."
+      },
+      "importance": "essential"
+    },
+    "passband_gain": {
+      "description": "The voltage gain of the filter at the center frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly stated (typically 0 dB for such filters)",
+        "technology": "2.8-V BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = 20*log10(Vout/Vin) at center frequency.",
+        "range": {
+          "min": -3,
+          "typical": 0,
+          "max": 3,
+          "unit": "dB"
+        },
+        "reasoning": "Bandpass filters in this application typically aim for unity gain (0 dB) in the passband."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total static power dissipated by the filter.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.23 uW (for 100-200 Hz) to ~6.36 uW",
+        "technology": "2.8-V BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_total. With VDD scaled from 2.8V to 1.8V, power should decrease proportionally if bias currents are kept constant.",
+        "range": {
+          "min": 1e-07,
+          "typical": 1e-06,
+          "max": 5e-06,
+          "unit": "W"
+        },
+        "reasoning": "Subthreshold operation ensures micropower consumption. Scaling VDD to 1.8V reduces power."
+      },
+      "importance": "essential"
+    },
+    "dynamic_range": {
+      "description": "The ratio between the maximum acceptable input signal and the noise floor.",
+      "unit": "dB",
+      "analysis_type": "Noise/Tran",
+      "paper_reported": {
+        "value": "> 60 dB (up to 66 dB)",
+        "technology": "2.8-V BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "DR = 20*log10(V_max_rms / V_noise_rms).",
+        "range": {
+          "min": 55,
+          "typical": 60,
+          "max": 70,
+          "unit": "dB"
+        },
+        "reasoning": "The capacitive-attenuation technique is specifically designed to increase the linear range and maintain >60 dB dynamic range."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the AC response (center frequency, passband gain) and power consumption of the bandpass filter. Dummy resistors are added to the incomplete netlist to prevent floating node errors in SPICE.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "center_frequency",
+      "passband_gain",
+      "power_consumption"
+    ],
+    "spice": "* Programmable Bandpass Filter Testbench\n\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* === DUT (Incomplete Netlist from Extraction) ===\n* Added 1p values to capacitors to prevent syntax errors\nC2 Vin N1 1p\nC1 Vout GND 1p\n\n* === Dummy Components ===\n* Added to prevent floating nodes (N1 and Vout) since the netlist is incomplete\nR_dummy1 N1 Vout 1Meg\nR_dummy2 Vout GND 10Meg\n\n* === Sources ===\nVDD VDD 0 DC 1.8\nVVIN Vin 0 DC 0.9 AC 1 SIN(0.9 0.1 10k 0 0)\n\n* === Parameters ===\n.param W_xm1=1.0 L_xm1=1.0\n\n* === Analyses ===\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VDD) * 1.8\n  print power\n\n  * 2. AC Analysis for Filter Response\n  ac dec 50 10 100k\n  let gain_db = vdb(Vout)\n  \n  * Measure maximum gain (passband gain)\n  meas ac max_gain max gain_db\n  \n  * Measure center frequency (frequency at max gain)\n  * Note: With the dummy RC network, this will act as a high-pass/voltage divider, \n  * but the syntax demonstrates how to measure a true BPF.\n  meas ac center_freq when gain_db=max_gain\n\n  * 3. Transient Analysis\n  tran 1u 2m\n  meas tran vout_max max v(Vout)\n  meas tran vout_min min v(Vout)\n  let vout_pk2pk = vout_max - vout_min\n  print vout_pk2pk\n\n  quit\n.endc\n\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Programmable Bandpass Filter (Incomplete Netlist)\",\n    \"description\": \"A micropower programmable bandpass filter designed for bionic ears (cochlear implants) utilizing a capacitive-attenuation technique to increase the linear range. The provided netlist is incomplete and only contains two capacitors, likely representing the capacitive attenuator portion.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vin\"\n      ],\n      \"output\": [\n        \"Vout\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Practical Micropower Programmable Bandpass Filter for Use in Bionic Ears\",\n      \"figure\": \"unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"center_frequency\": {\n      \"description\": \"The frequency at which the bandpass filter has its maximum gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"100 Hz to 10 kHz (tunable)\",\n        \"technology\": \"2.8-V BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC/Gm-C time constants of the filter. Assuming similar bias currents in SKY130, the tunable range should remain the same.\",\n        \"range\": {\n          \"min\": 100,\n          \"typical\": 5000,\n          \"max\": 10000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The filter is designed to cover the audio range for cochlear implants.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"passband_gain\": {\n      \"description\": \"The voltage gain of the filter at the center frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated (typically 0 dB for such filters)\",\n        \"technology\": \"2.8-V BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = 20*log10(Vout/Vin) at center frequency.\",\n        \"range\": {\n          \"min\": -3,\n          \"typical\": 0,\n          \"max\": 3,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Bandpass filters in this application typically aim for unity gain (0 dB) in the passband.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total static power dissipated by the filter.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.23 uW (for 100-200 Hz) to ~6.36 uW\",\n        \"technology\": \"2.8-V BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_total. With VDD scaled from 2.8V to 1.8V, power should decrease proportionally if bias currents are kept constant.\",\n        \"range\": {\n          \"min\": 1e-07,\n          \"typical\": 1e-06,\n          \"max\": 5e-06,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Subthreshold operation ensures micropower consumption. Scaling VDD to 1.8V reduces power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dynamic_range\": {\n      \"description\": \"The ratio between the maximum acceptable input signal and the noise floor.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise/Tran\",\n      \"paper_reported\": {\n        \"value\": \"> 60 dB (up to 66 dB)\",\n        \"technology\": \"2.8-V BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"DR = 20*log10(V_max_rms / V_noise_rms).\",\n        \"range\": {\n          \"min\": 55,\n          \"typical\": 60,\n          \"max\": 70,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The capacitive-attenuation technique is specifically designed to increase the linear range and maintain >60 dB dynamic range.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the AC response (center frequency, passband gain) and power consumption of the bandpass filter. Dummy resistors are added to the incomplete netlist to prevent floating node errors in SPICE.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"center_frequency\",\n      \"passband_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Programmable Bandpass Filter Testbench\\n\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* === DUT (Incomplete Netlist from Extraction) ===\\n* Added 1p values to capacitors to prevent syntax errors\\nC2 Vin N1 1p\\nC1 Vout GND 1p\\n\\n* === Dummy Components ===\\n* Added to prevent floating nodes (N1 and Vout) since the netlist is incomplete\\nR_dummy1 N1 Vout 1Meg\\nR_dummy2 Vout GND 10Meg\\n\\n* === Sources ===\\nVDD VDD 0 DC 1.8\\nVVIN Vin 0 DC 0.9 AC 1 SIN(0.9 0.1 10k 0 0)\\n\\n* === Parameters ===\\n.param W_xm1=1.0 L_xm1=1.0\\n\\n* === Analyses ===\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis for Filter Response\\n  ac dec 50 10 100k\\n  let gain_db = vdb(Vout)\\n  \\n  * Measure maximum gain (passband gain)\\n  meas ac max_gain max gain_db\\n  \\n  * Measure center frequency (frequency at max gain)\\n  * Note: With the dummy RC network, this will act as a high-pass/voltage divider, \\n  * but the syntax demonstrates how to measure a true BPF.\\n  meas ac center_freq when gain_db=max_gain\\n\\n  * 3. Transient Analysis\\n  tran 1u 2m\\n  meas tran vout_max max v(Vout)\\n  meas tran vout_min min v(Vout)\\n  let vout_pk2pk = vout_max - vout_min\\n  print vout_pk2pk\\n\\n  quit\\n.endc\\n\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1158782",
+  "_case": "1158782_image_3"
+}

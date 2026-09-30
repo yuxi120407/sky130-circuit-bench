@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "PMOS Stack / Voltage Divider",
+    "description": "A series stack of two PMOS transistors sharing a common gate input. In the context of the paper's substrate noise measurements, this likely forms part of a digital noise generator or a pull-up network of a logic gate.",
+    "node_mapping": {
+      "input": [
+        "INPUT"
+      ],
+      "output": [
+        "OUTPUT"
+      ],
+      "supply": [
+        "VDD",
+        "N8"
+      ],
+      "bias": [],
+      "ground": [
+        "N4"
+      ]
+    },
+    "paper_reference": {
+      "title": "Simulation and Measurement of Supply and Substrate Noise in Mixed-Signal ICs",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Vout_DC": {
+      "description": "DC voltage at the intermediate OUTPUT node when the input is biased at mid-supply.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "With N8=1.8V and N4=0V, the two identical PMOS transistors act as a voltage divider. Ignoring body effect differences, the output should be approximately VDD/2.",
+        "range": {
+          "min": 0.8,
+          "typical": 0.9,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "Symmetric W/L (5u/0.5u) and identical gate bias (0.9V) lead to equal channel resistances."
+      }
+    },
+    "Power_DC": {
+      "description": "Static power consumption of the PMOS stack when both transistors are partially ON.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Rds_on \u2248 1 / (up*Cox * W/L * (Vsg - |Vth|)). up*Cox=50uA/V^2, W/L=10, Vsg=0.9V, |Vth|=0.42V. Rds_on \u2248 1 / (50u * 10 * 0.48) \u2248 4.1 kOhm. Total R \u2248 8.2 kOhm. Power = V^2 / R = 1.8^2 / 8.2k \u2248 395 uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.0004,
+          "max": 0.0006,
+          "unit": "W"
+        },
+        "reasoning": "Based on first-order square-law model for SKY130 PMOS devices."
+      }
+    },
+    "Gain_AC": {
+      "description": "Small-signal AC voltage gain from INPUT to OUTPUT at 1 MHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3 dB",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Since both transistors are driven by the same input and act as a divider, the small-signal gain is determined by the ratio of their transconductances and output conductances. It is expected to be an attenuator (negative dB).",
+        "range": {
+          "min": -20,
+          "typical": -10,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "The circuit is not a standard amplifier; it's a stack where both devices modulate simultaneously, leading to low or negative gain."
+      }
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, AC gain, and transient response of the PMOS stack.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Vout_DC",
+      "Power_DC",
+      "Gain_AC"
+    ],
+    "spice": "* PMOS Stack Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N4 INPUT OUTPUT VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUTPUT INPUT N8 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\n\n* Supply and Bias Sources\nVVDD VDD 0 1.8\nVN8 N8 0 1.8\nVN4 N4 0 0\nVINPUT INPUT 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\n\n* Load to prevent floating nodes if both PMOS turn off\nRload OUTPUT 0 1MEG\n\n.control\n* 1. DC Operating Point & Power\nop\nlet vout_dc = v(OUTPUT)\nlet power_dc = -i(VVDD) * 1.8 - i(VN8) * 1.8\nprint vout_dc\nprint power_dc\n\n* 2. AC Analysis\nac dec 10 1k 100MEG\nlet gain_db = vdb(OUTPUT)\nmeas ac gain_1mhz find gain_db at=1MEG\n\n* 3. Transient Analysis\ntran 10n 5u\nmeas tran vout_max max v(OUTPUT)\nmeas tran vout_min min v(OUTPUT)\nlet vout_pp = vout_max - vout_min\nprint vout_pp\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"PMOS Stack / Voltage Divider\",\n    \"description\": \"A series stack of two PMOS transistors sharing a common gate input. In the context of the paper's substrate noise measurements, this likely forms part of a digital noise generator or a pull-up network of a logic gate.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INPUT\"\n      ],\n      \"output\": [\n        \"OUTPUT\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"N8\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"N4\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Simulation and Measurement of Supply and Substrate Noise in Mixed-Signal ICs\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Vout_DC\": {\n      \"description\": \"DC voltage at the intermediate OUTPUT node when the input is biased at mid-supply.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With N8=1.8V and N4=0V, the two identical PMOS transistors act as a voltage divider. Ignoring body effect differences, the output should be approximately VDD/2.\",\n        \"range\": {\n          \"min\": 0.8,\n          \"typical\": 0.9,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Symmetric W/L (5u/0.5u) and identical gate bias (0.9V) lead to equal channel resistances.\"\n      }\n    },\n    \"Power_DC\": {\n      \"description\": \"Static power consumption of the PMOS stack when both transistors are partially ON.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rds_on \u2248 1 / (up*Cox * W/L * (Vsg - |Vth|)). up*Cox=50uA/V^2, W/L=10, Vsg=0.9V, |Vth|=0.42V. Rds_on \u2248 1 / (50u * 10 * 0.48) \u2248 4.1 kOhm. Total R \u2248 8.2 kOhm. Power = V^2 / R = 1.8^2 / 8.2k \u2248 395 uW.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 400e-6,\n          \"max\": 600e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on first-order square-law model for SKY130 PMOS devices.\"\n      }\n    },\n    \"Gain_AC\": {\n      \"description\": \"Small-signal AC voltage gain from INPUT to OUTPUT at 1 MHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3 dB\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since both transistors are driven by the same input and act as a divider, the small-signal gain is determined by the ratio of their transconductances and output conductances. It is expected to be an attenuator (negative dB).\",\n        \"range\": {\n          \"min\": -20,\n          \"typical\": -10,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The circuit is not a standard amplifier; it's a stack where both devices modulate simultaneously, leading to low or negative gain.\"\n      }\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, AC gain, and transient response of the PMOS stack.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Vout_DC\",\n      \"Power_DC\",\n      \"Gain_AC\"\n    ],\n    \"spice\": \"* PMOS Stack Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N4 INPUT OUTPUT VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUTPUT INPUT N8 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Supply and Bias Sources\\nVVDD VDD 0 1.8\\nVN8 N8 0 1.8\\nVN4 N4 0 0\\nVINPUT INPUT 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\n\\n* Load to prevent floating nodes if both PMOS turn off\\nRload OUTPUT 0 1MEG\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet vout_dc = v(OUTPUT)\\nlet power_dc = -i(VVDD) * 1.8 - i(VN8) * 1.8\\nprint vout_dc\\nprint power_dc\\n\\n* 2. AC Analysis\\nac dec 10 1k 100MEG\\nlet gain_db = vdb(OUTPUT)\\nmeas ac gain_1mhz find gain_db at=1MEG\\n\\n* 3. Transient Analysis\\ntran 10n 5u\\nmeas tran vout_max max v(OUTPUT)\\nmeas tran vout_min min v(OUTPUT)\\nlet vout_pp = vout_max - vout_min\\nprint vout_pp\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1388627",
+  "_case": "1388627_image_3_a"
+}

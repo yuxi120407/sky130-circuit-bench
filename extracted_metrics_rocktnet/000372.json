@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Current MAC (Multiply-Accumulate) Cell",
+    "description": "An analog memory cell that samples an input current from a PMOS source during phase 1 and stores it on a capacitor via a diode-connected NMOS cascode. During phase 2, it subtracts the stored current from a new input current and steers the difference to summing nodes based on digital weights, performing a MAC operation for image processing.",
+    "node_mapping": {
+      "input": [
+        "VBIAS",
+        "WR_C_PLUS",
+        "PHI1",
+        "PHI2"
+      ],
+      "output": [
+        "POSITIVE_SUM",
+        "NEGATIVE_SUM"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VCASP",
+        "VCASN"
+      ],
+      "ground": [
+        "GND",
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "CMOS Image Sensor With Mixed-Signal Processor Array",
+      "figure": "Unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Average power consumption of the cell.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "250 W (likely 250 uW typo in OCR)",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "With VBIAS=1.2V, PMOS current is ~8uA. Power = 1.8V * 8uA = 14.4uW.",
+        "range": {
+          "min": "10u",
+          "typical": "15u",
+          "max": "50u",
+          "unit": "W"
+        },
+        "reasoning": "Based on a typical bias current of 8uA for the PMOS source to keep all cascode transistors in saturation."
+      },
+      "importance": "essential"
+    },
+    "copy_error": {
+      "description": "Percentage error between the sampled current and the held current.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.4% - 2%",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Charge injection from switch XMP1 (Cgs ~ 12.5fF) onto C_hold (135fF) causes a small voltage step, leading to current error.",
+        "range": {
+          "min": "0.1",
+          "typical": "1.0",
+          "max": "5.0",
+          "unit": "%"
+        },
+        "reasoning": "Depends heavily on the switch size and hold capacitor. 135fF is explicitly reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the memory cell to settle to 99% of its final value during the sample phase.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Tau = C_hold / Gm = 135fF / 200uA/V = 0.67ns. 99% settling is ~4.6 * Tau = 3ns.",
+        "range": {
+          "min": "1n",
+          "typical": "5n",
+          "max": "20n",
+          "unit": "s"
+        },
+        "reasoning": "Fast settling due to small hold capacitor and moderate transconductance of the NMOS sink."
+      },
+      "importance": "recommended"
+    },
+    "mac_output_current": {
+      "description": "The difference current steered to the output summing node during the evaluate phase.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "I_eval - I_hold. If VBIAS changes from 1.2V to 1.1V, PMOS current increases by ~5uA, which is steered to POSITIVE_SUM.",
+        "range": {
+          "min": "-20u",
+          "typical": "5u",
+          "max": "20u",
+          "unit": "A"
+        },
+        "reasoning": "Directly depends on the applied input current difference during the evaluate phase."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power consumption, current sampling accuracy, settling time, and MAC operation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "copy_error",
+      "settling_time",
+      "mac_output_current"
+    ],
+    "spice": "* Switched-Current MAC Cell Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmm2=5u L_xmm2=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmcn=5u L_xmcn=0.5u\n.param W_xmm3=5u L_xmm3=0.5u\n.param W_xmcp=5u L_xmcp=0.5u\n.param W_xmm1=5u L_xmm1=0.5u\n.param W_xmr2=5u L_xmr2=0.5u\n.param W_xmr1=5u L_xmr1=0.5u\n.param W_xmp2=5u L_xmp2=0.5u\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nV_VBIAS VBIAS 0 PWL(0 1.2 1u 1.2 1.05u 1.1 2u 1.1)\nV_VCASP VCASP 0 0.9\nV_VCASN VCASN 0 1.1\nV_POS POSITIVE_SUM 0 0.9\nV_NEG NEGATIVE_SUM 0 0.9\nV_N3 N3 0 0\n\nV_PHI1 PHI1 0 PULSE(0 1.8 0.1u 10n 10n 0.8u 2u)\nV_PHI2 PHI2 0 0\nV_WRC WR_C_PLUS 0 PULSE(0 1.8 1.1u 10n 10n 0.8u 2u)\n\nC_hold N2 0 135f\n.ic v(N2)=0\n\nXMM2 N5 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xmm2} w={W_xmm2}\nXMP1 N0 PHI1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xmp1} w={W_xmp1}\nXMCN NEGATIVE_SUM POSITIVE_SUM N0 GND sky130_fd_pr__nfet_01v8 l={L_xmcn} w={W_xmcn}\nXMM3 N0 VCASN N5 GND sky130_fd_pr__nfet_01v8 l={L_xmm3} w={W_xmm3}\nXMCP POSITIVE_SUM WR_C_PLUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xmcp} w={W_xmcp}\nXMM1 N1 N1 VSS GND sky130_fd_pr__nfet_01v8 l={L_xmm1} w={W_xmm1}\nXMR2 N0 VCASP N4 VDD sky130_fd_pr__pfet_01v8 l={L_xmr2} w={W_xmr2}\nXMR1 N4 VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmr1} w={W_xmr1}\nXMP2 N2 PHI2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmp2} w={W_xmp2}\n\n.control\ntran 1n 2u\n\n* 1. Power Consumption\nmeas tran avg_current avg i(VVDD) from=0 to=2u\nlet power_consumption = -avg_current * 1.8\nprint power_consumption\n\n* 2. Sampled Current\nmeas tran I_pmos_sample find i(VVDD) at=0.8u\nlet I_in_sample = -I_pmos_sample\nmeas tran I_nmos_sample find i(VVSS) at=0.8u\nprint I_in_sample I_nmos_sample\n\n* 3. Settling Time\nmeas tran V_N2_final find v(N2) at=0.9u\nlet V_N2_99 = V_N2_final * 0.99\nmeas tran settling_time trig v(PHI1) val=0.9 rise=1 targ v(N2) val=$&V_N2_99 rise=1\nprint settling_time\n\n* 4. Hold Current and Copy Error\nmeas tran I_nmos_hold find i(VVSS) at=1.2u\nlet copy_error_pct = abs(I_nmos_hold - I_nmos_sample) / I_nmos_sample * 100\nprint I_nmos_hold copy_error_pct\n\n* 5. MAC Output Current (Evaluate Phase)\nmeas tran I_pmos_eval find i(VVDD) at=1.8u\nlet I_in_eval = -I_pmos_eval\nmeas tran I_pos_sum find i(V_POS) at=1.8u\nlet I_diff_expected = I_in_eval - I_nmos_hold\nprint I_in_eval I_pos_sum I_diff_expected\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Current MAC (Multiply-Accumulate) Cell\",\n    \"description\": \"An analog memory cell that samples an input current from a PMOS source during phase 1 and stores it on a capacitor via a diode-connected NMOS cascode. During phase 2, it subtracts the stored current from a new input current and steers the difference to summing nodes based on digital weights, performing a MAC operation for image processing.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VBIAS\",\n        \"WR_C_PLUS\",\n        \"PHI1\",\n        \"PHI2\"\n      ],\n      \"output\": [\n        \"POSITIVE_SUM\",\n        \"NEGATIVE_SUM\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VCASP\",\n        \"VCASN\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"CMOS Image Sensor With Mixed-Signal Processor Array\",\n      \"figure\": \"Unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the cell.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"250 W (likely 250 uW typo in OCR)\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VBIAS=1.2V, PMOS current is ~8uA. Power = 1.8V * 8uA = 14.4uW.\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"15u\",\n          \"max\": \"50u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a typical bias current of 8uA for the PMOS source to keep all cascode transistors in saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"copy_error\": {\n      \"description\": \"Percentage error between the sampled current and the held current.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.4% - 2%\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Charge injection from switch XMP1 (Cgs ~ 12.5fF) onto C_hold (135fF) causes a small voltage step, leading to current error.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"1.0\",\n          \"max\": \"5.0\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Depends heavily on the switch size and hold capacitor. 135fF is explicitly reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the memory cell to settle to 99% of its final value during the sample phase.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tau = C_hold / Gm = 135fF / 200uA/V = 0.67ns. 99% settling is ~4.6 * Tau = 3ns.\",\n        \"range\": {\n          \"min\": \"1n\",\n          \"typical\": \"5n\",\n          \"max\": \"20n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Fast settling due to small hold capacitor and moderate transconductance of the NMOS sink.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"mac_output_current\": {\n      \"description\": \"The difference current steered to the output summing node during the evaluate phase.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_eval - I_hold. If VBIAS changes from 1.2V to 1.1V, PMOS current increases by ~5uA, which is steered to POSITIVE_SUM.\",\n        \"range\": {\n          \"min\": \"-20u\",\n          \"typical\": \"5u\",\n          \"max\": \"20u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Directly depends on the applied input current difference during the evaluate phase.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power consumption, current sampling accuracy, settling time, and MAC operation.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"copy_error\",\n      \"settling_time\",\n      \"mac_output_current\"\n    ],\n    \"spice\": \"* Switched-Current MAC Cell Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmm2=5u L_xmm2=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmcn=5u L_xmcn=0.5u\\n.param W_xmm3=5u L_xmm3=0.5u\\n.param W_xmcp=5u L_xmcp=0.5u\\n.param W_xmm1=5u L_xmm1=0.5u\\n.param W_xmr2=5u L_xmr2=0.5u\\n.param W_xmr1=5u L_xmr1=0.5u\\n.param W_xmp2=5u L_xmp2=0.5u\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nV_VBIAS VBIAS 0 PWL(0 1.2 1u 1.2 1.05u 1.1 2u 1.1)\\nV_VCASP VCASP 0 0.9\\nV_VCASN VCASN 0 1.1\\nV_POS POSITIVE_SUM 0 0.9\\nV_NEG NEGATIVE_SUM 0 0.9\\nV_N3 N3 0 0\\n\\nV_PHI1 PHI1 0 PULSE(0 1.8 0.1u 10n 10n 0.8u 2u)\\nV_PHI2 PHI2 0 0\\nV_WRC WR_C_PLUS 0 PULSE(0 1.8 1.1u 10n 10n 0.8u 2u)\\n\\nC_hold N2 0 135f\\n.ic v(N2)=0\\n\\nXMM2 N5 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xmm2} w={W_xmm2}\\nXMP1 N0 PHI1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMCN NEGATIVE_SUM POSITIVE_SUM N0 GND sky130_fd_pr__nfet_01v8 l={L_xmcn} w={W_xmcn}\\nXMM3 N0 VCASN N5 GND sky130_fd_pr__nfet_01v8 l={L_xmm3} w={W_xmm3}\\nXMCP POSITIVE_SUM WR_C_PLUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xmcp} w={W_xmcp}\\nXMM1 N1 N1 VSS GND sky130_fd_pr__nfet_01v8 l={L_xmm1} w={W_xmm1}\\nXMR2 N0 VCASP N4 VDD sky130_fd_pr__pfet_01v8 l={L_xmr2} w={W_xmr2}\\nXMR1 N4 VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmr1} w={W_xmr1}\\nXMP2 N2 PHI2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmp2} w={W_xmp2}\\n\\n.control\\ntran 1n 2u\\n\\n* 1. Power Consumption\\nmeas tran avg_current avg i(VVDD) from=0 to=2u\\nlet power_consumption = -avg_current * 1.8\\nprint power_consumption\\n\\n* 2. Sampled Current\\nmeas tran I_pmos_sample find i(VVDD) at=0.8u\\nlet I_in_sample = -I_pmos_sample\\nmeas tran I_nmos_sample find i(VVSS) at=0.8u\\nprint I_in_sample I_nmos_sample\\n\\n* 3. Settling Time\\nmeas tran V_N2_final find v(N2) at=0.9u\\nlet V_N2_99 = V_N2_final * 0.99\\nmeas tran settling_time trig v(PHI1) val=0.9 rise=1 targ v(N2) val=$&V_N2_99 rise=1\\nprint settling_time\\n\\n* 4. Hold Current and Copy Error\\nmeas tran I_nmos_hold find i(VVSS) at=1.2u\\nlet copy_error_pct = abs(I_nmos_hold - I_nmos_sample) / I_nmos_sample * 100\\nprint I_nmos_hold copy_error_pct\\n\\n* 5. MAC Output Current (Evaluate Phase)\\nmeas tran I_pmos_eval find i(VVDD) at=1.8u\\nlet I_in_eval = -I_pmos_eval\\nmeas tran I_pos_sum find i(V_POS) at=1.8u\\nlet I_diff_expected = I_in_eval - I_nmos_hold\\nprint I_in_eval I_pos_sum I_diff_expected\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1201997",
+  "_case": "1201997_image_9_a"
+}

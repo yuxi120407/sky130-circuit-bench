@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Pseudo-differential Operational Transconductance Amplifier (OTA) with Common-Mode Feedforward (CMFF)",
+    "description": "A fully balanced pseudo-differential OTA that uses a common-mode feedforward (CMFF) circuit (XM2, XM7, XM3, XM4, XM6) to detect the input common-mode voltage and inject a canceling common-mode current at the outputs. This achieves high common-mode rejection (CMRR) without requiring a tail current source, maximizing voltage headroom.",
+    "node_mapping": {
+      "input": [
+        "VIP",
+        "VIM"
+      ],
+      "output": [
+        "VOUTP",
+        "VOUTM"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A pseudo-differential fully balanced fully symmetric CMOS operational transconductance amplifier (OTA) architecture with inherent common-mode detection",
+      "figure": "Fig. 1",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Differential_Gain": {
+      "description": "Low-frequency differential voltage gain (Ad)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ad = gm_n * (ro_n || ro_p). With Vcm=0.6V, Id~43uA, gm~486uS, Rout~77kOhm. Ad = 37.4 V/V = 31.4 dB.",
+        "range": {
+          "min": 25,
+          "typical": 31.4,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using SKY130 typical parameters for 5u/0.5u devices at 43uA bias current."
+      },
+      "importance": "essential"
+    },
+    "UGBW": {
+      "description": "Unity Gain Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "100 MHz",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm_n / (2 * pi * Cload). With gm=486uS and Cload=1pF, UGBW = 77.3 MHz.",
+        "range": {
+          "min": 50000000.0,
+          "typical": 77000000.0,
+          "max": 120000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Matches closely with the paper's 100 MHz filter application, adjusted for 1pF test load."
+      },
+      "importance": "essential"
+    },
+    "CMRR": {
+      "description": "Common-Mode Rejection Ratio",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "CMRR = Ad_db - Acm_db. If W_xm3 = 2 * W_xm4, the CMFF perfectly cancels common-mode current, yielding very high CMRR.",
+        "range": {
+          "min": 40,
+          "typical": 60,
+          "max": 80,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the matching of the PMOS current mirror ratio (W_xm3 vs W_xm4/6)."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumption of the OTA",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "42.9 mW (for entire 4th-order filter)",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_total = I_xm3 + I_xm4 + I_xm6 = 86uA + 43uA + 43uA = 172uA. Power = 172uA * 1.8V = 310uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00031,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Calculated for a single OTA stage. The paper's 42.9mW is for a complete complex filter system."
+      },
+      "importance": "essential"
+    },
+    "THD": {
+      "description": "Total Harmonic Distortion at 30 MHz for 900mVpp differential input",
+      "unit": "dBc",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "-43 dB",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Simulated via transient fourier analysis.",
+        "range": {
+          "min": -50,
+          "typical": -43,
+          "max": -35,
+          "unit": "dBc"
+        },
+        "reasoning": "Expected to be similar to the paper's reported value, as pseudo-differential pairs have good linearity when balanced."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure Differential Gain, UGBW, Phase Margin, CMRR, Power, and Transient Swing/THD.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Differential_Gain",
+      "UGBW",
+      "Phase_Margin",
+      "CMRR",
+      "Power_Consumption",
+      "THD"
+    ],
+    "spice": "* Pseudo-differential OTA with CMFF Testbench\n\n.lib \"${SKY130_PDK}\" tt\n\n* Note: W_xm3 is set to 10u (2x W_xm4) to perfectly balance the CMFF DC currents and maximize CMRR.\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=10u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\n* DUT\nXM1 VOUTM VIP VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 VIM VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUTM N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VOUTP VIM VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VOUTP N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 VIP VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\n* Supplies\nVVDD VDD 0 1.8\nVVSS VSS 0 0\n\n* DC Bias for outputs to prevent railing in open-loop\nVbias_out Vbias_out 0 0.9\nL_outp VOUTP Vbias_out 1000H\nL_outm VOUTM Vbias_out 1000H\nC_outp VOUTP 0 1p\nC_outm VOUTM 0 1p\n\n* Inputs (DC=0.6V, AC diff=1V, Tran=900mVpp diff at 30MHz)\nV_in_cm in_cm 0 0.6\nV_in_d_p VIP in_cm dc 0 ac 0.5 sin(0 0.225 30Meg)\nV_in_d_m VIM in_cm dc 0 ac -0.5 sin(0 -0.225 30Meg)\n\n.control\n  * 1. Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  print v(VOUTP) v(VOUTM) v(N1)\n\n  * 2. Differential AC Analysis\n  ac dec 100 1 1G\n  let vdiff = v(VOUTP) - v(VOUTM)\n  let gain_diff_db = 20 * log10(mag(vdiff))\n  let phase_diff = 180/PI * cph(vdiff)\n  \n  meas ac Ad_db find gain_diff_db at=100\n  meas ac ugbw when gain_diff_db=0 fall=1\n  meas ac phase_at_ugbw find phase_diff when gain_diff_db=0 fall=1\n\n  * 3. Common-Mode AC Analysis\n  alter V_in_d_p ac=1\n  alter V_in_d_m ac=1\n  ac dec 100 1 1G\n  let vcomm = (v(VOUTP) + v(VOUTM))/2\n  let gain_cm_db = 20 * log10(mag(vcomm))\n  meas ac Acm_db find gain_cm_db at=100\n  \n  let cmrr_db = Ad_db - Acm_db\n  print cmrr_db\n\n  * 4. Transient Analysis & THD\n  tran 0.1n 100n\n  let vdiff_tran = v(VOUTP) - v(VOUTM)\n  meas tran v_max max vdiff_tran\n  meas tran v_min min vdiff_tran\n  \n  * Fourier analysis for THD at 30MHz\n  fourier 30Meg vdiff_tran\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Pseudo-differential Operational Transconductance Amplifier (OTA) with Common-Mode Feedforward (CMFF)\",\n    \"description\": \"A fully balanced pseudo-differential OTA that uses a common-mode feedforward (CMFF) circuit (XM2, XM7, XM3, XM4, XM6) to detect the input common-mode voltage and inject a canceling common-mode current at the outputs. This achieves high common-mode rejection (CMRR) without requiring a tail current source, maximizing voltage headroom.\",\n    \"node_mapping\": {\n      \"input\": [\"VIP\", \"VIM\"],\n      \"output\": [\"VOUTP\", \"VOUTM\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N1\"],\n      \"ground\": [\"VSS\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A pseudo-differential fully balanced fully symmetric CMOS operational transconductance amplifier (OTA) architecture with inherent common-mode detection\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Differential_Gain\": {\n      \"description\": \"Low-frequency differential voltage gain (Ad)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ad = gm_n * (ro_n || ro_p). With Vcm=0.6V, Id~43uA, gm~486uS, Rout~77kOhm. Ad = 37.4 V/V = 31.4 dB.\",\n        \"range\": { \"min\": 25, \"typical\": 31.4, \"max\": 40, \"unit\": \"dB\" },\n        \"reasoning\": \"Calculated using SKY130 typical parameters for 5u/0.5u devices at 43uA bias current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"UGBW\": {\n      \"description\": \"Unity Gain Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"100 MHz\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm_n / (2 * pi * Cload). With gm=486uS and Cload=1pF, UGBW = 77.3 MHz.\",\n        \"range\": { \"min\": 50e6, \"typical\": 77e6, \"max\": 120e6, \"unit\": \"Hz\" },\n        \"reasoning\": \"Matches closely with the paper's 100 MHz filter application, adjusted for 1pF test load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"CMRR\": {\n      \"description\": \"Common-Mode Rejection Ratio\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"CMRR = Ad_db - Acm_db. If W_xm3 = 2 * W_xm4, the CMFF perfectly cancels common-mode current, yielding very high CMRR.\",\n        \"range\": { \"min\": 40, \"typical\": 60, \"max\": 80, \"unit\": \"dB\" },\n        \"reasoning\": \"Depends heavily on the matching of the PMOS current mirror ratio (W_xm3 vs W_xm4/6).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumption of the OTA\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"42.9 mW (for entire 4th-order filter)\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total = I_xm3 + I_xm4 + I_xm6 = 86uA + 43uA + 43uA = 172uA. Power = 172uA * 1.8V = 310uW.\",\n        \"range\": { \"min\": 200e-6, \"typical\": 310e-6, \"max\": 500e-6, \"unit\": \"W\" },\n        \"reasoning\": \"Calculated for a single OTA stage. The paper's 42.9mW is for a complete complex filter system.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"THD\": {\n      \"description\": \"Total Harmonic Distortion at 30 MHz for 900mVpp differential input\",\n      \"unit\": \"dBc\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"-43 dB\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Simulated via transient fourier analysis.\",\n        \"range\": { \"min\": -50, \"typical\": -43, \"max\": -35, \"unit\": \"dBc\" },\n        \"reasoning\": \"Expected to be similar to the paper's reported value, as pseudo-differential pairs have good linearity when balanced.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure Differential Gain, UGBW, Phase Margin, CMRR, Power, and Transient Swing/THD.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"Differential_Gain\", \"UGBW\", \"Phase_Margin\", \"CMRR\", \"Power_Consumption\", \"THD\"],\n    \"spice\": \"* Pseudo-differential OTA with CMFF Testbench\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Note: W_xm3 is set to 10u (2x W_xm4) to perfectly balance the CMFF DC currents and maximize CMRR.\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=10u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\n* DUT\\nXM1 VOUTM VIP VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 VIM VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUTM N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VOUTP VIM VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VOUTP N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 VIP VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Supplies\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\n\\n* DC Bias for outputs to prevent railing in open-loop\\nVbias_out Vbias_out 0 0.9\\nL_outp VOUTP Vbias_out 1000H\\nL_outm VOUTM Vbias_out 1000H\\nC_outp VOUTP 0 1p\\nC_outm VOUTM 0 1p\\n\\n* Inputs (DC=0.6V, AC diff=1V, Tran=900mVpp diff at 30MHz)\\nV_in_cm in_cm 0 0.6\\nV_in_d_p VIP in_cm dc 0 ac 0.5 sin(0 0.225 30Meg)\\nV_in_d_m VIM in_cm dc 0 ac -0.5 sin(0 -0.225 30Meg)\\n\\n.control\\n  * 1. Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  print v(VOUTP) v(VOUTM) v(N1)\\n\\n  * 2. Differential AC Analysis\\n  ac dec 100 1 1G\\n  let vdiff = v(VOUTP) - v(VOUTM)\\n  let gain_diff_db = 20 * log10(mag(vdiff))\\n  let phase_diff = 180/PI * cph(vdiff)\\n  \\n  meas ac Ad_db find gain_diff_db at=100\\n  meas ac ugbw when gain_diff_db=0 fall=1\\n  meas ac phase_at_ugbw find phase_diff when gain_diff_db=0 fall=1\\n\\n  * 3. Common-Mode AC Analysis\\n  alter V_in_d_p ac=1\\n  alter V_in_d_m ac=1\\n  ac dec 100 1 1G\\n  let vcomm = (v(VOUTP) + v(VOUTM))/2\\n  let gain_cm_db = 20 * log10(mag(vcomm))\\n  meas ac Acm_db find gain_cm_db at=100\\n  \\n  let cmrr_db = Ad_db - Acm_db\\n  print cmrr_db\\n\\n  * 4. Transient Analysis & THD\\n  tran 0.1n 100n\\n  let vdiff_tran = v(VOUTP) - v(VOUTM)\\n  meas tran v_max max vdiff_tran\\n  meas tran v_min min vdiff_tran\\n  \\n  * Fourier analysis for THD at 30MHz\\n  fourier 30Meg vdiff_tran\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1190602",
+  "_case": "1190602_image_1"
+}

@@ -1,0 +1,124 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Delay Cell / Inverter with Explicit Capacitances",
+    "description": "The circuit acts as an NMOS inverting switch (XM1) with explicitly added MOS capacitors (XM2, XM3, XM4) to increase the Miller, input, and output capacitances. It is likely used as a discrete-time delay cell in a PLL loop filter to introduce a zero, as described in the paper.",
+    "node_mapping": {
+      "input": [
+        "Y"
+      ],
+      "output": [
+        "X"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Stabilization Technique for Phase-Locked Frequency Synthesizers",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "timing_delay": {
+      "description": "Propagation delay of the cell from input Y to output X",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "500 ps",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Total capacitance on node X is C_out ~ 53fF (XM4 + XM2 + XM1 drain). With an external 10k pull-up resistor, the time constant tau = 530ps. Delay ~ 0.69 * tau ~ 360ps.",
+        "range": {
+          "min": "200p",
+          "typical": "400p",
+          "max": "600p",
+          "unit": "s"
+        },
+        "reasoning": "Matches the 500ps delay reported in the paper, adjusted for SKY130 parasitic values and an assumed 10k pull-up resistor to make the NMOS switch functional."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumption of the delay cell",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "20 mW",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Static power with 10k pull-up and 50% duty cycle: (1.8^2 / 10k) * 0.5 = 162 uW. Dynamic power at 100MHz: 53fF * 1.8^2 * 100M = 17 uW. Total ~ 180 uW.",
+        "range": {
+          "min": "100u",
+          "typical": "180u",
+          "max": "300u",
+          "unit": "W"
+        },
+        "reasoning": "The 20mW reported in the paper is for the entire synthesizer. A single delay cell consumes much less, dominated by the pull-up resistor static current."
+      },
+      "importance": "essential"
+    },
+    "switching_threshold": {
+      "description": "DC input voltage at which the output crosses VDD/2",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "NMOS Vth is ~0.42V. The threshold depends on the pull-up resistor and NMOS strength. With W/L=5/0.5 and R=10k, the NMOS is strong, so the threshold is close to Vth, around 0.6V - 0.8V.",
+        "range": {
+          "min": "0.5",
+          "typical": "0.7",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "Standard inverter threshold calculation with a resistive load."
+      },
+      "importance": "recommended"
+    },
+    "phase_noise": {
+      "description": "Phase noise of the synthesizer at 1-MHz offset",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "112 dBc/Hz",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for a single delay cell.",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "System-level metric, cannot be simulated with just the delay cell."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure propagation delay, rise/fall times, power consumption, and DC switching threshold of the delay cell.",
+    "analyses": [
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "timing_delay",
+      "power_consumption",
+      "switching_threshold"
+    ],
+    "spice": "* Testbench for Delay Cell\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\n* DUT\nXM2 Y X Y GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 X Y GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM3 GND Y GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 GND X GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Sources and external components\nVVDD VDD 0 1.8\nRpullup X VDD 10k\nVY Y 0 PULSE(0 1.8 1n 100p 100p 4.9n 10n)\n\n* Load PDK\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  * Transient Analysis\n  tran 10p 20n\n  \n  * Measure delays\n  meas tran t_delay_fall trig v(Y) val=0.9 rise=1 targ v(X) val=0.9 fall=1\n  meas tran t_delay_rise trig v(Y) val=0.9 fall=1 targ v(X) val=0.9 rise=1\n  \n  * Measure rise and fall times\n  meas tran t_rise trig v(X) val=0.36 rise=1 targ v(X) val=1.44 rise=1\n  meas tran t_fall trig v(X) val=1.44 fall=1 targ v(X) val=0.36 fall=1\n  \n  * Measure power\n  let inst_power = -i(VVDD) * 1.8\n  meas tran avg_power avg inst_power from=0 to=20n\n  \n  * DC Analysis\n  dc VY 0 1.8 0.01\n  meas dc v_threshold when v(X)=0.9 fall=1\n  \n  print t_delay_fall t_delay_rise t_rise t_fall avg_power v_threshold\n  quit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Delay Cell / Inverter with Explicit Capacitances\",\n    \"description\": \"The circuit acts as an NMOS inverting switch (XM1) with explicitly added MOS capacitors (XM2, XM3, XM4) to increase the Miller, input, and output capacitances. It is likely used as a discrete-time delay cell in a PLL loop filter to introduce a zero, as described in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Y\"\n      ],\n      \"output\": [\n        \"X\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Stabilization Technique for Phase-Locked Frequency Synthesizers\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"timing_delay\": {\n      \"description\": \"Propagation delay of the cell from input Y to output X\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"500 ps\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total capacitance on node X is C_out ~ 53fF (XM4 + XM2 + XM1 drain). With an external 10k pull-up resistor, the time constant tau = 530ps. Delay ~ 0.69 * tau ~ 360ps.\",\n        \"range\": {\n          \"min\": \"200p\",\n          \"typical\": \"400p\",\n          \"max\": \"600p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Matches the 500ps delay reported in the paper, adjusted for SKY130 parasitic values and an assumed 10k pull-up resistor to make the NMOS switch functional.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the delay cell\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"20 mW\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static power with 10k pull-up and 50% duty cycle: (1.8^2 / 10k) * 0.5 = 162 uW. Dynamic power at 100MHz: 53fF * 1.8^2 * 100M = 17 uW. Total ~ 180 uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"180u\",\n          \"max\": \"300u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 20mW reported in the paper is for the entire synthesizer. A single delay cell consumes much less, dominated by the pull-up resistor static current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"switching_threshold\": {\n      \"description\": \"DC input voltage at which the output crosses VDD/2\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NMOS Vth is ~0.42V. The threshold depends on the pull-up resistor and NMOS strength. With W/L=5/0.5 and R=10k, the NMOS is strong, so the threshold is close to Vth, around 0.6V - 0.8V.\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"0.7\",\n          \"max\": \"0.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard inverter threshold calculation with a resistive load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise of the synthesizer at 1-MHz offset\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"112 dBc/Hz\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for a single delay cell.\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"System-level metric, cannot be simulated with just the delay cell.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure propagation delay, rise/fall times, power consumption, and DC switching threshold of the delay cell.\",\n    \"analyses\": [\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"timing_delay\",\n      \"power_consumption\",\n      \"switching_threshold\"\n    ],\n    \"spice\": \"* Testbench for Delay Cell\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\n* DUT\\nXM2 Y X Y GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 X Y GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM3 GND Y GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 GND X GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Sources and external components\\nVVDD VDD 0 1.8\\nRpullup X VDD 10k\\nVY Y 0 PULSE(0 1.8 1n 100p 100p 4.9n 10n)\\n\\n* Load PDK\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  * Transient Analysis\\n  tran 10p 20n\\n  \\n  * Measure delays\\n  meas tran t_delay_fall trig v(Y) val=0.9 rise=1 targ v(X) val=0.9 fall=1\\n  meas tran t_delay_rise trig v(Y) val=0.9 fall=1 targ v(X) val=0.9 rise=1\\n  \\n  * Measure rise and fall times\\n  meas tran t_rise trig v(X) val=0.36 rise=1 targ v(X) val=1.44 rise=1\\n  meas tran t_fall trig v(X) val=1.44 fall=1 targ v(X) val=0.36 fall=1\\n  \\n  * Measure power\\n  let inst_power = -i(VVDD) * 1.8\\n  meas tran avg_power avg inst_power from=0 to=20n\\n  \\n  * DC Analysis\\n  dc VY 0 1.8 0.01\\n  meas dc v_threshold when v(X)=0.9 fall=1\\n  \\n  print t_delay_fall t_delay_rise t_rise t_fall avg_power v_threshold\\n  quit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1201990",
+  "_case": "1201990_image_5_a"
+}

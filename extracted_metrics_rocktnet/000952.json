@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switchable Bias Generator / Active Load Amplifier",
+    "description": "The circuit is a common-source amplifier or bias generator with a diode-connected PMOS load (XMP1) and an NMOS driver (XMN2). An additional NMOS switch (XMN1) is used to pull the gate of the driver to ground, effectively disabling the circuit and turning off the bias current.",
+    "node_mapping": {
+      "input": [
+        "N2",
+        "N1"
+      ],
+      "output": [
+        "VB"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 13.56MHz Fully Integrated 1X/2X Active Rectifier with Compensated Bias Current for Inductively Powered Devices",
+      "figure": "unknown",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low frequency voltage gain from N2 to VB",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 gm_n2 / gm_p1. With un*Cox=270u and up*Cox=50u, gm ratio is approx sqrt(270/50) = 2.3 V/V, which is ~7.3 dB.",
+        "range": {
+          "min": 5,
+          "typical": 7.3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Based on square-law model for diode-connected load in SKY130."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier stage",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "13.56MHz (system frequency)",
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "BW \u2248 gm_p1 / (2*pi*Cload). With gm_p1 ~ 100uS and Cload ~ 10fF, BW is in the hundreds of MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 500000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The diode-connected load provides a low impedance (~1/gm), resulting in a wide bandwidth suitable for the 13.56MHz system frequency."
+      },
+      "importance": "recommended"
+    },
+    "power_consumption": {
+      "description": "Static power consumption when enabled (N1=0V, N2=0.9V)",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "30mW (total system)",
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Id \u2248 0.5 * 270u * 10 * (0.9-0.42)^2 \u2248 310uA. Power = 1.8V * 310uA \u2248 558uW.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.0005,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Calculated using SKY130 NMOS parameters at VDD=1.8V and typical bias."
+      },
+      "importance": "essential"
+    },
+    "turn_off_time": {
+      "description": "Delay from enable signal (N1) going high to output (VB) pulling up to VDD",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant of the node N2 being pulled down by XMN1, and VB being pulled up by XMP1.",
+        "range": {
+          "min": 1e-09,
+          "typical": 2e-09,
+          "max": 5e-09,
+          "unit": "s"
+        },
+        "reasoning": "Small parasitic capacitances and strong drive strengths yield nanosecond-scale switching times."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, bandwidth, power consumption, and switching times of the switchable bias generator.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain_db",
+      "bw_3db",
+      "t_off",
+      "t_on"
+    ],
+    "spice": "* Switchable Bias/Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n\nXMN1 N2 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMN2 VB N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMP1 VB VB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\n\nVVDD VDD 0 1.8\nVN2_src N2_src 0 dc 0.9 ac 1\nR1 N2_src N2 10k\nVN1 N1 0 dc 0 pulse(0 1.8 10n 1n 1n 40n 100n)\nCload VB 0 10f\n\n.control\n* 1. Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis\nac dec 100 1k 10G\nlet gain_db = vdb(VB) - vdb(N2)\nmeas ac dc_gain_db find gain_db at=1k\nmeas ac bw_3db when gain_db='dc_gain_db-3' fall=1\n\n* 3. Transient Analysis\ntran 0.1n 100n\nmeas tran t_off trig v(N1) val=0.9 rise=1 targ v(VB) val=1.6 rise=1\nmeas tran t_on trig v(N1) val=0.9 fall=1 targ v(VB) val=1.0 fall=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switchable Bias Generator / Active Load Amplifier\",\n    \"description\": \"The circuit is a common-source amplifier or bias generator with a diode-connected PMOS load (XMP1) and an NMOS driver (XMN2). An additional NMOS switch (XMN1) is used to pull the gate of the driver to ground, effectively disabling the circuit and turning off the bias current.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\",\n        \"N1\"\n      ],\n      \"output\": [\n        \"VB\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 13.56MHz Fully Integrated 1X/2X Active Rectifier with Compensated Bias Current for Inductively Powered Devices\",\n      \"figure\": \"unknown\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low frequency voltage gain from N2 to VB\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 gm_n2 / gm_p1. With un*Cox=270u and up*Cox=50u, gm ratio is approx sqrt(270/50) = 2.3 V/V, which is ~7.3 dB.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 7.3,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on square-law model for diode-connected load in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier stage\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"13.56MHz (system frequency)\",\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW \u2248 gm_p1 / (2*pi*Cload). With gm_p1 ~ 100uS and Cload ~ 10fF, BW is in the hundreds of MHz.\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 500e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The diode-connected load provides a low impedance (~1/gm), resulting in a wide bandwidth suitable for the 13.56MHz system frequency.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Static power consumption when enabled (N1=0V, N2=0.9V)\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"30mW (total system)\",\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id \u2248 0.5 * 270u * 10 * (0.9-0.42)^2 \u2248 310uA. Power = 1.8V * 310uA \u2248 558uW.\",\n        \"range\": {\n          \"min\": 300e-6,\n          \"typical\": 500e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS parameters at VDD=1.8V and typical bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"turn_off_time\": {\n      \"description\": \"Delay from enable signal (N1) going high to output (VB) pulling up to VDD\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant of the node N2 being pulled down by XMN1, and VB being pulled up by XMP1.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 2e-9,\n          \"max\": 5e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Small parasitic capacitances and strong drive strengths yield nanosecond-scale switching times.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, bandwidth, power consumption, and switching times of the switchable bias generator.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain_db\",\n      \"bw_3db\",\n      \"t_off\",\n      \"t_on\"\n    ],\n    \"spice\": \"* Switchable Bias/Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n\\nXMN1 N2 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMN2 VB N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMP1 VB VB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\n\\nVVDD VDD 0 1.8\\nVN2_src N2_src 0 dc 0.9 ac 1\\nR1 N2_src N2 10k\\nVN1 N1 0 dc 0 pulse(0 1.8 10n 1n 1n 40n 100n)\\nCload VB 0 10f\\n\\n.control\\n* 1. Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis\\nac dec 100 1k 10G\\nlet gain_db = vdb(VB) - vdb(N2)\\nmeas ac dc_gain_db find gain_db at=1k\\nmeas ac bw_3db when gain_db='dc_gain_db-3' fall=1\\n\\n* 3. Transient Analysis\\ntran 0.1n 100n\\nmeas tran t_off trig v(N1) val=0.9 rise=1 targ v(VB) val=1.6 rise=1\\nmeas tran t_on trig v(N1) val=0.9 fall=1 targ v(VB) val=1.0 fall=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6487639",
+  "_case": "6487639_image_2_a"
+}

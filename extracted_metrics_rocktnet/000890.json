@@ -1,0 +1,135 @@
+{
+  "step1_analysis": {
+    "circuit_type": "2:1 Multiplexer (ECL)",
+    "description": "An emitter-coupled logic (ECL) 2:1 multiplexer. It selects between differential data inputs A and B based on the differential clock/select input VC, utilizing a double-balanced Gilbert cell-like structure with emitter follower buffers.",
+    "node_mapping": {
+      "input": [
+        "A_P",
+        "A_N",
+        "B_P",
+        "B_N",
+        "VC_P",
+        "VC_N"
+      ],
+      "output": [
+        "OUT_P",
+        "OUT_N"
+      ],
+      "supply": [
+        "GND",
+        "VEE"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 43-Gb/s Full-Rate Clock Transmitter in 0.18-um SiGe BiCMOS Technology",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "DC power consumption of the multiplexer block",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2.3 W (entire chip)",
+        "technology": "0.18-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Total current is approx 6mA from a -3.3V supply (1mA per current source + output buffers). Power = 6mA * 3.3V = 19.8mW.",
+        "range": {
+          "min": "15m",
+          "typical": "20m",
+          "max": "25m",
+          "unit": "W"
+        },
+        "reasoning": "Based on standard ECL tail currents of 1mA per branch to achieve high-speed switching."
+      },
+      "importance": "essential"
+    },
+    "vswing": {
+      "description": "Single-ended output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "600 mV (internal swing)",
+        "technology": "0.18-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_load = 2mA * 400 ohm = 800mV.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.8",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "ECL logic levels typically aim for 600mV to 800mV swing to keep transistors out of deep saturation while providing enough noise margin."
+      },
+      "importance": "essential"
+    },
+    "delay_data": {
+      "description": "Propagation delay from data input to output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "24 ps (typical ECL gate delay)",
+        "technology": "0.18-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Using a generic NPN model with tf=10p, delay is roughly 2-3 * tf = 20-30ps.",
+        "range": {
+          "min": "15p",
+          "typical": "25p",
+          "max": "40p",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the NPN transit time (fT) and parasitic capacitances. The paper's 120GHz HBTs would yield <10ps, but a generic model yields ~25ps."
+      },
+      "importance": "essential"
+    },
+    "t_rise": {
+      "description": "Rise time of the output signal (20% to 80%)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by R_load * C_parasitic. 400 ohm * 50fF = 20ps time constant.",
+        "range": {
+          "min": "10p",
+          "typical": "20p",
+          "max": "35p",
+          "unit": "s"
+        },
+        "reasoning": "Determined by the RC time constant at the collector nodes (N1, N2)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power, output swing, propagation delay, and rise/fall times of the ECL 2:1 MUX.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "vswing",
+      "delay_data",
+      "t_rise",
+      "t_fall"
+    ],
+    "spice": "* ECL 2:1 MUX Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param Rload=400 Rtail=400 Rout=2k Rdeg=100\n\n* DUT Netlist\nQ1 N1 A_P N3 npn\nQ2 N3 N5 N7 npn\nQ3 N2 B_N N4 npn\nQ4 N2 A_N N3 npn\nQ5 GND VC_N N6 npn\nQ6 N4 N6 N8 npn\nQ7 N8 BIAS N12 npn\nQ8 N7 BIAS N11 npn\nQ9 N5 BIAS N9 npn\nQ10 N6 BIAS N10 npn\nQ11 GND N1 OUT_P npn\nQ12 N1 B_P N4 npn\nQ13 GND N2 OUT_N npn\nQ14 GND VC_P N5 npn\nR1 GND N1 {Rload}\nR2 GND N2 {Rload}\nR3 N9 VEE {Rtail}\nR4 N10 VEE {Rtail}\nR5 N11 VEE {Rtail}\nR6 N12 VEE {Rtail}\nR7 OUT_N VEE {Rout}\nR8 OUT_P VEE {Rout}\nR9 N7 N8 {Rdeg}\n\n* Generic high-speed NPN model for simulation\n.model npn npn(is=1e-16 bf=100 vaf=50 cjc=10f cje=10f tf=10p)\n\n* Power Supplies\nV_GND GND 0 0\nV_VEE VEE 0 -3.3\nV_BIAS BIAS 0 -2.1\n\n* Inputs\n* VC selects Data A (VC_P > VC_N)\nV_VCP VC_P 0 -1.0\nV_VCN VC_N 0 -1.4\n\n* Data B (Unselected, held constant)\nV_BP B_P 0 -1.4\nV_BN B_N 0 -1.0\n\n* Data A (Selected, pulsed to measure delay)\nV_AP A_P 0 PULSE(-1.4 -1.0 100p 20p 20p 400p 1n)\nV_AN A_N 0 PULSE(-1.0 -1.4 100p 20p 20p 400p 1n)\n\n.control\n  * DC Operating Point for Power\n  op\n  let power = -i(V_VEE) * 3.3\n  print power\n\n  * Transient Analysis for Delay and Swing\n  tran 1p 2n\n  \n  meas tran v_out_max max v(OUT_N)\n  meas tran v_out_min min v(OUT_N)\n  let vswing = v_out_max - v_out_min\n  print vswing\n\n  * Delay from A_P to OUT_P (Inverting path)\n  meas tran delay_data trig v(A_P) val=-1.2 rise=1 targ v(OUT_P) val=-1.2 fall=1\n  \n  * Rise and fall times of OUT_N (approx 20% to 80% of 800mV swing)\n  meas tran t_rise trig v(OUT_N) val=-1.4 rise=1 targ v(OUT_N) val=-1.0 rise=1\n  meas tran t_fall trig v(OUT_N) val=-1.0 fall=1 targ v(OUT_N) val=-1.4 fall=1\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"2:1 Multiplexer (ECL)\",\n    \"description\": \"An emitter-coupled logic (ECL) 2:1 multiplexer. It selects between differential data inputs A and B based on the differential clock/select input VC, utilizing a double-balanced Gilbert cell-like structure with emitter follower buffers.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"A_P\",\n        \"A_N\",\n        \"B_P\",\n        \"B_N\",\n        \"VC_P\",\n        \"VC_N\"\n      ],\n      \"output\": [\n        \"OUT_P\",\n        \"OUT_N\"\n      ],\n      \"supply\": [\n        \"GND\",\n        \"VEE\"\n      ],\n      \"bias\": [\n        \"BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 43-Gb/s Full-Rate Clock Transmitter in 0.18-um SiGe BiCMOS Technology\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"DC power consumption of the multiplexer block\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2.3 W (entire chip)\",\n        \"technology\": \"0.18-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current is approx 6mA from a -3.3V supply (1mA per current source + output buffers). Power = 6mA * 3.3V = 19.8mW.\",\n        \"range\": {\n          \"min\": \"15m\",\n          \"typical\": \"20m\",\n          \"max\": \"25m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on standard ECL tail currents of 1mA per branch to achieve high-speed switching.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vswing\": {\n      \"description\": \"Single-ended output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"600 mV (internal swing)\",\n        \"technology\": \"0.18-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_load = 2mA * 400 ohm = 800mV.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.8\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"ECL logic levels typically aim for 600mV to 800mV swing to keep transistors out of deep saturation while providing enough noise margin.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_data\": {\n      \"description\": \"Propagation delay from data input to output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"24 ps (typical ECL gate delay)\",\n        \"technology\": \"0.18-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using a generic NPN model with tf=10p, delay is roughly 2-3 * tf = 20-30ps.\",\n        \"range\": {\n          \"min\": \"15p\",\n          \"typical\": \"25p\",\n          \"max\": \"40p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the NPN transit time (fT) and parasitic capacitances. The paper's 120GHz HBTs would yield <10ps, but a generic model yields ~25ps.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_rise\": {\n      \"description\": \"Rise time of the output signal (20% to 80%)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by R_load * C_parasitic. 400 ohm * 50fF = 20ps time constant.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"20p\",\n          \"max\": \"35p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Determined by the RC time constant at the collector nodes (N1, N2).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power, output swing, propagation delay, and rise/fall times of the ECL 2:1 MUX.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"vswing\",\n      \"delay_data\",\n      \"t_rise\",\n      \"t_fall\"\n    ],\n    \"spice\": \"* ECL 2:1 MUX Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param Rload=400 Rtail=400 Rout=2k Rdeg=100\\n\\n* DUT Netlist\\nQ1 N1 A_P N3 npn\\nQ2 N3 N5 N7 npn\\nQ3 N2 B_N N4 npn\\nQ4 N2 A_N N3 npn\\nQ5 GND VC_N N6 npn\\nQ6 N4 N6 N8 npn\\nQ7 N8 BIAS N12 npn\\nQ8 N7 BIAS N11 npn\\nQ9 N5 BIAS N9 npn\\nQ10 N6 BIAS N10 npn\\nQ11 GND N1 OUT_P npn\\nQ12 N1 B_P N4 npn\\nQ13 GND N2 OUT_N npn\\nQ14 GND VC_P N5 npn\\nR1 GND N1 {Rload}\\nR2 GND N2 {Rload}\\nR3 N9 VEE {Rtail}\\nR4 N10 VEE {Rtail}\\nR5 N11 VEE {Rtail}\\nR6 N12 VEE {Rtail}\\nR7 OUT_N VEE {Rout}\\nR8 OUT_P VEE {Rout}\\nR9 N7 N8 {Rdeg}\\n\\n* Generic high-speed NPN model for simulation\\n.model npn npn(is=1e-16 bf=100 vaf=50 cjc=10f cje=10f tf=10p)\\n\\n* Power Supplies\\nV_GND GND 0 0\\nV_VEE VEE 0 -3.3\\nV_BIAS BIAS 0 -2.1\\n\\n* Inputs\\n* VC selects Data A (VC_P > VC_N)\\nV_VCP VC_P 0 -1.0\\nV_VCN VC_N 0 -1.4\\n\\n* Data B (Unselected, held constant)\\nV_BP B_P 0 -1.4\\nV_BN B_N 0 -1.0\\n\\n* Data A (Selected, pulsed to measure delay)\\nV_AP A_P 0 PULSE(-1.4 -1.0 100p 20p 20p 400p 1n)\\nV_AN A_N 0 PULSE(-1.0 -1.4 100p 20p 20p 400p 1n)\\n\\n.control\\n  * DC Operating Point for Power\\n  op\\n  let power = -i(V_VEE) * 3.3\\n  print power\\n\\n  * Transient Analysis for Delay and Swing\\n  tran 1p 2n\\n  \\n  meas tran v_out_max max v(OUT_N)\\n  meas tran v_out_min min v(OUT_N)\\n  let vswing = v_out_max - v_out_min\\n  print vswing\\n\\n  * Delay from A_P to OUT_P (Inverting path)\\n  meas tran delay_data trig v(A_P) val=-1.2 rise=1 targ v(OUT_P) val=-1.2 fall=1\\n  \\n  * Rise and fall times of OUT_N (approx 20% to 80% of 800mV swing)\\n  meas tran t_rise trig v(OUT_N) val=-1.4 rise=1 targ v(OUT_N) val=-1.0 rise=1\\n  meas tran t_fall trig v(OUT_N) val=-1.0 fall=1 targ v(OUT_N) val=-1.4 fall=1\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1506892",
+  "_case": "1506892_image_4"
+}

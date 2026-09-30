@@ -1,0 +1,247 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 20.29 and Fig 20.22",
+    "page": "637 and 629",
+    "circuit_type": "Cascode Current Mirror with Beta-Multiplier Bias",
+    "description": "The netlist describes a cascode current mirror (M1-M4) biased by a Beta-multiplier reference circuit (SUB_1, matching Fig 20.22). The cascode structure itself is a low-voltage (wide-swing) variation of the simple cascode shown in Fig 20.29, using separate diode-connected devices (xm1 and xmws) to independently bias the mirror and cascode transistors."
+  },
+  "step2_metrics": {
+    "resistor_mosfet_iref": {
+      "description": "Reference current for a resistor-MOSFET reference circuit.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "631",
+        "reference": "Eq 20.26"
+      },
+      "equation": {
+        "formula": "IREF = (VDD - VGS) / R",
+        "explanation": "Calculates the current defined by the voltage drop across a resistor in series with a diode-connected MOSFET.",
+        "assumptions": "Neglects MOSFET finite output resistance."
+      },
+      "sky130_expected": {
+        "calculation": "Assume VDD = 1.8V, VGS \u2248 Vth + Vdsat \u2248 0.42V + 0.2V = 0.62V, R = 6.5k\u03a9. IREF = (1.8 - 0.62) / 6500 = 181.5 \u00b5A.",
+        "range": {
+          "min": "150u",
+          "typical": "181.5u",
+          "max": "200u",
+          "unit": "A"
+        },
+        "reasoning": "Depends heavily on the exact VGS which varies with sizing, but ~180\u00b5A is expected for 6.5k\u03a9."
+      },
+      "importance": "optional"
+    },
+    "resistor_mosfet_tempco": {
+      "description": "Temperature coefficient of the resistor-MOSFET reference current.",
+      "unit": "1/\u00b0C",
+      "analysis_type": "DC",
+      "source": {
+        "page": "632",
+        "reference": "Eq 20.31"
+      },
+      "equation": {
+        "formula": "TCIREF = -(1/R)(dR/dT) - (1/(VDD - VGS))(dVGS/dT)",
+        "explanation": "Fractional change in reference current per degree Celsius.",
+        "assumptions": "Linear temperature dependence of R and VGS."
+      },
+      "sky130_expected": {
+        "calculation": "Assume TCR = 0.002/\u00b0C, dVGS/dT = -1mV/\u00b0C, VDD=1.8V, VGS=0.62V. TCIREF = -0.002 - (1/(1.8 - 0.62))(-0.001) = -0.002 + 0.00084 = -0.00116 /\u00b0C.",
+        "range": {
+          "min": "-0.002",
+          "typical": "-0.00116",
+          "max": "0",
+          "unit": "1/\u00b0C"
+        },
+        "reasoning": "Dominated by the positive temperature coefficient of the resistor."
+      },
+      "importance": "optional"
+    },
+    "mosfet_only_iref": {
+      "description": "Reference current for a MOSFET-only bias circuit.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "633",
+        "reference": "Eq 20.33"
+      },
+      "equation": {
+        "formula": "IREF = KPn * [VDD^2 - 2*VDD*(VTHN + VTHP) + (VTHN + VTHP)^2] / [sqrt(M*2*L3/W3) + sqrt(2*L1/W1)]^2",
+        "explanation": "Current generated using only MOSFETs acting as voltage dividers and current sources.",
+        "assumptions": "Long-channel square-law equations apply."
+      },
+      "sky130_expected": {
+        "calculation": "VDD=1.8V, VTHN=0.42V, VTHP=0.42V. Numerator = (1.8 - 0.84)^2 = 0.9216. Denominator depends on sizing. If denominator term is ~10, IREF \u2248 270\u00b5A/V^2 * 0.9216 / 10 \u2248 25 \u00b5A.",
+        "range": {
+          "min": "10u",
+          "typical": "25u",
+          "max": "50u",
+          "unit": "A"
+        },
+        "reasoning": "Highly dependent on the specific W/L ratios chosen for the voltage divider."
+      },
+      "importance": "optional"
+    },
+    "beta_multiplier_tempco": {
+      "description": "Temperature coefficient of the Beta-multiplier reference current.",
+      "unit": "1/\u00b0C",
+      "analysis_type": "DC",
+      "source": {
+        "page": "634",
+        "reference": "Eq 20.37"
+      },
+      "equation": {
+        "formula": "TCIREF = -2*(1/R)*(dR/dT) - (1/KPn)*(dKPn/dT)",
+        "explanation": "Shows how the positive TC of the resistor subtracts from the negative TC of mobility to stabilize current.",
+        "assumptions": "Mobility dominates KPn temperature dependence."
+      },
+      "sky130_expected": {
+        "calculation": "Assume TCR = 0.002/\u00b0C, mobility TC = -1.5/T = -1.5/300 = -0.005/\u00b0C. TCIREF = -2(0.002) - (-0.005) = -0.004 + 0.005 = +0.001 /\u00b0C (1000 ppm/\u00b0C).",
+        "range": {
+          "min": "0",
+          "typical": "0.001",
+          "max": "0.002",
+          "unit": "1/\u00b0C"
+        },
+        "reasoning": "Proper sizing can tune this close to zero, but typical unoptimized values are around 1000 ppm/\u00b0C."
+      },
+      "importance": "recommended"
+    },
+    "beta_multiplier_vref": {
+      "description": "Constant voltage reference generated using a Beta-multiplier.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "634",
+        "reference": "Eq 20.38"
+      },
+      "equation": {
+        "formula": "VREF = (2 / (R * KPn * W/L)) * (1 - 1/sqrt(K)) + VTHN",
+        "explanation": "Gate voltage of M1 in the Beta-multiplier, which can be designed to be temperature independent.",
+        "assumptions": "Square-law model, K is the multiplier ratio."
+      },
+      "sky130_expected": {
+        "calculation": "Assume K=4, R=6.5k\u03a9, KPn=270\u00b5A/V^2, W/L=1, VTHN=0.42V. VREF = (2 / (6500 * 270e-6 * 1)) * (1 - 0.5) + 0.42 = (2 / 1.755) * 0.5 + 0.42 = 0.57 + 0.42 = 0.99V.",
+        "range": {
+          "min": "0.8",
+          "typical": "0.99",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact resistor value and W/L, but typically designed to be around 1V."
+      },
+      "importance": "optional"
+    },
+    "subthreshold_iref": {
+      "description": "Reference current for a Beta-multiplier operating in subthreshold.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "635",
+        "reference": "Eq 20.45"
+      },
+      "equation": {
+        "formula": "IREF = (n * VT / R) * ln(K)",
+        "explanation": "Current generated when MOSFETs are in weak inversion, proportional to thermal voltage VT.",
+        "assumptions": "Devices operate strictly in the subthreshold region."
+      },
+      "sky130_expected": {
+        "calculation": "Assume n=1.2, VT=26mV (at 300K), R=6.5k\u03a9, K=4. IREF = (1.2 * 0.026 / 6500) * ln(4) = 4.8\u00b5A * 1.386 = 6.65 \u00b5A.",
+        "range": {
+          "min": "4u",
+          "typical": "6.65u",
+          "max": "10u",
+          "unit": "A"
+        },
+        "reasoning": "If the circuit is sized for subthreshold, it will yield microamp or nanoamp currents."
+      },
+      "importance": "optional"
+    },
+    "cascode_gate_voltage": {
+      "description": "Voltage on the gate of the top cascode transistor (M4).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "637",
+        "reference": "Eq 20.47"
+      },
+      "equation": {
+        "formula": "2*VGS = 2*(VDS,sat + VTHN)",
+        "explanation": "Gate voltage required to keep the simple cascode structure biased.",
+        "assumptions": "Assumes identical VGS for M1 and M3 in a stacked simple cascode."
+      },
+      "sky130_expected": {
+        "calculation": "Assume VDS,sat = 0.2V, VTHN = 0.42V. Gate voltage = 2 * (0.2 + 0.42) = 1.24V.",
+        "range": {
+          "min": "1.0",
+          "typical": "1.24",
+          "max": "1.5",
+          "unit": "V"
+        },
+        "reasoning": "Directly follows from the sum of two gate-source voltages."
+      },
+      "importance": "optional"
+    },
+    "minimum_output_voltage": {
+      "description": "Minimum voltage across the cascode current source to keep all devices in saturation.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "637",
+        "reference": "Eq 20.48"
+      },
+      "equation": {
+        "formula": "VO,min = VDS,sat4 + VGS = 2*VDS,sat + VTHN",
+        "explanation": "The voltage below which the top cascode transistor (M4) enters the triode region.",
+        "assumptions": "Simple cascode biasing. (Note: For the low-voltage cascode in the netlist, VO,min approaches 2*VDS,sat)."
+      },
+      "sky130_expected": {
+        "calculation": "For simple cascode: 2(0.2V) + 0.42V = 0.82V. For low-voltage cascode (netlist): 2(0.2V) = 0.4V.",
+        "range": {
+          "min": "0.3",
+          "typical": "0.4",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "The netlist implements a wide-swing bias, so the minimum voltage is approximately two overdrive voltages (~0.4V)."
+      },
+      "importance": "essential"
+    },
+    "cascode_output_resistance": {
+      "description": "Small-signal output resistance of the cascode current mirror.",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "source": {
+        "page": "638",
+        "reference": "Eq 20.53"
+      },
+      "equation": {
+        "formula": "Ro = (2 + gm*ro)*ro \u2248 gm*ro^2",
+        "explanation": "The output resistance is boosted by the intrinsic gain (gm*ro) of the cascode transistor.",
+        "assumptions": "gm*ro >> 1."
+      },
+      "sky130_expected": {
+        "calculation": "Assume ID = 10\u00b5A, VDS,sat = 0.2V, lambda = 0.1 V^-1. gm = 2*ID/VDS,sat = 100\u00b5S. ro = 1/(lambda*ID) = 1M\u03a9. Ro \u2248 100\u00b5S * (1M\u03a9)^2 = 100 M\u03a9.",
+        "range": {
+          "min": "10M",
+          "typical": "100M",
+          "max": "500M",
+          "unit": "ohm"
+        },
+        "reasoning": "Short-channel effects in SKY130 might lower ro, but the gm*ro^2 product will still be in the tens to hundreds of megaohms."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "DC sweep to measure the output current, output resistance, and minimum output voltage (compliance voltage) of the cascode current mirror.",
+    "analyses": [
+      "DC"
+    ],
+    "metrics_measured": [
+      "minimum_output_voltage",
+      "cascode_output_resistance"
+    ],
+    "spice": "* Cascode Current Mirror Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the parameterized netlist\n.param W_xm1=2 L_xm1=1\n.param W_xmws=0.5 L_xmws=1\n.param W_xm2=2 L_xm2=1\n.param W_xm4=2 L_xm4=1\n.param W_xm5=4 L_xm5=1\n.param W_xm6=4 L_xm6=1\n.param W_xmsu1=1 L_xmsu1=1\n.param W_xmsu2=1 L_xmsu2=1\n.param W_xmsu3=1 L_xmsu3=1\n.param W_xm3=4 L_xm3=1\n\n* DUT Netlist\nVDD VDD 0 1.8\nxm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVo N001 0 0\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\nxmws N002 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xmws} l={L_xmws}\nxm2 N004 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm4 N001 N002 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm5 N002 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\n\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Vbiasp Vbiasn N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N002 GND 6.5k\n.ends SUB_1\n\n.control\n* Sweep output voltage to characterize the current mirror\ndc Vo 0 1.8 0.01\n\n* Current flows out of the Vo source into the drain of M4\nlet i_out = -i(Vo)\n* Output resistance is the inverse derivative of the output current\nlet r_out = 1 / deriv(i_out)\n\n* Measure nominal current and output resistance in saturation (at Vo = 1.0V)\nmeas dc i_out_nom find i_out at=1.0\nmeas dc r_out_nom find r_out at=1.0\n\n* Find minimum output voltage (compliance voltage) where current drops to 95% of nominal\nlet i_out_95 = 0.95 * i_out_nom\nmeas dc v_omin when i_out = i_out_95\n\nprint i_out_nom r_out_nom v_omin\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 20.29 and Fig 20.22\",\n    \"page\": \"637 and 629\",\n    \"circuit_type\": \"Cascode Current Mirror with Beta-Multiplier Bias\",\n    \"description\": \"The netlist describes a cascode current mirror (M1-M4) biased by a Beta-multiplier reference circuit (SUB_1, matching Fig 20.22). The cascode structure itself is a low-voltage (wide-swing) variation of the simple cascode shown in Fig 20.29, using separate diode-connected devices (xm1 and xmws) to independently bias the mirror and cascode transistors.\"\n  },\n  \"step2_metrics\": {\n    \"resistor_mosfet_iref\": {\n      \"description\": \"Reference current for a resistor-MOSFET reference circuit.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"631\",\n        \"reference\": \"Eq 20.26\"\n      },\n      \"equation\": {\n        \"formula\": \"IREF = (VDD - VGS) / R\",\n        \"explanation\": \"Calculates the current defined by the voltage drop across a resistor in series with a diode-connected MOSFET.\",\n        \"assumptions\": \"Neglects MOSFET finite output resistance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume VDD = 1.8V, VGS \u2248 Vth + Vdsat \u2248 0.42V + 0.2V = 0.62V, R = 6.5k\u03a9. IREF = (1.8 - 0.62) / 6500 = 181.5 \u00b5A.\",\n        \"range\": {\n          \"min\": \"150u\",\n          \"typical\": \"181.5u\",\n          \"max\": \"200u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Depends heavily on the exact VGS which varies with sizing, but ~180\u00b5A is expected for 6.5k\u03a9.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"resistor_mosfet_tempco\": {\n      \"description\": \"Temperature coefficient of the resistor-MOSFET reference current.\",\n      \"unit\": \"1/\u00b0C\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"632\",\n        \"reference\": \"Eq 20.31\"\n      },\n      \"equation\": {\n        \"formula\": \"TCIREF = -(1/R)(dR/dT) - (1/(VDD - VGS))(dVGS/dT)\",\n        \"explanation\": \"Fractional change in reference current per degree Celsius.\",\n        \"assumptions\": \"Linear temperature dependence of R and VGS.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume TCR = 0.002/\u00b0C, dVGS/dT = -1mV/\u00b0C, VDD=1.8V, VGS=0.62V. TCIREF = -0.002 - (1/(1.8 - 0.62))(-0.001) = -0.002 + 0.00084 = -0.00116 /\u00b0C.\",\n        \"range\": {\n          \"min\": \"-0.002\",\n          \"typical\": \"-0.00116\",\n          \"max\": \"0\",\n          \"unit\": \"1/\u00b0C\"\n        },\n        \"reasoning\": \"Dominated by the positive temperature coefficient of the resistor.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"mosfet_only_iref\": {\n      \"description\": \"Reference current for a MOSFET-only bias circuit.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"633\",\n        \"reference\": \"Eq 20.33\"\n      },\n      \"equation\": {\n        \"formula\": \"IREF = KPn * [VDD^2 - 2*VDD*(VTHN + VTHP) + (VTHN + VTHP)^2] / [sqrt(M*2*L3/W3) + sqrt(2*L1/W1)]^2\",\n        \"explanation\": \"Current generated using only MOSFETs acting as voltage dividers and current sources.\",\n        \"assumptions\": \"Long-channel square-law equations apply.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD=1.8V, VTHN=0.42V, VTHP=0.42V. Numerator = (1.8 - 0.84)^2 = 0.9216. Denominator depends on sizing. If denominator term is ~10, IREF \u2248 270\u00b5A/V^2 * 0.9216 / 10 \u2248 25 \u00b5A.\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"25u\",\n          \"max\": \"50u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Highly dependent on the specific W/L ratios chosen for the voltage divider.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"beta_multiplier_tempco\": {\n      \"description\": \"Temperature coefficient of the Beta-multiplier reference current.\",\n      \"unit\": \"1/\u00b0C\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"634\",\n        \"reference\": \"Eq 20.37\"\n      },\n      \"equation\": {\n        \"formula\": \"TCIREF = -2*(1/R)*(dR/dT) - (1/KPn)*(dKPn/dT)\",\n        \"explanation\": \"Shows how the positive TC of the resistor subtracts from the negative TC of mobility to stabilize current.\",\n        \"assumptions\": \"Mobility dominates KPn temperature dependence.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume TCR = 0.002/\u00b0C, mobility TC = -1.5/T = -1.5/300 = -0.005/\u00b0C. TCIREF = -2(0.002) - (-0.005) = -0.004 + 0.005 = +0.001 /\u00b0C (1000 ppm/\u00b0C).\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"0.001\",\n          \"max\": \"0.002\",\n          \"unit\": \"1/\u00b0C\"\n        },\n        \"reasoning\": \"Proper sizing can tune this close to zero, but typical unoptimized values are around 1000 ppm/\u00b0C.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"beta_multiplier_vref\": {\n      \"description\": \"Constant voltage reference generated using a Beta-multiplier.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"634\",\n        \"reference\": \"Eq 20.38\"\n      },\n      \"equation\": {\n        \"formula\": \"VREF = (2 / (R * KPn * W/L)) * (1 - 1/sqrt(K)) + VTHN\",\n        \"explanation\": \"Gate voltage of M1 in the Beta-multiplier, which can be designed to be temperature independent.\",\n        \"assumptions\": \"Square-law model, K is the multiplier ratio.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume K=4, R=6.5k\u03a9, KPn=270\u00b5A/V^2, W/L=1, VTHN=0.42V. VREF = (2 / (6500 * 270e-6 * 1)) * (1 - 0.5) + 0.42 = (2 / 1.755) * 0.5 + 0.42 = 0.57 + 0.42 = 0.99V.\",\n        \"range\": {\n          \"min\": \"0.8\",\n          \"typical\": \"0.99\",\n          \"max\": \"1.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact resistor value and W/L, but typically designed to be around 1V.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"subthreshold_iref\": {\n      \"description\": \"Reference current for a Beta-multiplier operating in subthreshold.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"635\",\n        \"reference\": \"Eq 20.45\"\n      },\n      \"equation\": {\n        \"formula\": \"IREF = (n * VT / R) * ln(K)\",\n        \"explanation\": \"Current generated when MOSFETs are in weak inversion, proportional to thermal voltage VT.\",\n        \"assumptions\": \"Devices operate strictly in the subthreshold region.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume n=1.2, VT=26mV (at 300K), R=6.5k\u03a9, K=4. IREF = (1.2 * 0.026 / 6500) * ln(4) = 4.8\u00b5A * 1.386 = 6.65 \u00b5A.\",\n        \"range\": {\n          \"min\": \"4u\",\n          \"typical\": \"6.65u\",\n          \"max\": \"10u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"If the circuit is sized for subthreshold, it will yield microamp or nanoamp currents.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"cascode_gate_voltage\": {\n      \"description\": \"Voltage on the gate of the top cascode transistor (M4).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"637\",\n        \"reference\": \"Eq 20.47\"\n      },\n      \"equation\": {\n        \"formula\": \"2*VGS = 2*(VDS,sat + VTHN)\",\n        \"explanation\": \"Gate voltage required to keep the simple cascode structure biased.\",\n        \"assumptions\": \"Assumes identical VGS for M1 and M3 in a stacked simple cascode.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume VDS,sat = 0.2V, VTHN = 0.42V. Gate voltage = 2 * (0.2 + 0.42) = 1.24V.\",\n        \"range\": {\n          \"min\": \"1.0\",\n          \"typical\": \"1.24\",\n          \"max\": \"1.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Directly follows from the sum of two gate-source voltages.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"minimum_output_voltage\": {\n      \"description\": \"Minimum voltage across the cascode current source to keep all devices in saturation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"637\",\n        \"reference\": \"Eq 20.48\"\n      },\n      \"equation\": {\n        \"formula\": \"VO,min = VDS,sat4 + VGS = 2*VDS,sat + VTHN\",\n        \"explanation\": \"The voltage below which the top cascode transistor (M4) enters the triode region.\",\n        \"assumptions\": \"Simple cascode biasing. (Note: For the low-voltage cascode in the netlist, VO,min approaches 2*VDS,sat).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For simple cascode: 2(0.2V) + 0.42V = 0.82V. For low-voltage cascode (netlist): 2(0.2V) = 0.4V.\",\n        \"range\": {\n          \"min\": \"0.3\",\n          \"typical\": \"0.4\",\n          \"max\": \"0.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The netlist implements a wide-swing bias, so the minimum voltage is approximately two overdrive voltages (~0.4V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cascode_output_resistance\": {\n      \"description\": \"Small-signal output resistance of the cascode current mirror.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"638\",\n        \"reference\": \"Eq 20.53\"\n      },\n      \"equation\": {\n        \"formula\": \"Ro = (2 + gm*ro)*ro \u2248 gm*ro^2\",\n        \"explanation\": \"The output resistance is boosted by the intrinsic gain (gm*ro) of the cascode transistor.\",\n        \"assumptions\": \"gm*ro >> 1.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume ID = 10\u00b5A, VDS,sat = 0.2V, lambda = 0.1 V^-1. gm = 2*ID/VDS,sat = 100\u00b5S. ro = 1/(lambda*ID) = 1M\u03a9. Ro \u2248 100\u00b5S * (1M\u03a9)^2 = 100 M\u03a9.\",\n        \"range\": {\n          \"min\": \"10M\",\n          \"typical\": \"100M\",\n          \"max\": \"500M\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Short-channel effects in SKY130 might lower ro, but the gm*ro^2 product will still be in the tens to hundreds of megaohms.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"DC sweep to measure the output current, output resistance, and minimum output voltage (compliance voltage) of the cascode current mirror.\",\n    \"analyses\": [\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"minimum_output_voltage\",\n      \"cascode_output_resistance\"\n    ],\n    \"spice\": \"* Cascode Current Mirror Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm1=2 L_xm1=1\\n.param W_xmws=0.5 L_xmws=1\\n.param W_xm2=2 L_xm2=1\\n.param W_xm4=2 L_xm4=1\\n.param W_xm5=4 L_xm5=1\\n.param W_xm6=4 L_xm6=1\\n.param W_xmsu1=1 L_xmsu1=1\\n.param W_xmsu2=1 L_xmsu2=1\\n.param W_xmsu3=1 L_xmsu3=1\\n.param W_xm3=4 L_xm3=1\\n\\n* DUT Netlist\\nVDD VDD 0 1.8\\nxm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVo N001 0 0\\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\\nxmws N002 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xmws} l={L_xmws}\\nxm2 N004 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm4 N001 N002 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 N002 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\n\\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Vbiasp Vbiasn N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N002 GND 6.5k\\n.ends SUB_1\\n\\n.control\\n* Sweep output voltage to characterize the current mirror\\ndc Vo 0 1.8 0.01\\n\\n* Current flows out of the Vo source into the drain of M4\\nlet i_out = -i(Vo)\\n* Output resistance is the inverse derivative of the output current\\nlet r_out = 1 / deriv(i_out)\\n\\n* Measure nominal current and output resistance in saturation (at Vo = 1.0V)\\nmeas dc i_out_nom find i_out at=1.0\\nmeas dc r_out_nom find r_out at=1.0\\n\\n* Find minimum output voltage (compliance voltage) where current drops to 95% of nominal\\nlet i_out_95 = 0.95 * i_out_nom\\nmeas dc v_omin when i_out = i_out_95\\n\\nprint i_out_nom r_out_nom v_omin\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

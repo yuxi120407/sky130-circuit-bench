@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "10T SRAM Cell with Output Prediction",
+    "description": "A 10-transistor SRAM cell designed for output prediction. It features a standard 6T cross-coupled core (with write access transistors disabled in this specific extraction by grounding their gates) and decoupled read ports controlled by prediction lines (PRED/PREDB) to reduce bitline switching activity.",
+    "node_mapping": {
+      "input": [
+        "PRED",
+        "PREDB"
+      ],
+      "output": [
+        "BL",
+        "BLB"
+      ],
+      "supply": [
+        "VDD",
+        "1"
+      ],
+      "bias": [],
+      "ground": [
+        "GND",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "An SRAM Using Output Prediction to Reduce BL-Switching Activity and Statistically-Gated SA for up to 1.9\u00d7 Reduction in Energy/Access",
+      "figure": "N/A",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "read_delay": {
+      "description": "Time from the prediction line (PREDB) falling to the bitline (BL) discharging to a threshold voltage.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 50fF bitline capacitance and ~100uA read current through the read port, dt = C * dV / I = 50fF * 0.2V / 100uA = 100ps.",
+        "range": {
+          "min": "50p",
+          "typical": "200p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the assumed bitline capacitance and the drive strength of the read port NMOS in SKY130 at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "read_power": {
+      "description": "Average power consumption of the cell during the read operation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1W (Macro-level)",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Read current flows through the diode-connected load and read port. I ~ 100uA. P = V * I = 1.8V * 100uA = 180uW.",
+        "range": {
+          "min": "50u",
+          "typical": "150u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for a single cell at 1.8V in SKY130. The 1W reported in the paper is for the entire SRAM macro, not a single cell."
+      },
+      "importance": "essential"
+    },
+    "leakage_power": {
+      "description": "Static power consumption of the SRAM cell when idle.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Leakage of the cross-coupled inverters. With W=5u, L=0.5u, I_leak ~ 100pA. P = 1.8V * 100pA = 180pW.",
+        "range": {
+          "min": "10p",
+          "typical": "200p",
+          "max": "1n",
+          "unit": "W"
+        },
+        "reasoning": "Standard subthreshold leakage for thick-oxide 1.8V devices in SKY130."
+      },
+      "importance": "essential"
+    },
+    "bl_swing": {
+      "description": "Minimum voltage reached by the bitline during a read operation.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Voltage divider between the diode-connected pull-up (XM8) and the read port pull-down (XM9). Both are W=5u, L=0.5u. BL will settle around 0.5V-0.8V.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.6",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the ratio of the pull-up diode and the pull-down read stack."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure read delay, bitline swing, read power, and leakage power of the SRAM cell during a read operation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "t_read",
+      "bl_min",
+      "read_power",
+      "leakage_power"
+    ],
+    "spice": "* SRAM Cell Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 Q QB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 QB Q VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 QB Q GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 BLB QB PRED GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 Q QB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 BLB 0 QB GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 BL 0 Q GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 1 1 BL GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 BL Q PREDB GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 1 1 BLB GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\nVVDD VDD 0 1.8\nV1 1 0 1.8\n\n* Bitline capacitance\nCBL BL 0 50f\nCBLB BLB 0 50f\n\n* Prediction lines (Read Wordlines)\n* Idle at 1.8V, pulse low to read\nVPRED PRED 0 1.8\nVPREDB PREDB 0 PULSE(1.8 0 2n 0.1n 0.1n 2n 10n)\n\n* Initialize SRAM cell state (Q=1, QB=0)\n.ic v(Q)=1.8 v(QB)=0 v(BL)=1.2 v(BLB)=1.2\n\n.control\n  tran 10p 6n\n  \n  * Measure Read Delay on BL\n  meas tran t_read trig v(PREDB) val=0.9 fall=1 targ v(BL) val=1.1 fall=1\n  \n  * Measure Bitline Swing\n  meas tran bl_min min v(BL)\n  \n  * Measure Read Power\n  meas tran i_vdd_avg avg i(VVDD) from=2n to=4n\n  meas tran i_v1_avg avg i(V1) from=2n to=4n\n  let read_power = -(i_vdd_avg + i_v1_avg) * 1.8\n  print read_power\n  \n  * Measure Leakage Power\n  meas tran i_vdd_leak avg i(VVDD) from=0.5n to=1.5n\n  meas tran i_v1_leak avg i(V1) from=0.5n to=1.5n\n  let leak_power = -(i_vdd_leak + i_v1_leak) * 1.8\n  print leak_power\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"10T SRAM Cell with Output Prediction\",\n    \"description\": \"A 10-transistor SRAM cell designed for output prediction. It features a standard 6T cross-coupled core (with write access transistors disabled in this specific extraction by grounding their gates) and decoupled read ports controlled by prediction lines (PRED/PREDB) to reduce bitline switching activity.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"PRED\",\n        \"PREDB\"\n      ],\n      \"output\": [\n        \"BL\",\n        \"BLB\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"1\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\",\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An SRAM Using Output Prediction to Reduce BL-Switching Activity and Statistically-Gated SA for up to 1.9\u00d7 Reduction in Energy/Access\",\n      \"figure\": \"N/A\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"read_delay\": {\n      \"description\": \"Time from the prediction line (PREDB) falling to the bitline (BL) discharging to a threshold voltage.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 50fF bitline capacitance and ~100uA read current through the read port, dt = C * dV / I = 50fF * 0.2V / 100uA = 100ps.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"200p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the assumed bitline capacitance and the drive strength of the read port NMOS in SKY130 at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"read_power\": {\n      \"description\": \"Average power consumption of the cell during the read operation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1W (Macro-level)\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Read current flows through the diode-connected load and read port. I ~ 100uA. P = V * I = 1.8V * 100uA = 180uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"150u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for a single cell at 1.8V in SKY130. The 1W reported in the paper is for the entire SRAM macro, not a single cell.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"leakage_power\": {\n      \"description\": \"Static power consumption of the SRAM cell when idle.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Leakage of the cross-coupled inverters. With W=5u, L=0.5u, I_leak ~ 100pA. P = 1.8V * 100pA = 180pW.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"200p\",\n          \"max\": \"1n\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Standard subthreshold leakage for thick-oxide 1.8V devices in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bl_swing\": {\n      \"description\": \"Minimum voltage reached by the bitline during a read operation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Voltage divider between the diode-connected pull-up (XM8) and the read port pull-down (XM9). Both are W=5u, L=0.5u. BL will settle around 0.5V-0.8V.\",\n        \"range\": {\n          \"min\": \"0.2\",\n          \"typical\": \"0.6\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the ratio of the pull-up diode and the pull-down read stack.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure read delay, bitline swing, read power, and leakage power of the SRAM cell during a read operation.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"t_read\",\n      \"bl_min\",\n      \"read_power\",\n      \"leakage_power\"\n    ],\n    \"spice\": \"* SRAM Cell Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 Q QB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 QB Q VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 QB Q GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 BLB QB PRED GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 Q QB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 BLB 0 QB GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 BL 0 Q GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 1 1 BL GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 BL Q PREDB GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 1 1 BLB GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\nVVDD VDD 0 1.8\\nV1 1 0 1.8\\n\\n* Bitline capacitance\\nCBL BL 0 50f\\nCBLB BLB 0 50f\\n\\n* Prediction lines (Read Wordlines)\\n* Idle at 1.8V, pulse low to read\\nVPRED PRED 0 1.8\\nVPREDB PREDB 0 PULSE(1.8 0 2n 0.1n 0.1n 2n 10n)\\n\\n* Initialize SRAM cell state (Q=1, QB=0)\\n.ic v(Q)=1.8 v(QB)=0 v(BL)=1.2 v(BLB)=1.2\\n\\n.control\\n  tran 10p 6n\\n  \\n  * Measure Read Delay on BL\\n  meas tran t_read trig v(PREDB) val=0.9 fall=1 targ v(BL) val=1.1 fall=1\\n  \\n  * Measure Bitline Swing\\n  meas tran bl_min min v(BL)\\n  \\n  * Measure Read Power\\n  meas tran i_vdd_avg avg i(VVDD) from=2n to=4n\\n  meas tran i_v1_avg avg i(V1) from=2n to=4n\\n  let read_power = -(i_vdd_avg + i_v1_avg) * 1.8\\n  print read_power\\n  \\n  * Measure Leakage Power\\n  meas tran i_vdd_leak avg i(VVDD) from=0.5n to=1.5n\\n  meas tran i_v1_leak avg i(V1) from=0.5n to=1.5n\\n  let leak_power = -(i_vdd_leak + i_v1_leak) * 1.8\\n  print leak_power\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6487751",
+  "_case": "6487751_image_3_b"
+}

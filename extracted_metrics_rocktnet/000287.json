@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Subthreshold CMOS Voltage Reference",
+    "description": "A low-voltage, low-power voltage reference that generates a temperature-independent voltage by operating MOSFETs in the subthreshold region. It uses a beta-multiplier core to generate a PTAT current, which biases a diode-connected NMOS to produce a reference voltage at its gate.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "IB"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Low-Voltage Low-Power Voltage Reference Based on Subthreshold MOSFETs",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "vref": {
+      "description": "Reference Voltage at nominal temperature and supply",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "295 mV",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VREF = VGS1. With I_PTAT ~ 0.3uA and W/L=5/0.5, VGS is slightly below VTH (0.42V).",
+        "range": {
+          "min": 0.25,
+          "typical": 0.35,
+          "max": 0.45,
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on the exact subthreshold slope and VTH of the sky130 process, but should be in the 300mV range."
+      },
+      "importance": "essential"
+    },
+    "tc": {
+      "description": "Temperature Coefficient",
+      "unit": "ppm/C",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "119 ppm/C",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "TC = (VREF_max - VREF_min) / (VREF_nom * 150) * 1e6",
+        "range": {
+          "min": 50,
+          "typical": 150,
+          "max": 300,
+          "unit": "ppm/C"
+        },
+        "reasoning": "Without trimming, the TC in a new process will likely be around 100-200 ppm/C."
+      },
+      "importance": "essential"
+    },
+    "line_reg": {
+      "description": "Line Regulation",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "0.8%",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delta VREF / Delta VDD for VDD from 1.2V to 1.8V",
+        "range": {
+          "min": 0.001,
+          "typical": 0.005,
+          "max": 0.02,
+          "unit": "V/V"
+        },
+        "reasoning": "Channel length modulation in the current mirror affects the PTAT current, leading to slight VREF variation."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Power Consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Low-power",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_total * VDD. I_total ~ 3 * I_PTAT = 3 * 0.3uA = 0.9uA. Power = 0.9uA * 1.8V = 1.6uW",
+        "range": {
+          "min": 1e-06,
+          "typical": 2e-06,
+          "max": 5e-06,
+          "unit": "W"
+        },
+        "reasoning": "Subthreshold operation ensures very low current consumption."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure VREF, TC, Line Regulation, and Power for the subthreshold voltage reference.",
+    "analyses": [
+      "OP",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "vref",
+      "tc",
+      "line_reg",
+      "power"
+    ],
+    "spice": "* Subthreshold Voltage Reference Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized W/L\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmp2=20u L_xmp2=0.5u  $ Increased W to 20u to create K=4 ratio for PTAT generation\n.param W_xmp3=5u L_xmp3=0.5u\n.param W_xmp4=5u L_xmp4=0.5u\n.param W_xmp5=5u L_xmp5=0.5u\n.param W_xmp6=5u L_xmp6=0.5u\n.param W_xmp7=5u L_xmp7=0.5u\n\n* DUT\nXMP1 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmp1} w={W_xmp1}\nXMP2 N1 N2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmp2} w={W_xmp2}\nXMP3 N2 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp3} w={W_xmp3}\nXMP4 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp4} w={W_xmp4}\nXMP5 IB N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp5} w={W_xmp5}\nXMP6 N0 GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp6} w={W_xmp6}\nXMP7 N2 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp7} w={W_xmp7}\n\n* Added components for PTAT core and biasing\nR1 N3 GND 200k\nVVDD VDD 0 DC 1.8\nVIB IB 0 DC 0.75\n\n* Startup nodeset to avoid zero-current state\n.nodeset v(N1)=1.0 v(N2)=0.5\n\n.control\n  * 1. DC Operating Point\n  op\n  let vref_dc = v(N2)\n  let power_dc = -i(VVDD) * 1.8\n  print vref_dc power_dc\n\n  * 2. Temperature Sweep for TC\n  dc temp -25 125 1\n  meas dc vref_max max v(N2)\n  meas dc vref_min min v(N2)\n  meas dc vref_nom find v(N2) at=27\n  let tc_ppm = ((vref_max - vref_min) / vref_nom) / 150 * 1e6\n  print tc_ppm\n\n  * 3. Line Regulation\n  dc VVDD 1.2 1.8 0.01\n  meas dc vref_1v8 find v(N2) at=1.8\n  meas dc vref_1v2 find v(N2) at=1.2\n  let line_reg = (vref_1v8 - vref_1v2) / 0.6\n  print line_reg\n\n  * 4. Transient Startup\n  tran 1u 1m\n  meas tran vref_settled find v(N2) at=0.9m\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Subthreshold CMOS Voltage Reference\",\n    \"description\": \"A low-voltage, low-power voltage reference that generates a temperature-independent voltage by operating MOSFETs in the subthreshold region. It uses a beta-multiplier core to generate a PTAT current, which biases a diode-connected NMOS to produce a reference voltage at its gate.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"N2\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"IB\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Low-Voltage Low-Power Voltage Reference Based on Subthreshold MOSFETs\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"vref\": {\n      \"description\": \"Reference Voltage at nominal temperature and supply\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"295 mV\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VREF = VGS1. With I_PTAT ~ 0.3uA and W/L=5/0.5, VGS is slightly below VTH (0.42V).\",\n        \"range\": {\n          \"min\": 0.25,\n          \"typical\": 0.35,\n          \"max\": 0.45,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on the exact subthreshold slope and VTH of the sky130 process, but should be in the 300mV range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tc\": {\n      \"description\": \"Temperature Coefficient\",\n      \"unit\": \"ppm/C\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"119 ppm/C\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"TC = (VREF_max - VREF_min) / (VREF_nom * 150) * 1e6\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 150,\n          \"max\": 300,\n          \"unit\": \"ppm/C\"\n        },\n        \"reasoning\": \"Without trimming, the TC in a new process will likely be around 100-200 ppm/C.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"line_reg\": {\n      \"description\": \"Line Regulation\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"0.8%\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta VREF / Delta VDD for VDD from 1.2V to 1.8V\",\n        \"range\": {\n          \"min\": 0.001,\n          \"typical\": 0.005,\n          \"max\": 0.02,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Channel length modulation in the current mirror affects the PTAT current, leading to slight VREF variation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Power Consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Low-power\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total * VDD. I_total ~ 3 * I_PTAT = 3 * 0.3uA = 0.9uA. Power = 0.9uA * 1.8V = 1.6uW\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 2e-06,\n          \"max\": 5e-06,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Subthreshold operation ensures very low current consumption.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure VREF, TC, Line Regulation, and Power for the subthreshold voltage reference.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"vref\",\n      \"tc\",\n      \"line_reg\",\n      \"power\"\n    ],\n    \"spice\": \"* Subthreshold Voltage Reference Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized W/L\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmp2=20u L_xmp2=0.5u  $ Increased W to 20u to create K=4 ratio for PTAT generation\\n.param W_xmp3=5u L_xmp3=0.5u\\n.param W_xmp4=5u L_xmp4=0.5u\\n.param W_xmp5=5u L_xmp5=0.5u\\n.param W_xmp6=5u L_xmp6=0.5u\\n.param W_xmp7=5u L_xmp7=0.5u\\n\\n* DUT\\nXMP1 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMP2 N1 N2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmp2} w={W_xmp2}\\nXMP3 N2 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp3} w={W_xmp3}\\nXMP4 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp4} w={W_xmp4}\\nXMP5 IB N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp5} w={W_xmp5}\\nXMP6 N0 GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp6} w={W_xmp6}\\nXMP7 N2 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp7} w={W_xmp7}\\n\\n* Added components for PTAT core and biasing\\nR1 N3 GND 200k\\nVVDD VDD 0 DC 1.8\\nVIB IB 0 DC 0.75\\n\\n* Startup nodeset to avoid zero-current state\\n.nodeset v(N1)=1.0 v(N2)=0.5\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let vref_dc = v(N2)\\n  let power_dc = -i(VVDD) * 1.8\\n  print vref_dc power_dc\\n\\n  * 2. Temperature Sweep for TC\\n  dc temp -25 125 1\\n  meas dc vref_max max v(N2)\\n  meas dc vref_min min v(N2)\\n  meas dc vref_nom find v(N2) at=27\\n  let tc_ppm = ((vref_max - vref_min) / vref_nom) / 150 * 1e6\\n  print tc_ppm\\n\\n  * 3. Line Regulation\\n  dc VVDD 1.2 1.8 0.01\\n  meas dc vref_1v8 find v(N2) at=1.8\\n  meas dc vref_1v2 find v(N2) at=1.2\\n  let line_reg = (vref_1v8 - vref_1v2) / 0.6\\n  print line_reg\\n\\n  * 4. Transient Startup\\n  tran 1u 1m\\n  meas tran vref_settled find v(N2) at=0.9m\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1158795",
+  "_case": "1158795_image_2"
+}

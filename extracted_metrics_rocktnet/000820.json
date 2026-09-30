@@ -1,0 +1,173 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential to Single-Ended Clock Buffer / Receiver",
+    "description": "Converts a differential input clock signal into a single-ended rail-to-rail clock. It consists of a differential amplifier with a current mirror active load, followed by a CMOS inverter stage to sharpen the edges and provide full swing.",
+    "node_mapping": {
+      "input": [
+        "clk_inP",
+        "clk_inN"
+      ],
+      "output": [
+        "clk"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N3",
+        "N4",
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.4-GHz RF Sampling Receiver Front-End in 0.18-um CMOS",
+      "figure": "Not specified",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "propagation_delay": {
+      "description": "Time delay between the input clock edge and the corresponding output clock edge.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant of the differential pair output node (N1) and the inverter delay. With ~500uA tail current and small parasitic capacitances, delay is typically around 50-150ps.",
+        "range": {
+          "min": "50p",
+          "typical": "100p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Standard delay for a two-stage high-speed buffer in 130nm at 1GHz."
+      },
+      "importance": "essential"
+    },
+    "rise_time": {
+      "description": "Time taken for the output clock to transition from 20% to 80% of VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Inverter driving a 10fF load. I_drive ~ 1mA. dt = C * dV / I = 10f * 1.08V / 1mA = 10.8ps. Adding intrinsic parasitics, ~30ps.",
+        "range": {
+          "min": "20p",
+          "typical": "40p",
+          "max": "80p",
+          "unit": "s"
+        },
+        "reasoning": "Fast edges are required for a 1GHz+ clock to minimize jitter in RF sampling."
+      },
+      "importance": "essential"
+    },
+    "fall_time": {
+      "description": "Time taken for the output clock to transition from 80% to 20% of VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to rise time, NMOS pull-down is slightly stronger or equal depending on sizing.",
+        "range": {
+          "min": "20p",
+          "typical": "40p",
+          "max": "80p",
+          "unit": "s"
+        },
+        "reasoning": "Symmetric rise/fall times are ideal for clock buffers to maintain duty cycle."
+      },
+      "importance": "essential"
+    },
+    "duty_cycle": {
+      "description": "Ratio of the high time to the total period of the output clock.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ideally 50% if the differential pair is perfectly balanced and the inverter threshold is at VDD/2.",
+        "range": {
+          "min": "45",
+          "typical": "50",
+          "max": "55",
+          "unit": "%"
+        },
+        "reasoning": "Critical for RF sampling circuits which often rely on precise clock phases."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power consumed by the buffer from the VDD supply.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "47 mW (whole chip)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Static power: I_bias (100uA) + I_tail (500uA) = 600uA -> 1.08mW. Dynamic power: f * C * V^2 = 1G * 20f * 1.8^2 = 0.06mW. Total ~ 1.2mW.",
+        "range": {
+          "min": "0.5m",
+          "typical": "1.2m",
+          "max": "2.5m",
+          "unit": "W"
+        },
+        "reasoning": "Dominated by the static current of the differential amplifier."
+      },
+      "importance": "essential"
+    },
+    "clock_jitter": {
+      "description": "Variation in the timing of the clock edges.",
+      "unit": "s",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "0.64 ps",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Thermal noise of the diff pair and inverter translated to timing jitter. Jitter = V_noise / Slew_rate.",
+        "range": {
+          "min": "0.1p",
+          "typical": "0.5p",
+          "max": "2p",
+          "unit": "s"
+        },
+        "reasoning": "Expected to be in the sub-picosecond range to support high-frequency RF sampling as reported in the paper."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure clock buffer delay, rise/fall times, duty cycle, and power consumption at 1 GHz.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "propagation_delay",
+      "rise_time",
+      "fall_time",
+      "duty_cycle",
+      "power_consumption",
+      "v_max",
+      "v_min"
+    ],
+    "spice": "* Differential to Single-Ended Clock Buffer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_bias=2u L_bias=0.15u\n.param W_tail=10u L_tail=0.15u\n.param W_dp=10u L_dp=0.15u\n.param W_pm=10u L_pm=0.15u\n.param W_invp=10u L_invp=0.15u\n.param W_invn=5u L_invn=0.15u\n\nI1 VDD N0 100u\nXM2 N4 N4 VDD VDD sky130_fd_pr__pfet_01v8 w=W_pm l=L_pm\nXM8 clk N1 GND GND sky130_fd_pr__nfet_01v8 w=W_invn l=L_invn\nXM3 N1 N4 VDD VDD sky130_fd_pr__pfet_01v8 w=W_pm l=L_pm\nXM7 clk N1 VDD VDD sky130_fd_pr__pfet_01v8 w=W_invp l=L_invp\nXM4 N4 clk_inN N3 GND sky130_fd_pr__nfet_01v8 w=W_dp l=L_dp\nXM1 N0 N0 GND GND sky130_fd_pr__nfet_01v8 w=W_bias l=L_bias\nXM6 N3 N0 GND GND sky130_fd_pr__nfet_01v8 w=W_tail l=L_tail\nXM5 N1 clk_inP N3 GND sky130_fd_pr__nfet_01v8 w=W_dp l=L_dp\n\nCload clk GND 10f\n\nVVDD VDD 0 1.8\nVclkP clk_inP 0 DC 0.9 SINE(0.9 0.4 1G 0 0 0)\nVclkN clk_inN 0 DC 0.9 SINE(0.9 0.4 1G 0 0 180)\n\n.control\ntran 10p 5n\nmeas tran v_max max v(clk)\nmeas tran v_min min v(clk)\nmeas tran t_rise trig v(clk) val=0.36 rise=2 targ v(clk) val=1.44 rise=2\nmeas tran t_fall trig v(clk) val=1.44 fall=2 targ v(clk) val=0.36 fall=2\nmeas tran t_delay trig v(clk_inP) val=0.9 rise=2 targ v(clk) val=0.9 rise=2\nmeas tran t_period trig v(clk) val=0.9 rise=2 targ v(clk) val=0.9 rise=3\nmeas tran t_high trig v(clk) val=0.9 rise=2 targ v(clk) val=0.9 fall=2\nlet duty_cycle = t_high / t_period\nprint duty_cycle\nmeas tran pwr_avg avg i(VVDD)\nlet power_mW = -pwr_avg * 1.8 * 1000\nprint power_mW\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential to Single-Ended Clock Buffer / Receiver\",\n    \"description\": \"Converts a differential input clock signal into a single-ended rail-to-rail clock. It consists of a differential amplifier with a current mirror active load, followed by a CMOS inverter stage to sharpen the edges and provide full swing.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"clk_inP\",\n        \"clk_inN\"\n      ],\n      \"output\": [\n        \"clk\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N3\",\n        \"N4\",\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.4-GHz RF Sampling Receiver Front-End in 0.18-um CMOS\",\n      \"figure\": \"Not specified\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"propagation_delay\": {\n      \"description\": \"Time delay between the input clock edge and the corresponding output clock edge.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant of the differential pair output node (N1) and the inverter delay. With ~500uA tail current and small parasitic capacitances, delay is typically around 50-150ps.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"100p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard delay for a two-stage high-speed buffer in 130nm at 1GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rise_time\": {\n      \"description\": \"Time taken for the output clock to transition from 20% to 80% of VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Inverter driving a 10fF load. I_drive ~ 1mA. dt = C * dV / I = 10f * 1.08V / 1mA = 10.8ps. Adding intrinsic parasitics, ~30ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"40p\",\n          \"max\": \"80p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Fast edges are required for a 1GHz+ clock to minimize jitter in RF sampling.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"fall_time\": {\n      \"description\": \"Time taken for the output clock to transition from 80% to 20% of VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to rise time, NMOS pull-down is slightly stronger or equal depending on sizing.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"40p\",\n          \"max\": \"80p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Symmetric rise/fall times are ideal for clock buffers to maintain duty cycle.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"duty_cycle\": {\n      \"description\": \"Ratio of the high time to the total period of the output clock.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideally 50% if the differential pair is perfectly balanced and the inverter threshold is at VDD/2.\",\n        \"range\": {\n          \"min\": \"45\",\n          \"typical\": \"50\",\n          \"max\": \"55\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Critical for RF sampling circuits which often rely on precise clock phases.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumed by the buffer from the VDD supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"47 mW (whole chip)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static power: I_bias (100uA) + I_tail (500uA) = 600uA -> 1.08mW. Dynamic power: f * C * V^2 = 1G * 20f * 1.8^2 = 0.06mW. Total ~ 1.2mW.\",\n        \"range\": {\n          \"min\": \"0.5m\",\n          \"typical\": \"1.2m\",\n          \"max\": \"2.5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dominated by the static current of the differential amplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"clock_jitter\": {\n      \"description\": \"Variation in the timing of the clock edges.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"0.64 ps\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Thermal noise of the diff pair and inverter translated to timing jitter. Jitter = V_noise / Slew_rate.\",\n        \"range\": {\n          \"min\": \"0.1p\",\n          \"typical\": \"0.5p\",\n          \"max\": \"2p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Expected to be in the sub-picosecond range to support high-frequency RF sampling as reported in the paper.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure clock buffer delay, rise/fall times, duty cycle, and power consumption at 1 GHz.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"propagation_delay\",\n      \"rise_time\",\n      \"fall_time\",\n      \"duty_cycle\",\n      \"power_consumption\",\n      \"v_max\",\n      \"v_min\"\n    ],\n    \"spice\": \"* Differential to Single-Ended Clock Buffer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_bias=2u L_bias=0.15u\\n.param W_tail=10u L_tail=0.15u\\n.param W_dp=10u L_dp=0.15u\\n.param W_pm=10u L_pm=0.15u\\n.param W_invp=10u L_invp=0.15u\\n.param W_invn=5u L_invn=0.15u\\n\\nI1 VDD N0 100u\\nXM2 N4 N4 VDD VDD sky130_fd_pr__pfet_01v8 w=W_pm l=L_pm\\nXM8 clk N1 GND GND sky130_fd_pr__nfet_01v8 w=W_invn l=L_invn\\nXM3 N1 N4 VDD VDD sky130_fd_pr__pfet_01v8 w=W_pm l=L_pm\\nXM7 clk N1 VDD VDD sky130_fd_pr__pfet_01v8 w=W_invp l=L_invp\\nXM4 N4 clk_inN N3 GND sky130_fd_pr__nfet_01v8 w=W_dp l=L_dp\\nXM1 N0 N0 GND GND sky130_fd_pr__nfet_01v8 w=W_bias l=L_bias\\nXM6 N3 N0 GND GND sky130_fd_pr__nfet_01v8 w=W_tail l=L_tail\\nXM5 N1 clk_inP N3 GND sky130_fd_pr__nfet_01v8 w=W_dp l=L_dp\\n\\nCload clk GND 10f\\n\\nVVDD VDD 0 1.8\\nVclkP clk_inP 0 DC 0.9 SINE(0.9 0.4 1G 0 0 0)\\nVclkN clk_inN 0 DC 0.9 SINE(0.9 0.4 1G 0 0 180)\\n\\n.control\\ntran 10p 5n\\nmeas tran v_max max v(clk)\\nmeas tran v_min min v(clk)\\nmeas tran t_rise trig v(clk) val=0.36 rise=2 targ v(clk) val=1.44 rise=2\\nmeas tran t_fall trig v(clk) val=1.44 fall=2 targ v(clk) val=0.36 fall=2\\nmeas tran t_delay trig v(clk_inP) val=0.9 rise=2 targ v(clk) val=0.9 rise=2\\nmeas tran t_period trig v(clk) val=0.9 rise=2 targ v(clk) val=0.9 rise=3\\nmeas tran t_high trig v(clk) val=0.9 rise=2 targ v(clk) val=0.9 fall=2\\nlet duty_cycle = t_high / t_period\\nprint duty_cycle\\nmeas tran pwr_avg avg i(VVDD)\\nlet power_mW = -pwr_avg * 1.8 * 1000\\nprint power_mW\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1435604",
+  "_case": "1435604_image_9"
+}

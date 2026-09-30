@@ -1,0 +1,124 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive Bias and AC Coupling Network",
+    "description": "A passive network extracted from a power amplifier or predistorter circuit, consisting of a DC bias tee with AC coupling for the input, and an AC coupling capacitor for the output. The active device (transistor) is missing from the extraction, leaving only the passive matching/biasing components.",
+    "node_mapping": {
+      "input": [
+        "label_net_1"
+      ],
+      "output": [
+        "label_net_2"
+      ],
+      "supply": [],
+      "bias": [
+        "label_net_0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Highly Efficient Linearized Wide-Band CDMA Handset Power Amplifier Based on Predistortion Under Various Bias Conditions",
+      "figure": "unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "DC_Bias_Voltage": {
+      "description": "DC voltage established at the active device input node (n0)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "1.5 V",
+        "technology": "HJFET"
+      },
+      "sky130_expected": {
+        "calculation": "Vbias * R3 / (R1 + R3) = 1.8V * 10k / 20k = 0.9V",
+        "range": {
+          "min": 0.8,
+          "typical": 0.9,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "Assuming equal bias resistors (10k) and a 1.8V supply for SKY130."
+      },
+      "importance": "essential"
+    },
+    "Midband_Insertion_Loss": {
+      "description": "AC attenuation of the input coupling network in the passband",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Ideal capacitor coupling with high impedance load gives ~0 dB loss.",
+        "range": {
+          "min": -1,
+          "typical": 0,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Passive AC coupling should have minimal loss in the passband."
+      },
+      "importance": "essential"
+    },
+    "High_Pass_Cutoff": {
+      "description": "Lower 3dB cutoff frequency of the input AC coupling",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * (R1||R3) * C2) = 1 / (2 * pi * 5k * 10nF) = 3.18 kHz",
+        "range": {
+          "min": 1000.0,
+          "typical": 3180.0,
+          "max": 10000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on chosen component values for the testbench (10nF and 10k resistors)."
+      },
+      "importance": "recommended"
+    },
+    "Power_Amplifier_Gain": {
+      "description": "Overall gain of the power amplifier (requires active device)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 dB",
+        "technology": "HJFET"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for passive network",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "dB"
+        },
+        "reasoning": "Cannot be measured on this passive sub-circuit as the transistor is missing from the netlist."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC bias and AC frequency response of the passive coupling networks. Component values are added to the netlist to allow simulation.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "DC_Bias_Voltage",
+      "Midband_Insertion_Loss",
+      "High_Pass_Cutoff"
+    ],
+    "spice": "* Passive Bias and Coupling Network Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT (Values added for simulation)\nR1 n0 label_net_0 10k\nC1 n0 0 1p\nC2 n0 label_net_1 10n\nC3 n1 label_net_2 10n\nR2 n1 0 10k\nR3 n0 0 10k\n\n* Sources\nVbias label_net_0 0 1.8\nVin label_net_1 0 dc 0 ac 1\nVtest n1 0 dc 0 ac 1\nRload label_net_2 0 50\n\n.control\n* DC Operating Point\nop\nprint v(n0)\nlet v_bias_n0 = v(n0)\n\n* AC Analysis\nac dec 20 1k 1G\nlet gain_in_db = vdb(n0)\nlet gain_out_db = vdb(label_net_2)\n\n* Input Network Metrics\nmeas ac midband_gain_in find gain_in_db at=1MEG\nlet target_hp_in = midband_gain_in - 3\nmeas ac f3db_hp_in when gain_in_db=target_hp_in rise=1\nlet target_lp_in = midband_gain_in - 3\nmeas ac f3db_lp_in when gain_in_db=target_lp_in fall=1\n\n* Output Network Metrics\nmeas ac midband_gain_out find gain_out_db at=10MEG\nlet target_hp_out = midband_gain_out - 3\nmeas ac f3db_hp_out when gain_out_db=target_hp_out rise=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive Bias and AC Coupling Network\",\n    \"description\": \"A passive network extracted from a power amplifier or predistorter circuit, consisting of a DC bias tee with AC coupling for the input, and an AC coupling capacitor for the output. The active device (transistor) is missing from the extraction, leaving only the passive matching/biasing components.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"label_net_1\"\n      ],\n      \"output\": [\n        \"label_net_2\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"label_net_0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Highly Efficient Linearized Wide-Band CDMA Handset Power Amplifier Based on Predistortion Under Various Bias Conditions\",\n      \"figure\": \"unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Bias_Voltage\": {\n      \"description\": \"DC voltage established at the active device input node (n0)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"1.5 V\",\n        \"technology\": \"HJFET\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vbias * R3 / (R1 + R3) = 1.8V * 10k / 20k = 0.9V\",\n        \"range\": {\n          \"min\": 0.8,\n          \"typical\": 0.9,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Assuming equal bias resistors (10k) and a 1.8V supply for SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Midband_Insertion_Loss\": {\n      \"description\": \"AC attenuation of the input coupling network in the passband\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal capacitor coupling with high impedance load gives ~0 dB loss.\",\n        \"range\": {\n          \"min\": -1,\n          \"typical\": 0,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Passive AC coupling should have minimal loss in the passband.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"High_Pass_Cutoff\": {\n      \"description\": \"Lower 3dB cutoff frequency of the input AC coupling\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * (R1||R3) * C2) = 1 / (2 * pi * 5k * 10nF) = 3.18 kHz\",\n        \"range\": {\n          \"min\": 1e3,\n          \"typical\": 3.18e3,\n          \"max\": 10e3,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends on chosen component values for the testbench (10nF and 10k resistors).\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Power_Amplifier_Gain\": {\n      \"description\": \"Overall gain of the power amplifier (requires active device)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 dB\",\n        \"technology\": \"HJFET\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for passive network\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Cannot be measured on this passive sub-circuit as the transistor is missing from the netlist.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC bias and AC frequency response of the passive coupling networks. Component values are added to the netlist to allow simulation.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Bias_Voltage\",\n      \"Midband_Insertion_Loss\",\n      \"High_Pass_Cutoff\"\n    ],\n    \"spice\": \"* Passive Bias and Coupling Network Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT (Values added for simulation)\\nR1 n0 label_net_0 10k\\nC1 n0 0 1p\\nC2 n0 label_net_1 10n\\nC3 n1 label_net_2 10n\\nR2 n1 0 10k\\nR3 n0 0 10k\\n\\n* Sources\\nVbias label_net_0 0 1.8\\nVin label_net_1 0 dc 0 ac 1\\nVtest n1 0 dc 0 ac 1\\nRload label_net_2 0 50\\n\\n.control\\n* DC Operating Point\\nop\\nprint v(n0)\\nlet v_bias_n0 = v(n0)\\n\\n* AC Analysis\\nac dec 20 1k 1G\\nlet gain_in_db = vdb(n0)\\nlet gain_out_db = vdb(label_net_2)\\n\\n* Input Network Metrics\\nmeas ac midband_gain_in find gain_in_db at=1MEG\\nlet target_hp_in = midband_gain_in - 3\\nmeas ac f3db_hp_in when gain_in_db=target_hp_in rise=1\\nlet target_lp_in = midband_gain_in - 3\\nmeas ac f3db_lp_in when gain_in_db=target_lp_in fall=1\\n\\n* Output Network Metrics\\nmeas ac midband_gain_out find gain_out_db at=10MEG\\nlet target_hp_out = midband_gain_out - 3\\nmeas ac f3db_hp_out when gain_out_db=target_hp_out rise=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "22.925522",
+  "_case": "22.925522_image_4"
+}

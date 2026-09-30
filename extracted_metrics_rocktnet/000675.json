@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Op-amp / Differential Amplifier Sub-circuit",
+    "description": "A sub-circuit extracted from a pipeline ADC, likely part of a folded-cascode or gain-boosted operational amplifier. The netlist appears to be a partial or distorted extraction with several diode-connected and floating nodes, but it structurally resembles a differential gain stage.",
+    "node_mapping": {
+      "input": [
+        "VI_PLUS",
+        "VI_MINUS"
+      ],
+      "output": [
+        "VO_PLUS",
+        "VO_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_2",
+        "LABEL_NET_3",
+        "LABEL_NET_5"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 14-b 12-MS/s CMOS Pipeline ADC With Over 100-dB SFDR",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low frequency differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "130 dB",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "gm * Rout. For a standard diff pair, gain is ~gm*ro. Here, due to the broken extraction (e.g., diode-connected loads, floating nodes), the gain will be very low or unpredictable.",
+        "range": {
+          "min": -20,
+          "typical": 10,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "The netlist is a partial extraction with diode-connected loads and floating nodes, so it will not achieve the 130 dB reported for the full nested gain-boosted op-amp."
+      },
+      "importance": "essential"
+    },
+    "Unity_Gain_Frequency": {
+      "description": "Frequency where differential gain drops to 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 MHz",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "gm / (2*pi*CL). With gm ~ 1mS and CL = 1pF, UGF ~ 160 MHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 100000000.0,
+          "max": 500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the arbitrary load capacitance and the actual transconductance of the partial circuit."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power from 1.8V supply",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "98 mW",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I_total. With 0.9V bias on current sources, I_tail is roughly 100uA.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.001,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "The 98 mW is for the entire 14-bit ADC. This single sub-circuit will consume a fraction of a milliwatt to a few milliwatts."
+      },
+      "importance": "essential"
+    },
+    "Phase_Margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Phase at UGF",
+        "range": {
+          "min": 0,
+          "typical": 45,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard stability metric, though its value is arbitrary for a broken open-loop subcircuit."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC differential gain, bandwidth, phase margin, and transient swing of the extracted sub-circuit.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "DC_Gain",
+      "Unity_Gain_Frequency",
+      "Phase_Margin"
+    ],
+    "spice": "* Testbench for extracted op-amp subcircuit\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 N1 VI_PLUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 VI_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VO_MINUS N5 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 LABEL_NET_2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VO_PLUS N6 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 LABEL_NET_3 VO_MINUS VO_MINUS sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N1 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 VO_PLUS LABEL_NET_5 N1 N6 sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\n* Power and Bias\nVVDD VDD 0 1.8\nVLABEL_NET_2 LABEL_NET_2 0 0.9\nVLABEL_NET_3 LABEL_NET_3 0 0.9\nVLABEL_NET_5 LABEL_NET_5 0 0.9\n\n* Fix floating nodes to prevent singular matrix\nR_N4 N4 0 10k\nV_N5 N5 0 0.9\nV_N6 N6 0 0.9\n\n* Input Signals\nVCM VCM 0 0.9\nV_INP VI_PLUS VCM dc 0 ac 0.5 sin(0 0.1 1Meg)\nV_INN VI_MINUS VCM dc 0 ac -0.5 sin(0 -0.1 1Meg)\n\n* Loads\nR_OUTP VO_PLUS 0 1Meg\nR_OUTN VO_MINUS 0 1Meg\nC_OUTP VO_PLUS 0 1p\nC_OUTN VO_MINUS 0 1p\n\n* Differential Output\nE_diff VDIFF 0 VO_PLUS VO_MINUS 1.0\n\n.control\nop\nlet power = -i(VVDD)*1.8\nprint power\n\nac dec 20 1 1G\nlet gain_db = vdb(VDIFF)\nlet phase = 180/PI * cph(v(VDIFF))\nmeas ac dc_gain find gain_db at=10\nlet gain_3db = $&dc_gain - 3\nmeas ac f_3db when gain_db=gain_3db fall=1\nmeas ac ugf when gain_db=0 fall=1\nmeas ac pm find phase when gain_db=0 fall=1\n\ntran 1n 5u\nmeas tran vout_max max v(VDIFF)\nmeas tran vout_min min v(VDIFF)\nmeas tran vout_pp pp v(VDIFF)\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Op-amp / Differential Amplifier Sub-circuit\",\n    \"description\": \"A sub-circuit extracted from a pipeline ADC, likely part of a folded-cascode or gain-boosted operational amplifier. The netlist appears to be a partial or distorted extraction with several diode-connected and floating nodes, but it structurally resembles a differential gain stage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VI_PLUS\",\n        \"VI_MINUS\"\n      ],\n      \"output\": [\n        \"VO_PLUS\",\n        \"VO_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_2\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_5\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 14-b 12-MS/s CMOS Pipeline ADC With Over 100-dB SFDR\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low frequency differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"130 dB\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm * Rout. For a standard diff pair, gain is ~gm*ro. Here, due to the broken extraction (e.g., diode-connected loads, floating nodes), the gain will be very low or unpredictable.\",\n        \"range\": {\n          \"min\": -20,\n          \"typical\": 10,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The netlist is a partial extraction with diode-connected loads and floating nodes, so it will not achieve the 130 dB reported for the full nested gain-boosted op-amp.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unity_Gain_Frequency\": {\n      \"description\": \"Frequency where differential gain drops to 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 MHz\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm / (2*pi*CL). With gm ~ 1mS and CL = 1pF, UGF ~ 160 MHz.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 100e6,\n          \"max\": 500e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the arbitrary load capacitance and the actual transconductance of the partial circuit.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power from 1.8V supply\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"98 mW\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I_total. With 0.9V bias on current sources, I_tail is roughly 100uA.\",\n        \"range\": {\n          \"min\": 0.1e-3,\n          \"typical\": 1e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 98 mW is for the entire 14-bit ADC. This single sub-circuit will consume a fraction of a milliwatt to a few milliwatts.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_Margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Phase at UGF\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 45,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard stability metric, though its value is arbitrary for a broken open-loop subcircuit.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC differential gain, bandwidth, phase margin, and transient swing of the extracted sub-circuit.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"DC_Gain\",\n      \"Unity_Gain_Frequency\",\n      \"Phase_Margin\"\n    ],\n    \"spice\": \"* Testbench for extracted op-amp subcircuit\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 N1 VI_PLUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 VI_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VO_MINUS N5 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 LABEL_NET_2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VO_PLUS N6 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 LABEL_NET_3 VO_MINUS VO_MINUS sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N1 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 VO_PLUS LABEL_NET_5 N1 N6 sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Power and Bias\\nVVDD VDD 0 1.8\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\nVLABEL_NET_3 LABEL_NET_3 0 0.9\\nVLABEL_NET_5 LABEL_NET_5 0 0.9\\n\\n* Fix floating nodes to prevent singular matrix\\nR_N4 N4 0 10k\\nV_N5 N5 0 0.9\\nV_N6 N6 0 0.9\\n\\n* Input Signals\\nVCM VCM 0 0.9\\nV_INP VI_PLUS VCM dc 0 ac 0.5 sin(0 0.1 1Meg)\\nV_INN VI_MINUS VCM dc 0 ac -0.5 sin(0 -0.1 1Meg)\\n\\n* Loads\\nR_OUTP VO_PLUS 0 1Meg\\nR_OUTN VO_MINUS 0 1Meg\\nC_OUTP VO_PLUS 0 1p\\nC_OUTN VO_MINUS 0 1p\\n\\n* Differential Output\\nE_diff VDIFF 0 VO_PLUS VO_MINUS 1.0\\n\\n.control\\nop\\nlet power = -i(VVDD)*1.8\\nprint power\\n\\nac dec 20 1 1G\\nlet gain_db = vdb(VDIFF)\\nlet phase = 180/PI * cph(v(VDIFF))\\nmeas ac dc_gain find gain_db at=10\\nlet gain_3db = $&dc_gain - 3\\nmeas ac f_3db when gain_db=gain_3db fall=1\\nmeas ac ugf when gain_db=0 fall=1\\nmeas ac pm find phase when gain_db=0 fall=1\\n\\ntran 1n 5u\\nmeas tran vout_max max v(VDIFF)\\nmeas tran vout_min min v(VDIFF)\\nmeas tran vout_pp pp v(VDIFF)\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1362823",
+  "_case": "1362823_image_8_a"
+}

@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential pair with tail current source (Active Core)",
+    "description": "This is the active transistor core of an RF circuit (likely a mixer, amplifier, or oscillator), where the passive components (stacked inductors/transformers mentioned in the paper) were connected to the drains but omitted in this extraction. With one input grounded, it effectively operates as a single-ended amplifier with source degeneration.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0"
+      ],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Stacked Inductors and Transformers in CMOS Technology",
+      "figure": "unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "tail_current": {
+      "description": "DC current provided by the tail current source (XM3)",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "XM3 operates in the linear region due to the low common-source voltage. Id = unCox * W/L * (Vgs - Vth - Vds/2) * Vds. With Vgs=0.9V, Vth=0.42V, solving for Vds (V_N0) yields ~0.14V and Id ~156uA.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.000156,
+          "max": 0.0002,
+          "unit": "A"
+        },
+        "reasoning": "Based on SKY130 NMOS parameters and 0.9V bias."
+      },
+      "importance": "essential"
+    },
+    "v_n0_dc": {
+      "description": "DC voltage at the common source node",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Equating Id2 and Id3 gives V(N0) ~ 0.14V.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.14,
+          "max": 0.2,
+          "unit": "V"
+        },
+        "reasoning": "Determines the operating region of the tail current source."
+      },
+      "importance": "recommended"
+    },
+    "ac_gain": {
+      "description": "AC voltage gain from LABEL_NET_0 to N2",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Gain = -gm2 * R2 / (1 + gm2/gds3). gm2 ~ 917uS, gds3 ~ 918uS, R2 = 1k. Gain ~ -0.46 V/V or -6.7 dB.",
+        "range": {
+          "min": -10,
+          "typical": -6.7,
+          "max": -3,
+          "unit": "dB"
+        },
+        "reasoning": "Low gain due to source degeneration from the linear-region tail transistor and the absence of the high-Q inductor load."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total = 1.8V * 156uA = 280uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00028,
+          "max": 0.0004,
+          "unit": "W"
+        },
+        "reasoning": "Directly derived from tail current."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, tail current, AC gain, and transient response of the extracted differential pair core.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "tail_current",
+      "v_n0_dc",
+      "ac_gain",
+      "power_consumption"
+    ],
+    "spice": "* Testbench for extracted differential pair\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\n* DUT\nXM1 N1 GND N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* Sources and Loads (Resistors added to replace missing inductors)\nVVDD VDD 0 1.8\nR1 VDD N1 1k\nR2 VDD N2 1k\n\n* Bias and Input\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 1 sin(0.9 0.1 1Meg)\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\nop\nlet id_tail = -i(VVDD)\nlet v_n2 = v(N2)\nlet v_n0 = v(N0)\nlet power = -i(VVDD) * 1.8\nprint id_tail v_n2 v_n0 power\n\nac dec 10 1k 1G\nlet gain_db = vdb(N2)\nmeas ac midband_gain find gain_db at=1Meg\n\ntran 10n 5u\nmeas tran v_max max v(N2)\nmeas tran v_min min v(N2)\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential pair with tail current source (Active Core)\",\n    \"description\": \"This is the active transistor core of an RF circuit (likely a mixer, amplifier, or oscillator), where the passive components (stacked inductors/transformers mentioned in the paper) were connected to the drains but omitted in this extraction. With one input grounded, it effectively operates as a single-ended amplifier with source degeneration.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Stacked Inductors and Transformers in CMOS Technology\",\n      \"figure\": \"unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"tail_current\": {\n      \"description\": \"DC current provided by the tail current source (XM3)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"XM3 operates in the linear region due to the low common-source voltage. Id = unCox * W/L * (Vgs - Vth - Vds/2) * Vds. With Vgs=0.9V, Vth=0.42V, solving for Vds (V_N0) yields ~0.14V and Id ~156uA.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 156e-6,\n          \"max\": 200e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Based on SKY130 NMOS parameters and 0.9V bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_n0_dc\": {\n      \"description\": \"DC voltage at the common source node\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Equating Id2 and Id3 gives V(N0) ~ 0.14V.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.14,\n          \"max\": 0.2,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determines the operating region of the tail current source.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"ac_gain\": {\n      \"description\": \"AC voltage gain from LABEL_NET_0 to N2\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = -gm2 * R2 / (1 + gm2/gds3). gm2 ~ 917uS, gds3 ~ 918uS, R2 = 1k. Gain ~ -0.46 V/V or -6.7 dB.\",\n        \"range\": {\n          \"min\": -10,\n          \"typical\": -6.7,\n          \"max\": -3,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Low gain due to source degeneration from the linear-region tail transistor and the absence of the high-Q inductor load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total = 1.8V * 156uA = 280uW.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 280e-6,\n          \"max\": 400e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Directly derived from tail current.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, tail current, AC gain, and transient response of the extracted differential pair core.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"tail_current\",\n      \"v_n0_dc\",\n      \"ac_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Testbench for extracted differential pair\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\n* DUT\\nXM1 N1 GND N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Sources and Loads (Resistors added to replace missing inductors)\\nVVDD VDD 0 1.8\\nR1 VDD N1 1k\\nR2 VDD N2 1k\\n\\n* Bias and Input\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 1 sin(0.9 0.1 1Meg)\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\nop\\nlet id_tail = -i(VVDD)\\nlet v_n2 = v(N2)\\nlet v_n0 = v(N0)\\nlet power = -i(VVDD) * 1.8\\nprint id_tail v_n2 v_n0 power\\n\\nac dec 10 1k 1G\\nlet gain_db = vdb(N2)\\nmeas ac midband_gain find gain_db at=1Meg\\n\\ntran 10n 5u\\nmeas tran v_max max v(N2)\\nmeas tran v_min min v(N2)\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "913740",
+  "_case": "913740_image_1_b"
+}

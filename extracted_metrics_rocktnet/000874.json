@@ -1,0 +1,171 @@
+{
+  "step1_analysis": {
+    "circuit_type": "5-Transistor Operational Transconductance Amplifier (OTA)",
+    "description": "A standard CMOS differential amplifier with an active current mirror load. In the context of the paper, this OTA is likely used as a comparator or charge-amplifier in the capacitive fingerprint sensor's readout circuit to detect the minute capacitance differences (e.g., 0.1 fF) between fingerprint ridges and valleys.",
+    "node_mapping": {
+      "input": [
+        "V_PLUS",
+        "V_MINUS"
+      ],
+      "output": [
+        "VO"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "PCHB"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Integrated Capacitive Fingerprint Sensor With 32-bit RISC Microcontroller",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Av = gm1 * (ro2 || ro4). With Itail=43uA (PCHB=0.6V), gm1~341uS, Rout~232kOhm, Gain~79 V/V = 38 dB.",
+        "range": {
+          "min": 30,
+          "typical": 38,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "Standard 5T OTA gain is limited by intrinsic device output resistance (lambda=0.1/V)."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity Gain Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm1 / (2*pi*CL). With gm1=341uS and CL=1pF, UGBW = 54 MHz.",
+        "range": {
+          "min": 20000000.0,
+          "typical": 50000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on load capacitance; 1pF is a standard test load."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "PM = 180 + phase(UGBW). Dominant pole at output, non-dominant at current mirror node.",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Designed for stability in closed-loop configurations."
+      },
+      "importance": "essential"
+    },
+    "cmrr": {
+      "description": "Common Mode Rejection Ratio",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "CMRR = Ad / Acm. Acm is limited by tail current source output resistance.",
+        "range": {
+          "min": 50,
+          "typical": 65,
+          "max": 80,
+          "unit": "dB"
+        },
+        "reasoning": "Typical for a single-stage differential amplifier without cascodes."
+      },
+      "importance": "recommended"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "SR = Itail / CL. With Itail=43uA and CL=1pF, SR = 43 V/us.",
+        "range": {
+          "min": 20,
+          "typical": 40,
+          "max": 60,
+          "unit": "V/us"
+        },
+        "reasoning": "Determined by the tail current charging/discharging the load capacitor."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total static power dissipation",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1 mW (reported as 1 w, likely typo for whole sensor)",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * Itail. 1.8V * 43uA = 77 uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 8e-05,
+          "max": 0.00015,
+          "unit": "W"
+        },
+        "reasoning": "Only accounts for the single OTA, not the entire fingerprint sensor array."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC Gain, UGBW, Phase Margin, CMRR, Slew Rate, and Power of the 5T OTA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "cmrr",
+      "slew_rate",
+      "power_consumption"
+    ],
+    "spice": "* Testbench for 5T OTA\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* Global Sources\nVVDD VDD 0 1.8\nVPCHB PCHB 0 0.6\n\n* ==========================================\n* DUT 1: Open Loop (Gain, Phase Margin)\n* ==========================================\nXM3 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM1 N2 V_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM5 N1 PCHB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM4 VO N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM2 VO V_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\nV_IN_CM V_CM 0 0.9\nV_IN_AC V_PLUS V_CM dc 0 ac 1\nL1 VO V_MINUS 1G\nC1 V_MINUS V_CM 1G\nCL VO 0 1p\n\n* ==========================================\n* DUT 2: Common Mode (CMRR)\n* ==========================================\nXM3_C N2_C N2_C VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM1_C N2_C V_PLUS_C N1_C GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM5_C N1_C PCHB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM4_C VO_C N2_C VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM2_C VO_C V_MINUS_C N1_C GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\nV_IN_CM_C V_CM_C 0 dc 0.9 ac 1\nV_IN_AC_C V_PLUS_C V_CM_C dc 0 ac 0\nL1_C VO_C V_MINUS_C 1G\nC1_C V_MINUS_C V_CM_C 1G\nCL_C VO_C 0 1p\n\n* ==========================================\n* DUT 3: Transient (Slew Rate)\n* ==========================================\nXM3_T N2_T N2_T VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM1_T N2_T V_PLUS_T N1_T GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM5_T N1_T PCHB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM4_T VO_T N2_T VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM2_T VO_T VO_T N1_T GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\nV_IN_T V_PLUS_T 0 PULSE(0.4 1.4 1n 100p 100p 1u 2u)\nCL_T VO_T 0 1p\n\n* ==========================================\n* Control Block\n* ==========================================\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis (Gain, UGBW, PM, CMRR)\nac dec 100 1 1G\nlet gain_db = vdb(VO)\nlet phase = 180/PI * cph(v(VO))\nmeas ac dc_gain find gain_db at=10\nmeas ac ugbw when gain_db=0 fall=1\nmeas ac phase_at_ugbw find phase when gain_db=0 fall=1\nlet pm = phase_at_ugbw + 180\nprint pm\n\nlet cmrr_db = vdb(VO) - vdb(VO_C)\nmeas ac cmrr_dc find cmrr_db at=10\n\n* 3. Transient Analysis (Slew Rate)\ntran 1n 3u\nmeas tran t_rise trig v(VO_T) val=0.6 rise=1 targ v(VO_T) val=1.2 rise=1\nmeas tran t_fall trig v(VO_T) val=1.2 fall=1 targ v(VO_T) val=0.6 fall=1\nlet sr_rise = 0.6 / t_rise\nlet sr_fall = 0.6 / t_fall\nprint sr_rise sr_fall\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"5-Transistor Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"A standard CMOS differential amplifier with an active current mirror load. In the context of the paper, this OTA is likely used as a comparator or charge-amplifier in the capacitive fingerprint sensor's readout circuit to detect the minute capacitance differences (e.g., 0.1 fF) between fingerprint ridges and valleys.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"V_PLUS\",\n        \"V_MINUS\"\n      ],\n      \"output\": [\n        \"VO\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"PCHB\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Integrated Capacitive Fingerprint Sensor With 32-bit RISC Microcontroller\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Av = gm1 * (ro2 || ro4). With Itail=43uA (PCHB=0.6V), gm1~341uS, Rout~232kOhm, Gain~79 V/V = 38 dB.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 38,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard 5T OTA gain is limited by intrinsic device output resistance (lambda=0.1/V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity Gain Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm1 / (2*pi*CL). With gm1=341uS and CL=1pF, UGBW = 54 MHz.\",\n        \"range\": {\n          \"min\": 20e6,\n          \"typical\": 50e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on load capacitance; 1pF is a standard test load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PM = 180 + phase(UGBW). Dominant pole at output, non-dominant at current mirror node.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Designed for stability in closed-loop configurations.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cmrr\": {\n      \"description\": \"Common Mode Rejection Ratio\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"CMRR = Ad / Acm. Acm is limited by tail current source output resistance.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 65,\n          \"max\": 80,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical for a single-stage differential amplifier without cascodes.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = Itail / CL. With Itail=43uA and CL=1pF, SR = 43 V/us.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 40,\n          \"max\": 60,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Determined by the tail current charging/discharging the load capacitor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total static power dissipation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1 mW (reported as 1 w, likely typo for whole sensor)\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * Itail. 1.8V * 43uA = 77 uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 80e-6,\n          \"max\": 150e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Only accounts for the single OTA, not the entire fingerprint sensor array.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC Gain, UGBW, Phase Margin, CMRR, Slew Rate, and Power of the 5T OTA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"cmrr\",\n      \"slew_rate\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Testbench for 5T OTA\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* Global Sources\\nVVDD VDD 0 1.8\\nVPCHB PCHB 0 0.6\\n\\n* ==========================================\\n* DUT 1: Open Loop (Gain, Phase Margin)\\n* ==========================================\\nXM3 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM1 N2 V_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM5 N1 PCHB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM4 VO N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM2 VO V_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\nV_IN_CM V_CM 0 0.9\\nV_IN_AC V_PLUS V_CM dc 0 ac 1\\nL1 VO V_MINUS 1G\\nC1 V_MINUS V_CM 1G\\nCL VO 0 1p\\n\\n* ==========================================\\n* DUT 2: Common Mode (CMRR)\\n* ==========================================\\nXM3_C N2_C N2_C VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM1_C N2_C V_PLUS_C N1_C GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM5_C N1_C PCHB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM4_C VO_C N2_C VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM2_C VO_C V_MINUS_C N1_C GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\nV_IN_CM_C V_CM_C 0 dc 0.9 ac 1\\nV_IN_AC_C V_PLUS_C V_CM_C dc 0 ac 0\\nL1_C VO_C V_MINUS_C 1G\\nC1_C V_MINUS_C V_CM_C 1G\\nCL_C VO_C 0 1p\\n\\n* ==========================================\\n* DUT 3: Transient (Slew Rate)\\n* ==========================================\\nXM3_T N2_T N2_T VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM1_T N2_T V_PLUS_T N1_T GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM5_T N1_T PCHB GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM4_T VO_T N2_T VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM2_T VO_T VO_T N1_T GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\nV_IN_T V_PLUS_T 0 PULSE(0.4 1.4 1n 100p 100p 1u 2u)\\nCL_T VO_T 0 1p\\n\\n* ==========================================\\n* Control Block\\n* ==========================================\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Gain, UGBW, PM, CMRR)\\nac dec 100 1 1G\\nlet gain_db = vdb(VO)\\nlet phase = 180/PI * cph(v(VO))\\nmeas ac dc_gain find gain_db at=10\\nmeas ac ugbw when gain_db=0 fall=1\\nmeas ac phase_at_ugbw find phase when gain_db=0 fall=1\\nlet pm = phase_at_ugbw + 180\\nprint pm\\n\\nlet cmrr_db = vdb(VO) - vdb(VO_C)\\nmeas ac cmrr_dc find cmrr_db at=10\\n\\n* 3. Transient Analysis (Slew Rate)\\ntran 1n 3u\\nmeas tran t_rise trig v(VO_T) val=0.6 rise=1 targ v(VO_T) val=1.2 rise=1\\nmeas tran t_fall trig v(VO_T) val=1.2 fall=1 targ v(VO_T) val=0.6 fall=1\\nlet sr_rise = 0.6 / t_rise\\nlet sr_fall = 0.6 / t_fall\\nprint sr_rise sr_fall\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1487619",
+  "_case": "1487619_image_4"
+}

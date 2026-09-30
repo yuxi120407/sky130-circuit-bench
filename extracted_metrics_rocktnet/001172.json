@@ -1,0 +1,144 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single NMOS Transistor",
+    "description": "A single NMOS transistor, likely used as a basic amplifying element, high-speed switch, or current sink in the 10-Gb/s multiplexer or 10-GHz clock synthesizer.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_5"
+      ],
+      "output": [
+        "N6"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10-Gb/s 16:1 Multiplexer and 10-GHz Clock Synthesizer in 0.25-m SiGe BiCMOS",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "vth": {
+      "description": "Threshold voltage of the NMOS transistor",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Standard threshold voltage for sky130_fd_pr__nfet_01v8",
+        "range": {
+          "min": 0.35,
+          "typical": 0.42,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Based on SKY130 PDK documentation for 1.8V standard NMOS devices."
+      },
+      "importance": "essential"
+    },
+    "gm": {
+      "description": "Transconductance at Vgs=0.9V, Vds=0.9V",
+      "unit": "A/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.9-0.42)^2 = 311uA. gm = 2*Id/Vov = 1.29mS",
+        "range": {
+          "min": 1.0,
+          "typical": 1.3,
+          "max": 1.6,
+          "unit": "mS"
+        },
+        "reasoning": "Calculated using square-law model with SKY130 parameters."
+      },
+      "importance": "essential"
+    },
+    "ro": {
+      "description": "Output resistance at Vgs=0.9V, Vds=0.9V",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "ro = 1 / (lambda * Id) = 1 / (0.1 * 311uA) = 32kOhm",
+        "range": {
+          "min": 20000,
+          "typical": 32000,
+          "max": 50000,
+          "unit": "ohm"
+        },
+        "reasoning": "Estimated using channel length modulation parameter lambda=0.1/V."
+      },
+      "importance": "essential"
+    },
+    "intrinsic_gain": {
+      "description": "Intrinsic voltage gain (gm * ro)",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Av = gm * ro = 1.29mS * 32kOhm = 41.3",
+        "range": {
+          "min": 30,
+          "typical": 41,
+          "max": 60,
+          "unit": "V/V"
+        },
+        "reasoning": "Product of expected gm and ro."
+      },
+      "importance": "recommended"
+    },
+    "fT": {
+      "description": "Transit frequency (unity current gain frequency)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 GHz (system clock)",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Cgg = W*L*Cox = 5u * 0.5u * 5fF/um^2 = 12.5fF. fT = gm / (2*pi*Cgg) = 1.29mS / (2*pi*12.5fF) = 16.4 GHz",
+        "range": {
+          "min": 10000000000.0,
+          "typical": 16000000000.0,
+          "max": 25000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Estimated using gate capacitance and transconductance. Must be high enough to support the 10-GHz operation mentioned in the paper."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Characterizes a single NMOS transistor for Vth, gm, ro, intrinsic gain, and fT.",
+    "analyses": [
+      "DC",
+      "AC"
+    ],
+    "metrics_measured": [
+      "vth",
+      "gm",
+      "ro",
+      "intrinsic_gain",
+      "fT"
+    ],
+    "spice": "* Single NMOS Characterization Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\nXM1 N6 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\nVGS LABEL_NET_5 GND DC 0.9 AC 1\nVDS N6 GND DC 0.9\n\n.control\n  * 1. DC Sweep for Vth and gm\n  dc VGS 0 1.8 0.01\n  let id_drain = -i(VDS)\n  meas dc vth_meas when id_drain=10u\n  let gm_deriv = deriv(id_drain)\n  meas dc gm_meas find gm_deriv at=0.9\n  \n  * 2. DC Sweep for ro\n  dc VDS 0 1.8 0.01\n  let id_drain2 = -i(VDS)\n  let gds_deriv = deriv(id_drain2)\n  meas dc gds_meas find gds_deriv at=0.9\n  let ro_meas = 1 / gds_meas\n  let intrinsic_gain = gm_meas * ro_meas\n  print ro_meas intrinsic_gain\n  \n  * 3. AC Analysis for fT\n  ac dec 10 1Meg 100G\n  let current_gain = mag(i(VDS)/i(VGS))\n  meas ac fT_meas when current_gain=1 fall=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single NMOS Transistor\",\n    \"description\": \"A single NMOS transistor, likely used as a basic amplifying element, high-speed switch, or current sink in the 10-Gb/s multiplexer or 10-GHz clock synthesizer.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_5\"\n      ],\n      \"output\": [\n        \"N6\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10-Gb/s 16:1 Multiplexer and 10-GHz Clock Synthesizer in 0.25-m SiGe BiCMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"vth\": {\n      \"description\": \"Threshold voltage of the NMOS transistor\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard threshold voltage for sky130_fd_pr__nfet_01v8\",\n        \"range\": {\n          \"min\": 0.35,\n          \"typical\": 0.42,\n          \"max\": 0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on SKY130 PDK documentation for 1.8V standard NMOS devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gm\": {\n      \"description\": \"Transconductance at Vgs=0.9V, Vds=0.9V\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.9-0.42)^2 = 311uA. gm = 2*Id/Vov = 1.29mS\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.3,\n          \"max\": 1.6,\n          \"unit\": \"mS\"\n        },\n        \"reasoning\": \"Calculated using square-law model with SKY130 parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ro\": {\n      \"description\": \"Output resistance at Vgs=0.9V, Vds=0.9V\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"ro = 1 / (lambda * Id) = 1 / (0.1 * 311uA) = 32kOhm\",\n        \"range\": {\n          \"min\": 20000,\n          \"typical\": 32000,\n          \"max\": 50000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Estimated using channel length modulation parameter lambda=0.1/V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"intrinsic_gain\": {\n      \"description\": \"Intrinsic voltage gain (gm * ro)\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Av = gm * ro = 1.29mS * 32kOhm = 41.3\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 41,\n          \"max\": 60,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Product of expected gm and ro.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"fT\": {\n      \"description\": \"Transit frequency (unity current gain frequency)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 GHz (system clock)\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Cgg = W*L*Cox = 5u * 0.5u * 5fF/um^2 = 12.5fF. fT = gm / (2*pi*Cgg) = 1.29mS / (2*pi*12.5fF) = 16.4 GHz\",\n        \"range\": {\n          \"min\": 10e9,\n          \"typical\": 16e9,\n          \"max\": 25e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Estimated using gate capacitance and transconductance. Must be high enough to support the 10-GHz operation mentioned in the paper.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Characterizes a single NMOS transistor for Vth, gm, ro, intrinsic gain, and fT.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"vth\",\n      \"gm\",\n      \"ro\",\n      \"intrinsic_gain\",\n      \"fT\"\n    ],\n    \"spice\": \"* Single NMOS Characterization Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\nXM1 N6 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVGS LABEL_NET_5 GND DC 0.9 AC 1\\nVDS N6 GND DC 0.9\\n\\n.control\\n  * 1. DC Sweep for Vth and gm\\n  dc VGS 0 1.8 0.01\\n  let id_drain = -i(VDS)\\n  meas dc vth_meas when id_drain=10u\\n  let gm_deriv = deriv(id_drain)\\n  meas dc gm_meas find gm_deriv at=0.9\\n  \\n  * 2. DC Sweep for ro\\n  dc VDS 0 1.8 0.01\\n  let id_drain2 = -i(VDS)\\n  let gds_deriv = deriv(id_drain2)\\n  meas dc gds_meas find gds_deriv at=0.9\\n  let ro_meas = 1 / gds_meas\\n  let intrinsic_gain = gm_meas * ro_meas\\n  print ro_meas intrinsic_gain\\n  \\n  * 3. AC Analysis for fT\\n  ac dec 10 1Meg 100G\\n  let current_gain = mag(i(VDS)/i(VGS))\\n  meas ac fT_meas when current_gain=1 fall=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "972145",
+  "_case": "972145_image_5"
+}

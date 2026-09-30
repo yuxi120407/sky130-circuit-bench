@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Low-Noise Amplifier (LNA) with Multiple Gated Transistors (MGTR)",
+    "description": "A highly linear RF low-noise amplifier front-end utilizing the Multiple Gated Transistor (MGTR) technique. It places a main transistor and an auxiliary transistor in parallel with different gate biases to cancel out the third-order derivative of transconductance (gm3), thereby improving the third-order input intercept point (IIP3).",
+    "node_mapping": {
+      "input": [
+        "N4",
+        "N0"
+      ],
+      "output": [
+        "LOAD"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1",
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Brief Papers",
+      "figure": "Fig. 1",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Voltage gain of the amplifier at the center frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 dB at 900 MHz, 7 dB at 2.4 GHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With W/L=5u/0.5u, Id_main=100uA, Id_aux=20uA, total gm is approx 1.06 mS. With a 2kOhm load, gain = gm*R = 2.12 V/V = 6.5 dB.",
+        "range": {
+          "min": 5,
+          "typical": 6.5,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Based on the provided small W/L ratios and estimated bias currents, the gain is limited by the transconductance."
+      },
+      "importance": "essential"
+    },
+    "center_frequency": {
+      "description": "Operating frequency where the LC tank resonates and gain is maximized.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "900 MHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). For L=10nH and C=3.1pF, f = 900 MHz.",
+        "range": {
+          "min": 850000000.0,
+          "typical": 900000000.0,
+          "max": 950000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the external LC tank components added in the testbench."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "Not explicitly stated, but mentions low power.",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Total current = I_bias1 + I_bias2 + I_XM1 + I_XM3 = 100u + 20u + 100u + 20u = 240uA. Power = 240uA * 1.8V = 432 uW.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.000432,
+          "max": 0.0006,
+          "unit": "W"
+        },
+        "reasoning": "Calculated from the bias currents and current mirrors operating from a 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "iip3": {
+      "description": "Third-order input intercept point, a measure of linearity.",
+      "unit": "dBm",
+      "analysis_type": "Transient/HB",
+      "paper_reported": {
+        "value": "10 dB improvement",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "MGTR technique cancels gm3, typically pushing IIP3 from ~ -10 dBm to ~ 0 dBm or higher.",
+        "range": {
+          "min": -5,
+          "typical": 0,
+          "max": 5,
+          "unit": "dBm"
+        },
+        "reasoning": "Highly dependent on exact bias point tuning to perfectly align the positive and negative gm3 peaks of the two transistors."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain at 900MHz, and transient output swing of the MGTR LNA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "center_frequency"
+    ],
+    "spice": "* MGTR LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 LOAD N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 LOAD N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\nVVDD VDD 0 1.8\nIbias1 VDD N1 100u\nIbias2 VDD N3 20u\nRbias1 N1 N4 10k\nRbias2 N3 N0 10k\nCin1 IN N4 10p\nCin2 IN N0 10p\nL1 VDD LOAD 10n\nC1 LOAD 0 3.1p\nR1 VDD LOAD 2k\n\nVin IN 0 dc 0 ac 1 sin(0 10m 900MEG)\n\n.control\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  ac dec 100 100MEG 5G\n  let gain_db = vdb(LOAD)\n  meas ac gain_900m find gain_db at=900MEG\n  meas ac max_gain max gain_db\n  \n  tran 10p 10n\n  meas tran vout_max max v(LOAD)\n  meas tran vout_min min v(LOAD)\n  let vout_pp = vout_max - vout_min\n  print vout_pp\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Low-Noise Amplifier (LNA) with Multiple Gated Transistors (MGTR)\",\n    \"description\": \"A highly linear RF low-noise amplifier front-end utilizing the Multiple Gated Transistor (MGTR) technique. It places a main transistor and an auxiliary transistor in parallel with different gate biases to cancel out the third-order derivative of transconductance (gm3), thereby improving the third-order input intercept point (IIP3).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N4\",\n        \"N0\"\n      ],\n      \"output\": [\n        \"LOAD\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"N3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Brief Papers\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Voltage gain of the amplifier at the center frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 dB at 900 MHz, 7 dB at 2.4 GHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W/L=5u/0.5u, Id_main=100uA, Id_aux=20uA, total gm is approx 1.06 mS. With a 2kOhm load, gain = gm*R = 2.12 V/V = 6.5 dB.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 6.5,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on the provided small W/L ratios and estimated bias currents, the gain is limited by the transconductance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"center_frequency\": {\n      \"description\": \"Operating frequency where the LC tank resonates and gain is maximized.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"900 MHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). For L=10nH and C=3.1pF, f = 900 MHz.\",\n        \"range\": {\n          \"min\": 850e6,\n          \"typical\": 900e6,\n          \"max\": 950e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the external LC tank components added in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated, but mentions low power.\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current = I_bias1 + I_bias2 + I_XM1 + I_XM3 = 100u + 20u + 100u + 20u = 240uA. Power = 240uA * 1.8V = 432 uW.\",\n        \"range\": {\n          \"min\": 300e-6,\n          \"typical\": 432e-6,\n          \"max\": 600e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated from the bias currents and current mirrors operating from a 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"iip3\": {\n      \"description\": \"Third-order input intercept point, a measure of linearity.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Transient/HB\",\n      \"paper_reported\": {\n        \"value\": \"10 dB improvement\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"MGTR technique cancels gm3, typically pushing IIP3 from ~ -10 dBm to ~ 0 dBm or higher.\",\n        \"range\": {\n          \"min\": -5,\n          \"typical\": 0,\n          \"max\": 5,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Highly dependent on exact bias point tuning to perfectly align the positive and negative gm3 peaks of the two transistors.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain at 900MHz, and transient output swing of the MGTR LNA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"center_frequency\"\n    ],\n    \"spice\": \"* MGTR LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 LOAD N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 LOAD N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\nVVDD VDD 0 1.8\\nIbias1 VDD N1 100u\\nIbias2 VDD N3 20u\\nRbias1 N1 N4 10k\\nRbias2 N3 N0 10k\\nCin1 IN N4 10p\\nCin2 IN N0 10p\\nL1 VDD LOAD 10n\\nC1 LOAD 0 3.1p\\nR1 VDD LOAD 2k\\n\\nVin IN 0 dc 0 ac 1 sin(0 10m 900MEG)\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  ac dec 100 100MEG 5G\\n  let gain_db = vdb(LOAD)\\n  meas ac gain_900m find gain_db at=900MEG\\n  meas ac max_gain max gain_db\\n  \\n  tran 10p 10n\\n  meas tran vout_max max v(LOAD)\\n  meas tran vout_min min v(LOAD)\\n  let vout_pp = vout_max - vout_min\\n  print vout_pp\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1261304",
+  "_case": "1261304_image_15"
+}

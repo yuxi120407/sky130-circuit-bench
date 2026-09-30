@@ -1,0 +1,170 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascode Bias Generator",
+    "description": "Generates multiple DC bias voltages (VREF, VBIAS1, VBIAS2, VBIAS3) from a single reference current (IBIAS) using current mirrors and a wide-swing PMOS cascode structure.",
+    "node_mapping": {
+      "input": [
+        "IBIAS"
+      ],
+      "output": [
+        "VREF",
+        "VBIAS1",
+        "VBIAS2",
+        "VBIAS3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 100-Mb/s 2.8-V CMOS Current-Mode Analog Viterbi Decoder",
+      "figure": "Fig. 4",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "DC_Power": {
+      "description": "Total DC power consumption of the bias generator.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "39 mW (entire decoder)",
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "5 current branches * 50uA = 250uA. 250uA * 1.8V = 450uW.",
+        "range": {
+          "min": "300u",
+          "typical": "450u",
+          "max": "600u",
+          "unit": "W"
+        },
+        "reasoning": "Based on an assumed 50uA reference current and 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "VREF_Voltage": {
+      "description": "DC bias voltage for simple PMOS mirrors.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vsg = Vth + sqrt(2*Id/(upCox*W/L)) = 0.42 + sqrt(2*50u/(50u*10)) = 0.87V. VREF = 1.8 - 0.87 = 0.93V.",
+        "range": {
+          "min": "0.8",
+          "typical": "0.93",
+          "max": "1.1",
+          "unit": "V"
+        },
+        "reasoning": "Standard PMOS diode drop at 50uA."
+      },
+      "importance": "essential"
+    },
+    "VBIAS1_Voltage": {
+      "description": "DC bias voltage for NMOS mirrors.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vgs = Vth + sqrt(2*Id/(unCox*W/L)) = 0.42 + sqrt(2*50u/(270u*10)) = 0.61V.",
+        "range": {
+          "min": "0.5",
+          "typical": "0.61",
+          "max": "0.75",
+          "unit": "V"
+        },
+        "reasoning": "NMOS diode drop at 50uA."
+      },
+      "importance": "essential"
+    },
+    "VBIAS2_Voltage": {
+      "description": "DC bias voltage for the top PMOS in the cascode.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "XM4 needs Vds > Vov (~0.19V) to sink 50uA. XM9 is forced into linear region, pulling N7 to VDD, allowing XM10 to source 50uA. VBIAS2 settles near 0.3V.",
+        "range": {
+          "min": "0.15",
+          "typical": "0.3",
+          "max": "0.5",
+          "unit": "V"
+        },
+        "reasoning": "Headroom balance in the cascode structure when all devices are equally sized."
+      },
+      "importance": "essential"
+    },
+    "VBIAS3_Voltage": {
+      "description": "DC bias voltage for the bottom PMOS in the cascode.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Same as VREF, standard PMOS diode drop at 50uA.",
+        "range": {
+          "min": "0.8",
+          "typical": "0.93",
+          "max": "1.1",
+          "unit": "V"
+        },
+        "reasoning": "Identical structure to VREF generation."
+      },
+      "importance": "essential"
+    },
+    "PSRR_VBIAS1": {
+      "description": "Power Supply Rejection Ratio at VBIAS1.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Typical simple mirror PSRR is roughly 20*log10(1 / (gm * ro)).",
+        "range": {
+          "min": "-40",
+          "typical": "-25",
+          "max": "-10",
+          "unit": "dB"
+        },
+        "reasoning": "Standard rejection for a diode-connected load driven by a cascode."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC bias voltages, power consumption, and PSRR of the bias generator.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "DC_Power",
+      "VREF_Voltage",
+      "VBIAS1_Voltage",
+      "VBIAS2_Voltage",
+      "VBIAS3_Voltage",
+      "PSRR_VBIAS1"
+    ],
+    "spice": "* Bias Generator Testbench\n.lib \"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\nXM2 VREF IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 IBIAS IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM10 VBIAS2 VBIAS3 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM3 VBIAS3 IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM12 VBIAS1 VBIAS3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM4 VBIAS2 IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VBIAS1 VBIAS1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM9 N7 VBIAS2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM11 N1 VBIAS2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM7 VREF VREF VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 VBIAS3 VBIAS3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\n\nVVDD VDD 0 DC 1.8 AC 1\nIin VDD IBIAS DC 50u\n\nC1 VREF 0 10f\nC2 VBIAS1 0 10f\nC3 VBIAS2 0 10f\nC4 VBIAS3 0 10f\n\n.control\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  let v_vref = v(VREF)\n  let v_vbias1 = v(VBIAS1)\n  let v_vbias2 = v(VBIAS2)\n  let v_vbias3 = v(VBIAS3)\n  print v_vref v_vbias1 v_vbias2 v_vbias3\n\n  ac dec 10 1 1G\n  meas ac psrr_vref find vdb(VREF) at=1k\n  meas ac psrr_vbias1 find vdb(VBIAS1) at=1k\n  meas ac psrr_vbias2 find vdb(VBIAS2) at=1k\n  meas ac psrr_vbias3 find vdb(VBIAS3) at=1k\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascode Bias Generator\",\n    \"description\": \"Generates multiple DC bias voltages (VREF, VBIAS1, VBIAS2, VBIAS3) from a single reference current (IBIAS) using current mirrors and a wide-swing PMOS cascode structure.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IBIAS\"\n      ],\n      \"output\": [\n        \"VREF\",\n        \"VBIAS1\",\n        \"VBIAS2\",\n        \"VBIAS3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 100-Mb/s 2.8-V CMOS Current-Mode Analog Viterbi Decoder\",\n      \"figure\": \"Fig. 4\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Power\": {\n      \"description\": \"Total DC power consumption of the bias generator.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"39 mW (entire decoder)\",\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"5 current branches * 50uA = 250uA. 250uA * 1.8V = 450uW.\",\n        \"range\": {\n          \"min\": \"300u\",\n          \"typical\": \"450u\",\n          \"max\": \"600u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on an assumed 50uA reference current and 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"VREF_Voltage\": {\n      \"description\": \"DC bias voltage for simple PMOS mirrors.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vsg = Vth + sqrt(2*Id/(upCox*W/L)) = 0.42 + sqrt(2*50u/(50u*10)) = 0.87V. VREF = 1.8 - 0.87 = 0.93V.\",\n        \"range\": {\n          \"min\": \"0.8\",\n          \"typical\": \"0.93\",\n          \"max\": \"1.1\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard PMOS diode drop at 50uA.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"VBIAS1_Voltage\": {\n      \"description\": \"DC bias voltage for NMOS mirrors.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs = Vth + sqrt(2*Id/(unCox*W/L)) = 0.42 + sqrt(2*50u/(270u*10)) = 0.61V.\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"0.61\",\n          \"max\": \"0.75\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"NMOS diode drop at 50uA.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"VBIAS2_Voltage\": {\n      \"description\": \"DC bias voltage for the top PMOS in the cascode.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"XM4 needs Vds > Vov (~0.19V) to sink 50uA. XM9 is forced into linear region, pulling N7 to VDD, allowing XM10 to source 50uA. VBIAS2 settles near 0.3V.\",\n        \"range\": {\n          \"min\": \"0.15\",\n          \"typical\": \"0.3\",\n          \"max\": \"0.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Headroom balance in the cascode structure when all devices are equally sized.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"VBIAS3_Voltage\": {\n      \"description\": \"DC bias voltage for the bottom PMOS in the cascode.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Same as VREF, standard PMOS diode drop at 50uA.\",\n        \"range\": {\n          \"min\": \"0.8\",\n          \"typical\": \"0.93\",\n          \"max\": \"1.1\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Identical structure to VREF generation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"PSRR_VBIAS1\": {\n      \"description\": \"Power Supply Rejection Ratio at VBIAS1.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Typical simple mirror PSRR is roughly 20*log10(1 / (gm * ro)).\",\n        \"range\": {\n          \"min\": \"-40\",\n          \"typical\": \"-25\",\n          \"max\": \"-10\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard rejection for a diode-connected load driven by a cascode.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC bias voltages, power consumption, and PSRR of the bias generator.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Power\",\n      \"VREF_Voltage\",\n      \"VBIAS1_Voltage\",\n      \"VBIAS2_Voltage\",\n      \"VBIAS3_Voltage\",\n      \"PSRR_VBIAS1\"\n    ],\n    \"spice\": \"* Bias Generator Testbench\\n.lib \\\"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\nXM2 VREF IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 IBIAS IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM10 VBIAS2 VBIAS3 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM3 VBIAS3 IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM12 VBIAS1 VBIAS3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM4 VBIAS2 IBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VBIAS1 VBIAS1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM9 N7 VBIAS2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM11 N1 VBIAS2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM7 VREF VREF VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 VBIAS3 VBIAS3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\n\\nVVDD VDD 0 DC 1.8 AC 1\\nIin VDD IBIAS DC 50u\\n\\nC1 VREF 0 10f\\nC2 VBIAS1 0 10f\\nC3 VBIAS2 0 10f\\nC4 VBIAS3 0 10f\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  let v_vref = v(VREF)\\n  let v_vbias1 = v(VBIAS1)\\n  let v_vbias2 = v(VBIAS2)\\n  let v_vbias3 = v(VBIAS3)\\n  print v_vref v_vbias1 v_vbias2 v_vbias3\\n\\n  ac dec 10 1 1G\\n  meas ac psrr_vref find vdb(VREF) at=1k\\n  meas ac psrr_vbias1 find vdb(VBIAS1) at=1k\\n  meas ac psrr_vbias2 find vdb(VBIAS2) at=1k\\n  meas ac psrr_vbias3 find vdb(VBIAS3) at=1k\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1015689",
+  "_case": "1015689_image_10"
+}

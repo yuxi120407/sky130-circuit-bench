@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Comparator Preamplifier / Difference Amplifier",
+    "description": "A fully differential preamplifier used in the sub-ADC of a pipelined ADC. It amplifies the difference between the differential input signal and the differential reference voltage.",
+    "node_mapping": {
+      "input": [
+        "VIP",
+        "VIN",
+        "VRP",
+        "VRN"
+      ],
+      "output": [
+        "VAP",
+        "VAN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB1"
+      ],
+      "ground": [
+        "GND",
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 15-b 40-MS/s CMOS Pipelined Analog-to-Digital Converter With Digital Background Calibration",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "Total DC power consumption of the preamplifier.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "370 mW",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 1/2 * u_n * C_ox * (W/L) * (VB1 - Vth)^2 = 0.5 * 270u * 10 * (0.54 - 0.42)^2 = 19.4 uA. Total current = 2 * 19.4 uA = 38.8 uA. Power = 1.8V * 38.8 uA = 70 uW.",
+        "range": {
+          "min": "50u",
+          "typical": "70u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "Based on the provided VB1=0.54V bias and SKY130 NMOS parameters. Much lower than the paper's 370mW which is for the entire ADC."
+      },
+      "importance": "essential"
+    },
+    "diff_gain": {
+      "description": "Differential AC voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "73.5 dB",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "gm_in = 2 * Id / Vov = 2 * 9.7uA / 0.084V = 230 uS. gm_load = 2 * 19.4uA / 0.278V = 139 uS. Base Gain = gm_in / gm_load ~ 1.65 V/V = 4.3 dB. With partial positive feedback from XM9, gain is slightly boosted.",
+        "range": {
+          "min": "2",
+          "typical": "6",
+          "max": "15",
+          "unit": "dB"
+        },
+        "reasoning": "Preamplifiers in flash sub-ADCs typically have low gain (2-10 V/V) to maximize bandwidth. The 73.5 dB reported in the paper is for the main op-amp, not this preamplifier."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity gain bandwidth of the preamplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 MS/s",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Bandwidth is determined by the output pole: f_p = gm_load / (2 * pi * C_load). Assuming C_load ~ 10fF (parasitic), f_p = 139uS / (2 * pi * 10fF) = 2.2 GHz.",
+        "range": {
+          "min": "500M",
+          "typical": "2G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "Needs to be fast enough to settle within a fraction of the 40 MHz clock period (25 ns)."
+      },
+      "importance": "essential"
+    },
+    "sys_offset": {
+      "description": "Systematic output offset voltage (VAN - VAP) at zero differential input.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "XM9 supplies current to VAN, but XM10 is connected as a dummy (D=VDD) instead of supplying VAP. This asymmetry causes VAN to rise to ~1.38V to turn off XM7, while VAP stays at ~1.1V. Offset = 1.38 - 1.1 = 0.28V.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.28",
+          "max": "0.5",
+          "unit": "V"
+        },
+        "reasoning": "Calculated based on the asymmetric cross-coupled load in the provided netlist (likely an extraction artifact from the original schematic)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, systematic offset, AC differential gain, unity gain bandwidth, and transient response of the comparator preamplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "sys_offset",
+      "diff_gain",
+      "ugbw"
+    ],
+    "spice": "* Comparator Preamplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 VAP VIP N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM7 VAN VAN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM9 VAN VAP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM2 VAP VIN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM5 N2 VB1 VSS GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM8 VAP VAP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM3 VAN VRP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VAN VRN N3 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM6 N3 VB1 VSS GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM10 VDD VAN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVB1 VB1 0 0.54\n\nVVIP VIP 0 DC 0.9 AC 0.5 PULSE(0.8 1.0 1n 0.1n 0.1n 5n 10n)\nVVIN VIN 0 DC 0.9 AC -0.5 PULSE(1.0 0.8 1n 0.1n 0.1n 5n 10n)\nVVRP VRP 0 DC 0.9\nVVRN VRN 0 DC 0.9\n\n.control\n  op\n  let power = -i(VVDD) * 1.8\n  let vout_sys_offset = v(VAN) - v(VAP)\n  print power\n  print vout_sys_offset\n\n  ac dec 20 1Meg 10Gig\n  let vout_diff = v(VAP) - v(VAN)\n  let gain_db = 20 * log10(mag(vout_diff))\n  meas ac max_gain max gain_db\n  meas ac ugbw when gain_db=0 fall=1\n\n  tran 0.1n 20n\n  meas tran vap_max max v(VAP)\n  meas tran vap_min min v(VAP)\n  meas tran van_max max v(VAN)\n  meas tran van_min min v(VAN)\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Comparator Preamplifier / Difference Amplifier\",\n    \"description\": \"A fully differential preamplifier used in the sub-ADC of a pipelined ADC. It amplifies the difference between the differential input signal and the differential reference voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIP\",\n        \"VIN\",\n        \"VRP\",\n        \"VRN\"\n      ],\n      \"output\": [\n        \"VAP\",\n        \"VAN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB1\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 15-b 40-MS/s CMOS Pipelined Analog-to-Digital Converter With Digital Background Calibration\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the preamplifier.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"370 mW\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 1/2 * u_n * C_ox * (W/L) * (VB1 - Vth)^2 = 0.5 * 270u * 10 * (0.54 - 0.42)^2 = 19.4 uA. Total current = 2 * 19.4 uA = 38.8 uA. Power = 1.8V * 38.8 uA = 70 uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"70u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the provided VB1=0.54V bias and SKY130 NMOS parameters. Much lower than the paper's 370mW which is for the entire ADC.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"diff_gain\": {\n      \"description\": \"Differential AC voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"73.5 dB\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm_in = 2 * Id / Vov = 2 * 9.7uA / 0.084V = 230 uS. gm_load = 2 * 19.4uA / 0.278V = 139 uS. Base Gain = gm_in / gm_load ~ 1.65 V/V = 4.3 dB. With partial positive feedback from XM9, gain is slightly boosted.\",\n        \"range\": {\n          \"min\": \"2\",\n          \"typical\": \"6\",\n          \"max\": \"15\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Preamplifiers in flash sub-ADCs typically have low gain (2-10 V/V) to maximize bandwidth. The 73.5 dB reported in the paper is for the main op-amp, not this preamplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity gain bandwidth of the preamplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 MS/s\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bandwidth is determined by the output pole: f_p = gm_load / (2 * pi * C_load). Assuming C_load ~ 10fF (parasitic), f_p = 139uS / (2 * pi * 10fF) = 2.2 GHz.\",\n        \"range\": {\n          \"min\": \"500M\",\n          \"typical\": \"2G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Needs to be fast enough to settle within a fraction of the 40 MHz clock period (25 ns).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"sys_offset\": {\n      \"description\": \"Systematic output offset voltage (VAN - VAP) at zero differential input.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"XM9 supplies current to VAN, but XM10 is connected as a dummy (D=VDD) instead of supplying VAP. This asymmetry causes VAN to rise to ~1.38V to turn off XM7, while VAP stays at ~1.1V. Offset = 1.38 - 1.1 = 0.28V.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.28\",\n          \"max\": \"0.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Calculated based on the asymmetric cross-coupled load in the provided netlist (likely an extraction artifact from the original schematic).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, systematic offset, AC differential gain, unity gain bandwidth, and transient response of the comparator preamplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"sys_offset\",\n      \"diff_gain\",\n      \"ugbw\"\n    ],\n    \"spice\": \"* Comparator Preamplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 VAP VIP N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM7 VAN VAN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM9 VAN VAP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM2 VAP VIN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM5 N2 VB1 VSS GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM8 VAP VAP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM3 VAN VRP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VAN VRN N3 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM6 N3 VB1 VSS GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM10 VDD VAN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVB1 VB1 0 0.54\\n\\nVVIP VIP 0 DC 0.9 AC 0.5 PULSE(0.8 1.0 1n 0.1n 0.1n 5n 10n)\\nVVIN VIN 0 DC 0.9 AC -0.5 PULSE(1.0 0.8 1n 0.1n 0.1n 5n 10n)\\nVVRP VRP 0 DC 0.9\\nVVRN VRN 0 DC 0.9\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8\\n  let vout_sys_offset = v(VAN) - v(VAP)\\n  print power\\n  print vout_sys_offset\\n\\n  ac dec 20 1Meg 10Gig\\n  let vout_diff = v(VAP) - v(VAN)\\n  let gain_db = 20 * log10(mag(vout_diff))\\n  meas ac max_gain max gain_db\\n  meas ac ugbw when gain_db=0 fall=1\\n\\n  tran 0.1n 20n\\n  meas tran vap_max max v(VAP)\\n  meas tran vap_min min v(VAP)\\n  meas tran van_max max v(VAN)\\n  meas tran van_min min v(VAN)\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1425712",
+  "_case": "1425712_image_13_a"
+}

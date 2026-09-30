@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor MDAC Stage (Continuous-Time Equivalent)",
+    "description": "A capacitive feedback amplifier used as a multiplying DAC (MDAC) stage in a pipeline ADC. It amplifies the residue signal for the next stage. The netlist represents the amplification phase where C1 acts as the feedback capacitor.",
+    "node_mapping": {
+      "input": [
+        "VI_N"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VREF"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Oversampled Pipeline A/D Converters With Mismatch Shaping",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "closed_loop_gain": {
+      "description": "Closed-loop AC voltage gain of the MDAC stage",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "6 dB (implied by 1-bit/stage)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Set by capacitor ratio C_in/C_fb = 2 (6.02 dB)",
+        "range": {
+          "min": 5.9,
+          "typical": 6.0,
+          "max": 6.1,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the feedback network ratio for a 1-bit pipeline stage."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3db": {
+      "description": "-3dB closed-loop bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "61 MHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "GBW / Noise Gain",
+        "range": {
+          "min": 50000000.0,
+          "typical": 61000000.0,
+          "max": 80000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on op-amp GBW and feedback factor. Adjusted macro model to match the paper's 61 MHz."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin of the closed-loop system",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "180 ph (implied stable)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Measured from loop gain",
+        "range": {
+          "min": 60,
+          "typical": 75,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard requirement for stable settling in switched-capacitor circuits."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures closed-loop gain, -3dB bandwidth, and transient swing of the MDAC stage.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "midband_gain",
+      "bw_3db",
+      "v_pp"
+    ],
+    "spice": "* MDAC Stage Testbench\n.param C_in=2p C_fb=1p C_load=1p\n\n* DUT (Note: A1 changed to X1 for standard SPICE compatibility, C values parameterized)\nX1 VI_N N1 GND amplifier\nC1 VI_N N1 {C_fb}\nC2 N1 VREF {C_load}\n\n* External components for testing (Input cap and DC bias path)\nCin VIN VI_N {C_in}\nRbias VI_N GND 1G\n\n* Sources\nVVREF VREF 0 0.9\nVVIN VIN 0 DC 0.9 AC 1 SIN(0.9 0.1 10Meg)\nVVDD VDD 0 1.8\n\n* Amplifier macro model (Tuned for ~61MHz closed-loop BW)\n.subckt amplifier in out gnd\nG1 gnd out_int gnd in 1m\nR1 out_int gnd 100k\nC1 out_int gnd 0.87p\nE1 out gnd out_int gnd 1\n.ends\n\n.control\n* AC Analysis\nac dec 100 100k 1G\nlet gain_db = vdb(N1)\nmeas ac midband_gain find gain_db at=1Meg\nlet gain_db_3db = midband_gain - 3\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\n\n* Transient Analysis\ntran 0.1n 200n\nmeas tran v_out_max max v(N1)\nmeas tran v_out_min min v(N1)\nlet v_pp = v_out_max - v_out_min\n\nprint midband_gain\nprint bw_3db\nprint v_pp\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor MDAC Stage (Continuous-Time Equivalent)\",\n    \"description\": \"A capacitive feedback amplifier used as a multiplying DAC (MDAC) stage in a pipeline ADC. It amplifies the residue signal for the next stage. The netlist represents the amplification phase where C1 acts as the feedback capacitor.\",\n    \"node_mapping\": {\n      \"input\": [\"VI_N\"],\n      \"output\": [\"N1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"VREF\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Oversampled Pipeline A/D Converters With Mismatch Shaping\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"closed_loop_gain\": {\n      \"description\": \"Closed-loop AC voltage gain of the MDAC stage\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"6 dB (implied by 1-bit/stage)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set by capacitor ratio C_in/C_fb = 2 (6.02 dB)\",\n        \"range\": { \"min\": 5.9, \"typical\": 6.0, \"max\": 6.1, \"unit\": \"dB\" },\n        \"reasoning\": \"Determined by the feedback network ratio for a 1-bit pipeline stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3db\": {\n      \"description\": \"-3dB closed-loop bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"61 MHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"GBW / Noise Gain\",\n        \"range\": { \"min\": 50e6, \"typical\": 61e6, \"max\": 80e6, \"unit\": \"Hz\" },\n        \"reasoning\": \"Depends on op-amp GBW and feedback factor. Adjusted macro model to match the paper's 61 MHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin of the closed-loop system\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"180 ph (implied stable)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Measured from loop gain\",\n        \"range\": { \"min\": 60, \"typical\": 75, \"max\": 90, \"unit\": \"degrees\" },\n        \"reasoning\": \"Standard requirement for stable settling in switched-capacitor circuits.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures closed-loop gain, -3dB bandwidth, and transient swing of the MDAC stage.\",\n    \"analyses\": [\"AC\", \"Tran\"],\n    \"metrics_measured\": [\"midband_gain\", \"bw_3db\", \"v_pp\"],\n    \"spice\": \"* MDAC Stage Testbench\\n.param C_in=2p C_fb=1p C_load=1p\\n\\n* DUT (Note: A1 changed to X1 for standard SPICE compatibility, C values parameterized)\\nX1 VI_N N1 GND amplifier\\nC1 VI_N N1 {C_fb}\\nC2 N1 VREF {C_load}\\n\\n* External components for testing (Input cap and DC bias path)\\nCin VIN VI_N {C_in}\\nRbias VI_N GND 1G\\n\\n* Sources\\nVVREF VREF 0 0.9\\nVVIN VIN 0 DC 0.9 AC 1 SIN(0.9 0.1 10Meg)\\nVVDD VDD 0 1.8\\n\\n* Amplifier macro model (Tuned for ~61MHz closed-loop BW)\\n.subckt amplifier in out gnd\\nG1 gnd out_int gnd in 1m\\nR1 out_int gnd 100k\\nC1 out_int gnd 0.87p\\nE1 out gnd out_int gnd 1\\n.ends\\n\\n.control\\n* AC Analysis\\nac dec 100 100k 1G\\nlet gain_db = vdb(N1)\\nmeas ac midband_gain find gain_db at=1Meg\\nlet gain_db_3db = midband_gain - 3\\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\\n\\n* Transient Analysis\\ntran 0.1n 200n\\nmeas tran v_out_max max v(N1)\\nmeas tran v_out_min min v(N1)\\nlet v_pp = v_out_max - v_out_min\\n\\nprint midband_gain\\nprint bw_3db\\nprint v_pp\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "997849",
+  "_case": "997849_image_1"
+}

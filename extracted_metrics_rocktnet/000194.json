@@ -1,0 +1,142 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Quadrature Ring Voltage-Controlled Oscillator (VCO) Core",
+    "description": "A two-stage differential ring oscillator delay cell with phase interpolation tuning. It uses cross-coupled NMOS pairs (XM1/2, XM3/4) for negative resistance and injection NMOS pairs (XM5/6, XM7/8) to couple the stages, enforcing quadrature oscillation.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "0_DEG",
+        "90_DEG",
+        "180_DEG",
+        "270_DEG"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2-V 1.8-GHz Fully Integrated CMOS Dual-Loop Frequency Synthesizer",
+      "figure": "4",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "Operating frequency of the oscillator for a given bias current.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "356 to 931 MHz",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay per stage ~ R_load * C_load. Assuming R=500 ohm, C_parasitic=26fF, C_added=100fF, Td=63ps. Freq = 1/(4*Td) = 4 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 3000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Sky130 (130nm) is significantly faster than the original 0.5um process, so the natural oscillation frequency will be higher unless large load capacitors are explicitly added."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power consumed by the VCO core.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "95 mW (total synthesizer)",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "4 tail currents of 1mA each = 4mA total. Power = 4mA * 1.8V = 7.2mW.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.0072,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "Based on typical bias currents required to achieve sufficient swing and phase noise in a 130nm ring VCO."
+      },
+      "importance": "essential"
+    },
+    "output_amplitude": {
+      "description": "Peak-to-peak voltage swing of the oscillator outputs.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "sky130_expected": {
+        "calculation": "Swing = I_tail_total * R_load = 2mA * 500 ohm = 1V single-ended peak-to-peak.",
+        "range": {
+          "min": 0.6,
+          "typical": 1.0,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "A swing of ~1V is typical to fully switch the cross-coupled pairs while keeping transistors in saturation."
+      },
+      "importance": "recommended"
+    },
+    "phase_error": {
+      "description": "Deviation from the ideal 90-degree phase shift between adjacent quadrature outputs.",
+      "unit": "degrees",
+      "analysis_type": "Tran",
+      "sky130_expected": {
+        "calculation": "Ideal is 90 degrees. In a perfectly symmetric simulation, error is 0.",
+        "range": {
+          "min": 0,
+          "typical": 0.5,
+          "max": 2,
+          "unit": "degrees"
+        },
+        "reasoning": "Without mismatch models, the phase difference should be exactly 90 degrees."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Phase noise at a specific offset frequency (e.g., 600 kHz).",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "109.2 dBc/Hz at 600kHz offset",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Typical ring VCO phase noise scales with power and frequency.",
+        "range": {
+          "min": -115,
+          "typical": -105,
+          "max": -95,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Comparable to the paper's reported value, adjusted for the higher oscillation frequency in 130nm."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure oscillation frequency, output amplitude, quadrature phase difference, and power consumption of the ring VCO.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "output_amplitude",
+      "phase_error",
+      "power_consumption"
+    ],
+    "spice": "* Quadrature Ring VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\n.param I_latch = 1m\n.param I_inject = 1m\n.param R_load = 500\n.param C_load = 100f\n\nVVDD VDD 0 1.8\n\n* Loads\nR1 0_DEG VDD {R_load}\nR2 180_DEG VDD {R_load}\nR3 90_DEG VDD {R_load}\nR4 270_DEG VDD {R_load}\n\n* Parasitic/Tuning Capacitors\nC1 0_DEG 0 {C_load}\nC2 180_DEG 0 {C_load}\nC3 90_DEG 0 {C_load}\nC4 270_DEG 0 {C_load}\n\n* Tail Current Sources for Tuning\nI_A A 0 {I_latch}\nI_B B 0 {I_latch}\nI_C C 0 {I_inject}\nI_D D 0 {I_inject}\n\n* DUT\nXM1 0_DEG 180_DEG A GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 180_DEG 0_DEG A GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 270_DEG 90_DEG B GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM7 270_DEG 180_DEG D GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM4 90_DEG 270_DEG B GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM6 180_DEG 90_DEG C GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM8 90_DEG 0_DEG D GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM5 0_DEG 270_DEG C GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\n* Initial conditions to kickstart oscillation\n.ic v(0_DEG)=1.8 v(180_DEG)=0 v(90_DEG)=0.9 v(270_DEG)=0.9\n\n.control\ntran 10p 20n\n\n* Measure frequency\nmeas tran t1 trig v(0_DEG) val=1.3 rise=5 targ v(0_DEG) val=1.3 rise=6\nlet freq = 1 / t1\nprint freq\n\n* Measure amplitude\nmeas tran vmax max v(0_DEG) from=10n to=20n\nmeas tran vmin min v(0_DEG) from=10n to=20n\nlet vpp = vmax - vmin\nprint vpp\n\n* Measure phase difference (should be 90 degrees)\nmeas tran t_90 trig v(0_DEG) val=1.3 rise=5 targ v(270_DEG) val=1.3 rise=5\nlet phase_diff = (t_90 / t1) * 360\nprint phase_diff\n\n* Measure power consumption\nmeas tran pwr avg i(VVDD) from=10n to=20n\nlet power_mw = -pwr * 1.8 * 1000\nprint power_mw\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Quadrature Ring Voltage-Controlled Oscillator (VCO) Core\",\n    \"description\": \"A two-stage differential ring oscillator delay cell with phase interpolation tuning. It uses cross-coupled NMOS pairs (XM1/2, XM3/4) for negative resistance and injection NMOS pairs (XM5/6, XM7/8) to couple the stages, enforcing quadrature oscillation.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"0_DEG\", \"90_DEG\", \"180_DEG\", \"270_DEG\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"A\", \"B\", \"C\", \"D\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2-V 1.8-GHz Fully Integrated CMOS Dual-Loop Frequency Synthesizer\",\n      \"figure\": \"4\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"Operating frequency of the oscillator for a given bias current.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"356 to 931 MHz\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay per stage ~ R_load * C_load. Assuming R=500 ohm, C_parasitic=26fF, C_added=100fF, Td=63ps. Freq = 1/(4*Td) = 4 GHz.\",\n        \"range\": { \"min\": 1e9, \"typical\": 3e9, \"max\": 5e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"Sky130 (130nm) is significantly faster than the original 0.5um process, so the natural oscillation frequency will be higher unless large load capacitors are explicitly added.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumed by the VCO core.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"95 mW (total synthesizer)\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"4 tail currents of 1mA each = 4mA total. Power = 4mA * 1.8V = 7.2mW.\",\n        \"range\": { \"min\": 5e-3, \"typical\": 7.2e-3, \"max\": 15e-3, \"unit\": \"W\" },\n        \"reasoning\": \"Based on typical bias currents required to achieve sufficient swing and phase noise in a 130nm ring VCO.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_amplitude\": {\n      \"description\": \"Peak-to-peak voltage swing of the oscillator outputs.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail_total * R_load = 2mA * 500 ohm = 1V single-ended peak-to-peak.\",\n        \"range\": { \"min\": 0.6, \"typical\": 1.0, \"max\": 1.5, \"unit\": \"V\" },\n        \"reasoning\": \"A swing of ~1V is typical to fully switch the cross-coupled pairs while keeping transistors in saturation.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"phase_error\": {\n      \"description\": \"Deviation from the ideal 90-degree phase shift between adjacent quadrature outputs.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"Tran\",\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal is 90 degrees. In a perfectly symmetric simulation, error is 0.\",\n        \"range\": { \"min\": 0, \"typical\": 0.5, \"max\": 2, \"unit\": \"degrees\" },\n        \"reasoning\": \"Without mismatch models, the phase difference should be exactly 90 degrees.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise at a specific offset frequency (e.g., 600 kHz).\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"109.2 dBc/Hz at 600kHz offset\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Typical ring VCO phase noise scales with power and frequency.\",\n        \"range\": { \"min\": -115, \"typical\": -105, \"max\": -95, \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"Comparable to the paper's reported value, adjusted for the higher oscillation frequency in 130nm.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure oscillation frequency, output amplitude, quadrature phase difference, and power consumption of the ring VCO.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"oscillation_frequency\", \"output_amplitude\", \"phase_error\", \"power_consumption\"],\n    \"spice\": \"* Quadrature Ring VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\n.param I_latch = 1m\\n.param I_inject = 1m\\n.param R_load = 500\\n.param C_load = 100f\\n\\nVVDD VDD 0 1.8\\n\\n* Loads\\nR1 0_DEG VDD {R_load}\\nR2 180_DEG VDD {R_load}\\nR3 90_DEG VDD {R_load}\\nR4 270_DEG VDD {R_load}\\n\\n* Parasitic/Tuning Capacitors\\nC1 0_DEG 0 {C_load}\\nC2 180_DEG 0 {C_load}\\nC3 90_DEG 0 {C_load}\\nC4 270_DEG 0 {C_load}\\n\\n* Tail Current Sources for Tuning\\nI_A A 0 {I_latch}\\nI_B B 0 {I_latch}\\nI_C C 0 {I_inject}\\nI_D D 0 {I_inject}\\n\\n* DUT\\nXM1 0_DEG 180_DEG A GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 180_DEG 0_DEG A GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 270_DEG 90_DEG B GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM7 270_DEG 180_DEG D GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM4 90_DEG 270_DEG B GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM6 180_DEG 90_DEG C GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM8 90_DEG 0_DEG D GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM5 0_DEG 270_DEG C GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(0_DEG)=1.8 v(180_DEG)=0 v(90_DEG)=0.9 v(270_DEG)=0.9\\n\\n.control\\ntran 10p 20n\\n\\n* Measure frequency\\nmeas tran t1 trig v(0_DEG) val=1.3 rise=5 targ v(0_DEG) val=1.3 rise=6\\nlet freq = 1 / t1\\nprint freq\\n\\n* Measure amplitude\\nmeas tran vmax max v(0_DEG) from=10n to=20n\\nmeas tran vmin min v(0_DEG) from=10n to=20n\\nlet vpp = vmax - vmin\\nprint vpp\\n\\n* Measure phase difference (should be 90 degrees)\\nmeas tran t_90 trig v(0_DEG) val=1.3 rise=5 targ v(270_DEG) val=1.3 rise=5\\nlet phase_diff = (t_90 / t1) * 360\\nprint phase_diff\\n\\n* Measure power consumption\\nmeas tran pwr avg i(VVDD) from=10n to=20n\\nlet power_mw = -pwr * 1.8 * 1000\\nprint power_mw\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1020240",
+  "_case": "1020240_image_6"
+}

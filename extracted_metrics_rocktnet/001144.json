@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Continuous-Time Common-Mode Feedback (CMFB) Amplifier",
+    "description": "A differential difference amplifier (DDA) configured for common-mode feedback. It senses the common-mode voltage of the differential inputs (VOUT_PLUS, VOUT_MINUS), compares it to a reference (VCM), and generates a feedback voltage (CMFB) across a diode-connected load to adjust the main amplifier's bias. A dummy branch (N5) ensures perfect symmetry.",
+    "node_mapping": {
+      "input": [
+        "VOUT_PLUS",
+        "VOUT_MINUS",
+        "VCM"
+      ],
+      "output": [
+        "CMFB"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "B1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "CMOS Oversampling Magnetic-to-Digital Converters",
+      "figure": "Not specified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipation of the CMFB amplifier.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "32.4 mW (System total)",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming B1 biases the PMOS tail current sources (XMM7, XMM8) to ~20uA each. Total current = 40uA. Power = 1.8V * 40uA = 72uW.",
+        "range": {
+          "min": "50u",
+          "typical": "72u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "The paper's 32.4mW is for the entire magnetic-to-digital converter system. This single CMFB sub-block will consume a small fraction of that, determined by the tail currents."
+      },
+      "importance": "essential"
+    },
+    "cm_gain": {
+      "description": "Common-mode gain (A_CM) from the inputs to the CMFB output.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "A_CM = 2 * gm_p / gm_n. With I_tail = 20uA, gm_p (PMOS input) ~= 100uS. The diode-connected NMOS load carries 20uA, gm_n ~= 328uS. A_CM = 200/328 = 0.61 V/V = -4.3 dB.",
+        "range": {
+          "min": "-10",
+          "typical": "-4.3",
+          "max": "0",
+          "unit": "dB"
+        },
+        "reasoning": "Because the load is diode-connected, the voltage gain is inherently low (around 1 V/V or 0 dB). The main amplifier provides the rest of the CMFB loop gain."
+      },
+      "importance": "essential"
+    },
+    "dm_gain": {
+      "description": "Differential-mode gain (A_DM) from the inputs to the CMFB output. Should ideally be zero.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Due to the perfectly symmetric DDA topology and dummy branch (N5), differential signals cancel out at the CMFB node.",
+        "range": {
+          "min": "-150",
+          "typical": "-100",
+          "max": "-60",
+          "unit": "dB"
+        },
+        "reasoning": "In a schematic-level simulation without mismatch, the differential gain will be extremely small, limited only by numerical precision and slight channel-length modulation asymmetries."
+      },
+      "importance": "essential"
+    },
+    "cm_bw": {
+      "description": "Bandwidth of the common-mode gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = gm_load / (2 * pi * C_out). gm_load ~= 328uS. C_out is parasitic capacitance at CMFB node (~20fF). f_3dB = 328uS / (2*pi*20fF) ~= 2.6 GHz.",
+        "range": {
+          "min": "500M",
+          "typical": "2.6G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "The low-impedance diode-connected load pushes the dominant pole to a very high frequency, making this a wideband CMFB stage."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, common-mode gain, differential-mode gain, and bandwidth of the CMFB amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "cm_gain",
+      "dm_gain",
+      "cm_bw"
+    ],
+    "spice": "* CMFB Amplifier Testbench\n\n.param W_xmm5=5u L_xmm5=0.5u\n.param W_xmm2=5u L_xmm2=0.5u\n.param W_xmm7=5u L_xmm7=0.5u\n.param W_xmm6=5u L_xmm6=0.5u\n.param W_xmm8=5u L_xmm8=0.5u\n.param W_xmm3=5u L_xmm3=0.5u\n.param W_xmm4=5u L_xmm4=0.5u\n.param W_xmm1=5u L_xmm1=0.5u\n\n* DUT\nXMM5 CMFB CMFB GND GND sky130_fd_pr__nfet_01v8 l={L_xmm5} w={W_xmm5}\nXMM2 CMFB VCM N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmm2} w={W_xmm2}\nXMM7 N3 B1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmm7} w={W_xmm7}\nXMM6 N5 N5 GND GND sky130_fd_pr__nfet_01v8 l={L_xmm6} w={W_xmm6}\nXMM8 N1 B1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmm8} w={W_xmm8}\nXMM3 CMFB VCM N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmm3} w={W_xmm3}\nXMM4 N5 VOUT_MINUS N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmm4} w={W_xmm4}\nXMM1 N5 VOUT_PLUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmm1} w={W_xmm1}\n\n* DC Sources\nVVDD VDD 0 1.8\nVB1 B1 0 1.1\nVVCM VCM 0 0.9\n\n* Input Signal Sources\nVCM_IN VCM_IN 0 dc 0.9 ac 1\nVDM_IN VDM_IN 0 dc 0 ac 0\n\n* VCVS to generate VOUT_PLUS and VOUT_MINUS\nE1 VOUT_PLUS VCM_IN VDM_IN 0 0.5\nE2 VOUT_MINUS VCM_IN VDM_IN 0 -0.5\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VVDD)*1.8\n  print power\n  print v(CMFB)\n\n  * 2. Common-Mode AC Analysis\n  ac dec 100 1 10G\n  let cm_gain_db = vdb(CMFB)\n  meas ac cm_gain_dc find cm_gain_db at=10\n  meas ac cm_bw when cm_gain_db='cm_gain_dc - 3' fall=1\n\n  * 3. Differential-Mode AC Analysis\n  alter VCM_IN ac=0\n  alter VDM_IN ac=1\n  ac dec 100 1 10G\n  let dm_gain_db = vdb(CMFB)\n  meas ac dm_gain_dc find dm_gain_db at=10\n\n  * 4. DC Sweep for Common-Mode Range\n  dc VCM_IN 0 1.8 0.01\n  let d_cmfb = deriv(v(CMFB))\n  meas dc max_cm_gain max d_cmfb\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Continuous-Time Common-Mode Feedback (CMFB) Amplifier\",\n    \"description\": \"A differential difference amplifier (DDA) configured for common-mode feedback. It senses the common-mode voltage of the differential inputs (VOUT_PLUS, VOUT_MINUS), compares it to a reference (VCM), and generates a feedback voltage (CMFB) across a diode-connected load to adjust the main amplifier's bias. A dummy branch (N5) ensures perfect symmetry.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VOUT_PLUS\",\n        \"VOUT_MINUS\",\n        \"VCM\"\n      ],\n      \"output\": [\n        \"CMFB\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"B1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"CMOS Oversampling Magnetic-to-Digital Converters\",\n      \"figure\": \"Not specified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation of the CMFB amplifier.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"32.4 mW (System total)\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming B1 biases the PMOS tail current sources (XMM7, XMM8) to ~20uA each. Total current = 40uA. Power = 1.8V * 40uA = 72uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"72u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 32.4mW is for the entire magnetic-to-digital converter system. This single CMFB sub-block will consume a small fraction of that, determined by the tail currents.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cm_gain\": {\n      \"description\": \"Common-mode gain (A_CM) from the inputs to the CMFB output.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A_CM = 2 * gm_p / gm_n. With I_tail = 20uA, gm_p (PMOS input) ~= 100uS. The diode-connected NMOS load carries 20uA, gm_n ~= 328uS. A_CM = 200/328 = 0.61 V/V = -4.3 dB.\",\n        \"range\": {\n          \"min\": \"-10\",\n          \"typical\": \"-4.3\",\n          \"max\": \"0\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Because the load is diode-connected, the voltage gain is inherently low (around 1 V/V or 0 dB). The main amplifier provides the rest of the CMFB loop gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dm_gain\": {\n      \"description\": \"Differential-mode gain (A_DM) from the inputs to the CMFB output. Should ideally be zero.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Due to the perfectly symmetric DDA topology and dummy branch (N5), differential signals cancel out at the CMFB node.\",\n        \"range\": {\n          \"min\": \"-150\",\n          \"typical\": \"-100\",\n          \"max\": \"-60\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"In a schematic-level simulation without mismatch, the differential gain will be extremely small, limited only by numerical precision and slight channel-length modulation asymmetries.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cm_bw\": {\n      \"description\": \"Bandwidth of the common-mode gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = gm_load / (2 * pi * C_out). gm_load ~= 328uS. C_out is parasitic capacitance at CMFB node (~20fF). f_3dB = 328uS / (2*pi*20fF) ~= 2.6 GHz.\",\n        \"range\": {\n          \"min\": \"500M\",\n          \"typical\": \"2.6G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The low-impedance diode-connected load pushes the dominant pole to a very high frequency, making this a wideband CMFB stage.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, common-mode gain, differential-mode gain, and bandwidth of the CMFB amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"cm_gain\",\n      \"dm_gain\",\n      \"cm_bw\"\n    ],\n    \"spice\": \"* CMFB Amplifier Testbench\\n\\n.param W_xmm5=5u L_xmm5=0.5u\\n.param W_xmm2=5u L_xmm2=0.5u\\n.param W_xmm7=5u L_xmm7=0.5u\\n.param W_xmm6=5u L_xmm6=0.5u\\n.param W_xmm8=5u L_xmm8=0.5u\\n.param W_xmm3=5u L_xmm3=0.5u\\n.param W_xmm4=5u L_xmm4=0.5u\\n.param W_xmm1=5u L_xmm1=0.5u\\n\\n* DUT\\nXMM5 CMFB CMFB GND GND sky130_fd_pr__nfet_01v8 l={L_xmm5} w={W_xmm5}\\nXMM2 CMFB VCM N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmm2} w={W_xmm2}\\nXMM7 N3 B1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmm7} w={W_xmm7}\\nXMM6 N5 N5 GND GND sky130_fd_pr__nfet_01v8 l={L_xmm6} w={W_xmm6}\\nXMM8 N1 B1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmm8} w={W_xmm8}\\nXMM3 CMFB VCM N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmm3} w={W_xmm3}\\nXMM4 N5 VOUT_MINUS N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmm4} w={W_xmm4}\\nXMM1 N5 VOUT_PLUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmm1} w={W_xmm1}\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVB1 B1 0 1.1\\nVVCM VCM 0 0.9\\n\\n* Input Signal Sources\\nVCM_IN VCM_IN 0 dc 0.9 ac 1\\nVDM_IN VDM_IN 0 dc 0 ac 0\\n\\n* VCVS to generate VOUT_PLUS and VOUT_MINUS\\nE1 VOUT_PLUS VCM_IN VDM_IN 0 0.5\\nE2 VOUT_MINUS VCM_IN VDM_IN 0 -0.5\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VVDD)*1.8\\n  print power\\n  print v(CMFB)\\n\\n  * 2. Common-Mode AC Analysis\\n  ac dec 100 1 10G\\n  let cm_gain_db = vdb(CMFB)\\n  meas ac cm_gain_dc find cm_gain_db at=10\\n  meas ac cm_bw when cm_gain_db='cm_gain_dc - 3' fall=1\\n\\n  * 3. Differential-Mode AC Analysis\\n  alter VCM_IN ac=0\\n  alter VDM_IN ac=1\\n  ac dec 100 1 10G\\n  let dm_gain_db = vdb(CMFB)\\n  meas ac dm_gain_dc find dm_gain_db at=10\\n\\n  * 4. DC Sweep for Common-Mode Range\\n  dc VCM_IN 0 1.8 0.01\\n  let d_cmfb = deriv(v(CMFB))\\n  meas dc max_cm_gain max d_cmfb\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "953488",
+  "_case": "953488_image_1_a"
+}

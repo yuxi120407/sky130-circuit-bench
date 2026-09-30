@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Variable-Gain / Multimode Low-Noise Amplifier (LNA)",
+    "description": "A differential LNA with a single-ended RF input and a Gilbert-cell-like quad cascode stage. The cross-coupled cascode transistors (Q1/Q2 and Q5/Q6) allow for gain switching or current steering to support multimode operation, optimizing for either linearity or power consumption.",
+    "node_mapping": {
+      "input": [
+        "n14"
+      ],
+      "output": [
+        "n6",
+        "n12"
+      ],
+      "supply": [
+        "n9"
+      ],
+      "bias": [
+        "n1",
+        "n3",
+        "n5",
+        "label_net_0"
+      ],
+      "ground": [
+        "n13"
+      ]
+    },
+    "paper_reference": {
+      "title": "Frequency-Scalable SiGe Bipolar RF Front-End Design",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "Differential voltage gain of the LNA",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "6.6 dB",
+        "technology": "30-GHz SiGe bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rload. With Ic ~ 5mA per branch, gm ~ 200mS. Rload = 200 ohms. Intrinsic gain ~ 32 dB, but with emitter degeneration (L3, L4) and matching, effective gain is lower.",
+        "range": {
+          "min": 5.0,
+          "typical": 10.0,
+          "max": 15.0,
+          "unit": "dB"
+        },
+        "reasoning": "Adjusted for typical 1.8V CMOS/BiCMOS LNA designs in SKY130 where gain is typically 10-15 dB at 1.8 GHz."
+      },
+      "importance": "essential"
+    },
+    "Noise Figure (NF)": {
+      "description": "Signal-to-noise ratio degradation through the amplifier",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "0.6 dB",
+        "technology": "30-GHz SiGe bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "NFmin depends on base resistance and ft. SKY130 parasitic NPNs or NMOS have higher NF than specialized SiGe HBTs.",
+        "range": {
+          "min": 1.5,
+          "typical": 2.5,
+          "max": 3.5,
+          "unit": "dB"
+        },
+        "reasoning": "SiGe HBTs achieve sub-1dB NF, but generic SKY130 devices will likely yield 1.5-3 dB NF at 1.8 GHz."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power consumed by the circuit",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "20.5 mW",
+        "technology": "30-GHz SiGe bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. VDD = 1.8V, I_total ~ 10-12 mA.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.02,
+          "max": 0.03,
+          "unit": "W"
+        },
+        "reasoning": "Matches the paper's reported 20.5 mW, which is typical for a differential LNA."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power and AC differential voltage gain of the LNA at 1.8 GHz.",
+    "analyses": [
+      "DC",
+      "AC"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Voltage Gain"
+    ],
+    "spice": "* LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model for simulation since netlist uses 'npn'\n.model npn npn (is=1e-16 bf=100 tf=10p cje=50f cjc=50f)\n\n* DUT (with component values added for simulation)\nC1 n10 n14 10p\nL1 n4 n13 5n\nR1 n9 n12 200\nC2 n4 n13 1.5p\nR2 n6 n9 200\nQ1 n6 n3 n8 npn\nR3 n1 n11 10k\nC3 n11 n13 10p\nC4 n1 n13 10p\nQ2 n12 n3 n0 npn\nQ3 n0 n11 n2 npn\nQ4 n8 n10 n7 npn\nR4 n1 n10 10k\nQ5 n6 n5 n0 npn\nQ6 n12 n5 n8 npn\nL2 n14 label_net_0 10n\nL3 n4 n7 1n\nL4 n2 n4 1n\n\n* DC Sources\nVvdd n9 0 1.8\nVgnd n13 0 0\nVbias_base n1 0 0.9\nVbias_casc1 n3 0 1.8\nVbias_casc2 n5 0 0\nVLABEL_NET_0 label_net_0 0 0.9\n\n* RF Input\nVac n14_src 0 dc 0 ac 1\nRsrc n14_src n14 50\n\n.control\nop\nlet power_w = -i(Vvdd) * 1.8\nprint power_w\n\nac dec 50 100MEG 10G\nlet vout_diff = v(n6) - v(n12)\nlet gain_db = 20*log10(mag(vout_diff))\nmeas ac gain_1p8G find gain_db at=1.8G\nmeas ac max_gain max gain_db\nprint gain_1p8G max_gain\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Variable-Gain / Multimode Low-Noise Amplifier (LNA)\",\n    \"description\": \"A differential LNA with a single-ended RF input and a Gilbert-cell-like quad cascode stage. The cross-coupled cascode transistors (Q1/Q2 and Q5/Q6) allow for gain switching or current steering to support multimode operation, optimizing for either linearity or power consumption.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n14\"\n      ],\n      \"output\": [\n        \"n6\",\n        \"n12\"\n      ],\n      \"supply\": [\n        \"n9\"\n      ],\n      \"bias\": [\n        \"n1\",\n        \"n3\",\n        \"n5\",\n        \"label_net_0\"\n      ],\n      \"ground\": [\n        \"n13\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Frequency-Scalable SiGe Bipolar RF Front-End Design\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"Differential voltage gain of the LNA\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"6.6 dB\",\n        \"technology\": \"30-GHz SiGe bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rload. With Ic ~ 5mA per branch, gm ~ 200mS. Rload = 200 ohms. Intrinsic gain ~ 32 dB, but with emitter degeneration (L3, L4) and matching, effective gain is lower.\",\n        \"range\": {\n          \"min\": 5.0,\n          \"typical\": 10.0,\n          \"max\": 15.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Adjusted for typical 1.8V CMOS/BiCMOS LNA designs in SKY130 where gain is typically 10-15 dB at 1.8 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Noise Figure (NF)\": {\n      \"description\": \"Signal-to-noise ratio degradation through the amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"0.6 dB\",\n        \"technology\": \"30-GHz SiGe bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NFmin depends on base resistance and ft. SKY130 parasitic NPNs or NMOS have higher NF than specialized SiGe HBTs.\",\n        \"range\": {\n          \"min\": 1.5,\n          \"typical\": 2.5,\n          \"max\": 3.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SiGe HBTs achieve sub-1dB NF, but generic SKY130 devices will likely yield 1.5-3 dB NF at 1.8 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power consumed by the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"20.5 mW\",\n        \"technology\": \"30-GHz SiGe bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. VDD = 1.8V, I_total ~ 10-12 mA.\",\n        \"range\": {\n          \"min\": 0.010,\n          \"typical\": 0.020,\n          \"max\": 0.030,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Matches the paper's reported 20.5 mW, which is typical for a differential LNA.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power and AC differential voltage gain of the LNA at 1.8 GHz.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Voltage Gain\"\n    ],\n    \"spice\": \"* LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model for simulation since netlist uses 'npn'\\n.model npn npn (is=1e-16 bf=100 tf=10p cje=50f cjc=50f)\\n\\n* DUT (with component values added for simulation)\\nC1 n10 n14 10p\\nL1 n4 n13 5n\\nR1 n9 n12 200\\nC2 n4 n13 1.5p\\nR2 n6 n9 200\\nQ1 n6 n3 n8 npn\\nR3 n1 n11 10k\\nC3 n11 n13 10p\\nC4 n1 n13 10p\\nQ2 n12 n3 n0 npn\\nQ3 n0 n11 n2 npn\\nQ4 n8 n10 n7 npn\\nR4 n1 n10 10k\\nQ5 n6 n5 n0 npn\\nQ6 n12 n5 n8 npn\\nL2 n14 label_net_0 10n\\nL3 n4 n7 1n\\nL4 n2 n4 1n\\n\\n* DC Sources\\nVvdd n9 0 1.8\\nVgnd n13 0 0\\nVbias_base n1 0 0.9\\nVbias_casc1 n3 0 1.8\\nVbias_casc2 n5 0 0\\nVLABEL_NET_0 label_net_0 0 0.9\\n\\n* RF Input\\nVac n14_src 0 dc 0 ac 1\\nRsrc n14_src n14 50\\n\\n.control\\nop\\nlet power_w = -i(Vvdd) * 1.8\\nprint power_w\\n\\nac dec 50 100MEG 10G\\nlet vout_diff = v(n6) - v(n12)\\nlet gain_db = 20*log10(mag(vout_diff))\\nmeas ac gain_1p8G find gain_db at=1.8G\\nmeas ac max_gain max gain_db\\nprint gain_1p8G max_gain\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "924851",
+  "_case": "924851_image_11"
+}

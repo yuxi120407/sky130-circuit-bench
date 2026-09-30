@@ -1,0 +1,152 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 26.33",
+    "page": "885",
+    "circuit_type": "Fully-differential two-stage CMOS op-amp with CMFB and cascoded output buffer",
+    "description": "Figure 26.33 displays the complete schematic of the two-stage fully-differential op-amp with continuous-time CMFB (using resistive averaging and a differential error amplifier) and a modified output buffer incorporating cascode NMOS transistors to allow wide output voltage swing without pulling excessive quiescent current."
+  },
+  "step2_metrics": {
+    "output_common_mode_voltage": {
+      "description": "DC common-mode output voltage (V_ocm = (vop + vom)/2) established by the CMFB feedback loop",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "881",
+        "reference": "Figure 26.25 and Figure 26.34 text"
+      },
+      "equation": {
+        "formula": "V_{OCM} = \\frac{v_{op} + v_{om}}{2} \\approx V_{CM}",
+        "explanation": "The continuous-time common-mode feedback loop samples the average of vop and vom through averaging resistors (20k) and compares it against VCM using an error amplifier to adjust the bias current in the input stage until V_OCM equals V_CM.",
+        "assumptions": "High loop gain in CMFB loop and matched differential output loading"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD = 1.8 V, the target common-mode voltage is set to VDD / 2 = 0.90 V (or 0.50 V if referenced to nominal VCM = 0.5 V). For VCM = 0.5 V applied to the CMFB reference terminal: V_OCM = 0.50 V. If VCM is set to 0.90 V: V_OCM = 0.90 V. With the netlist defining VCM = 500 mV, expected V_OCM is close to 0.50 V (within 480 mV - 520 mV).",
+        "range": {
+          "min": 0.45,
+          "typical": 0.5,
+          "max": 0.55,
+          "unit": "V"
+        },
+        "reasoning": "Finite CMFB loop gain (around 40-50 dB) yields a slight residual offset between V_OCM and VCM."
+      },
+      "importance": "essential"
+    },
+    "differential_open_loop_gain": {
+      "description": "Low-frequency small-signal differential open-loop voltage gain (A_OL = d(vop - vom)/d(vip - vim))",
+      "unit": "dB",
+      "analysis_type": "DC",
+      "source": {
+        "page": "886",
+        "reference": "Figure 26.34(b)"
+      },
+      "equation": {
+        "formula": "A_{OL} = g_{m1} \\cdot R_{o1} \\cdot g_{m2} \\cdot R_{o2}",
+        "explanation": "Two-stage fully-differential amplifier gain where the first stage is a telescopic cascode diff-amp and the second stage is a common-source amplifier loaded by the cascode current-sink buffer.",
+        "assumptions": "Transistors in active/saturation region with finite output resistance r_o = 1/(lambda * I_D)"
+      },
+      "sky130_expected": {
+        "calculation": "At I_D = 20 uA, gm_diff = sqrt(2 * un*Cox * (W/L) * ID) = sqrt(2 * 270u * 10 * 20u) = 328 uS. First-stage output resistance R_o1 ~ gm * ro^2 ~ 328u * (500k)^2 ~ 82 MOhm. Second-stage gm2 = sqrt(2 * 50u * 40 * 40u) = 400 uS, loaded by CMFB 20k resistor network in parallel with transistor ro: R_o2 ~ 20k || ro ~ 18 kOhm. Loaded open-loop gain A_OL ~ gm1 * Ro1 * gm2 * Ro2 / (attenuation) ~ 300 to 500 V/V (49 dB to 54 dB), matching Figure 26.34(b) showing peak gain ~ 360 V/V.",
+        "range": {
+          "min": 45.0,
+          "typical": 51.0,
+          "max": 58.0,
+          "unit": "dB"
+        },
+        "reasoning": "Loading by the 20 kOhm CMFB resistive network limits the second-stage gain, yielding overall DC gain in the hundreds (~300 - 500 V/V)."
+      },
+      "importance": "essential"
+    },
+    "output_voltage_swing": {
+      "description": "Differential peak-to-peak output voltage swing range without clipping",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "886",
+        "reference": "Figure 26.34(a)"
+      },
+      "equation": {
+        "formula": "V_{out,max} - V_{out,min} = (V_{DD} - V_{DS,sat,PMOS}) - (V_{DS,sat,NMOS1} + V_{DS,sat,NMOS2})",
+        "explanation": "Maximum single-ended output voltage extends nearly from rail to rail, limited only by the PMOS saturation voltage at the top and the NMOS cascode stack saturation voltage at the bottom.",
+        "assumptions": "Output buffer operates with cascoded NMOS pull-down and PMOS pull-up"
+      },
+      "sky130_expected": {
+        "calculation": "For VDD = 1.8 V and overdrive voltages V_ov ~ 0.15 V to 0.2 V: V_max = 1.8 - 0.2 = 1.6 V, V_min = 2 * 0.15 V = 0.3 V. Single-ended swing is ~ 1.3 V (0.3 V to 1.6 V). Differential peak-to-peak swing = 2 * (V_max - V_min) ~ 2.6 V.",
+        "range": {
+          "min": 1.1,
+          "typical": 1.3,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Cascode device operates near the triode edge to maximize swing while preventing output buffer DC bias current runaway."
+      },
+      "importance": "recommended"
+    },
+    "quiescent_current": {
+      "description": "Total quiescent current drawn from the VDD power supply",
+      "unit": "A",
+      "analysis_type": "OP",
+      "source": {
+        "page": "884",
+        "reference": "Page 884 text discussion"
+      },
+      "equation": {
+        "formula": "I_{DD,total} = I_{bias\\_circuit} + N_{branches} \\cdot I_{branch}",
+        "explanation": "Op-amp core consists of 11 branches (diff-pair stages, cascodes, doubled output stages, and CMFB amplifier) plus bias generator.",
+        "assumptions": "Nominal branch currents biased near 20 uA with output buffer properly regulated"
+      },
+      "sky130_expected": {
+        "calculation": "11 branches at ~20 uA each = 220 uA, plus bias generator ~ 50 uA, plus CMFB network static divider current (V_OCM / 40k = 0.5V / 40k = 12.5 uA). Total expected current = 280 uA to 380 uA.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00032,
+          "max": 0.00045,
+          "unit": "A"
+        },
+        "reasoning": "The cascode buffer prevents the 500 uA current runaway identified in Figure 26.30, keeping current near the design baseline of ~300 uA."
+      },
+      "importance": "essential"
+    },
+    "closed_loop_settling_time": {
+      "description": "1% settling time in response to differential step input in the inverting configuration",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "886",
+        "reference": "Figure 26.35"
+      },
+      "equation": {
+        "formula": "t_{settle} \\approx 4 \\cdot \\tau = \\frac{4}{2\\pi f_{-3dB}}",
+        "explanation": "Transient settling time for a closed-loop inverting amplifier with R_in = R_f = 20 kOhm and C_L = 250 fF.",
+        "assumptions": "Linear small-signal settling with single-pole roll-off"
+      },
+      "sky130_expected": {
+        "calculation": "With compensation capacitor Cc = 50 fF and load capacitor CL = 250 fF, closed-loop bandwidth is around 100-200 MHz, giving tau ~ 1.0 - 1.5 ns and settling to 1% in ~ 4-6 ns, corresponding directly to the 5 ns step transitions shown in Figure 26.35.",
+        "range": {
+          "min": 2e-09,
+          "typical": 4.5e-09,
+          "max": 8e-09,
+          "unit": "s"
+        },
+        "reasoning": "Fast settling is achievable due to the compact capacitance values (50 fF Cc, 250 fF CL) and high gm in SKY130."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Simulation testbench for Figure 26.33 op-amp measuring DC operating point, open-loop gain via DC transfer sweep, common-mode voltage, output swing, and closed-loop transient step response.",
+    "analyses": [
+      "OP",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "quiescent_current",
+      "output_common_mode_voltage",
+      "differential_open_loop_gain",
+      "output_voltage_swing",
+      "closed_loop_settling_time"
+    ],
+    "spice": "* Testbench for Figure 26.33 Op-Amp with CMFB and Cascode Output Buffer\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters for transistors matching Figure 26.33 (Baker Ch 26)\n.param W_xm1=10u  L_xm1=1u\n.param W_xm2=10u  L_xm2=1u\n.param W_xm3=20u  L_xm3=1u\n.param W_xm4=20u  L_xm4=1u\n.param W_xm5=10u  L_xm5=1u\n.param W_xm6=20u  L_xm6=1u\n.param W_xm7=20u  L_xm7=1u\n.param W_xm8=20u  L_xm8=1u\n.param W_xm9=20u  L_xm9=1u\n.param W_xm10=20u L_xm10=1u\n.param W_xm11=20u L_xm11=1u\n.param W_xm12=10u L_xm12=1u\n.param W_xm13=10u L_xm13=1u\n.param W_xm14=10u L_xm14=1u\n.param W_xm15=10u L_xm15=1u\n.param W_xm16=10u L_xm16=1u\n.param W_xm17=10u L_xm17=1u\n.param W_xm18=10u L_xm18=1u\n.param W_xm19=10u L_xm19=1u\n.param W_xm20=10u L_xm20=1u\n.param W_xm21=40u L_xm21=1u\n.param W_xm22=20u L_xm22=1u\n.param W_xm23=20u L_xm23=1u\n.param W_xm24=20u L_xm24=1u\n.param W_xm25=40u L_xm25=1u\n.param W_xm26=20u L_xm26=1u\n.param W_xm27=20u L_xm27=1u\n.param W_xm28=20u L_xm28=1u\n.param W_xm29=20u L_xm29=1u\n.param W_xm30=10u L_xm30=1u\n.param W_xm31=10u L_xm31=1u\n.param W_xm32=20u L_xm32=1u\n.param W_xm33=20u L_xm33=1u\n.param W_xm34=20u L_xm34=1u\n.param W_xm35=20u L_xm35=1u\n\n* Bias circuit parameters\n.param W_xmsu1=10u L_xmsu1=1u\n.param W_xmsu2=10u L_xmsu2=1u\n.param W_xmsu3=10u L_xmsu3=1u\n.param W_xm1_sub=10u L_xm1_sub=1u\n.param W_xm2_sub=10u L_xm2_sub=1u\n.param W_xm3_sub=20u L_xm3_sub=1u\n.param W_xm4_sub=20u L_xm4_sub=1u\n.param W_xm5_sub=10u L_xm5_sub=1u\n.param W_xm6_sub=10u L_xm6_sub=1u\n.param W_xm7_sub=20u L_xm7_sub=1u\n.param W_xma3=20u  L_xma3=1u\n.param W_xma4=20u  L_xma4=1u\n\n* Subcircuit definition for Bias Generation (Figure 26.3)\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3_sub} l={L_xm3_sub}\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4_sub} l={L_xm4_sub}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1_sub} l={L_xm1_sub}\n  R1 N004 0 4k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5_sub} l={L_xm5_sub}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7_sub} l={L_xm7_sub}\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2_sub} l={L_xm2_sub}\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6_sub} l={L_xm6_sub}\n.ends SUB_1\n\n* DUT Instance\nVDD VDD 0 1.8\nVCM VCM 0 0.5\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\n\nxm2 N001 N001 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 N001 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm4 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm3 vodm Vbiasn N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm6 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 vodp Vbiasn N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm12 vodp N001 ncr 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\nxm13 vodm N001 ncl 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\nxm5 N007 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm14 N007 VCMFB 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\nxm15 N006 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\nxm16 N006 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\nxm17 ncr Vm N006 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\nxm18 ncl Vp N006 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\nxm19 N005 Vp N007 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\nxm20 N005 Vm N007 0 sky130_fd_pr__nfet_01v8 w={W_xm20} l={L_xm20}\nxm21 vom vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\nxm22 N011 vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\nxm23 N013 N011 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\nxm24 N011 N011 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\nC1 vom ncr 5e-14\nxm25 vop vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm25} l={L_xm25}\nxm26 N010 vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm26} l={L_xm26}\nxm27 N012 N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm27} l={L_xm27}\nxm28 N010 N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm28} l={L_xm28}\nC2 vop ncl 5e-14\nR1 vop vcma 20000.0\nR2 vcma vom 20000.0\nC3 vop vcma 1e-14\nC4 vcma vom 1e-14\nxm29 N008 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm29} l={L_xm29}\nxm30 VCMFB N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm30} l={L_xm30}\nxm31 N009 N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm31} l={L_xm31}\nxm32 N009 vcma N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm32} l={L_xm32}\nxm33 VCMFB VCM N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm33} l={L_xm33}\nxm34 vop VDD N012 0 sky130_fd_pr__nfet_01v8 w={W_xm34} l={L_xm34}\nxm35 vom VDD N013 0 sky130_fd_pr__nfet_01v8 w={W_xm35} l={L_xm35}\n\n* Feedback network and Load (Figure 26.24 topology)\nR3 vop vm 20000.0\nR4 vm vip 20000.0\nR5 vom vp 20000.0\nR6 vp vim 20000.0\nC5 vop 0 2.5e-13\nC6 vom 0 2.5e-13\n\n* Differential Input Sources\nVcom_in vcom_in 0 0.5\nVdiff_in vdiff_in 0 PULSE(-0.2 0.2 75n 0.5n 0.5n 5n 10n)\nEvip vip 0 VALUE={v(vcom_in) + 0.5*v(vdiff_in)}\nEvim vim 0 VALUE={v(vcom_in) - 0.5*v(vdiff_in)}\n\n.control\n* 1. Operating point analysis\nop\nlet idd = -i(VDD)\nlet vocm = 0.5 * (v(vop) + v(vom))\nprint idd vocm v(VCMFB) v(Vbiasn) v(Vbiasp)\n\n* 2. Transient step response (Baker Fig. 26.35: 70ns to 90ns)\ntran 0.05n 90n 70n\nlet vout_diff = v(vop) - v(vom)\nlet vin_diff = v(vip) - v(vim)\nmeas tran vout_max max v(vop)\nmeas tran vout_min min v(vop)\nmeas tran swing_diff param='vout_max - vout_min'\nmeas tran t_rise trig vout_diff val=0.1 rise=1 targ vout_diff val=0.35 rise=1\nprint swing_diff\n\n* 3. DC Sweep for Open-Loop Gain and Balance\ndc Vdiff_in -0.05 0.05 0.0005\nlet vodiff = v(vop) - v(vom)\nlet gain_diff = deriv(vodiff)\nmeas dc max_gain max gain_diff\nprint max_gain\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 26.33\",\n    \"page\": \"885\",\n    \"circuit_type\": \"Fully-differential two-stage CMOS op-amp with CMFB and cascoded output buffer\",\n    \"description\": \"Figure 26.33 displays the complete schematic of the two-stage fully-differential op-amp with continuous-time CMFB (using resistive averaging and a differential error amplifier) and a modified output buffer incorporating cascode NMOS transistors to allow wide output voltage swing without pulling excessive quiescent current.\"\n  },\n  \"step2_metrics\": {\n    \"output_common_mode_voltage\": {\n      \"description\": \"DC common-mode output voltage (V_ocm = (vop + vom)/2) established by the CMFB feedback loop\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"881\",\n        \"reference\": \"Figure 26.25 and Figure 26.34 text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{OCM} = \\\\frac{v_{op} + v_{om}}{2} \\\\approx V_{CM}\",\n        \"explanation\": \"The continuous-time common-mode feedback loop samples the average of vop and vom through averaging resistors (20k) and compares it against VCM using an error amplifier to adjust the bias current in the input stage until V_OCM equals V_CM.\",\n        \"assumptions\": \"High loop gain in CMFB loop and matched differential output loading\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD = 1.8 V, the target common-mode voltage is set to VDD / 2 = 0.90 V (or 0.50 V if referenced to nominal VCM = 0.5 V). For VCM = 0.5 V applied to the CMFB reference terminal: V_OCM = 0.50 V. If VCM is set to 0.90 V: V_OCM = 0.90 V. With the netlist defining VCM = 500 mV, expected V_OCM is close to 0.50 V (within 480 mV - 520 mV).\",\n        \"range\": {\n          \"min\": 0.45,\n          \"typical\": 0.50,\n          \"max\": 0.55,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Finite CMFB loop gain (around 40-50 dB) yields a slight residual offset between V_OCM and VCM.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"differential_open_loop_gain\": {\n      \"description\": \"Low-frequency small-signal differential open-loop voltage gain (A_OL = d(vop - vom)/d(vip - vim))\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"886\",\n        \"reference\": \"Figure 26.34(b)\"\n      },\n      \"equation\": {\n        \"formula\": \"A_{OL} = g_{m1} \\\\cdot R_{o1} \\\\cdot g_{m2} \\\\cdot R_{o2}\",\n        \"explanation\": \"Two-stage fully-differential amplifier gain where the first stage is a telescopic cascode diff-amp and the second stage is a common-source amplifier loaded by the cascode current-sink buffer.\",\n        \"assumptions\": \"Transistors in active/saturation region with finite output resistance r_o = 1/(lambda * I_D)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At I_D = 20 uA, gm_diff = sqrt(2 * un*Cox * (W/L) * ID) = sqrt(2 * 270u * 10 * 20u) = 328 uS. First-stage output resistance R_o1 ~ gm * ro^2 ~ 328u * (500k)^2 ~ 82 MOhm. Second-stage gm2 = sqrt(2 * 50u * 40 * 40u) = 400 uS, loaded by CMFB 20k resistor network in parallel with transistor ro: R_o2 ~ 20k || ro ~ 18 kOhm. Loaded open-loop gain A_OL ~ gm1 * Ro1 * gm2 * Ro2 / (attenuation) ~ 300 to 500 V/V (49 dB to 54 dB), matching Figure 26.34(b) showing peak gain ~ 360 V/V.\",\n        \"range\": {\n          \"min\": 45.0,\n          \"typical\": 51.0,\n          \"max\": 58.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Loading by the 20 kOhm CMFB resistive network limits the second-stage gain, yielding overall DC gain in the hundreds (~300 - 500 V/V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_voltage_swing\": {\n      \"description\": \"Differential peak-to-peak output voltage swing range without clipping\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"886\",\n        \"reference\": \"Figure 26.34(a)\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{out,max} - V_{out,min} = (V_{DD} - V_{DS,sat,PMOS}) - (V_{DS,sat,NMOS1} + V_{DS,sat,NMOS2})\",\n        \"explanation\": \"Maximum single-ended output voltage extends nearly from rail to rail, limited only by the PMOS saturation voltage at the top and the NMOS cascode stack saturation voltage at the bottom.\",\n        \"assumptions\": \"Output buffer operates with cascoded NMOS pull-down and PMOS pull-up\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For VDD = 1.8 V and overdrive voltages V_ov ~ 0.15 V to 0.2 V: V_max = 1.8 - 0.2 = 1.6 V, V_min = 2 * 0.15 V = 0.3 V. Single-ended swing is ~ 1.3 V (0.3 V to 1.6 V). Differential peak-to-peak swing = 2 * (V_max - V_min) ~ 2.6 V.\",\n        \"range\": {\n          \"min\": 1.1,\n          \"typical\": 1.3,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Cascode device operates near the triode edge to maximize swing while preventing output buffer DC bias current runaway.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"quiescent_current\": {\n      \"description\": \"Total quiescent current drawn from the VDD power supply\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"884\",\n        \"reference\": \"Page 884 text discussion\"\n      },\n      \"equation\": {\n        \"formula\": \"I_{DD,total} = I_{bias\\\\_circuit} + N_{branches} \\\\cdot I_{branch}\",\n        \"explanation\": \"Op-amp core consists of 11 branches (diff-pair stages, cascodes, doubled output stages, and CMFB amplifier) plus bias generator.\",\n        \"assumptions\": \"Nominal branch currents biased near 20 uA with output buffer properly regulated\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"11 branches at ~20 uA each = 220 uA, plus bias generator ~ 50 uA, plus CMFB network static divider current (V_OCM / 40k = 0.5V / 40k = 12.5 uA). Total expected current = 280 uA to 380 uA.\",\n        \"range\": {\n          \"min\": 200.0e-6,\n          \"typical\": 320.0e-6,\n          \"max\": 450.0e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"The cascode buffer prevents the 500 uA current runaway identified in Figure 26.30, keeping current near the design baseline of ~300 uA.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"closed_loop_settling_time\": {\n      \"description\": \"1% settling time in response to differential step input in the inverting configuration\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"886\",\n        \"reference\": \"Figure 26.35\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{settle} \\\\approx 4 \\\\cdot \\\\tau = \\\\frac{4}{2\\\\pi f_{-3dB}}\",\n        \"explanation\": \"Transient settling time for a closed-loop inverting amplifier with R_in = R_f = 20 kOhm and C_L = 250 fF.\",\n        \"assumptions\": \"Linear small-signal settling with single-pole roll-off\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With compensation capacitor Cc = 50 fF and load capacitor CL = 250 fF, closed-loop bandwidth is around 100-200 MHz, giving tau ~ 1.0 - 1.5 ns and settling to 1% in ~ 4-6 ns, corresponding directly to the 5 ns step transitions shown in Figure 26.35.\",\n        \"range\": {\n          \"min\": 2.0e-9,\n          \"typical\": 4.5e-9,\n          \"max\": 8.0e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Fast settling is achievable due to the compact capacitance values (50 fF Cc, 250 fF CL) and high gm in SKY130.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Simulation testbench for Figure 26.33 op-amp measuring DC operating point, open-loop gain via DC transfer sweep, common-mode voltage, output swing, and closed-loop transient step response.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"quiescent_current\",\n      \"output_common_mode_voltage\",\n      \"differential_open_loop_gain\",\n      \"output_voltage_swing\",\n      \"closed_loop_settling_time\"\n    ],\n    \"spice\": \"* Testbench for Figure 26.33 Op-Amp with CMFB and Cascode Output Buffer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters for transistors matching Figure 26.33 (Baker Ch 26)\\n.param W_xm1=10u  L_xm1=1u\\n.param W_xm2=10u  L_xm2=1u\\n.param W_xm3=20u  L_xm3=1u\\n.param W_xm4=20u  L_xm4=1u\\n.param W_xm5=10u  L_xm5=1u\\n.param W_xm6=20u  L_xm6=1u\\n.param W_xm7=20u  L_xm7=1u\\n.param W_xm8=20u  L_xm8=1u\\n.param W_xm9=20u  L_xm9=1u\\n.param W_xm10=20u L_xm10=1u\\n.param W_xm11=20u L_xm11=1u\\n.param W_xm12=10u L_xm12=1u\\n.param W_xm13=10u L_xm13=1u\\n.param W_xm14=10u L_xm14=1u\\n.param W_xm15=10u L_xm15=1u\\n.param W_xm16=10u L_xm16=1u\\n.param W_xm17=10u L_xm17=1u\\n.param W_xm18=10u L_xm18=1u\\n.param W_xm19=10u L_xm19=1u\\n.param W_xm20=10u L_xm20=1u\\n.param W_xm21=40u L_xm21=1u\\n.param W_xm22=20u L_xm22=1u\\n.param W_xm23=20u L_xm23=1u\\n.param W_xm24=20u L_xm24=1u\\n.param W_xm25=40u L_xm25=1u\\n.param W_xm26=20u L_xm26=1u\\n.param W_xm27=20u L_xm27=1u\\n.param W_xm28=20u L_xm28=1u\\n.param W_xm29=20u L_xm29=1u\\n.param W_xm30=10u L_xm30=1u\\n.param W_xm31=10u L_xm31=1u\\n.param W_xm32=20u L_xm32=1u\\n.param W_xm33=20u L_xm33=1u\\n.param W_xm34=20u L_xm34=1u\\n.param W_xm35=20u L_xm35=1u\\n\\n* Bias circuit parameters\\n.param W_xmsu1=10u L_xmsu1=1u\\n.param W_xmsu2=10u L_xmsu2=1u\\n.param W_xmsu3=10u L_xmsu3=1u\\n.param W_xm1_sub=10u L_xm1_sub=1u\\n.param W_xm2_sub=10u L_xm2_sub=1u\\n.param W_xm3_sub=20u L_xm3_sub=1u\\n.param W_xm4_sub=20u L_xm4_sub=1u\\n.param W_xm5_sub=10u L_xm5_sub=1u\\n.param W_xm6_sub=10u L_xm6_sub=1u\\n.param W_xm7_sub=20u L_xm7_sub=1u\\n.param W_xma3=20u  L_xma3=1u\\n.param W_xma4=20u  L_xma4=1u\\n\\n* Subcircuit definition for Bias Generation (Figure 26.3)\\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3_sub} l={L_xm3_sub}\\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4_sub} l={L_xm4_sub}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1_sub} l={L_xm1_sub}\\n  R1 N004 0 4k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5_sub} l={L_xm5_sub}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7_sub} l={L_xm7_sub}\\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2_sub} l={L_xm2_sub}\\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6_sub} l={L_xm6_sub}\\n.ends SUB_1\\n\\n* DUT Instance\\nVDD VDD 0 1.8\\nVCM VCM 0 0.5\\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\\n\\nxm2 N001 N001 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 N001 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm4 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm3 vodm Vbiasn N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm6 N001 Vbiasn N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 vodp Vbiasn N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 vodp N001 ncr 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 vodm N001 ncl 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\nxm5 N007 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm14 N007 VCMFB 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 N006 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 N006 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\nxm17 ncr Vm N006 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\nxm18 ncl Vp N006 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\nxm19 N005 Vp N007 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\\nxm20 N005 Vm N007 0 sky130_fd_pr__nfet_01v8 w={W_xm20} l={L_xm20}\\nxm21 vom vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\\nxm22 N011 vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\\nxm23 N013 N011 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\\nxm24 N011 N011 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\\nC1 vom ncr 5e-14\\nxm25 vop vodm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm25} l={L_xm25}\\nxm26 N010 vodp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm26} l={L_xm26}\\nxm27 N012 N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm27} l={L_xm27}\\nxm28 N010 N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm28} l={L_xm28}\\nC2 vop ncl 5e-14\\nR1 vop vcma 20000.0\\nR2 vcma vom 20000.0\\nC3 vop vcma 1e-14\\nC4 vcma vom 1e-14\\nxm29 N008 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm29} l={L_xm29}\\nxm30 VCMFB N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm30} l={L_xm30}\\nxm31 N009 N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm31} l={L_xm31}\\nxm32 N009 vcma N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm32} l={L_xm32}\\nxm33 VCMFB VCM N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm33} l={L_xm33}\\nxm34 vop VDD N012 0 sky130_fd_pr__nfet_01v8 w={W_xm34} l={L_xm34}\\nxm35 vom VDD N013 0 sky130_fd_pr__nfet_01v8 w={W_xm35} l={L_xm35}\\n\\n* Feedback network and Load (Figure 26.24 topology)\\nR3 vop vm 20000.0\\nR4 vm vip 20000.0\\nR5 vom vp 20000.0\\nR6 vp vim 20000.0\\nC5 vop 0 2.5e-13\\nC6 vom 0 2.5e-13\\n\\n* Differential Input Sources\\nVcom_in vcom_in 0 0.5\\nVdiff_in vdiff_in 0 PULSE(-0.2 0.2 75n 0.5n 0.5n 5n 10n)\\nEvip vip 0 VALUE={v(vcom_in) + 0.5*v(vdiff_in)}\\nEvim vim 0 VALUE={v(vcom_in) - 0.5*v(vdiff_in)}\\n\\n.control\\n* 1. Operating point analysis\\nop\\nlet idd = -i(VDD)\\nlet vocm = 0.5 * (v(vop) + v(vom))\\nprint idd vocm v(VCMFB) v(Vbiasn) v(Vbiasp)\\n\\n* 2. Transient step response (Baker Fig. 26.35: 70ns to 90ns)\\ntran 0.05n 90n 70n\\nlet vout_diff = v(vop) - v(vom)\\nlet vin_diff = v(vip) - v(vim)\\nmeas tran vout_max max v(vop)\\nmeas tran vout_min min v(vop)\\nmeas tran swing_diff param='vout_max - vout_min'\\nmeas tran t_rise trig vout_diff val=0.1 rise=1 targ vout_diff val=0.35 rise=1\\nprint swing_diff\\n\\n* 3. DC Sweep for Open-Loop Gain and Balance\\ndc Vdiff_in -0.05 0.05 0.0005\\nlet vodiff = v(vop) - v(vom)\\nlet gain_diff = deriv(vodiff)\\nmeas dc max_gain max gain_diff\\nprint max_gain\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

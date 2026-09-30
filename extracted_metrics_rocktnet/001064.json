@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Mixed-signal FIR filter tap / Multiplying DAC",
+    "description": "The circuit acts as a mixed-signal multiplier for an FIR filter tap. It uses a synapse pFET (XM7) to store an analog weight on its floating gate (N5) and NMOS switches to steer current based on a digital input (N0), effectively multiplying the input by the stored weight.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_2",
+        "LABEL_NET_4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Mixed-Signal Approach to High-Performance Low-Power Linear Filters",
+      "figure": "unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Average power consumption of the multiplier cell during operation",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3 mW",
+        "technology": "unknown (likely 0.35um or 0.5um given 3.3V)"
+      },
+      "sky130_expected": {
+        "calculation": "Power scales approximately with VDD^2. (1.8V / 3.3V)^2 * 3mW = 0.89mW.",
+        "range": {
+          "min": "0.5m",
+          "typical": "0.9m",
+          "max": "1.5m",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for Sky130 1.8V supply from the paper's 3.3V supply."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "Maximum operating frequency of the filter tap",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "200 MHz",
+        "technology": "unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Sky130 can easily exceed 200MHz for 0.5um channel lengths.",
+        "range": {
+          "min": "200M",
+          "typical": "500M",
+          "max": "1G",
+          "unit": "Hz"
+        },
+        "reasoning": "Maintained the paper's target frequency as a baseline, though the modern process can likely go faster."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing_n4": {
+      "description": "Voltage swing at internal node N4",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "N4 is pulled up by an NMOS cascode (XM8) with its gate at 0.9V. Max voltage = Vbias - Vth = 0.9V - 0.42V = 0.48V.",
+        "range": {
+          "min": "0.3",
+          "typical": "0.45",
+          "max": "0.6",
+          "unit": "V"
+        },
+        "reasoning": "Based on the NMOS threshold voltage drop from the 0.9V bias."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power consumption and internal voltage swings at 200 MHz operation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_swing_n1",
+      "voltage_swing_n2",
+      "voltage_swing_n4"
+    ],
+    "spice": "* Testbench for Mixed-Signal Multiplier / FIR Tap\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\nXM1 N2 N3 0 0 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N4 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 LABEL_NET_0 N3 0 sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N5 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N3 N4 0 0 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 N1 LABEL_NET_2 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 N5 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 LABEL_NET_4 N4 0 sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_2 LABEL_NET_2 0 0.9\nVLABEL_NET_4 LABEL_NET_4 0 0.9\n\n* 200 MHz input signal\nVIN N0 0 PULSE(0 1.8 0 100p 100p 2.4n 5n)\n\n* High-value resistor to prevent floating node errors on the synapse floating gate\nR_N5 N5 0 1G\n\n.control\n  tran 10p 20n\n  \n  * Measure average power\n  let inst_power = -i(VVDD) * 1.8\n  meas tran avg_power avg inst_power from=5n to=20n\n  \n  * Measure voltage swings at analog nodes\n  meas tran v_n1_max max v(N1) from=5n to=20n\n  meas tran v_n1_min min v(N1) from=5n to=20n\n  \n  meas tran v_n2_max max v(N2) from=5n to=20n\n  meas tran v_n2_min min v(N2) from=5n to=20n\n  \n  meas tran v_n4_max max v(N4) from=5n to=20n\n  meas tran v_n4_min min v(N4) from=5n to=20n\n  \n  print avg_power v_n1_max v_n1_min v_n2_max v_n2_min v_n4_max v_n4_min\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Mixed-signal FIR filter tap / Multiplying DAC\",\n    \"description\": \"The circuit acts as a mixed-signal multiplier for an FIR filter tap. It uses a synapse pFET (XM7) to store an analog weight on its floating gate (N5) and NMOS switches to steer current based on a digital input (N0), effectively multiplying the input by the stored weight.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Mixed-Signal Approach to High-Performance Low-Power Linear Filters\",\n      \"figure\": \"unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the multiplier cell during operation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3 mW\",\n        \"technology\": \"unknown (likely 0.35um or 0.5um given 3.3V)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power scales approximately with VDD^2. (1.8V / 3.3V)^2 * 3mW = 0.89mW.\",\n        \"range\": {\n          \"min\": \"0.5m\",\n          \"typical\": \"0.9m\",\n          \"max\": \"1.5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for Sky130 1.8V supply from the paper's 3.3V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Maximum operating frequency of the filter tap\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"200 MHz\",\n        \"technology\": \"unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Sky130 can easily exceed 200MHz for 0.5um channel lengths.\",\n        \"range\": {\n          \"min\": \"200M\",\n          \"typical\": \"500M\",\n          \"max\": \"1G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Maintained the paper's target frequency as a baseline, though the modern process can likely go faster.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing_n4\": {\n      \"description\": \"Voltage swing at internal node N4\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N4 is pulled up by an NMOS cascode (XM8) with its gate at 0.9V. Max voltage = Vbias - Vth = 0.9V - 0.42V = 0.48V.\",\n        \"range\": {\n          \"min\": \"0.3\",\n          \"typical\": \"0.45\",\n          \"max\": \"0.6\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on the NMOS threshold voltage drop from the 0.9V bias.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power consumption and internal voltage swings at 200 MHz operation.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_swing_n1\",\n      \"voltage_swing_n2\",\n      \"voltage_swing_n4\"\n    ],\n    \"spice\": \"* Testbench for Mixed-Signal Multiplier / FIR Tap\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\nXM1 N2 N3 0 0 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N4 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 LABEL_NET_0 N3 0 sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N5 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N3 N4 0 0 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 N1 LABEL_NET_2 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 N5 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 LABEL_NET_4 N4 0 sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\nVLABEL_NET_4 LABEL_NET_4 0 0.9\\n\\n* 200 MHz input signal\\nVIN N0 0 PULSE(0 1.8 0 100p 100p 2.4n 5n)\\n\\n* High-value resistor to prevent floating node errors on the synapse floating gate\\nR_N5 N5 0 1G\\n\\n.control\\n  tran 10p 20n\\n  \\n  * Measure average power\\n  let inst_power = -i(VVDD) * 1.8\\n  meas tran avg_power avg inst_power from=5n to=20n\\n  \\n  * Measure voltage swings at analog nodes\\n  meas tran v_n1_max max v(N1) from=5n to=20n\\n  meas tran v_n1_min min v(N1) from=5n to=20n\\n  \\n  meas tran v_n2_max max v(N2) from=5n to=20n\\n  meas tran v_n2_min min v(N2) from=5n to=20n\\n  \\n  meas tran v_n4_max max v(N4) from=5n to=20n\\n  meas tran v_n4_min min v(N4) from=5n to=20n\\n  \\n  print avg_power v_n1_max v_n1_min v_n2_max v_n2_min v_n4_max v_n4_min\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "918920",
+  "_case": "918920_image_6_a"
+}

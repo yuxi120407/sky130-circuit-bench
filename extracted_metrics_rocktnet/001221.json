@@ -1,0 +1,176 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Latch / Quantizer Comparator",
+    "description": "A dynamic latch or comparator likely used in the quantizer of the delta-sigma modulator. It features a cross-coupled PMOS pair (XM2, XM7) for regeneration, an NMOS reset/equalization switch (XM11), and a PMOS input pair (XM1, XM3, with gates merged to N7 in this extraction) driven by a programmable NMOS tail current array (XM4, XM5, XM8, XM10).",
+    "node_mapping": {
+      "input": [
+        "N7"
+      ],
+      "output": [
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "VDD",
+        "N2"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_2",
+        "LABEL_NET_3",
+        "LABEL_NET_5",
+        "N6"
+      ],
+      "ground": [
+        "GND"
+      ],
+      "clock": [
+        "LABEL_NET_7"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 12-mW ADC Delta\u2013Sigma Modulator With 80 dB of Dynamic Range Integrated in a Single-Chip Bluetooth Transceiver",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "dynamic_range": {
+      "description": "Dynamic range of the delta-sigma modulator",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "80",
+        "technology": "0.35um BiCMOS SOI"
+      },
+      "sky130_expected": {
+        "calculation": "System-level metric, depends on oversampling ratio (OSR) and noise shaping order.",
+        "range": {
+          "min": 75,
+          "typical": 80,
+          "max": 85,
+          "unit": "dB"
+        },
+        "reasoning": "Comparable performance can be achieved in 130nm with similar OSR and thermal noise (capacitor sizing) constraints."
+      },
+      "importance": "essential"
+    },
+    "sinad": {
+      "description": "Signal-to-noise-plus-distortion ratio",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "77",
+        "technology": "0.35um BiCMOS SOI"
+      },
+      "sky130_expected": {
+        "calculation": "System-level metric derived from FFT of the output bitstream.",
+        "range": {
+          "min": 70,
+          "typical": 77,
+          "max": 80,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on op-amp linearity and switch sizing, which scale reasonably well in sky130 at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power consumption of the modulator",
+      "unit": "mW",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "11.9",
+        "technology": "0.35um BiCMOS SOI"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. For a single comparator, I ~ 100uA -> 0.18mW. Total ADC ~ 5-10mW.",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 15,
+          "unit": "mW"
+        },
+        "reasoning": "Sky130 at 1.8V generally consumes less power than 0.35um at 2.7V for equivalent speeds."
+      },
+      "importance": "essential"
+    },
+    "sample_rate": {
+      "description": "Sampling frequency of the modulator",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "32M",
+        "technology": "0.35um BiCMOS SOI"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the external clock frequency applied to the switches and comparators.",
+        "range": {
+          "min": 32000000.0,
+          "typical": 64000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Sky130 transistors have higher fT than 0.35um, easily supporting >32MHz sampling rates."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "DC gain of the op-amp used in the integrators",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "87",
+        "technology": "0.35um BiCMOS SOI"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * ro. Requires cascoding or gain enhancement techniques.",
+        "range": {
+          "min": 70,
+          "typical": 80,
+          "max": 90,
+          "unit": "dB"
+        },
+        "reasoning": "Achieving 87dB in 130nm usually requires two stages or regulated cascodes due to lower intrinsic gain (ro) compared to older nodes."
+      },
+      "importance": "essential"
+    },
+    "regeneration_time": {
+      "description": "Time taken for the latch to resolve the input difference to full logic levels",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "t_reg = (C_load / gm_eff) * ln(V_logic / dV_in)",
+        "range": {
+          "min": 5e-11,
+          "typical": 2e-10,
+          "max": 5e-10,
+          "unit": "s"
+        },
+        "reasoning": "With W=5u and L=0.5u, gm is moderate, yielding ~200ps regeneration time for a 0.5pF load."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain (in reset state), and transient regeneration time of the dynamic latch.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "regeneration_time"
+    ],
+    "spice": "* Testbench for Dynamic Latch / Comparator\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n\nXM1 N3 N7 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N1 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 N7 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N3 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N5 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 N0 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N3 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N4 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N3 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N1 LABEL_NET_7 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\n\n* Power and Bias Sources\nVVDD VDD 0 1.8\nVN2 N2 0 1.8\nVN7 N7 0 0.9\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_2 LABEL_NET_2 0 0.9\nVLABEL_NET_3 LABEL_NET_3 0 0.9\nVLABEL_NET_5 LABEL_NET_5 0 0.9\nVLABEL_NET_6 N6 0 0.9\n* Reset clock: High to short outputs, Low to evaluate\nVLABEL_NET_7 LABEL_NET_7 0 PULSE(1.8 0 5n 0.1n 0.1n 10n 20n)\n\n* Input Signal (AC and DC)\nVCM VCM 0 0.9\nVAC_DIFF IN_DIFF 0 DC 0.1 AC 1\nE1 N0_DRIVE VCM IN_DIFF 0.5\nE2 N1_DRIVE VCM IN_DIFF -0.5\nR1 N0_DRIVE N0 100k\nR2 N1_DRIVE N1 100k\n\n* Load Capacitors\nC1 N0 0 0.5p\nC2 N1 0 0.5p\n\n* Differential Output\nE_diff OUT_DIFF 0 N0 N1 1\n\n.control\n* DC Operating Point\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* AC Analysis\nac dec 100 1 1G\nlet gain_db = vdb(OUT_DIFF)\nmeas ac dc_gain find gain_db at=10\nmeas ac bandwidth when gain_db=0 fall=1\n\n* Transient Analysis\ntran 0.1n 40n\nmeas tran v_max max v(N0)\nmeas tran v_min min v(N0)\n* Measure regeneration time: from clock falling (evaluation starts) to output reaching 1V difference\nmeas tran regen_time trig v(LABEL_NET_7) val=0.9 fall=1 targ v(OUT_DIFF) val=1.0 rise=1\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Latch / Quantizer Comparator\",\n    \"description\": \"A dynamic latch or comparator likely used in the quantizer of the delta-sigma modulator. It features a cross-coupled PMOS pair (XM2, XM7) for regeneration, an NMOS reset/equalization switch (XM11), and a PMOS input pair (XM1, XM3, with gates merged to N7 in this extraction) driven by a programmable NMOS tail current array (XM4, XM5, XM8, XM10).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N7\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"N2\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_5\",\n        \"N6\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"clock\": [\n        \"LABEL_NET_7\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 12-mW ADC Delta\u2013Sigma Modulator With 80 dB of Dynamic Range Integrated in a Single-Chip Bluetooth Transceiver\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"dynamic_range\": {\n      \"description\": \"Dynamic range of the delta-sigma modulator\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"80\",\n        \"technology\": \"0.35um BiCMOS SOI\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"System-level metric, depends on oversampling ratio (OSR) and noise shaping order.\",\n        \"range\": {\n          \"min\": 75,\n          \"typical\": 80,\n          \"max\": 85,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Comparable performance can be achieved in 130nm with similar OSR and thermal noise (capacitor sizing) constraints.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"sinad\": {\n      \"description\": \"Signal-to-noise-plus-distortion ratio\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"77\",\n        \"technology\": \"0.35um BiCMOS SOI\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"System-level metric derived from FFT of the output bitstream.\",\n        \"range\": {\n          \"min\": 70,\n          \"typical\": 77,\n          \"max\": 80,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on op-amp linearity and switch sizing, which scale reasonably well in sky130 at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumption of the modulator\",\n      \"unit\": \"mW\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"11.9\",\n        \"technology\": \"0.35um BiCMOS SOI\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. For a single comparator, I ~ 100uA -> 0.18mW. Total ADC ~ 5-10mW.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 10,\n          \"max\": 15,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"Sky130 at 1.8V generally consumes less power than 0.35um at 2.7V for equivalent speeds.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"sample_rate\": {\n      \"description\": \"Sampling frequency of the modulator\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"32M\",\n        \"technology\": \"0.35um BiCMOS SOI\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the external clock frequency applied to the switches and comparators.\",\n        \"range\": {\n          \"min\": 32e6,\n          \"typical\": 64e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Sky130 transistors have higher fT than 0.35um, easily supporting >32MHz sampling rates.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"DC gain of the op-amp used in the integrators\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"87\",\n        \"technology\": \"0.35um BiCMOS SOI\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * ro. Requires cascoding or gain enhancement techniques.\",\n        \"range\": {\n          \"min\": 70,\n          \"typical\": 80,\n          \"max\": 90,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Achieving 87dB in 130nm usually requires two stages or regulated cascodes due to lower intrinsic gain (ro) compared to older nodes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"regeneration_time\": {\n      \"description\": \"Time taken for the latch to resolve the input difference to full logic levels\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_reg = (C_load / gm_eff) * ln(V_logic / dV_in)\",\n        \"range\": {\n          \"min\": 50e-12,\n          \"typical\": 200e-12,\n          \"max\": 500e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"With W=5u and L=0.5u, gm is moderate, yielding ~200ps regeneration time for a 0.5pF load.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain (in reset state), and transient regeneration time of the dynamic latch.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\",\n      \"regeneration_time\"\n    ],\n    \"spice\": \"* Testbench for Dynamic Latch / Comparator\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n\\nXM1 N3 N7 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N1 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 N7 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N3 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N5 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 N0 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N3 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N4 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N3 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N1 LABEL_NET_7 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\n\\n* Power and Bias Sources\\nVVDD VDD 0 1.8\\nVN2 N2 0 1.8\\nVN7 N7 0 0.9\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\nVLABEL_NET_3 LABEL_NET_3 0 0.9\\nVLABEL_NET_5 LABEL_NET_5 0 0.9\\nVLABEL_NET_6 N6 0 0.9\\n* Reset clock: High to short outputs, Low to evaluate\\nVLABEL_NET_7 LABEL_NET_7 0 PULSE(1.8 0 5n 0.1n 0.1n 10n 20n)\\n\\n* Input Signal (AC and DC)\\nVCM VCM 0 0.9\\nVAC_DIFF IN_DIFF 0 DC 0.1 AC 1\\nE1 N0_DRIVE VCM IN_DIFF 0.5\\nE2 N1_DRIVE VCM IN_DIFF -0.5\\nR1 N0_DRIVE N0 100k\\nR2 N1_DRIVE N1 100k\\n\\n* Load Capacitors\\nC1 N0 0 0.5p\\nC2 N1 0 0.5p\\n\\n* Differential Output\\nE_diff OUT_DIFF 0 N0 N1 1\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1 1G\\nlet gain_db = vdb(OUT_DIFF)\\nmeas ac dc_gain find gain_db at=10\\nmeas ac bandwidth when gain_db=0 fall=1\\n\\n* Transient Analysis\\ntran 0.1n 40n\\nmeas tran v_max max v(N0)\\nmeas tran v_min min v(N0)\\n* Measure regeneration time: from clock falling (evaluation starts) to output reaching 1V difference\\nmeas tran regen_time trig v(LABEL_NET_7) val=0.9 fall=1 targ v(OUT_DIFF) val=1.0 rise=1\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "987077",
+  "_case": "987077_image_5"
+}

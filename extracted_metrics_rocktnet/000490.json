@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current Mode Logic (CML) D-Latch",
+    "description": "A high-speed CML D-latch used in the clock and data recovery (CDR) or demultiplexer circuits. It samples the differential data inputs (D, DBAR) on the clock edges (CK, CK_BAR) and holds the state using a cross-coupled differential pair.",
+    "node_mapping": {
+      "input": [
+        "D",
+        "DBAR",
+        "CK",
+        "CK_BAR"
+      ],
+      "output": [
+        "N0",
+        "N2",
+        "Q",
+        "Q_BAR"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "VBIAS"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 40\u201343-Gb/s Clock and Data Recovery IC With Integrated SFI-5 1:16 Demultiplexer in SiGe Technology",
+      "figure": "Generic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total power dissipated by the latch circuit.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "7.5 W (Entire IC)",
+        "technology": "120-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail * VDD. With VBIAS set for ~1mA tail current per stage and VDD=1.8V, power is roughly 1.8mW per latch.",
+        "range": {
+          "min": "1m",
+          "typical": "2m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down from the massive 7.5W full-chip power to a single CML block operating at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "Maximum clock frequency at which the latch correctly samples and holds data.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "20 GHz (40 Gb/s half-rate)",
+        "technology": "120-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by the RC time constant of the load resistors and parasitic capacitances of the cross-coupled pair. fmax ~ 1 / (2 * pi * R_load * C_parasitic).",
+        "range": {
+          "min": "1G",
+          "typical": "2.5G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 130nm CMOS is significantly slower than 120GHz SiGe BJTs. Maximum CML toggle rate is typically around 3-5 GHz."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Differential peak-to-peak output voltage swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "400 mV",
+        "technology": "120-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_swing = I_tail * R_load. For I_tail = 1mA and R_load = 500 ohms, swing is 0.5V.",
+        "range": {
+          "min": "0.3",
+          "typical": "0.5",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "CML logic typically uses reduced voltage swings (300mV - 600mV) to keep transistors in saturation/forward-active and maximize speed."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Time delay from the clock edge to the output transition (Clock-to-Q).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported",
+        "technology": "120-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_pd ~ 0.69 * R_load * C_load. With R=500 and C=50fF, t_pd is ~17ps. Adding intrinsic delays yields ~40ps.",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Standard delay for a 130nm CML stage driving a similar fanout."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power consumption, voltage swing, and propagation delay of the CML latch. Missing resistor values are appended, and ideal shorts are used to close the latch feedback loop.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_swing",
+      "propagation_delay"
+    ],
+    "spice": "* CML Latch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter definitions\n.param R_load=500\n.param R_deg=100\n\n* DUT Netlist (with appended resistor values)\nR1 VEE N10 {R_deg}\nR2 VEE N15 {R_deg}\nR3 N0 VCC {R_load}\nR4 N2 VCC {R_load}\nR5 VEE N6 {R_deg}\nQ3 N13 VBIAS N15 npn\nQ4 N16 VBIAS N10 npn\nQ1 N0 VBIAS VEE npn\nQ2 N16 VBIAS N10 npn\nQ5 N7 VBIAS N6 npn\nQ6 N4 CK_BAR N7 npn\nQ7 N2 DBAR N4 npn\nQ8 N0 D N4 npn\nQ9 N12 N12 N13 npn\nQ10 N2 Q_BAR N8 npn\nQ11 N11 N11 N16 npn\nQ12 Q Q N11 npn\nQ13 N0 Q N8 npn\nQ14 Q_BAR Q_BAR N12 npn\nQ15 N8 CK N7 npn\n\n* Generic high-speed NPN model to simulate the SiGe BJTs\n.model npn npn(is=1e-16 bf=100 tf=5p cje=10f cjc=10f)\n\n* Close the feedback loop for the latch\nVq Q N2 0\nVqbar Q_BAR N0 0\n\n* Power Supplies and Biasing\nVCC VCC 0 1.8\nVEE VEE 0 0\nVVBIAS VBIAS 0 0.9\n\n* Input Stimuli (Data at 500MHz, Clock at 1GHz)\nVD D 0 pulse(0.6 1.2 0 20p 20p 0.98n 2n)\nVDBAR DBAR 0 pulse(1.2 0.6 0 20p 20p 0.98n 2n)\nVCK CK 0 pulse(0.6 1.2 0.5n 20p 20p 0.48n 1n)\nVCKBAR CK_BAR 0 pulse(1.2 0.6 0.5n 20p 20p 0.48n 1n)\n\n.control\n* Transient Analysis\ntran 5p 5n\n\n* Measure Voltage Swing\nmeas tran vmax max v(N2) from=2n to=5n\nmeas tran vmin min v(N2) from=2n to=5n\nlet vswing = vmax - vmin\nprint vswing\n\n* Measure Propagation Delay (Clock to Q)\nmeas tran tpd trig v(CK) val=0.9 rise=2 targ v(N2) val=0.9 rise=1\nprint tpd\n\n* Measure Average Power Consumption\nlet inst_power = -i(VCC) * 1.8\nmeas tran avg_power avg inst_power from=0 to=5n\nprint avg_power\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current Mode Logic (CML) D-Latch\",\n    \"description\": \"A high-speed CML D-latch used in the clock and data recovery (CDR) or demultiplexer circuits. It samples the differential data inputs (D, DBAR) on the clock edges (CK, CK_BAR) and holds the state using a cross-coupled differential pair.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"D\",\n        \"DBAR\",\n        \"CK\",\n        \"CK_BAR\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N2\",\n        \"Q\",\n        \"Q_BAR\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"VBIAS\"\n      ],\n      \"ground\": [\n        \"VEE\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 40\u201343-Gb/s Clock and Data Recovery IC With Integrated SFI-5 1:16 Demultiplexer in SiGe Technology\",\n      \"figure\": \"Generic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the latch circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"7.5 W (Entire IC)\",\n        \"technology\": \"120-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail * VDD. With VBIAS set for ~1mA tail current per stage and VDD=1.8V, power is roughly 1.8mW per latch.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"2m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down from the massive 7.5W full-chip power to a single CML block operating at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Maximum clock frequency at which the latch correctly samples and holds data.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"20 GHz (40 Gb/s half-rate)\",\n        \"technology\": \"120-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by the RC time constant of the load resistors and parasitic capacitances of the cross-coupled pair. fmax ~ 1 / (2 * pi * R_load * C_parasitic).\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"2.5G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 130nm CMOS is significantly slower than 120GHz SiGe BJTs. Maximum CML toggle rate is typically around 3-5 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Differential peak-to-peak output voltage swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"400 mV\",\n        \"technology\": \"120-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_swing = I_tail * R_load. For I_tail = 1mA and R_load = 500 ohms, swing is 0.5V.\",\n        \"range\": {\n          \"min\": \"0.3\",\n          \"typical\": \"0.5\",\n          \"max\": \"0.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CML logic typically uses reduced voltage swings (300mV - 600mV) to keep transistors in saturation/forward-active and maximize speed.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Time delay from the clock edge to the output transition (Clock-to-Q).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported\",\n        \"technology\": \"120-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_pd ~ 0.69 * R_load * C_load. With R=500 and C=50fF, t_pd is ~17ps. Adding intrinsic delays yields ~40ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard delay for a 130nm CML stage driving a similar fanout.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power consumption, voltage swing, and propagation delay of the CML latch. Missing resistor values are appended, and ideal shorts are used to close the latch feedback loop.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_swing\",\n      \"propagation_delay\"\n    ],\n    \"spice\": \"* CML Latch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter definitions\\n.param R_load=500\\n.param R_deg=100\\n\\n* DUT Netlist (with appended resistor values)\\nR1 VEE N10 {R_deg}\\nR2 VEE N15 {R_deg}\\nR3 N0 VCC {R_load}\\nR4 N2 VCC {R_load}\\nR5 VEE N6 {R_deg}\\nQ3 N13 VBIAS N15 npn\\nQ4 N16 VBIAS N10 npn\\nQ1 N0 VBIAS VEE npn\\nQ2 N16 VBIAS N10 npn\\nQ5 N7 VBIAS N6 npn\\nQ6 N4 CK_BAR N7 npn\\nQ7 N2 DBAR N4 npn\\nQ8 N0 D N4 npn\\nQ9 N12 N12 N13 npn\\nQ10 N2 Q_BAR N8 npn\\nQ11 N11 N11 N16 npn\\nQ12 Q Q N11 npn\\nQ13 N0 Q N8 npn\\nQ14 Q_BAR Q_BAR N12 npn\\nQ15 N8 CK N7 npn\\n\\n* Generic high-speed NPN model to simulate the SiGe BJTs\\n.model npn npn(is=1e-16 bf=100 tf=5p cje=10f cjc=10f)\\n\\n* Close the feedback loop for the latch\\nVq Q N2 0\\nVqbar Q_BAR N0 0\\n\\n* Power Supplies and Biasing\\nVCC VCC 0 1.8\\nVEE VEE 0 0\\nVVBIAS VBIAS 0 0.9\\n\\n* Input Stimuli (Data at 500MHz, Clock at 1GHz)\\nVD D 0 pulse(0.6 1.2 0 20p 20p 0.98n 2n)\\nVDBAR DBAR 0 pulse(1.2 0.6 0 20p 20p 0.98n 2n)\\nVCK CK 0 pulse(0.6 1.2 0.5n 20p 20p 0.48n 1n)\\nVCKBAR CK_BAR 0 pulse(1.2 0.6 0.5n 20p 20p 0.48n 1n)\\n\\n.control\\n* Transient Analysis\\ntran 5p 5n\\n\\n* Measure Voltage Swing\\nmeas tran vmax max v(N2) from=2n to=5n\\nmeas tran vmin min v(N2) from=2n to=5n\\nlet vswing = vmax - vmin\\nprint vswing\\n\\n* Measure Propagation Delay (Clock to Q)\\nmeas tran tpd trig v(CK) val=0.9 rise=2 targ v(N2) val=0.9 rise=1\\nprint tpd\\n\\n* Measure Average Power Consumption\\nlet inst_power = -i(VCC) * 1.8\\nmeas tran avg_power avg inst_power from=0 to=5n\\nprint avg_power\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1253863",
+  "_case": "1253863_image_10"
+}

@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "SRAM Sense Amplifier",
+    "description": "A current-sensed SRAM sense amplifier using a cross-coupled NMOS pair (XM3, XM4) to resolve the bitline differential and a second NMOS pair (XM1, XM2) to drive the output data lines.",
+    "node_mapping": {
+      "input": [
+        "N3",
+        "N4",
+        "PHI_SAE"
+      ],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2-V 300-MHz 1-Mb Current-Sensed Double-Density SRAM for Low-Power 0.3-m CMOS/SIMOX ASICs",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "t_sense": {
+      "description": "Sensing delay from the enable signal (PHI_SAE) rising to the output node resolving to a valid logic level.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "300 MHz operation implies < 1.5ns delay",
+        "technology": "0.3um CMOS/SIMOX"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the discharge rate of the bitline and output capacitances through the NMOS cross-coupled pairs.",
+        "range": {
+          "min": "100p",
+          "typical": "200p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "SKY130 1.8V NMOS has high drive strength, easily discharging a 100fF bitline capacitance in a few hundred picoseconds."
+      },
+      "importance": "essential"
+    },
+    "energy_per_op": {
+      "description": "Energy consumed per sensing operation, dominated by recharging the bitlines and output nodes.",
+      "unit": "J",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.198 pJ",
+        "technology": "0.3um CMOS/SIMOX"
+      },
+      "sky130_expected": {
+        "calculation": "E = 0.5 * C_bl * V^2 + 0.5 * C_out * V^2 = 0.5 * 100f * 1.75^2 + 0.5 * 10f * 1.8^2",
+        "range": {
+          "min": "100f",
+          "typical": "170f",
+          "max": "300f",
+          "unit": "J"
+        },
+        "reasoning": "Energy is dominated by replenishing the charge on the bitline and output node that were pulled to ground during the sensing phase. Matches the paper's reported 0.198 pJ closely."
+      },
+      "importance": "essential"
+    },
+    "v_swing_out": {
+      "description": "Voltage swing of the output data lines after sensing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Outputs are precharged to VDD and one is pulled to GND by the sense amplifier.",
+        "range": {
+          "min": "1.6",
+          "typical": "1.8",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "Full rail swing is expected for the output nodes in this topology."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure sensing delay, output voltage swing, and energy per operation of the SRAM sense amplifier. Simulates a full precharge-sense-precharge cycle.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "t_sense",
+      "v_swing_out",
+      "energy_per_op"
+    ],
+    "spice": ".param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\n* Include SKY130 models\n.lib \"${SKY130_PDK}\" tt\n\n* VDD and signals\nVdd VDD GND 1.8\nVphi PHI_SAE GND PULSE(0 1.8 1.2n 50p 50p 1.3n 5n)\nVpre PRE_B GND PULSE(1.8 0 1n 50p 50p 2n 5n)\n\n* Bitline precharge voltages (50mV differential)\nV3 N3_pre GND 1.8\nV4 N4_pre GND 1.75\n\n* Precharge switches\nS3 N3_pre N3 PRE_B GND sw_ideal\nS4 N4_pre N4 PRE_B GND sw_ideal\nS1 VDD N1 PRE_B GND sw_ideal\nS2 VDD N2 PRE_B GND sw_ideal\n.model sw_ideal sw vt=0.9 vh=0.1 ron=100 roff=1G\n\n* Capacitances (Bitlines and Outputs)\nC1 N1 GND 10f\nC2 N2 GND 10f\nC3 N3 GND 100f\nC4 N4 GND 100f\nC5 N5 GND 5f\n\n* Initial conditions to prevent massive startup current\n.ic v(N1)=1.8 v(N2)=1.8 v(N3)=1.8 v(N4)=1.75 v(N5)=0\n\n* DUT\nXM1 N1 N2 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N1 N3 N3 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N4 N3 N5 N5 sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 N4 N5 N5 sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N5 PHI_SAE GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\n.control\ntran 10p 5n uic\n\n* Measure sensing delay\nmeas tran t_sense trig v(PHI_SAE) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\n\n* Measure output voltage swing\nmeas tran v_out_high max v(N2)\nmeas tran v_out_low min v(N1)\nlet v_swing = v_out_high - v_out_low\nprint v_swing\n\n* Measure energy per operation (integrating current from precharge sources)\nmeas tran q_v3 integ i(V3)\nmeas tran q_v4 integ i(V4)\nmeas tran q_vdd integ i(Vdd)\n* Energy = V * I * t = V * Q. Current flows out of positive terminal, so i(V) is negative.\nlet energy_op = -1.8 * (q_v3 + q_v4 + q_vdd)\nprint energy_op\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"SRAM Sense Amplifier\",\n    \"description\": \"A current-sensed SRAM sense amplifier using a cross-coupled NMOS pair (XM3, XM4) to resolve the bitline differential and a second NMOS pair (XM1, XM2) to drive the output data lines.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N3\",\n        \"N4\",\n        \"PHI_SAE\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2-V 300-MHz 1-Mb Current-Sensed Double-Density SRAM for Low-Power 0.3-m CMOS/SIMOX ASICs\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"t_sense\": {\n      \"description\": \"Sensing delay from the enable signal (PHI_SAE) rising to the output node resolving to a valid logic level.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"300 MHz operation implies < 1.5ns delay\",\n        \"technology\": \"0.3um CMOS/SIMOX\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the discharge rate of the bitline and output capacitances through the NMOS cross-coupled pairs.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"200p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 1.8V NMOS has high drive strength, easily discharging a 100fF bitline capacitance in a few hundred picoseconds.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"energy_per_op\": {\n      \"description\": \"Energy consumed per sensing operation, dominated by recharging the bitlines and output nodes.\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.198 pJ\",\n        \"technology\": \"0.3um CMOS/SIMOX\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"E = 0.5 * C_bl * V^2 + 0.5 * C_out * V^2 = 0.5 * 100f * 1.75^2 + 0.5 * 10f * 1.8^2\",\n        \"range\": {\n          \"min\": \"100f\",\n          \"typical\": \"170f\",\n          \"max\": \"300f\",\n          \"unit\": \"J\"\n        },\n        \"reasoning\": \"Energy is dominated by replenishing the charge on the bitline and output node that were pulled to ground during the sensing phase. Matches the paper's reported 0.198 pJ closely.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_swing_out\": {\n      \"description\": \"Voltage swing of the output data lines after sensing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Outputs are precharged to VDD and one is pulled to GND by the sense amplifier.\",\n        \"range\": {\n          \"min\": \"1.6\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Full rail swing is expected for the output nodes in this topology.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure sensing delay, output voltage swing, and energy per operation of the SRAM sense amplifier. Simulates a full precharge-sense-precharge cycle.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"t_sense\",\n      \"v_swing_out\",\n      \"energy_per_op\"\n    ],\n    \"spice\": \".param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\n* Include SKY130 models\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* VDD and signals\\nVdd VDD GND 1.8\\nVphi PHI_SAE GND PULSE(0 1.8 1.2n 50p 50p 1.3n 5n)\\nVpre PRE_B GND PULSE(1.8 0 1n 50p 50p 2n 5n)\\n\\n* Bitline precharge voltages (50mV differential)\\nV3 N3_pre GND 1.8\\nV4 N4_pre GND 1.75\\n\\n* Precharge switches\\nS3 N3_pre N3 PRE_B GND sw_ideal\\nS4 N4_pre N4 PRE_B GND sw_ideal\\nS1 VDD N1 PRE_B GND sw_ideal\\nS2 VDD N2 PRE_B GND sw_ideal\\n.model sw_ideal sw vt=0.9 vh=0.1 ron=100 roff=1G\\n\\n* Capacitances (Bitlines and Outputs)\\nC1 N1 GND 10f\\nC2 N2 GND 10f\\nC3 N3 GND 100f\\nC4 N4 GND 100f\\nC5 N5 GND 5f\\n\\n* Initial conditions to prevent massive startup current\\n.ic v(N1)=1.8 v(N2)=1.8 v(N3)=1.8 v(N4)=1.75 v(N5)=0\\n\\n* DUT\\nXM1 N1 N2 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N1 N3 N3 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N4 N3 N5 N5 sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 N4 N5 N5 sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N5 PHI_SAE GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\n.control\\ntran 10p 5n uic\\n\\n* Measure sensing delay\\nmeas tran t_sense trig v(PHI_SAE) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\\n\\n* Measure output voltage swing\\nmeas tran v_out_high max v(N2)\\nmeas tran v_out_low min v(N1)\\nlet v_swing = v_out_high - v_out_low\\nprint v_swing\\n\\n* Measure energy per operation (integrating current from precharge sources)\\nmeas tran q_v3 integ i(V3)\\nmeas tran q_v4 integ i(V4)\\nmeas tran q_vdd integ i(Vdd)\\n* Energy = V * I * t = V * Q. Current flows out of positive terminal, so i(V) is negative.\\nlet energy_op = -1.8 * (q_v3 + q_v4 + q_vdd)\\nprint energy_op\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "953481",
+  "_case": "953481_image_8"
+}

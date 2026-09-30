@@ -1,0 +1,148 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Millimeter-Wave Voltage-Controlled Oscillator (VCO)",
+    "description": "A millimeter-wave VCO designed for wide tuning range and low phase noise. The extracted netlist appears to be the active core and biasing network of the VCO, containing BJTs, varactors (diodes), and resistors, but lacks the inductive elements (LC tank) necessary for oscillation, which were likely custom transmission lines or unextracted metal polygons.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0"
+      ],
+      "output": [
+        "N5",
+        "N14"
+      ],
+      "supply": [
+        "N0"
+      ],
+      "bias": [
+        "N13",
+        "N15"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Millimeter-Wave VCOs With Wide Tuning Range and Low Phase Noise, Fully Integrated in a SiGe Bipolar Production Technology",
+      "figure": "Unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "The fundamental frequency of the oscillator.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "47 GHz",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Without explicit inductors in the netlist, the circuit will not oscillate as an LC VCO. If it were a ring oscillator, frequency would depend on RC delays.",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 0,
+          "unit": "Hz"
+        },
+        "reasoning": "Missing LC tank components in the extracted netlist prevent oscillation."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Phase noise at 1-MHz offset from the carrier.",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-110 dBc/Hz",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": -100,
+          "typical": -90,
+          "max": -80,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "CMOS typically has worse phase noise than SiGe bipolar at mm-wave frequencies. Cannot be simulated without the resonator."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "280 mW",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Assuming 1.8V supply and ~10-20mA bias current.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.03,
+          "max": 0.05,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for 1.8V CMOS/BiCMOS operation compared to the high-power mm-wave SiGe design."
+      },
+      "importance": "essential"
+    },
+    "tuning_range": {
+      "description": "Percentage variation in oscillation frequency over the tuning voltage range.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "26%",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "%"
+        },
+        "reasoning": "Varactor tuning range in standard CMOS is typically lower than specialized SiGe varactors."
+      },
+      "importance": "recommended"
+    },
+    "voltage_swing": {
+      "description": "Single-ended peak-to-peak voltage swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.95 V",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by 1.8V supply and headroom.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.6,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "Expected to be lower due to lower supply voltage (1.8V vs likely higher in original)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power and attempt transient analysis. Note: Default values (1k, 1p) and generic models were added to the raw netlist to make it syntactically valid for SPICE.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_swing",
+      "oscillation_frequency"
+    ],
+    "spice": "* VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.model npn_model npn (is=1e-16 bf=100)\n.model d_model D (is=1e-14)\n\nVvdd N0 0 1.8\nVtune LABEL_NET_0 0 0.9\n\n* DUT with added default values for R and C to allow compilation\nD1 N3 N0 d_model\nR1 N6 N12 1k\nR2 N1 N4 1k\nD2 N9 N13 d_model\nR3 N14 0 1k\nR4 N6 N8 1k\nR5 N5 0 1k\nR6 N6 N7 1k\nR7 N15 0 1k\nQ1 N2 N2 N11 npn_model\nQ2 N4 N2 N10 npn_model\nD3 N7 N9 d_model\nR8 N14 0 1k\nR9 N6 0 1k\nR10 N11 N13 1k\nR11 N10 N13 1k\nR12 N0 N15 1k\nR13 N0 N13 1k\nR14 N3 N4 1k\nR15 N3 LABEL_NET_0 1k\nR16 N1 N6 1k\nR17 N2 0 1k\nC1 N5 0 1p\nQ3 N5 N12 N6 npn_model\nQ4 N14 N8 LABEL_NET_0 npn_model\nC2 N14 0 1p\nD4 N1 N0 d_model\nR18 N14 0 1k\n\n.control\nop\nlet power = -i(Vvdd)*1.8\nprint power\n\ntran 10p 10n\nmeas tran v_max max v(N5)\nmeas tran v_min min v(N5)\nlet v_swing = v_max - v_min\nprint v_swing\n\n* Attempt to measure frequency (will fail if no oscillation due to missing inductors)\nmeas tran t1 trig v(N5) val=0.9 rise=1 targ v(N5) val=0.9 rise=2\nlet freq = 1/t1\nprint freq\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Millimeter-Wave Voltage-Controlled Oscillator (VCO)\",\n    \"description\": \"A millimeter-wave VCO designed for wide tuning range and low phase noise. The extracted netlist appears to be the active core and biasing network of the VCO, containing BJTs, varactors (diodes), and resistors, but lacks the inductive elements (LC tank) necessary for oscillation, which were likely custom transmission lines or unextracted metal polygons.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\"\n      ],\n      \"output\": [\n        \"N5\",\n        \"N14\"\n      ],\n      \"supply\": [\n        \"N0\"\n      ],\n      \"bias\": [\n        \"N13\",\n        \"N15\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Millimeter-Wave VCOs With Wide Tuning Range and Low Phase Noise, Fully Integrated in a SiGe Bipolar Production Technology\",\n      \"figure\": \"Unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"The fundamental frequency of the oscillator.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"47 GHz\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Without explicit inductors in the netlist, the circuit will not oscillate as an LC VCO. If it were a ring oscillator, frequency would depend on RC delays.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Missing LC tank components in the extracted netlist prevent oscillation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise at 1-MHz offset from the carrier.\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-110 dBc/Hz\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": -100,\n          \"typical\": -90,\n          \"max\": -80,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"CMOS typically has worse phase noise than SiGe bipolar at mm-wave frequencies. Cannot be simulated without the resonator.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"280 mW\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Assuming 1.8V supply and ~10-20mA bias current.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.03,\n          \"max\": 0.05,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down for 1.8V CMOS/BiCMOS operation compared to the high-power mm-wave SiGe design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tuning_range\": {\n      \"description\": \"Percentage variation in oscillation frequency over the tuning voltage range.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"26%\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Varactor tuning range in standard CMOS is typically lower than specialized SiGe varactors.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Single-ended peak-to-peak voltage swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.95 V\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by 1.8V supply and headroom.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.6,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Expected to be lower due to lower supply voltage (1.8V vs likely higher in original).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power and attempt transient analysis. Note: Default values (1k, 1p) and generic models were added to the raw netlist to make it syntactically valid for SPICE.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_swing\",\n      \"oscillation_frequency\"\n    ],\n    \"spice\": \"* VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.model npn_model npn (is=1e-16 bf=100)\\n.model d_model D (is=1e-14)\\n\\nVvdd N0 0 1.8\\nVtune LABEL_NET_0 0 0.9\\n\\n* DUT with added default values for R and C to allow compilation\\nD1 N3 N0 d_model\\nR1 N6 N12 1k\\nR2 N1 N4 1k\\nD2 N9 N13 d_model\\nR3 N14 0 1k\\nR4 N6 N8 1k\\nR5 N5 0 1k\\nR6 N6 N7 1k\\nR7 N15 0 1k\\nQ1 N2 N2 N11 npn_model\\nQ2 N4 N2 N10 npn_model\\nD3 N7 N9 d_model\\nR8 N14 0 1k\\nR9 N6 0 1k\\nR10 N11 N13 1k\\nR11 N10 N13 1k\\nR12 N0 N15 1k\\nR13 N0 N13 1k\\nR14 N3 N4 1k\\nR15 N3 LABEL_NET_0 1k\\nR16 N1 N6 1k\\nR17 N2 0 1k\\nC1 N5 0 1p\\nQ3 N5 N12 N6 npn_model\\nQ4 N14 N8 LABEL_NET_0 npn_model\\nC2 N14 0 1p\\nD4 N1 N0 d_model\\nR18 N14 0 1k\\n\\n.control\\nop\\nlet power = -i(Vvdd)*1.8\\nprint power\\n\\ntran 10p 10n\\nmeas tran v_max max v(N5)\\nmeas tran v_min min v(N5)\\nlet v_swing = v_max - v_min\\nprint v_swing\\n\\n* Attempt to measure frequency (will fail if no oscillation due to missing inductors)\\nmeas tran t1 trig v(N5) val=0.9 rise=1 targ v(N5) val=0.9 rise=2\\nlet freq = 1/t1\\nprint freq\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1175498",
+  "_case": "1175498_image_3"
+}

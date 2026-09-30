@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Substrate and Power Distribution Network (PDN) RC Model",
+    "description": "A passive RC network modeling the power distribution network and substrate coupling paths in a digital ASIC. It is used to simulate how switching noise on the power supply couples into the substrate.",
+    "node_mapping": {
+      "input": [
+        "VDD"
+      ],
+      "output": [
+        "substrate"
+      ],
+      "supply": [
+        "VDD",
+        "VDDE"
+      ],
+      "bias": [],
+      "ground": [
+        "VSS",
+        "VSSE",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "Substrate Noise Generation in Complex Digital Systems: Efficient Modeling and Simulation Methodology and Experimental Verification",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Coupling_100MHz": {
+      "description": "Voltage transfer function from VDD to substrate at 100 MHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "50 MHz",
+        "technology": "CMOS ASIC"
+      },
+      "sky130_expected": {
+        "calculation": "At 100 MHz, the series impedance of the coupling capacitors is around 27 ohms, while the substrate shunt resistor R3 is 0.12 ohms. The voltage divider yields 20*log10(0.12/27) ~= -47 dB.",
+        "range": {
+          "min": -55,
+          "typical": -47,
+          "max": -40,
+          "unit": "dB"
+        },
+        "reasoning": "Based on the RC voltage divider formed by the coupling capacitors and the substrate resistance to ground."
+      },
+      "importance": "essential"
+    },
+    "Coupling_1GHz": {
+      "description": "Voltage transfer function from VDD to substrate at 1 GHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz",
+        "technology": "CMOS ASIC"
+      },
+      "sky130_expected": {
+        "calculation": "At 1 GHz, the series impedance of the coupling capacitors drops to around 2.7 ohms. The voltage divider yields 20*log10(0.12/2.7) ~= -27 dB.",
+        "range": {
+          "min": -35,
+          "typical": -27,
+          "max": -20,
+          "unit": "dB"
+        },
+        "reasoning": "Higher frequency reduces capacitive impedance, increasing the coupling to the substrate."
+      },
+      "importance": "essential"
+    },
+    "Z_VDD_100MHz": {
+      "description": "Input impedance of the VDD network at 100 MHz",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "12 pF",
+        "technology": "CMOS ASIC"
+      },
+      "sky130_expected": {
+        "calculation": "The total effective capacitance seen at VDD is roughly 150 pF. Z = 1 / (2 * pi * 100MHz * 150pF) ~= 10.6 ohms.",
+        "range": {
+          "min": 8,
+          "typical": 10.6,
+          "max": 15,
+          "unit": "ohm"
+        },
+        "reasoning": "Dominated by the parallel combination of decoupling and parasitic capacitors connected to VDD."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure substrate coupling and PDN impedance over frequency.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "Coupling_100MHz",
+      "Coupling_1GHz",
+      "Z_VDD_100MHz"
+    ],
+    "spice": "* Substrate Noise Model Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\nR1 substrate N6 0.75\nR2 N2 substrate 0.21\nR3 substrate VSS 0.12\nR4 substrate N7 0.57\nC1 VDDE VSS 145p\nC2 VSS VSSE 218p\nC3 VSSE N7 52p\nC4 VDD N6 19p\nC5 VDD VSS 77p\nC6 VDDE N2 53p\nC7 VDDE VSSE 42p\nC8 VDD VSSE 30p\nC9 VDD VDDE 33p\n\n* DC paths for floating nodes to prevent singular matrix errors\nR_dc_vdde VDDE 0 1G\nR_dc_vsse VSSE 0 1G\n\n* Sources\nVVDD VDD 0 DC 1.8 AC 1\nVVSS VSS 0 DC 0\n\n.control\nac dec 100 1Meg 10G\n\nlet coupling_db = vdb(substrate)\nlet z_vdd_mag = 1 / mag(i(VVDD))\n\nmeas ac coupling_100M find coupling_db at=100MEG\nmeas ac coupling_1G find coupling_db at=1G\nmeas ac z_vdd_100M find z_vdd_mag at=100MEG\nmeas ac z_vdd_1G find z_vdd_mag at=1G\n\nprint coupling_100M coupling_1G z_vdd_100M z_vdd_1G\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Substrate and Power Distribution Network (PDN) RC Model\",\n    \"description\": \"A passive RC network modeling the power distribution network and substrate coupling paths in a digital ASIC. It is used to simulate how switching noise on the power supply couples into the substrate.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VDD\"\n      ],\n      \"output\": [\n        \"substrate\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"VDDE\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"VSS\",\n        \"VSSE\",\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Substrate Noise Generation in Complex Digital Systems: Efficient Modeling and Simulation Methodology and Experimental Verification\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Coupling_100MHz\": {\n      \"description\": \"Voltage transfer function from VDD to substrate at 100 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"50 MHz\",\n        \"technology\": \"CMOS ASIC\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At 100 MHz, the series impedance of the coupling capacitors is around 27 ohms, while the substrate shunt resistor R3 is 0.12 ohms. The voltage divider yields 20*log10(0.12/27) ~= -47 dB.\",\n        \"range\": {\n          \"min\": -55,\n          \"typical\": -47,\n          \"max\": -40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on the RC voltage divider formed by the coupling capacitors and the substrate resistance to ground.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Coupling_1GHz\": {\n      \"description\": \"Voltage transfer function from VDD to substrate at 1 GHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz\",\n        \"technology\": \"CMOS ASIC\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At 1 GHz, the series impedance of the coupling capacitors drops to around 2.7 ohms. The voltage divider yields 20*log10(0.12/2.7) ~= -27 dB.\",\n        \"range\": {\n          \"min\": -35,\n          \"typical\": -27,\n          \"max\": -20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Higher frequency reduces capacitive impedance, increasing the coupling to the substrate.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Z_VDD_100MHz\": {\n      \"description\": \"Input impedance of the VDD network at 100 MHz\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"12 pF\",\n        \"technology\": \"CMOS ASIC\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The total effective capacitance seen at VDD is roughly 150 pF. Z = 1 / (2 * pi * 100MHz * 150pF) ~= 10.6 ohms.\",\n        \"range\": {\n          \"min\": 8,\n          \"typical\": 10.6,\n          \"max\": 15,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Dominated by the parallel combination of decoupling and parasitic capacitors connected to VDD.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure substrate coupling and PDN impedance over frequency.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Coupling_100MHz\",\n      \"Coupling_1GHz\",\n      \"Z_VDD_100MHz\"\n    ],\n    \"spice\": \"* Substrate Noise Model Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\nR1 substrate N6 0.75\\nR2 N2 substrate 0.21\\nR3 substrate VSS 0.12\\nR4 substrate N7 0.57\\nC1 VDDE VSS 145p\\nC2 VSS VSSE 218p\\nC3 VSSE N7 52p\\nC4 VDD N6 19p\\nC5 VDD VSS 77p\\nC6 VDDE N2 53p\\nC7 VDDE VSSE 42p\\nC8 VDD VSSE 30p\\nC9 VDD VDDE 33p\\n\\n* DC paths for floating nodes to prevent singular matrix errors\\nR_dc_vdde VDDE 0 1G\\nR_dc_vsse VSSE 0 1G\\n\\n* Sources\\nVVDD VDD 0 DC 1.8 AC 1\\nVVSS VSS 0 DC 0\\n\\n.control\\nac dec 100 1Meg 10G\\n\\nlet coupling_db = vdb(substrate)\\nlet z_vdd_mag = 1 / mag(i(VVDD))\\n\\nmeas ac coupling_100M find coupling_db at=100MEG\\nmeas ac coupling_1G find coupling_db at=1G\\nmeas ac z_vdd_100M find z_vdd_mag at=100MEG\\nmeas ac z_vdd_1G find z_vdd_mag at=1G\\n\\nprint coupling_100M coupling_1G z_vdd_100M z_vdd_1G\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1020246",
+  "_case": "1020246_image_5"
+}

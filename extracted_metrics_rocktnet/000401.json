@@ -1,0 +1,122 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Voltage-Controlled Oscillator (LC-VCO) core",
+    "description": "A complementary cross-coupled CMOS pair that provides negative resistance to sustain oscillation in an LC tank. It forms the active core of an LC-VCO.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "Q",
+        "QX"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "MOS Varactors With n- and p-Type Gates and Their Influence on an LC-VCO in Digital CMOS",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "f_osc": {
+      "description": "Oscillation frequency",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.31 GHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)) with L=4.5nH and C=3.3pF",
+        "range": {
+          "min": "1.2G",
+          "typical": "1.31G",
+          "max": "1.4G",
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the LC tank values chosen to match the paper's reported frequency."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Phase noise at a specific offset frequency (e.g., 1 MHz)",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-115 dBc/Hz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on tank Q and active device noise",
+        "range": {
+          "min": "-120",
+          "typical": "-115",
+          "max": "-110",
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Expected to be similar to the paper's reported value assuming similar tank Q."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "DC power consumption of the oscillator core",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_dc. With VDD=1.8V and I_dc ~ 0.22mA for the given W/L",
+        "range": {
+          "min": "0.2m",
+          "typical": "0.4m",
+          "max": "1m",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the self-biased DC operating point of the cross-coupled pair with W=5u, L=0.5u."
+      },
+      "importance": "essential"
+    },
+    "v_swing": {
+      "description": "Peak-to-peak output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on tank parallel resistance and bias current",
+        "range": {
+          "min": "0.5",
+          "typical": "1.0",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "The swing is limited by the supply voltage (1.8V) and the tank losses."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure oscillation frequency, voltage swing, and power consumption of the LC-VCO core.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "f_osc",
+      "v_swing",
+      "power_consumption"
+    ],
+    "spice": "* LC-VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 QX Q VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 Q QX VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 Q QX VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 QX Q VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\n\n* LC Tank (Added to complete the VCO for testing)\nL1 Q QX 4.5n\nC1 Q QX 3.3p\nR1 Q QX 5000\n\n* Startup kick to initiate oscillation\nI_kick Q QX pulse(0 1m 1n 100p 100p 1n 50n)\n\n.control\ntran 10p 50n\n\n* Measure frequency (using 0.7V as it is near the self-biased DC point)\nmeas tran t_start trig v(Q) val=0.7 rise=20\nmeas tran t_end trig v(Q) val=0.7 rise=25\nlet f_osc = 5 / (t_end - t_start)\nprint f_osc\n\n* Measure peak-to-peak voltage swing\nmeas tran v_max max v(Q) from=30n to=50n\nmeas tran v_min min v(Q) from=30n to=50n\nlet v_swing = v_max - v_min\nprint v_swing\n\n* Measure DC power consumption\nmeas tran i_vdd avg i(VVDD) from=30n to=50n\nlet p_dc = -i_vdd * 1.8\nprint p_dc\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Voltage-Controlled Oscillator (LC-VCO) core\",\n    \"description\": \"A complementary cross-coupled CMOS pair that provides negative resistance to sustain oscillation in an LC tank. It forms the active core of an LC-VCO.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\n        \"Q\",\n        \"QX\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"MOS Varactors With n- and p-Type Gates and Their Influence on an LC-VCO in Digital CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"f_osc\": {\n      \"description\": \"Oscillation frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.31 GHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)) with L=4.5nH and C=3.3pF\",\n        \"range\": {\n          \"min\": \"1.2G\",\n          \"typical\": \"1.31G\",\n          \"max\": \"1.4G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the LC tank values chosen to match the paper's reported frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise at a specific offset frequency (e.g., 1 MHz)\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-115 dBc/Hz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on tank Q and active device noise\",\n        \"range\": {\n          \"min\": \"-120\",\n          \"typical\": \"-115\",\n          \"max\": \"-110\",\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"Expected to be similar to the paper's reported value assuming similar tank Q.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"DC power consumption of the oscillator core\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_dc. With VDD=1.8V and I_dc ~ 0.22mA for the given W/L\",\n        \"range\": {\n          \"min\": \"0.2m\",\n          \"typical\": \"0.4m\",\n          \"max\": \"1m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the self-biased DC operating point of the cross-coupled pair with W=5u, L=0.5u.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_swing\": {\n      \"description\": \"Peak-to-peak output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on tank parallel resistance and bias current\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"1.0\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The swing is limited by the supply voltage (1.8V) and the tank losses.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure oscillation frequency, voltage swing, and power consumption of the LC-VCO core.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"f_osc\",\n      \"v_swing\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* LC-VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 QX Q VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 Q QX VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 Q QX VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 QX Q VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\n\\n* LC Tank (Added to complete the VCO for testing)\\nL1 Q QX 4.5n\\nC1 Q QX 3.3p\\nR1 Q QX 5000\\n\\n* Startup kick to initiate oscillation\\nI_kick Q QX pulse(0 1m 1n 100p 100p 1n 50n)\\n\\n.control\\ntran 10p 50n\\n\\n* Measure frequency (using 0.7V as it is near the self-biased DC point)\\nmeas tran t_start trig v(Q) val=0.7 rise=20\\nmeas tran t_end trig v(Q) val=0.7 rise=25\\nlet f_osc = 5 / (t_end - t_start)\\nprint f_osc\\n\\n* Measure peak-to-peak voltage swing\\nmeas tran v_max max v(Q) from=30n to=50n\\nmeas tran v_min min v(Q) from=30n to=50n\\nlet v_swing = v_max - v_min\\nprint v_swing\\n\\n* Measure DC power consumption\\nmeas tran i_vdd avg i(VVDD) from=30n to=50n\\nlet p_dc = -i_vdd * 1.8\\nprint p_dc\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1208462",
+  "_case": "1208462_image_2"
+}

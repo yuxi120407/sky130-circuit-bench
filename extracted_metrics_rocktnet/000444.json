@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Amplifier",
+    "description": "An inductively loaded common-source (or common-emitter) RF amplifier. It uses a current mirror for biasing and features AC-coupled input and output, typical for RF front-end stages.",
+    "node_mapping": {
+      "input": [
+        "Iin"
+      ],
+      "output": [
+        "Vout"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1"
+      ],
+      "ground": [
+        "GND",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Highly Integrated Dual-Band Triple-Mode Transmit IC for Cellular CDMA2000 Applications",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the amplifier stage",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "130 mA (entire IC)",
+        "technology": "30-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Ibias = 1mA and a mirror ratio of 5 (W_m15/W_m14 = 50u/10u), the total current is 6mA. Power = 6mA * 1.8V = 10.8mW.",
+        "range": {
+          "min": "5mW",
+          "typical": "10.8mW",
+          "max": "20mW",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for a single RF stage in SKY130 1.8V, rather than the entire multi-band IC."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "AC voltage gain at the target operating frequency (1.9 GHz)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "90 dB (entire IC)",
+        "technology": "30-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm ~ 20mA/V for 5mA bias. Load impedance at resonance with 50-ohm termination ~ 188 ohms. Gain = gm * ZL = 3.76 V/V = 11.5 dB.",
+        "range": {
+          "min": "5",
+          "typical": "11.5",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "Single stage gain is limited by the 50-ohm load and inductor Q."
+      },
+      "importance": "essential"
+    },
+    "center_frequency": {
+      "description": "Frequency at which the AC gain reaches its maximum",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1910 MHz",
+        "technology": "30-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by L1 (10nH) and parasitic/load capacitance (~0.7pF). f = 1 / (2*pi*sqrt(L*C)) ~ 1.9 GHz.",
+        "range": {
+          "min": "1G",
+          "typical": "1.9G",
+          "max": "3G",
+          "unit": "Hz"
+        },
+        "reasoning": "Tuned to match the PCS band (1910 MHz) mentioned in the paper."
+      },
+      "importance": "recommended"
+    },
+    "vout_swing": {
+      "description": "Peak-to-peak output voltage swing under large signal RF input",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "9 dBm output power",
+        "technology": "30-GHz BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "For a 0.1V amplitude input and gain of ~3.76, output amplitude is ~0.376V, giving a peak-to-peak of ~0.75V.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.75",
+          "max": "1.5",
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on input drive level and compression point of the SKY130 NMOS."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the RF amplifier measuring DC power, AC gain profile, and transient output swing. The original NPN transistors are mapped to SKY130 NMOS devices to support parameterized W/L.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "center_frequency",
+      "vout_swing"
+    ],
+    "spice": "* RF Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_m14=10u L_m14=0.15u\n.param W_m15=50u L_m15=0.15u\n\nVVDD VDD 0 1.8\nVIIN IIN 0 DC 0.9 AC 1 SIN(0.9 0.1 1.9G 0 0)\n\n* DUT (Adapted from NPN to SKY130 NMOS)\nIbias VDD N1 1m\nM15 N0 N1 0 0 sky130_fd_pr__nfet_01v8 w='W_m15' l='L_m15'\nL1 VDD N0 10n\nM14 N1 N1 0 0 sky130_fd_pr__nfet_01v8 w='W_m14' l='L_m14'\nC1 N0 Vout 1p\nC2 N1 IIN 1p\n\n* Load\nRload Vout 0 50\n\n.control\n* DC Analysis\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* AC Analysis\nac dec 50 100MEG 10G\nlet gain_db = vdb(Vout)\nmeas ac gain_1g9 find gain_db at=1.9G\nmeas ac max_gain max gain_db\n\n* Transient Analysis\ntran 10p 5n\nmeas tran vout_pp pp v(Vout)\n.endc\n\nquit"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Amplifier\",\n    \"description\": \"An inductively loaded common-source (or common-emitter) RF amplifier. It uses a current mirror for biasing and features AC-coupled input and output, typical for RF front-end stages.\",\n    \"node_mapping\": {\n      \"input\": [\"Iin\"],\n      \"output\": [\"Vout\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N1\"],\n      \"ground\": [\"GND\", \"0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Highly Integrated Dual-Band Triple-Mode Transmit IC for Cellular CDMA2000 Applications\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"130 mA (entire IC)\",\n        \"technology\": \"30-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Ibias = 1mA and a mirror ratio of 5 (W_m15/W_m14 = 50u/10u), the total current is 6mA. Power = 6mA * 1.8V = 10.8mW.\",\n        \"range\": { \"min\": \"5mW\", \"typical\": \"10.8mW\", \"max\": \"20mW\", \"unit\": \"W\" },\n        \"reasoning\": \"Adjusted for a single RF stage in SKY130 1.8V, rather than the entire multi-band IC.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"AC voltage gain at the target operating frequency (1.9 GHz)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"90 dB (entire IC)\",\n        \"technology\": \"30-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm ~ 20mA/V for 5mA bias. Load impedance at resonance with 50-ohm termination ~ 188 ohms. Gain = gm * ZL = 3.76 V/V = 11.5 dB.\",\n        \"range\": { \"min\": \"5\", \"typical\": \"11.5\", \"max\": \"20\", \"unit\": \"dB\" },\n        \"reasoning\": \"Single stage gain is limited by the 50-ohm load and inductor Q.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"center_frequency\": {\n      \"description\": \"Frequency at which the AC gain reaches its maximum\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1910 MHz\",\n        \"technology\": \"30-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by L1 (10nH) and parasitic/load capacitance (~0.7pF). f = 1 / (2*pi*sqrt(L*C)) ~ 1.9 GHz.\",\n        \"range\": { \"min\": \"1G\", \"typical\": \"1.9G\", \"max\": \"3G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Tuned to match the PCS band (1910 MHz) mentioned in the paper.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vout_swing\": {\n      \"description\": \"Peak-to-peak output voltage swing under large signal RF input\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"9 dBm output power\",\n        \"technology\": \"30-GHz BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 0.1V amplitude input and gain of ~3.76, output amplitude is ~0.376V, giving a peak-to-peak of ~0.75V.\",\n        \"range\": { \"min\": \"0.2\", \"typical\": \"0.75\", \"max\": \"1.5\", \"unit\": \"V\" },\n        \"reasoning\": \"Depends heavily on input drive level and compression point of the SKY130 NMOS.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the RF amplifier measuring DC power, AC gain profile, and transient output swing. The original NPN transistors are mapped to SKY130 NMOS devices to support parameterized W/L.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"power_consumption\", \"voltage_gain\", \"center_frequency\", \"vout_swing\"],\n    \"spice\": \"* RF Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_m14=10u L_m14=0.15u\\n.param W_m15=50u L_m15=0.15u\\n\\nVVDD VDD 0 1.8\\nVIIN IIN 0 DC 0.9 AC 1 SIN(0.9 0.1 1.9G 0 0)\\n\\n* DUT (Adapted from NPN to SKY130 NMOS)\\nIbias VDD N1 1m\\nM15 N0 N1 0 0 sky130_fd_pr__nfet_01v8 w='W_m15' l='L_m15'\\nL1 VDD N0 10n\\nM14 N1 N1 0 0 sky130_fd_pr__nfet_01v8 w='W_m14' l='L_m14'\\nC1 N0 Vout 1p\\nC2 N1 IIN 1p\\n\\n* Load\\nRload Vout 0 50\\n\\n.control\\n* DC Analysis\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 50 100MEG 10G\\nlet gain_db = vdb(Vout)\\nmeas ac gain_1g9 find gain_db at=1.9G\\nmeas ac max_gain max gain_db\\n\\n* Transient Analysis\\ntran 10p 5n\\nmeas tran vout_pp pp v(Vout)\\n.endc\\n\\nquit\"\n  }\n}\n```",
+  "_paper_id": "1225800",
+  "_case": "1225800_image_6"
+}

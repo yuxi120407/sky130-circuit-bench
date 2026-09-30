@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Two-Stage Common-Source Amplifier",
+    "description": "A cascaded two-stage common-source amplifier using NMOS transistors. It represents a single-ended half-circuit of the cascaded differential pairs mentioned in the paper, forming the core of a broadband amplifier (though inductive peaking components are omitted in this simplified netlist).",
+    "node_mapping": {
+      "input": [
+        "VIN"
+      ],
+      "output": [
+        "LABEL_NET_1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "X"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "40-Gb/s Amplifier and ESD Protection Circuit in 0.18-m CMOS Technology",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "Low-frequency or midband voltage gain of the cascaded amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "15 dB",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming VDD=1.8V, VIN_DC=0.7V. Stage 1: Id1~105uA, gm1~0.75mA/V, R1=5k -> Gain1 = 3.75. Stage 2: Id2~975uA, gm2~2.3mA/V, R2=800 -> Gain2 = 1.84. Total Gain = 3.75 * 1.84 = 6.9 V/V = 16.7 dB.",
+        "range": {
+          "min": 10,
+          "typical": 16,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated based on the chosen load resistors (5k and 800 ohms) added to the testbench to keep both stages in saturation with a 0.7V DC input, matching the paper's reported gain."
+      },
+      "importance": "essential"
+    },
+    "Unity Gain Bandwidth": {
+      "description": "Frequency at which the voltage gain drops to 0 dB (unity).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "26 GHz (Bandwidth)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole at interstage node X: R1=5k, Cx~30fF (Cgd1 + Cdb1 + Cgs2 + Miller) -> fp1 ~ 1 GHz. UGBW = Gain * fp1 ~ 6.9 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The 0.5um channel length in the extracted netlist and the lack of inductive peaking (T-coils) significantly reduce the bandwidth compared to the paper's 40Gb/s highly-optimized design."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power dissipation of the two amplifier stages.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "190 mW",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id1 = 105uA, Id2 = 975uA. Total current = 1.08mA. Power = 1.08mA * 1.8V = 1.94 mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.002,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "The extracted netlist only contains two core transistors. The 190 mW reported in the paper includes the entire multi-stage differential amplifier chain and 50-ohm output drivers."
+      },
+      "importance": "essential"
+    },
+    "Transient Output Swing": {
+      "description": "Peak-to-peak voltage swing at the output for a given input signal.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Input is 10mV amplitude (20mVpp). Expected output = 20mVpp * 6.9 (linear gain) = 138 mVpp.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.138,
+          "max": 0.2,
+          "unit": "V"
+        },
+        "reasoning": "Verifies large-signal time-domain amplification matches the small-signal AC gain."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC gain, unity gain bandwidth, transient output swing, and DC power consumption of the two-stage amplifier. Load resistors are added to establish proper DC biasing and gain.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Voltage Gain",
+      "Unity Gain Bandwidth",
+      "Power Consumption",
+      "Transient Output Swing"
+    ],
+    "spice": "* Two-Stage Common-Source Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 X VIN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 LABEL_NET_1 X GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Biasing and Loads\nVVDD VDD 0 1.8\nVVIN VIN 0 DC 0.7 AC 1 SIN(0.7 0.01 100MEG 0 0)\n\n* Load resistors to convert the bare transistors into an amplifier\nR1 VDD X 5k\nR2 VDD LABEL_NET_1 800\n\n* Analyses\n.control\n  * DC Operating Point and Power\n  op\n  let total_current = -i(VVDD)\n  let power = total_current * 1.8\n  print power\n  print v(X) v(LABEL_NET_1)\n\n  * AC Analysis for Gain and Bandwidth\n  ac dec 100 1MEG 100G\n  let gain_db = vdb(LABEL_NET_1)\n  meas ac gain_1mhz find gain_db at=1MEG\n  meas ac ugbw when gain_db=0 fall=1\n\n  * Transient Analysis for Output Swing\n  tran 0.1n 50n\n  meas tran vout_pp pp v(LABEL_NET_1)\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Two-Stage Common-Source Amplifier\",\n    \"description\": \"A cascaded two-stage common-source amplifier using NMOS transistors. It represents a single-ended half-circuit of the cascaded differential pairs mentioned in the paper, forming the core of a broadband amplifier (though inductive peaking components are omitted in this simplified netlist).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN\"\n      ],\n      \"output\": [\n        \"LABEL_NET_1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"X\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"40-Gb/s Amplifier and ESD Protection Circuit in 0.18-m CMOS Technology\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"Low-frequency or midband voltage gain of the cascaded amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"15 dB\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming VDD=1.8V, VIN_DC=0.7V. Stage 1: Id1~105uA, gm1~0.75mA/V, R1=5k -> Gain1 = 3.75. Stage 2: Id2~975uA, gm2~2.3mA/V, R2=800 -> Gain2 = 1.84. Total Gain = 3.75 * 1.84 = 6.9 V/V = 16.7 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 16,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated based on the chosen load resistors (5k and 800 ohms) added to the testbench to keep both stages in saturation with a 0.7V DC input, matching the paper's reported gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unity Gain Bandwidth\": {\n      \"description\": \"Frequency at which the voltage gain drops to 0 dB (unity).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"26 GHz (Bandwidth)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole at interstage node X: R1=5k, Cx~30fF (Cgd1 + Cdb1 + Cgs2 + Miller) -> fp1 ~ 1 GHz. UGBW = Gain * fp1 ~ 6.9 GHz.\",\n        \"range\": {\n          \"min\": 1E9,\n          \"typical\": 5E9,\n          \"max\": 10E9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The 0.5um channel length in the extracted netlist and the lack of inductive peaking (T-coils) significantly reduce the bandwidth compared to the paper's 40Gb/s highly-optimized design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power dissipation of the two amplifier stages.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"190 mW\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id1 = 105uA, Id2 = 975uA. Total current = 1.08mA. Power = 1.08mA * 1.8V = 1.94 mW.\",\n        \"range\": {\n          \"min\": 1E-3,\n          \"typical\": 2E-3,\n          \"max\": 5E-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The extracted netlist only contains two core transistors. The 190 mW reported in the paper includes the entire multi-stage differential amplifier chain and 50-ohm output drivers.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transient Output Swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output for a given input signal.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input is 10mV amplitude (20mVpp). Expected output = 20mVpp * 6.9 (linear gain) = 138 mVpp.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.138,\n          \"max\": 0.2,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Verifies large-signal time-domain amplification matches the small-signal AC gain.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC gain, unity gain bandwidth, transient output swing, and DC power consumption of the two-stage amplifier. Load resistors are added to establish proper DC biasing and gain.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Voltage Gain\",\n      \"Unity Gain Bandwidth\",\n      \"Power Consumption\",\n      \"Transient Output Swing\"\n    ],\n    \"spice\": \"* Two-Stage Common-Source Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 X VIN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 LABEL_NET_1 X GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Biasing and Loads\\nVVDD VDD 0 1.8\\nVVIN VIN 0 DC 0.7 AC 1 SIN(0.7 0.01 100MEG 0 0)\\n\\n* Load resistors to convert the bare transistors into an amplifier\\nR1 VDD X 5k\\nR2 VDD LABEL_NET_1 800\\n\\n* Analyses\\n.control\\n  * DC Operating Point and Power\\n  op\\n  let total_current = -i(VVDD)\\n  let power = total_current * 1.8\\n  print power\\n  print v(X) v(LABEL_NET_1)\\n\\n  * AC Analysis for Gain and Bandwidth\\n  ac dec 100 1MEG 100G\\n  let gain_db = vdb(LABEL_NET_1)\\n  meas ac gain_1mhz find gain_db at=1MEG\\n  meas ac ugbw when gain_db=0 fall=1\\n\\n  * Transient Analysis for Output Swing\\n  tran 0.1n 50n\\n  meas tran vout_pp pp v(LABEL_NET_1)\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362847",
+  "_case": "1362847_image_4_a"
+}

@@ -1,0 +1,111 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Transmit/Receive (T/R) Antenna Switch",
+    "description": "A CMOS RF antenna switch that connects the antenna (ANT) to either the transmit (TX) or receive (RX) path based on control signals. It uses NMOS pass transistors for high-frequency signal routing.",
+    "node_mapping": {
+      "input": [
+        "TX",
+        "N7",
+        "N9",
+        "N1"
+      ],
+      "output": [
+        "ANT",
+        "RX",
+        "N2",
+        "N3"
+      ],
+      "supply": [
+        "VDD",
+        "N0"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.8-V Operation RF CMOS Transceiver for 2.4-GHz-Band GFSK Applications",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "insertion_loss_tx_ant": {
+      "description": "Insertion loss from TX port to ANT port at 2.4 GHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.4 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "R_on = 1/(270uA/V^2 * 10 * 1.38V) = 270 ohm. S21 = 20*log10(2 * 50 / (100 + 270)) = -11.4 dB",
+        "range": {
+          "min": -15,
+          "typical": -11.4,
+          "max": -8,
+          "unit": "dB"
+        },
+        "reasoning": "Based on W=5u L=0.5u NMOS switch in a 50-ohm system."
+      },
+      "importance": "essential"
+    },
+    "isolation_tx_rx": {
+      "description": "Isolation from TX port to RX port at 2.4 GHz (RX switch OFF)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "C_off ~ 5fF. Z_c = 1/(2*pi*2.4G*5f) = 13k ohm. S21 = 20*log10(2 * 50 / 13000) = -42 dB",
+        "range": {
+          "min": -60,
+          "typical": -42,
+          "max": -30,
+          "unit": "dB"
+        },
+        "reasoning": "Off-state capacitance dominates isolation at 2.4 GHz."
+      },
+      "importance": "essential"
+    },
+    "tran_v_out_pp": {
+      "description": "Peak-to-peak output voltage at ANT for a 400mVpp 2.4GHz input",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_out = V_in * 50 / 370 = 400mV * 0.135 = 54mV",
+        "range": {
+          "min": 0.04,
+          "typical": 0.054,
+          "max": 0.08,
+          "unit": "V"
+        },
+        "reasoning": "Voltage divider with R_on and 50-ohm terminations."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures insertion loss, isolation, and transient response of the T/R switch at 2.4 GHz.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "insertion_loss_tx_ant",
+      "isolation_tx_rx",
+      "tran_v_out_pp"
+    ],
+    "spice": "* RF T/R Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM4 N2 N1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM3 N3 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM1 RX N9 ANT GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 ANT N7 TX GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\nVVDD VDD 0 1.8\n\n* RF Ports and Terminations (50 ohms)\nV_TX_src TX_src 0 dc 0 ac 1 sin(0 0.2 2.4G)\nR_TX TX_src TX 50\nR_ANT ANT 0 50\nR_RX RX 0 50\n\n* Control Signals (TX Mode: TX ON, RX OFF)\nV_N7 N7 0 dc 1.8\nV_N9 N9 0 dc 0\n\n* Auxiliary Nodes (Prevent floating)\nV_N0 N0 0 dc 1.8\nV_N1 N1 0 dc 0\nR_N2 N2 0 1Meg\nR_N3 N3 0 1Meg\n\n.control\n  * AC Analysis for Insertion Loss and Isolation\n  ac dec 50 1G 10G\n  let s21_tx_ant = vdb(ANT) + 6.0206\n  let s21_tx_rx = vdb(RX) + 6.0206\n  meas ac insertion_loss_tx_ant find s21_tx_ant at=2.4G\n  meas ac isolation_tx_rx find s21_tx_rx at=2.4G\n\n  * Transient Analysis\n  tran 10p 5n\n  meas tran tran_v_out_pp pp v(ANT)\n  meas tran tran_v_in_pp pp v(TX)\n  \n  print insertion_loss_tx_ant isolation_tx_rx tran_v_out_pp\n  quit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Transmit/Receive (T/R) Antenna Switch\",\n    \"description\": \"A CMOS RF antenna switch that connects the antenna (ANT) to either the transmit (TX) or receive (RX) path based on control signals. It uses NMOS pass transistors for high-frequency signal routing.\",\n    \"node_mapping\": {\n      \"input\": [\"TX\", \"N7\", \"N9\", \"N1\"],\n      \"output\": [\"ANT\", \"RX\", \"N2\", \"N3\"],\n      \"supply\": [\"VDD\", \"N0\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.8-V Operation RF CMOS Transceiver for 2.4-GHz-Band GFSK Applications\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"insertion_loss_tx_ant\": {\n      \"description\": \"Insertion loss from TX port to ANT port at 2.4 GHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.4 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_on = 1/(270uA/V^2 * 10 * 1.38V) = 270 ohm. S21 = 20*log10(2 * 50 / (100 + 270)) = -11.4 dB\",\n        \"range\": { \"min\": -15, \"typical\": -11.4, \"max\": -8, \"unit\": \"dB\" },\n        \"reasoning\": \"Based on W=5u L=0.5u NMOS switch in a 50-ohm system.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"isolation_tx_rx\": {\n      \"description\": \"Isolation from TX port to RX port at 2.4 GHz (RX switch OFF)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C_off ~ 5fF. Z_c = 1/(2*pi*2.4G*5f) = 13k ohm. S21 = 20*log10(2 * 50 / 13000) = -42 dB\",\n        \"range\": { \"min\": -60, \"typical\": -42, \"max\": -30, \"unit\": \"dB\" },\n        \"reasoning\": \"Off-state capacitance dominates isolation at 2.4 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tran_v_out_pp\": {\n      \"description\": \"Peak-to-peak output voltage at ANT for a 400mVpp 2.4GHz input\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_out = V_in * 50 / 370 = 400mV * 0.135 = 54mV\",\n        \"range\": { \"min\": 0.04, \"typical\": 0.054, \"max\": 0.08, \"unit\": \"V\" },\n        \"reasoning\": \"Voltage divider with R_on and 50-ohm terminations.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures insertion loss, isolation, and transient response of the T/R switch at 2.4 GHz.\",\n    \"analyses\": [\"AC\", \"Tran\"],\n    \"metrics_measured\": [\"insertion_loss_tx_ant\", \"isolation_tx_rx\", \"tran_v_out_pp\"],\n    \"spice\": \"* RF T/R Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM4 N2 N1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM3 N3 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM1 RX N9 ANT GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 ANT N7 TX GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVVDD VDD 0 1.8\\n\\n* RF Ports and Terminations (50 ohms)\\nV_TX_src TX_src 0 dc 0 ac 1 sin(0 0.2 2.4G)\\nR_TX TX_src TX 50\\nR_ANT ANT 0 50\\nR_RX RX 0 50\\n\\n* Control Signals (TX Mode: TX ON, RX OFF)\\nV_N7 N7 0 dc 1.8\\nV_N9 N9 0 dc 0\\n\\n* Auxiliary Nodes (Prevent floating)\\nV_N0 N0 0 dc 1.8\\nV_N1 N1 0 dc 0\\nR_N2 N2 0 1Meg\\nR_N3 N3 0 1Meg\\n\\n.control\\n  * AC Analysis for Insertion Loss and Isolation\\n  ac dec 50 1G 10G\\n  let s21_tx_ant = vdb(ANT) + 6.0206\\n  let s21_tx_rx = vdb(RX) + 6.0206\\n  meas ac insertion_loss_tx_ant find s21_tx_ant at=2.4G\\n  meas ac isolation_tx_rx find s21_tx_rx at=2.4G\\n\\n  * Transient Analysis\\n  tran 10p 5n\\n  meas tran tran_v_out_pp pp v(ANT)\\n  meas tran tran_v_in_pp pp v(TX)\\n  \\n  print insertion_loss_tx_ant isolation_tx_rx tran_v_out_pp\\n  quit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1196228",
+  "_case": "1196228_image_10"
+}

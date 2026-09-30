@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential Amplifier / OTA",
+    "description": "A fully differential operational transconductance amplifier (OTA) with an NMOS input pair and PMOS active loads. It serves as a core amplification block, likely used to create virtual-ground nodes within the switched-current memory cells or filter described in the paper to minimize charge injection.",
+    "node_mapping": {
+      "input": [
+        "IN_PLUS",
+        "IN_MINUS"
+      ],
+      "output": [
+        "OUT_PLUS",
+        "OUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_1",
+        "VCM_CTRL"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Switched-Current Circuits in Digital CMOS Technology With Low Charge-Injection Errors",
+      "figure": "Not specified",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Differential DC gain of the OTA",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported for the OTA (59 dB refers to THD)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current Itail ~= 311uA. gm = 2*(Itail/2)/Vov ~= 939uS. Rout = ro_n || ro_p ~= 32kOhm. Gain = gm*Rout ~= 30 V/V = 29.5 dB.",
+        "range": {
+          "min": 20,
+          "typical": 30,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Based on typical SKY130 parameters for L=0.5um devices with ~150uA branch current."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity Gain Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 MHz clock, 1 MHz cutoff for the overall filter",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm / (2*pi*CL). With gm=939uS and CL=1pF, UGBW = 149 MHz.",
+        "range": {
+          "min": 50000000.0,
+          "typical": 150000000.0,
+          "max": 300000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the load capacitance. A 1pF load gives ~150MHz, which is more than sufficient for a 10MHz clock."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase Margin to ensure stability in closed-loop operation",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Single stage OTA with dominant pole at output. Phase shift approaches -90 degrees.",
+        "range": {
+          "min": 60,
+          "typical": 85,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "As a single-stage OTA, it is inherently stable with a high phase margin, limited only by non-dominant poles."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption of the OTA",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "29 mW (entire filter)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Itail ~= 311uA. Power = VDD * Itail = 1.8V * 311uA = 560uW.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.00056,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Calculated from the tail current source bias (0.9V) and W/L (5/0.5)."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, differential AC gain, UGBW, phase margin, and transient response of the fully differential OTA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "vout_max",
+      "vout_min"
+    ],
+    "spice": "* Fully Differential OTA Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xms3=5u L_xms3=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xms4=5u L_xms4=0.5u\n\nVVDD VDD 0 1.8\nVVCM_CTRL VCM_CTRL 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\n\n* Common-mode and Differential-mode inputs\nVCM IN_CM 0 0.9\nVDM IN_DM 0 DC 0 AC 1 SIN(0 0.1 1MEG 0 0)\nE1 IN_PLUS IN_CM IN_DM 0 0.5\nE2 IN_MINUS IN_CM IN_DM 0 -0.5\n\n* DUT\nXMS3 OUT_MINUS VCM_CTRL VDD VDD sky130_fd_pr__pfet_01v8 l={L_xms3} w={W_xms3}\nXM2 OUT_PLUS IN_MINUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUT_MINUS IN_PLUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXMS4 OUT_PLUS VCM_CTRL VDD VDD sky130_fd_pr__pfet_01v8 l={L_xms4} w={W_xms4}\n\n* Load Capacitance\nCL1 OUT_PLUS 0 1p\nCL2 OUT_MINUS 0 1p\n\n.control\n  * DC Operating Point for Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis for Gain, UGBW, and Phase Margin\n  ac dec 100 1 1G\n  let vout_diff = v(OUT_PLUS) - v(OUT_MINUS)\n  let gain_db = 20*log10(mag(vout_diff))\n  let phase = 180/PI * cph(vout_diff)\n  \n  meas ac dc_gain find gain_db at=10\n  meas ac ugbw when gain_db=0 fall=1\n  meas ac phase_at_ugbw find phase when gain_db=0 fall=1\n  let pm = 180 + phase_at_ugbw\n  print pm\n\n  * Transient Analysis for Output Swing\n  tran 1n 2u\n  meas tran vout_max max v(OUT_PLUS)\n  meas tran vout_min min v(OUT_PLUS)\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential Amplifier / OTA\",\n    \"description\": \"A fully differential operational transconductance amplifier (OTA) with an NMOS input pair and PMOS active loads. It serves as a core amplification block, likely used to create virtual-ground nodes within the switched-current memory cells or filter described in the paper to minimize charge injection.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN_PLUS\",\n        \"IN_MINUS\"\n      ],\n      \"output\": [\n        \"OUT_PLUS\",\n        \"OUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_1\",\n        \"VCM_CTRL\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Switched-Current Circuits in Digital CMOS Technology With Low Charge-Injection Errors\",\n      \"figure\": \"Not specified\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Differential DC gain of the OTA\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported for the OTA (59 dB refers to THD)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current Itail ~= 311uA. gm = 2*(Itail/2)/Vov ~= 939uS. Rout = ro_n || ro_p ~= 32kOhm. Gain = gm*Rout ~= 30 V/V = 29.5 dB.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 30,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on typical SKY130 parameters for L=0.5um devices with ~150uA branch current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity Gain Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 MHz clock, 1 MHz cutoff for the overall filter\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm / (2*pi*CL). With gm=939uS and CL=1pF, UGBW = 149 MHz.\",\n        \"range\": {\n          \"min\": 50e6,\n          \"typical\": 150e6,\n          \"max\": 300e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the load capacitance. A 1pF load gives ~150MHz, which is more than sufficient for a 10MHz clock.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase Margin to ensure stability in closed-loop operation\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Single stage OTA with dominant pole at output. Phase shift approaches -90 degrees.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 85,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"As a single-stage OTA, it is inherently stable with a high phase margin, limited only by non-dominant poles.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption of the OTA\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"29 mW (entire filter)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Itail ~= 311uA. Power = VDD * Itail = 1.8V * 311uA = 560uW.\",\n        \"range\": {\n          \"min\": 300e-6,\n          \"typical\": 560e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated from the tail current source bias (0.9V) and W/L (5/0.5).\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, differential AC gain, UGBW, phase margin, and transient response of the fully differential OTA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"vout_max\",\n      \"vout_min\"\n    ],\n    \"spice\": \"* Fully Differential OTA Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xms3=5u L_xms3=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xms4=5u L_xms4=0.5u\\n\\nVVDD VDD 0 1.8\\nVVCM_CTRL VCM_CTRL 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\n\\n* Common-mode and Differential-mode inputs\\nVCM IN_CM 0 0.9\\nVDM IN_DM 0 DC 0 AC 1 SIN(0 0.1 1MEG 0 0)\\nE1 IN_PLUS IN_CM IN_DM 0 0.5\\nE2 IN_MINUS IN_CM IN_DM 0 -0.5\\n\\n* DUT\\nXMS3 OUT_MINUS VCM_CTRL VDD VDD sky130_fd_pr__pfet_01v8 l={L_xms3} w={W_xms3}\\nXM2 OUT_PLUS IN_MINUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUT_MINUS IN_PLUS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXMS4 OUT_PLUS VCM_CTRL VDD VDD sky130_fd_pr__pfet_01v8 l={L_xms4} w={W_xms4}\\n\\n* Load Capacitance\\nCL1 OUT_PLUS 0 1p\\nCL2 OUT_MINUS 0 1p\\n\\n.control\\n  * DC Operating Point for Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis for Gain, UGBW, and Phase Margin\\n  ac dec 100 1 1G\\n  let vout_diff = v(OUT_PLUS) - v(OUT_MINUS)\\n  let gain_db = 20*log10(mag(vout_diff))\\n  let phase = 180/PI * cph(vout_diff)\\n  \\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugbw when gain_db=0 fall=1\\n  meas ac phase_at_ugbw find phase when gain_db=0 fall=1\\n  let pm = 180 + phase_at_ugbw\\n  print pm\\n\\n  * Transient Analysis for Output Swing\\n  tran 1n 2u\\n  meas tran vout_max max v(OUT_PLUS)\\n  meas tran vout_min min v(OUT_PLUS)\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1035941",
+  "_case": "1035941_image_12"
+}

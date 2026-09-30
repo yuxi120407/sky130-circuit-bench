@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Amplifier with Source Follower Buffers",
+    "description": "A differential pair (XM1, XM2) providing voltage gain, followed by source follower buffers (XM3, XM4) for driving subsequent stages or loads. This topology is commonly used in high-speed optical receivers for wideband amplification.",
+    "node_mapping": {
+      "input": [
+        "IN1",
+        "IN2"
+      ],
+      "output": [
+        "OUT1",
+        "OUT2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1",
+        "N2",
+        "N4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Burst-Mode Receiver for 1.25-Gb/s Ethernet PON With AGC and Internally Created Reset Signal",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "differential_gain": {
+      "description": "Low-frequency differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "21 dB",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = sqrt(2 * 270uA/V^2 * (5/0.5) * 0.25mA) = 1.16 mS. Gain = gm * Rload = 1.16mS * 2kOhm = 2.32 V/V = 7.3 dB",
+        "range": {
+          "min": 5,
+          "typical": 7.3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "The paper reports 21 dB for the entire receiver chain. This single differential stage with 2kOhm loads provides around 7.3 dB."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz / 800 MHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rload * Cload). Assuming parasitic Cload ~ 50fF, BW = 1 / (2 * pi * 2k * 50f) = 1.6 GHz",
+        "range": {
+          "min": 800000000.0,
+          "typical": 1500000000.0,
+          "max": 3000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Expected to be in the GHz range, consistent with the 1.25-Gb/s EPON standard mentioned in the paper."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * (Itail + Iout1 + Iout2) = 1.8V * (0.5mA + 0.5mA + 0.5mA) = 2.7 mW",
+        "range": {
+          "min": 0.002,
+          "typical": 0.0027,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "Based on the bias currents added to the testbench to ensure proper operation."
+      },
+      "importance": "essential"
+    },
+    "transient_swing": {
+      "description": "Peak-to-peak differential output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With a 0.4Vpp differential input (0.2V amplitude) and a gain of ~2.3 V/V, the output swing is 0.4 * 2.3 = 0.92 Vpp",
+        "range": {
+          "min": 0.6,
+          "typical": 0.92,
+          "max": 1.2,
+          "unit": "V"
+        },
+        "reasoning": "Derived from the expected gain and the applied 0.4Vpp differential input in the transient simulation."
+      },
+      "importance": "recommended"
+    },
+    "input_capacitance": {
+      "description": "Input capacitance of the differential pair",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "250 fF",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Cgg = W * L * Cox = 5um * 0.5um * 5.7fF/um^2 = ~14 fF. Plus overlap and parasitic capacitance, expect ~20 fF.",
+        "range": {
+          "min": 1e-14,
+          "typical": 2e-14,
+          "max": 5e-14,
+          "unit": "F"
+        },
+        "reasoning": "The paper's 250 fF likely refers to the photodiode or pad capacitance. The intrinsic gate capacitance of a 5u/0.5u NMOS is much smaller."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure differential gain, bandwidth, power consumption, and transient output swing of the amplifier stage.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "differential_gain",
+      "bandwidth",
+      "power_consumption",
+      "transient_swing"
+    ],
+    "spice": "* Testbench for Burst-Mode Receiver Differential Stage\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM4 VDD N2 OUT1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM3 VDD N1 OUT2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM1 N1 IN1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 IN2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Biasing components (added to complete the circuit)\nR1 VDD N1 2k\nR2 VDD N2 2k\nI_tail N4 0 0.5m\nI_out1 OUT1 0 0.5m\nI_out2 OUT2 0 0.5m\n\n* Power supply\nVVDD VDD 0 1.8\n\n* Inputs (DC common-mode = 1.2V, AC diff = 1V, Tran diff = 0.4Vpp)\nVIN1 IN1 0 DC 1.2 AC 0.5 SIN(1.2 0.1 100MEG 0 0)\nVIN2 IN2 0 DC 1.2 AC -0.5 SIN(1.2 -0.1 100MEG 0 0)\n\n* Differential output voltage controlled voltage source\nE_diff OUT_DIFF 0 OUT1 OUT2 1.0\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n* 1. DC Operating Point & Power\nop\nprint v(OUT1) v(OUT2) v(N1) v(N2) v(N4)\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis (Gain and Bandwidth)\nac dec 20 1Meg 10G\nmeas ac max_gain max vdb(OUT_DIFF)\nmeas ac bw when vdb(OUT_DIFF)='max_gain - 3' fall=1\n\n* 3. Transient Analysis (Output Swing)\ntran 0.1n 20n\nmeas tran vout_diff_max max v(OUT_DIFF)\nmeas tran vout_diff_min min v(OUT_DIFF)\nlet vout_swing = vout_diff_max - vout_diff_min\nprint vout_swing\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Amplifier with Source Follower Buffers\",\n    \"description\": \"A differential pair (XM1, XM2) providing voltage gain, followed by source follower buffers (XM3, XM4) for driving subsequent stages or loads. This topology is commonly used in high-speed optical receivers for wideband amplification.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN1\",\n        \"IN2\"\n      ],\n      \"output\": [\n        \"OUT1\",\n        \"OUT2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"N2\",\n        \"N4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Burst-Mode Receiver for 1.25-Gb/s Ethernet PON With AGC and Internally Created Reset Signal\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"differential_gain\": {\n      \"description\": \"Low-frequency differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"21 dB\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = sqrt(2 * 270uA/V^2 * (5/0.5) * 0.25mA) = 1.16 mS. Gain = gm * Rload = 1.16mS * 2kOhm = 2.32 V/V = 7.3 dB\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 7.3,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper reports 21 dB for the entire receiver chain. This single differential stage with 2kOhm loads provides around 7.3 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz / 800 MHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rload * Cload). Assuming parasitic Cload ~ 50fF, BW = 1 / (2 * pi * 2k * 50f) = 1.6 GHz\",\n        \"range\": {\n          \"min\": 800e6,\n          \"typical\": 1.5e9,\n          \"max\": 3e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Expected to be in the GHz range, consistent with the 1.25-Gb/s EPON standard mentioned in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * (Itail + Iout1 + Iout2) = 1.8V * (0.5mA + 0.5mA + 0.5mA) = 2.7 mW\",\n        \"range\": {\n          \"min\": 2e-3,\n          \"typical\": 2.7e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the bias currents added to the testbench to ensure proper operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transient_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 0.4Vpp differential input (0.2V amplitude) and a gain of ~2.3 V/V, the output swing is 0.4 * 2.3 = 0.92 Vpp\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.92,\n          \"max\": 1.2,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Derived from the expected gain and the applied 0.4Vpp differential input in the transient simulation.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"Input capacitance of the differential pair\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"250 fF\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Cgg = W * L * Cox = 5um * 0.5um * 5.7fF/um^2 = ~14 fF. Plus overlap and parasitic capacitance, expect ~20 fF.\",\n        \"range\": {\n          \"min\": 10e-15,\n          \"typical\": 20e-15,\n          \"max\": 50e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"The paper's 250 fF likely refers to the photodiode or pad capacitance. The intrinsic gate capacitance of a 5u/0.5u NMOS is much smaller.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure differential gain, bandwidth, power consumption, and transient output swing of the amplifier stage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"differential_gain\",\n      \"bandwidth\",\n      \"power_consumption\",\n      \"transient_swing\"\n    ],\n    \"spice\": \"* Testbench for Burst-Mode Receiver Differential Stage\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM4 VDD N2 OUT1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM3 VDD N1 OUT2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM1 N1 IN1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 IN2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Biasing components (added to complete the circuit)\\nR1 VDD N1 2k\\nR2 VDD N2 2k\\nI_tail N4 0 0.5m\\nI_out1 OUT1 0 0.5m\\nI_out2 OUT2 0 0.5m\\n\\n* Power supply\\nVVDD VDD 0 1.8\\n\\n* Inputs (DC common-mode = 1.2V, AC diff = 1V, Tran diff = 0.4Vpp)\\nVIN1 IN1 0 DC 1.2 AC 0.5 SIN(1.2 0.1 100MEG 0 0)\\nVIN2 IN2 0 DC 1.2 AC -0.5 SIN(1.2 -0.1 100MEG 0 0)\\n\\n* Differential output voltage controlled voltage source\\nE_diff OUT_DIFF 0 OUT1 OUT2 1.0\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nprint v(OUT1) v(OUT2) v(N1) v(N2) v(N4)\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Gain and Bandwidth)\\nac dec 20 1Meg 10G\\nmeas ac max_gain max vdb(OUT_DIFF)\\nmeas ac bw when vdb(OUT_DIFF)='max_gain - 3' fall=1\\n\\n* 3. Transient Analysis (Output Swing)\\ntran 0.1n 20n\\nmeas tran vout_diff_max max v(OUT_DIFF)\\nmeas tran vout_diff_min min v(OUT_DIFF)\\nlet vout_swing = vout_diff_max - vout_diff_min\\nprint vout_swing\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1362846",
+  "_case": "1362846_image_12"
+}

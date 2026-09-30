@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Bias Network / Current Sources",
+    "description": "A set of NMOS transistors acting as independent current sources and a diode-connected load, likely used to bias differential pairs or CML buffers in a high-speed multiplexer or clock synthesizer.",
+    "node_mapping": {
+      "input": [
+        "VB1",
+        "VB2"
+      ],
+      "output": [
+        "N8",
+        "N9",
+        "N1",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB1",
+        "VB2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10-Gb/s 16:1 Multiplexer and 10-GHz Clock Synthesizer in 0.25-m SiGe BiCMOS",
+      "figure": "none",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "I_XM1": {
+      "description": "DC drain current of bias transistor XM1",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.54 - 0.42)^2 = 19.4 uA",
+        "range": {
+          "min": "10u",
+          "typical": "19.4u",
+          "max": "30u",
+          "unit": "A"
+        },
+        "reasoning": "Calculated using square-law model for SKY130 NMOS with Vgs=0.54V."
+      },
+      "importance": "essential"
+    },
+    "I_XM2": {
+      "description": "DC drain current of bias transistor XM2",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.54 - 0.42)^2 = 19.4 uA",
+        "range": {
+          "min": "10u",
+          "typical": "19.4u",
+          "max": "30u",
+          "unit": "A"
+        },
+        "reasoning": "Identical dimensions and bias voltage to XM1."
+      },
+      "importance": "essential"
+    },
+    "V_N9": {
+      "description": "Gate-source voltage of diode-connected XM4 at 100uA bias",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vgs = Vth + sqrt(2*Id / (unCox * W/L)) = 0.42 + sqrt(200u / (270u * 10)) = 0.42 + 0.27 = 0.69 V",
+        "range": {
+          "min": "0.6",
+          "typical": "0.69",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "Calculated required Vgs to support 100uA reference current."
+      },
+      "importance": "recommended"
+    },
+    "Power": {
+      "description": "Total static power consumption of the bias network",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total = 1.8V * (19.4uA + 19.4uA + 100uA + ~1.8mA) = ~3.5 mW",
+        "range": {
+          "min": "2m",
+          "typical": "3.5m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Sum of currents from all branches multiplied by 1.8V supply. XM3 enters triode and draws ~1.8mA due to high Vgs."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC currents and node voltages of the bias network transistors.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "I_XM1",
+      "I_XM2",
+      "V_N9",
+      "Power"
+    ],
+    "spice": "* Bias Network Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N8 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM4 N9 N9 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM3 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM2 N0 VB2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Supply and Bias Voltages\nVDD VDD 0 1.8\nVVB1 VB1 0 0.54\nVVB2 VB2 0 0.54\n\n* Load Resistors and Current Sources to bias the drains\nVR1 VDD N8_R 0\nR1 N8_R N8 10k\n\nIref VDD N9 100u\n\nVR3 VDD N1_R 0\nR3 N1_R N1 1k\n\nVR4 VDD N0_R 0\nR4 N0_R N0 10k\n\n.control\ntran 100p 1n\n\nmeas tran I_XM1 avg i(VR1)\nmeas tran I_XM2 avg i(VR4)\nmeas tran I_XM3 avg i(VR3)\nmeas tran V_N9 avg v(n9)\nmeas tran Power avg -i(VDD)*1.8\n\nprint I_XM1 I_XM2 I_XM3 V_N9 Power\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Bias Network / Current Sources\",\n    \"description\": \"A set of NMOS transistors acting as independent current sources and a diode-connected load, likely used to bias differential pairs or CML buffers in a high-speed multiplexer or clock synthesizer.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VB1\",\n        \"VB2\"\n      ],\n      \"output\": [\n        \"N8\",\n        \"N9\",\n        \"N1\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB1\",\n        \"VB2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10-Gb/s 16:1 Multiplexer and 10-GHz Clock Synthesizer in 0.25-m SiGe BiCMOS\",\n      \"figure\": \"none\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"I_XM1\": {\n      \"description\": \"DC drain current of bias transistor XM1\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.54 - 0.42)^2 = 19.4 uA\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"19.4u\",\n          \"max\": \"30u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Calculated using square-law model for SKY130 NMOS with Vgs=0.54V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_XM2\": {\n      \"description\": \"DC drain current of bias transistor XM2\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.54 - 0.42)^2 = 19.4 uA\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"19.4u\",\n          \"max\": \"30u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Identical dimensions and bias voltage to XM1.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_N9\": {\n      \"description\": \"Gate-source voltage of diode-connected XM4 at 100uA bias\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs = Vth + sqrt(2*Id / (unCox * W/L)) = 0.42 + sqrt(200u / (270u * 10)) = 0.42 + 0.27 = 0.69 V\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.69\",\n          \"max\": \"0.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Calculated required Vgs to support 100uA reference current.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Power\": {\n      \"description\": \"Total static power consumption of the bias network\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total = 1.8V * (19.4uA + 19.4uA + 100uA + ~1.8mA) = ~3.5 mW\",\n        \"range\": {\n          \"min\": \"2m\",\n          \"typical\": \"3.5m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Sum of currents from all branches multiplied by 1.8V supply. XM3 enters triode and draws ~1.8mA due to high Vgs.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC currents and node voltages of the bias network transistors.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"I_XM1\",\n      \"I_XM2\",\n      \"V_N9\",\n      \"Power\"\n    ],\n    \"spice\": \"* Bias Network Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N8 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM4 N9 N9 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM3 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM2 N0 VB2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Supply and Bias Voltages\\nVDD VDD 0 1.8\\nVVB1 VB1 0 0.54\\nVVB2 VB2 0 0.54\\n\\n* Load Resistors and Current Sources to bias the drains\\nVR1 VDD N8_R 0\\nR1 N8_R N8 10k\\n\\nIref VDD N9 100u\\n\\nVR3 VDD N1_R 0\\nR3 N1_R N1 1k\\n\\nVR4 VDD N0_R 0\\nR4 N0_R N0 10k\\n\\n.control\\ntran 100p 1n\\n\\nmeas tran I_XM1 avg i(VR1)\\nmeas tran I_XM2 avg i(VR4)\\nmeas tran I_XM3 avg i(VR3)\\nmeas tran V_N9 avg v(n9)\\nmeas tran Power avg -i(VDD)*1.8\\n\\nprint I_XM1 I_XM2 I_XM3 V_N9 Power\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "972145",
+  "_case": "972145_image_8"
+}

@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Active Baseband Filter",
+    "description": "This circuit is a fully integrated differential active filter stage, likely part of the baseband channel-select filter (e.g., Chebyshev or all-pass section) for a W-CDMA receiver. It features a bipolar differential pair (Q3, Q10) with emitter follower buffers, AC-coupled inputs, and cross-coupled capacitors to synthesize the required filter poles.",
+    "node_mapping": {
+      "input": [
+        "N1",
+        "N3"
+      ],
+      "output": [
+        "out",
+        "outx"
+      ],
+      "supply": [
+        "Vcc"
+      ],
+      "bias": [
+        "Vbias",
+        "N10",
+        "N18",
+        "N21",
+        "N23"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Fully Integrated W-CDMA IF Receiver and IF Transmitter Including IF Synthesizer and On-Chip VCO for UMTS Mobiles",
+      "figure": "Generic Baseband Filter Extraction",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "DC_Power": {
+      "description": "Total DC power consumption of the filter stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Not explicitly isolated for this sub-block",
+        "technology": "25 GHz Si-bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Vcc=1.8V. The circuit has multiple current branches (tail current Q9, emitter followers Q2, Q6, Q12, Q13, and current sources Q5, Q8). Assuming ~1mA per branch with 1k bias resistors, total current is ~5-6mA. Power = 1.8V * 5.5mA = 9.9mW.",
+        "range": {
+          "min": "5m",
+          "typical": "10m",
+          "max": "20m",
+          "unit": "W"
+        },
+        "reasoning": "Based on standard biasing for high-frequency bipolar active filters to maintain sufficient gm and bandwidth."
+      },
+      "importance": "essential"
+    },
+    "Low_Freq_Gain": {
+      "description": "Differential voltage gain at low frequencies (passband).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "25 GHz Si-bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Diff pair (Q3, Q10) tail current ~1mA -> Ic = 0.5mA. gm = Ic/Vt = 0.5mA / 26mV = 19.2 mA/V. With assumed 1k load resistors (R5, R11), Gain = gm * R_load = 19.2. In dB: 20*log10(19.2) = 25.6 dB.",
+        "range": {
+          "min": "15",
+          "typical": "25",
+          "max": "30",
+          "unit": "dB"
+        },
+        "reasoning": "Gain is heavily dependent on the chosen load resistors and tail current. 25 dB is typical for an active filter gain stage."
+      },
+      "importance": "essential"
+    },
+    "Gain_1_92MHz": {
+      "description": "Voltage gain at the W-CDMA baseband channel edge (1.92 MHz).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.92 MHz (W-CDMA baseband bandwidth)",
+        "technology": "25 GHz Si-bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "With assumed C=10pF and R=1k, the dominant pole is around 1 / (2*pi*1k*10p) = 15.9 MHz. At 1.92 MHz, the gain should be nearly identical to the low-frequency gain, with minimal attenuation.",
+        "range": {
+          "min": "14",
+          "typical": "25",
+          "max": "30",
+          "unit": "dB"
+        },
+        "reasoning": "1.92 MHz is well within the passband of the W-CDMA channel select filter."
+      },
+      "importance": "essential"
+    },
+    "Transient_Swing": {
+      "description": "Peak-to-peak differential output voltage swing for a given input.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "25 GHz Si-bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "With an input amplitude of 0.1V and a gain of ~19 V/V, the theoretical output is 1.9V. However, the supply is 1.8V, so the output will clip. The maximum linear swing is limited by Vcc and Vce(sat), typically around 1.2Vpp differential.",
+        "range": {
+          "min": "0.5",
+          "typical": "1.2",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "Limited by the 1.8V supply and the headroom required for the tail current source and load resistors."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC frequency response (passband and channel edge gain), and transient output swing of the active filter. Missing component values (R, C) have been populated with typical values to allow simulation.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Power",
+      "Low_Freq_Gain",
+      "Gain_1_92MHz",
+      "Transient_Swing"
+    ],
+    "spice": "* W-CDMA Baseband Filter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic BJT model to support the extracted 'npn' instances\n.model npn npn (is=1e-16 bf=100 vaf=50)\n\n* Supplies and Biases\nVcc Vcc 0 1.8\nVVBIAS Vbias 0 1.2\nVbias2 N10 0 0.8\nVbias3 N21 0 0.8\nVbias4 N23 0 0.8\nVbias5 N18 0 0.8\n\n* AC and Transient Inputs (AC coupled)\nVinp in_p 0 dc 0 ac 1 sin(0 0.01 1Meg)\nVinn in_n 0 dc 0 ac -1 sin(0 -0.01 1Meg)\nCin1 in_p N1 1u\nCin2 in_n N3 1u\n\n* Differential Output VCVS for easy measurement\nEdiff out_diff 0 out outx 1\n\n* DUT (with added typical values for R and C to enable simulation)\nQ1 N20 Vbias N22 npn\nQ2 Vcc N9 out npn\nR6 N19 GND 1k\nQ3 N9 N5 N16 npn\nQ5 N12 N23 N19 npn\nR2 N22 GND 1k\nQ4 Vcc N18 N11 npn\nQ6 Vcc N8 outx npn\nQ7 outx N15 N0 npn\nQ8 N2 N21 N13 npn\nR3 Vcc N20 1k\nR4 N14 GND 1k\nR5 Vcc N9 1k\nR10 N11 GND 1k\nR7 N13 GND 1k\nQ9 N16 N10 N14 npn\nR9 N15 GND 1k\nR8 N0 GND 1k\nQ10 N8 N4 N16 npn\nQ11 out N14 N15 npn\nR1 N5 Vcc 10k\nQ12 Vcc N1 N12 npn\nR11 Vcc N8 1k\nQ13 Vcc N3 N2 npn\nR12 N3 N20 10k\nC1 N1 N3 5p\nR13 N4 Vcc 10k\nR14 N1 N20 10k\nC2 N3 N1 5p\nC3 N2 N5 10p\nC4 N1 GND 5p\nC5 N3 GND 5p\nC6 N4 N12 10p\n\n.control\n* DC Operating Point\nop\nlet power = -i(Vcc) * 1.8\nprint power\n\n* AC Analysis\nac dec 20 10k 100Meg\nlet gain_db = vdb(out_diff)\nmeas ac gain_100k find gain_db at=100k\nmeas ac gain_1_92M find gain_db at=1.92Meg\nmeas ac gain_10M find gain_db at=10Meg\n\n* Transient Analysis\ntran 10n 5u\nmeas tran vout_max max v(out_diff)\nmeas tran vout_min min v(out_diff)\nlet vout_pp = vout_max - vout_min\nprint vout_pp\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Active Baseband Filter\",\n    \"description\": \"This circuit is a fully integrated differential active filter stage, likely part of the baseband channel-select filter (e.g., Chebyshev or all-pass section) for a W-CDMA receiver. It features a bipolar differential pair (Q3, Q10) with emitter follower buffers, AC-coupled inputs, and cross-coupled capacitors to synthesize the required filter poles.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\",\n        \"N3\"\n      ],\n      \"output\": [\n        \"out\",\n        \"outx\"\n      ],\n      \"supply\": [\n        \"Vcc\"\n      ],\n      \"bias\": [\n        \"Vbias\",\n        \"N10\",\n        \"N18\",\n        \"N21\",\n        \"N23\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Fully Integrated W-CDMA IF Receiver and IF Transmitter Including IF Synthesizer and On-Chip VCO for UMTS Mobiles\",\n      \"figure\": \"Generic Baseband Filter Extraction\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Power\": {\n      \"description\": \"Total DC power consumption of the filter stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly isolated for this sub-block\",\n        \"technology\": \"25 GHz Si-bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Vcc=1.8V. The circuit has multiple current branches (tail current Q9, emitter followers Q2, Q6, Q12, Q13, and current sources Q5, Q8). Assuming ~1mA per branch with 1k bias resistors, total current is ~5-6mA. Power = 1.8V * 5.5mA = 9.9mW.\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"10m\",\n          \"max\": \"20m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on standard biasing for high-frequency bipolar active filters to maintain sufficient gm and bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Low_Freq_Gain\": {\n      \"description\": \"Differential voltage gain at low frequencies (passband).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"25 GHz Si-bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Diff pair (Q3, Q10) tail current ~1mA -> Ic = 0.5mA. gm = Ic/Vt = 0.5mA / 26mV = 19.2 mA/V. With assumed 1k load resistors (R5, R11), Gain = gm * R_load = 19.2. In dB: 20*log10(19.2) = 25.6 dB.\",\n        \"range\": {\n          \"min\": \"15\",\n          \"typical\": \"25\",\n          \"max\": \"30\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain is heavily dependent on the chosen load resistors and tail current. 25 dB is typical for an active filter gain stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Gain_1_92MHz\": {\n      \"description\": \"Voltage gain at the W-CDMA baseband channel edge (1.92 MHz).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.92 MHz (W-CDMA baseband bandwidth)\",\n        \"technology\": \"25 GHz Si-bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With assumed C=10pF and R=1k, the dominant pole is around 1 / (2*pi*1k*10p) = 15.9 MHz. At 1.92 MHz, the gain should be nearly identical to the low-frequency gain, with minimal attenuation.\",\n        \"range\": {\n          \"min\": \"14\",\n          \"typical\": \"25\",\n          \"max\": \"30\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"1.92 MHz is well within the passband of the W-CDMA channel select filter.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transient_Swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing for a given input.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"25 GHz Si-bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With an input amplitude of 0.1V and a gain of ~19 V/V, the theoretical output is 1.9V. However, the supply is 1.8V, so the output will clip. The maximum linear swing is limited by Vcc and Vce(sat), typically around 1.2Vpp differential.\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"1.2\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Limited by the 1.8V supply and the headroom required for the tail current source and load resistors.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC frequency response (passband and channel edge gain), and transient output swing of the active filter. Missing component values (R, C) have been populated with typical values to allow simulation.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Power\",\n      \"Low_Freq_Gain\",\n      \"Gain_1_92MHz\",\n      \"Transient_Swing\"\n    ],\n    \"spice\": \"* W-CDMA Baseband Filter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic BJT model to support the extracted 'npn' instances\\n.model npn npn (is=1e-16 bf=100 vaf=50)\\n\\n* Supplies and Biases\\nVcc Vcc 0 1.8\\nVVBIAS Vbias 0 1.2\\nVbias2 N10 0 0.8\\nVbias3 N21 0 0.8\\nVbias4 N23 0 0.8\\nVbias5 N18 0 0.8\\n\\n* AC and Transient Inputs (AC coupled)\\nVinp in_p 0 dc 0 ac 1 sin(0 0.01 1Meg)\\nVinn in_n 0 dc 0 ac -1 sin(0 -0.01 1Meg)\\nCin1 in_p N1 1u\\nCin2 in_n N3 1u\\n\\n* Differential Output VCVS for easy measurement\\nEdiff out_diff 0 out outx 1\\n\\n* DUT (with added typical values for R and C to enable simulation)\\nQ1 N20 Vbias N22 npn\\nQ2 Vcc N9 out npn\\nR6 N19 GND 1k\\nQ3 N9 N5 N16 npn\\nQ5 N12 N23 N19 npn\\nR2 N22 GND 1k\\nQ4 Vcc N18 N11 npn\\nQ6 Vcc N8 outx npn\\nQ7 outx N15 N0 npn\\nQ8 N2 N21 N13 npn\\nR3 Vcc N20 1k\\nR4 N14 GND 1k\\nR5 Vcc N9 1k\\nR10 N11 GND 1k\\nR7 N13 GND 1k\\nQ9 N16 N10 N14 npn\\nR9 N15 GND 1k\\nR8 N0 GND 1k\\nQ10 N8 N4 N16 npn\\nQ11 out N14 N15 npn\\nR1 N5 Vcc 10k\\nQ12 Vcc N1 N12 npn\\nR11 Vcc N8 1k\\nQ13 Vcc N3 N2 npn\\nR12 N3 N20 10k\\nC1 N1 N3 5p\\nR13 N4 Vcc 10k\\nR14 N1 N20 10k\\nC2 N3 N1 5p\\nC3 N2 N5 10p\\nC4 N1 GND 5p\\nC5 N3 GND 5p\\nC6 N4 N12 10p\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(Vcc) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 20 10k 100Meg\\nlet gain_db = vdb(out_diff)\\nmeas ac gain_100k find gain_db at=100k\\nmeas ac gain_1_92M find gain_db at=1.92Meg\\nmeas ac gain_10M find gain_db at=10Meg\\n\\n* Transient Analysis\\ntran 10n 5u\\nmeas tran vout_max max v(out_diff)\\nmeas tran vout_min min v(out_diff)\\nlet vout_pp = vout_max - vout_min\\nprint vout_pp\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "944670",
+  "_case": "944670_image_6"
+}

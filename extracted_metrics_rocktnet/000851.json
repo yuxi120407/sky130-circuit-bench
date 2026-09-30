@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Master-Slave D-Type Flip-Flop (Decision Circuit)",
+    "description": "A high-speed decision circuit core based on a Master-Slave D-Flip-Flop topology using Current Mode Logic (CML) or Emitter Coupled Logic (ECL). It retimes the input data stream using a clock signal, utilizing a DC reference voltage for single-ended to differential conversion.",
+    "node_mapping": {
+      "input": [
+        "DT",
+        "CC"
+      ],
+      "output": [
+        "QT",
+        "QC"
+      ],
+      "supply": [
+        "GND"
+      ],
+      "bias": [
+        "DC",
+        "VCS"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "High-Bit-Rate Low-Power Decision Circuit Using InP\u2013InGaAs HBT Technology",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit during operation.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.5 W",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming ~4 main current branches with 1k load resistors and VDD=1.8V, each branch draws ~1.8mA. Total current ~7.2mA. Power = 1.8V * 7.2mA = 13mW.",
+        "range": {
+          "min": "10m",
+          "typical": "15m",
+          "max": "25m",
+          "unit": "W"
+        },
+        "reasoning": "SKY130 CMOS operates at much lower currents and voltages than InP HBTs, resulting in significantly lower power consumption."
+      },
+      "importance": "essential"
+    },
+    "max_operating_frequency": {
+      "description": "Maximum data rate at which the decision circuit can operate error-free.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "90 Gb/s (90 GHz)",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "f_max ~ 1 / (5 * R_load * C_parasitic). With R=1k and C~50fF, tau=50ps. Max toggle rate ~ 5-10 GHz.",
+        "range": {
+          "min": "2G",
+          "typical": "5G",
+          "max": "10G",
+          "unit": "Hz"
+        },
+        "reasoning": "130nm CMOS is significantly slower than InP HBTs (fT=150GHz). The max data rate will scale down proportionally to the fT of the technology."
+      },
+      "importance": "essential"
+    },
+    "energy_per_operation": {
+      "description": "Energy consumed per bit processed (Power / Data Rate).",
+      "unit": "J",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "~5.5 pJ (derived from 0.5W / 90Gbps)",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "15mW / 5Gbps = 3 pJ/bit.",
+        "range": {
+          "min": "1p",
+          "typical": "3p",
+          "max": "5p",
+          "unit": "J"
+        },
+        "reasoning": "While SKY130 consumes less power, it also operates much slower, keeping the energy per bit in a similar order of magnitude (low picojoules)."
+      },
+      "importance": "recommended"
+    },
+    "propagation_delay": {
+      "description": "Time delay from the clock edge (CC) to the output transition (QT/QC).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported, but implied by 15% speed improvement.",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Delay is dominated by the RC time constant of the CML load. R=1k, C=50fF -> RC=50ps. Delay ~ 1-2 RC.",
+        "range": {
+          "min": "40p",
+          "typical": "80p",
+          "max": "150p",
+          "unit": "s"
+        },
+        "reasoning": "Standard CML delay in 130nm CMOS with 1k loads."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak voltage swing of the output signals.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported (typically 300-500mV for CML).",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail * R_load = 1.8mA * 1k = 1.8V (clamped by VDD). Actual swing will be limited by transistor saturation to ~0.6V - 1.0V.",
+        "range": {
+          "min": "0.4",
+          "typical": "0.8",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "CML logic relies on partial voltage swings to keep transistors out of deep saturation, maximizing speed."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, output voltage swing, and clock-to-Q propagation delay of the decision circuit. BJT models are mapped to SKY130 generic MOSFETs, and missing resistor values are populated with standard CML 1k/500 ohm values.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_swing",
+      "propagation_delay"
+    ],
+    "spice": "* High-Bit-Rate Low-Power Decision Circuit Testbench\n.param VDD=1.8\n.param VREF=0.9\n\n* SKY130 Models\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* BJT to MOSFET wrappers for SKY130 compatibility\n.subckt npn c b e\nXM1 c b e VEE sky130_fd_pr__nfet_01v8 w=5u l=0.15u\n.ends\n.subckt pnp c b e\nXM1 c b e GND sky130_fd_pr__pfet_01v8 w=10u l=0.15u\n.ends\n\n* Power Supplies (GND is VDD in this topology, VEE is VSS)\nV_GND GND 0 {VDD}\nV_VEE VEE 0 0\n\n* Biases (DC acts as the reference voltage for single-ended inputs)\nV_DC DC 0 {VREF}\nV_VCS VCS 0 {VREF}\n\n* Inputs (DT = Data, CC = Clock)\nV_DT DT 0 PULSE(0.6 1.2 0 20p 20p 480p 1n)\nV_CC CC 0 PULSE(0.6 1.2 0 20p 20p 230p 500p)\n\n* DUT (Original Netlist with Resistor Values Appended)\nR1 N2 GND 1k\nR2 N2 N4 1k\nQ1 GND N1 QT npn\nR3 N8 N15 1k\nR4 N3 N13 1k\nR5 N0 N1 1k\nR6 QT QC 10k\nR7 VEE N17 1k\nR8 N13 N2 1k\nR9 N6 VEE 1k\nR10 GND N15 1k\nR11 QC QT 10k\nR12 N0 N15 1k\nR13 VEE N5 500\nQ2 N2 N17 N21 npn\nQ3 GND N3 N17 npn\nQ4 N8 N17 N20 npn\nQ5 N1 N6 N20 npn\nQ6 N13 N6 N21 npn\nQ7 GND N8 QC npn\nQ8 N10 N5 N11 npn\nR14 N11 VEE 500\nQ9 N3 DC N22 npn\nQ10 N15 QT N23 npn\nQ11 N9 VCS N5 npn\nQ12 N4 DT N22 npn\nQ13 N22 DC N9 npn\nQ14 N6 CC N9 npn\nQ15 N0 QC N23 npn\nQ16 N6 N4 GND pnp\nQ17 N10 CC N6 pnp\nQ18 N10 CC QC pnp\n\n* Control Block\n.control\n  * DC Operating Point for Power\n  op\n  let power = -i(V_GND) * 1.8\n  print power\n\n  * Transient Analysis for Delay and Swing\n  tran 10p 5n\n  \n  meas tran v_max_qt max v(QT)\n  meas tran v_min_qt min v(QT)\n  let v_swing = v_max_qt - v_min_qt\n  print v_swing\n\n  * Clock to Q Delay (measured from Clock crossing VREF to Output crossing VREF)\n  meas tran t_delay trig v(CC) val=0.9 rise=2 targ v(QT) val=0.9 rise=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Master-Slave D-Type Flip-Flop (Decision Circuit)\",\n    \"description\": \"A high-speed decision circuit core based on a Master-Slave D-Flip-Flop topology using Current Mode Logic (CML) or Emitter Coupled Logic (ECL). It retimes the input data stream using a clock signal, utilizing a DC reference voltage for single-ended to differential conversion.\",\n    \"node_mapping\": {\n      \"input\": [\"DT\", \"CC\"],\n      \"output\": [\"QT\", \"QC\"],\n      \"supply\": [\"GND\"],\n      \"bias\": [\"DC\", \"VCS\"],\n      \"ground\": [\"VEE\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"High-Bit-Rate Low-Power Decision Circuit Using InP\u2013InGaAs HBT Technology\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit during operation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.5 W\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming ~4 main current branches with 1k load resistors and VDD=1.8V, each branch draws ~1.8mA. Total current ~7.2mA. Power = 1.8V * 7.2mA = 13mW.\",\n        \"range\": { \"min\": \"10m\", \"typical\": \"15m\", \"max\": \"25m\", \"unit\": \"W\" },\n        \"reasoning\": \"SKY130 CMOS operates at much lower currents and voltages than InP HBTs, resulting in significantly lower power consumption.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"max_operating_frequency\": {\n      \"description\": \"Maximum data rate at which the decision circuit can operate error-free.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"90 Gb/s (90 GHz)\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_max ~ 1 / (5 * R_load * C_parasitic). With R=1k and C~50fF, tau=50ps. Max toggle rate ~ 5-10 GHz.\",\n        \"range\": { \"min\": \"2G\", \"typical\": \"5G\", \"max\": \"10G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"130nm CMOS is significantly slower than InP HBTs (fT=150GHz). The max data rate will scale down proportionally to the fT of the technology.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"energy_per_operation\": {\n      \"description\": \"Energy consumed per bit processed (Power / Data Rate).\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"~5.5 pJ (derived from 0.5W / 90Gbps)\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"15mW / 5Gbps = 3 pJ/bit.\",\n        \"range\": { \"min\": \"1p\", \"typical\": \"3p\", \"max\": \"5p\", \"unit\": \"J\" },\n        \"reasoning\": \"While SKY130 consumes less power, it also operates much slower, keeping the energy per bit in a similar order of magnitude (low picojoules).\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Time delay from the clock edge (CC) to the output transition (QT/QC).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported, but implied by 15% speed improvement.\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is dominated by the RC time constant of the CML load. R=1k, C=50fF -> RC=50ps. Delay ~ 1-2 RC.\",\n        \"range\": { \"min\": \"40p\", \"typical\": \"80p\", \"max\": \"150p\", \"unit\": \"s\" },\n        \"reasoning\": \"Standard CML delay in 130nm CMOS with 1k loads.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the output signals.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported (typically 300-500mV for CML).\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail * R_load = 1.8mA * 1k = 1.8V (clamped by VDD). Actual swing will be limited by transistor saturation to ~0.6V - 1.0V.\",\n        \"range\": { \"min\": \"0.4\", \"typical\": \"0.8\", \"max\": \"1.2\", \"unit\": \"V\" },\n        \"reasoning\": \"CML logic relies on partial voltage swings to keep transistors out of deep saturation, maximizing speed.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, output voltage swing, and clock-to-Q propagation delay of the decision circuit. BJT models are mapped to SKY130 generic MOSFETs, and missing resistor values are populated with standard CML 1k/500 ohm values.\",\n    \"analyses\": [\"OP\", \"Tran\"],\n    \"metrics_measured\": [\"power_consumption\", \"voltage_swing\", \"propagation_delay\"],\n    \"spice\": \"* High-Bit-Rate Low-Power Decision Circuit Testbench\\n.param VDD=1.8\\n.param VREF=0.9\\n\\n* SKY130 Models\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* BJT to MOSFET wrappers for SKY130 compatibility\\n.subckt npn c b e\\nXM1 c b e VEE sky130_fd_pr__nfet_01v8 w=5u l=0.15u\\n.ends\\n.subckt pnp c b e\\nXM1 c b e GND sky130_fd_pr__pfet_01v8 w=10u l=0.15u\\n.ends\\n\\n* Power Supplies (GND is VDD in this topology, VEE is VSS)\\nV_GND GND 0 {VDD}\\nV_VEE VEE 0 0\\n\\n* Biases (DC acts as the reference voltage for single-ended inputs)\\nV_DC DC 0 {VREF}\\nV_VCS VCS 0 {VREF}\\n\\n* Inputs (DT = Data, CC = Clock)\\nV_DT DT 0 PULSE(0.6 1.2 0 20p 20p 480p 1n)\\nV_CC CC 0 PULSE(0.6 1.2 0 20p 20p 230p 500p)\\n\\n* DUT (Original Netlist with Resistor Values Appended)\\nR1 N2 GND 1k\\nR2 N2 N4 1k\\nQ1 GND N1 QT npn\\nR3 N8 N15 1k\\nR4 N3 N13 1k\\nR5 N0 N1 1k\\nR6 QT QC 10k\\nR7 VEE N17 1k\\nR8 N13 N2 1k\\nR9 N6 VEE 1k\\nR10 GND N15 1k\\nR11 QC QT 10k\\nR12 N0 N15 1k\\nR13 VEE N5 500\\nQ2 N2 N17 N21 npn\\nQ3 GND N3 N17 npn\\nQ4 N8 N17 N20 npn\\nQ5 N1 N6 N20 npn\\nQ6 N13 N6 N21 npn\\nQ7 GND N8 QC npn\\nQ8 N10 N5 N11 npn\\nR14 N11 VEE 500\\nQ9 N3 DC N22 npn\\nQ10 N15 QT N23 npn\\nQ11 N9 VCS N5 npn\\nQ12 N4 DT N22 npn\\nQ13 N22 DC N9 npn\\nQ14 N6 CC N9 npn\\nQ15 N0 QC N23 npn\\nQ16 N6 N4 GND pnp\\nQ17 N10 CC N6 pnp\\nQ18 N10 CC QC pnp\\n\\n* Control Block\\n.control\\n  * DC Operating Point for Power\\n  op\\n  let power = -i(V_GND) * 1.8\\n  print power\\n\\n  * Transient Analysis for Delay and Swing\\n  tran 10p 5n\\n  \\n  meas tran v_max_qt max v(QT)\\n  meas tran v_min_qt min v(QT)\\n  let v_swing = v_max_qt - v_min_qt\\n  print v_swing\\n\\n  * Clock to Q Delay (measured from Clock crossing VREF to Output crossing VREF)\\n  meas tran t_delay trig v(CC) val=0.9 rise=2 targ v(QT) val=0.9 rise=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1459004",
+  "_case": "1459004_image_1"
+}

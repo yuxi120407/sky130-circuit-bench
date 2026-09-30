@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "3-Stage Differential Amplifier / Limiting Amplifier",
+    "description": "A cascade of three NMOS differential pairs with tail current sources. It likely serves as an input pre-amplifier or limiting amplifier for a 10-Gb/s receiver, amplifying small differential signals to logic levels.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "OC-192 Transmitter and Receiver in Standard 0.18-m CMOS",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Differential_Gain": {
+      "description": "Low-frequency differential voltage gain of the 3-stage amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/Vov. With VBIAS=0.54V, Vth=0.42V, Vov=0.12V. Id_tail = 0.5 * 270u * 10 * 0.12^2 = 19.4uA. Id_branch = 9.7uA. gm = 2*9.7u/0.12 = 161uS. Assuming 20kOhm load resistors added for functionality, gain per stage = gm*R = 3.22 V/V. Total gain = 3.22^3 = 33.4 V/V = 30.5 dB.",
+        "range": {
+          "min": 20,
+          "typical": 30,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Gain depends heavily on the load resistors which are not present in the netlist and must be added. 20kOhm provides a reasonable gain for testing."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth_3dB": {
+      "description": "3-dB bandwidth of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 Gb/s data rate implies ~7 GHz bandwidth",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * R_load * C_parasitic). With R_load = 20kOhm and C_parasitic ~ 10fF, BW = 1 / (2 * pi * 20k * 10fF) = 795 MHz.",
+        "range": {
+          "min": 500000000.0,
+          "typical": 800000000.0,
+          "max": 2000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The calculated bandwidth is lower than the 10 Gb/s requirement because of the low bias current (0.54V) and large assumed load resistors (20k). In the actual design, smaller loads and higher currents would be used."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumption of the amplifier stages.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1.32 W (entire transceiver)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "3 stages * Id_tail * VDD = 3 * 19.4uA * 1.8V = 105 uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.000105,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Based on the provided VBIAS of 0.54V. The actual circuit likely uses a higher bias voltage to achieve the 10 Gb/s bandwidth, which would increase power."
+      },
+      "importance": "essential"
+    },
+    "Output_Swing": {
+      "description": "Peak-to-peak single-ended output voltage swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Max swing is limited by tail current steering through the load resistor. V_swing = Id_tail * R_load = 19.4uA * 20kOhm = 0.388 V.",
+        "range": {
+          "min": 0.2,
+          "typical": 0.388,
+          "max": 0.6,
+          "unit": "V"
+        },
+        "reasoning": "Assuming full current steering in the final stage due to the high gain of the preceding stages acting as a limiting amplifier."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the 3-stage differential amplifier. Adds 20kOhm load resistors to VDD to complete the circuit. Measures DC power, AC differential gain, 3-dB bandwidth, and transient output swing.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "Differential_Gain",
+      "Bandwidth_3dB",
+      "Output_Swing"
+    ],
+    "spice": "* Testbench for 3-stage differential amplifier\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\nXM1 N8 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N12 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N1 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 INP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUTP N4 N12 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 OUTN N0 N12 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N4 N10 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N10 INN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\n* Load resistors (added to complete the circuit)\nR1 VDD N1 20k\nR2 VDD N10 20k\nR3 VDD N0 20k\nR4 VDD N4 20k\nR5 VDD OUTP 20k\nR6 VDD OUTN 20k\n\nVVDD VDD 0 1.8\nVVBIAS VBIAS 0 0.54\nVINP INP 0 DC 0.9 AC 0.5 SIN(0.9 0.05 100MEG 0 0)\nVINN INN 0 DC 0.9 AC -0.5 SIN(0.9 -0.05 100MEG 0 0)\n\n.control\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  ac dec 20 1MEG 100G\n  let vdiff = v(OUTP) - v(OUTN)\n  let gain_mag = mag(vdiff)\n  let gain_db = 20 * log10(gain_mag)\n  \n  meas ac dc_gain find gain_db at=1MEG\n  let gain_3db = dc_gain - 3\n  meas ac bw_3db when gain_db=gain_3db fall=1\n\n  tran 0.1n 50n\n  meas tran vout_p_max max v(OUTP) from=20n to=50n\n  meas tran vout_p_min min v(OUTP) from=20n to=50n\n  let vout_p_swing = vout_p_max - vout_p_min\n  print vout_p_swing\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"3-Stage Differential Amplifier / Limiting Amplifier\",\n    \"description\": \"A cascade of three NMOS differential pairs with tail current sources. It likely serves as an input pre-amplifier or limiting amplifier for a 10-Gb/s receiver, amplifying small differential signals to logic levels.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"OC-192 Transmitter and Receiver in Standard 0.18-m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Differential_Gain\": {\n      \"description\": \"Low-frequency differential voltage gain of the 3-stage amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/Vov. With VBIAS=0.54V, Vth=0.42V, Vov=0.12V. Id_tail = 0.5 * 270u * 10 * 0.12^2 = 19.4uA. Id_branch = 9.7uA. gm = 2*9.7u/0.12 = 161uS. Assuming 20kOhm load resistors added for functionality, gain per stage = gm*R = 3.22 V/V. Total gain = 3.22^3 = 33.4 V/V = 30.5 dB.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 30,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain depends heavily on the load resistors which are not present in the netlist and must be added. 20kOhm provides a reasonable gain for testing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth_3dB\": {\n      \"description\": \"3-dB bandwidth of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 Gb/s data rate implies ~7 GHz bandwidth\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * R_load * C_parasitic). With R_load = 20kOhm and C_parasitic ~ 10fF, BW = 1 / (2 * pi * 20k * 10fF) = 795 MHz.\",\n        \"range\": {\n          \"min\": 500000000.0,\n          \"typical\": 800000000.0,\n          \"max\": 2000000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The calculated bandwidth is lower than the 10 Gb/s requirement because of the low bias current (0.54V) and large assumed load resistors (20k). In the actual design, smaller loads and higher currents would be used.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier stages.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1.32 W (entire transceiver)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"3 stages * Id_tail * VDD = 3 * 19.4uA * 1.8V = 105 uW.\",\n        \"range\": {\n          \"min\": 0.00005,\n          \"typical\": 0.000105,\n          \"max\": 0.0005,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the provided VBIAS of 0.54V. The actual circuit likely uses a higher bias voltage to achieve the 10 Gb/s bandwidth, which would increase power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_Swing\": {\n      \"description\": \"Peak-to-peak single-ended output voltage swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Max swing is limited by tail current steering through the load resistor. V_swing = Id_tail * R_load = 19.4uA * 20kOhm = 0.388 V.\",\n        \"range\": {\n          \"min\": 0.2,\n          \"typical\": 0.388,\n          \"max\": 0.6,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Assuming full current steering in the final stage due to the high gain of the preceding stages acting as a limiting amplifier.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the 3-stage differential amplifier. Adds 20kOhm load resistors to VDD to complete the circuit. Measures DC power, AC differential gain, 3-dB bandwidth, and transient output swing.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"Differential_Gain\",\n      \"Bandwidth_3dB\",\n      \"Output_Swing\"\n    ],\n    \"spice\": \"* Testbench for 3-stage differential amplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\nXM1 N8 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N12 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N1 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 INP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUTP N4 N12 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 OUTN N0 N12 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N4 N10 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N10 INN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\n* Load resistors (added to complete the circuit)\\nR1 VDD N1 20k\\nR2 VDD N10 20k\\nR3 VDD N0 20k\\nR4 VDD N4 20k\\nR5 VDD OUTP 20k\\nR6 VDD OUTN 20k\\n\\nVVDD VDD 0 1.8\\nVVBIAS VBIAS 0 0.54\\nVINP INP 0 DC 0.9 AC 0.5 SIN(0.9 0.05 100MEG 0 0)\\nVINN INN 0 DC 0.9 AC -0.5 SIN(0.9 -0.05 100MEG 0 0)\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  ac dec 20 1MEG 100G\\n  let vdiff = v(OUTP) - v(OUTN)\\n  let gain_mag = mag(vdiff)\\n  let gain_db = 20 * log10(gain_mag)\\n  \\n  meas ac dc_gain find gain_db at=1MEG\\n  let gain_3db = dc_gain - 3\\n  meas ac bw_3db when gain_db=gain_3db fall=1\\n\\n  tran 0.1n 50n\\n  meas tran vout_p_max max v(OUTP) from=20n to=50n\\n  meas tran vout_p_min min v(OUTP) from=20n to=50n\\n  let vout_p_swing = vout_p_max - vout_p_min\\n  print vout_p_swing\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1088106",
+  "_case": "1088106_image_10"
+}

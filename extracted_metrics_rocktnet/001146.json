@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Logic gate fragment (NOR-type pull-down with body-biased PMOS)",
+    "description": "A fragment of a logic gate, likely from a dynamic ALU or complex static gate, featuring parallel NMOS pull-downs and a PMOS pull-up with an explicit body bias connection to study reverse body bias effects in SOI.",
+    "node_mapping": {
+      "input": [
+        "A",
+        "B"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "STACK_NODE"
+      ],
+      "bias": [
+        "BODY_B"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Sub-500-ps 64-b ALUs in 0.18-m SOI/Bulk CMOS: Design and Scaling Trends",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "t_pLH": {
+      "description": "Low-to-high propagation delay (B falling, OUT rising)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "482 ps (for full 64-b ALU)",
+        "technology": "0.18um SOI/Bulk"
+      },
+      "sky130_expected": {
+        "calculation": "I_dp = 0.5 * 50u * 10 * (1.8-0.42)^2 = 475uA. dt = C*dV/I = 10fF * 0.9V / 475uA = 19ps",
+        "range": {
+          "min": "10p",
+          "typical": "20p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "Calculated using SKY130 PMOS parameters with a 10fF load."
+      },
+      "importance": "essential"
+    },
+    "t_pHL": {
+      "description": "High-to-low propagation delay (B rising, OUT falling)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "I_dn = 0.5 * 270u * 10 * (1.8-0.42)^2 = 2.5mA. dt = C*dV/I = 10fF * 0.9V / 2.5mA = 3.6ps",
+        "range": {
+          "min": "2p",
+          "typical": "5p",
+          "max": "15p",
+          "unit": "s"
+        },
+        "reasoning": "Calculated using SKY130 NMOS parameters with a 10fF load. NMOS is very strong."
+      },
+      "importance": "essential"
+    },
+    "V_th_switch": {
+      "description": "Gate switching threshold voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "NMOS is ~5x stronger than PMOS for equal W/L. V_th will be skewed towards GND.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.75",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "Due to mobility differences and equal sizing, the trip point is below VDD/2 (0.9V)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure propagation delay and switching threshold of the gate fragment, with A=0 to avoid contention and B toggling.",
+    "analyses": [
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "t_pLH",
+      "t_pHL",
+      "V_th_switch"
+    ],
+    "spice": "* Testbench for ALU gate fragment\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 OUT B STACK_NODE BODY_B sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM3 OUT A GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUT B GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Voltage sources\nVdd STACK_NODE 0 DC 1.8\nVbody BODY_B 0 DC 1.8\nVa A 0 DC 0\nVb B 0 PULSE(1.8 0 100p 20p 20p 400p 1n)\nCload OUT 0 10f\n\n.control\n  * Transient analysis for delay\n  tran 1p 2n\n  meas tran t_pLH trig v(B) val=0.9 fall=1 targ v(OUT) val=0.9 rise=1\n  meas tran t_pHL trig v(B) val=0.9 rise=1 targ v(OUT) val=0.9 fall=1\n\n  * DC analysis for switching threshold\n  dc Vb 0 1.8 0.01\n  meas dc V_th_switch when v(OUT)=0.9 fall=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Logic gate fragment (NOR-type pull-down with body-biased PMOS)\",\n    \"description\": \"A fragment of a logic gate, likely from a dynamic ALU or complex static gate, featuring parallel NMOS pull-downs and a PMOS pull-up with an explicit body bias connection to study reverse body bias effects in SOI.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"A\",\n        \"B\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"STACK_NODE\"\n      ],\n      \"bias\": [\n        \"BODY_B\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Sub-500-ps 64-b ALUs in 0.18-m SOI/Bulk CMOS: Design and Scaling Trends\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"t_pLH\": {\n      \"description\": \"Low-to-high propagation delay (B falling, OUT rising)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"482 ps (for full 64-b ALU)\",\n        \"technology\": \"0.18um SOI/Bulk\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_dp = 0.5 * 50u * 10 * (1.8-0.42)^2 = 475uA. dt = C*dV/I = 10fF * 0.9V / 475uA = 19ps\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"20p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated using SKY130 PMOS parameters with a 10fF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_pHL\": {\n      \"description\": \"High-to-low propagation delay (B rising, OUT falling)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_dn = 0.5 * 270u * 10 * (1.8-0.42)^2 = 2.5mA. dt = C*dV/I = 10fF * 0.9V / 2.5mA = 3.6ps\",\n        \"range\": {\n          \"min\": \"2p\",\n          \"typical\": \"5p\",\n          \"max\": \"15p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS parameters with a 10fF load. NMOS is very strong.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_th_switch\": {\n      \"description\": \"Gate switching threshold voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NMOS is ~5x stronger than PMOS for equal W/L. V_th will be skewed towards GND.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.75\",\n          \"max\": \"0.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Due to mobility differences and equal sizing, the trip point is below VDD/2 (0.9V).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure propagation delay and switching threshold of the gate fragment, with A=0 to avoid contention and B toggling.\",\n    \"analyses\": [\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"t_pLH\",\n      \"t_pHL\",\n      \"V_th_switch\"\n    ],\n    \"spice\": \"* Testbench for ALU gate fragment\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 OUT B STACK_NODE BODY_B sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM3 OUT A GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUT B GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Voltage sources\\nVdd STACK_NODE 0 DC 1.8\\nVbody BODY_B 0 DC 1.8\\nVa A 0 DC 0\\nVb B 0 PULSE(1.8 0 100p 20p 20p 400p 1n)\\nCload OUT 0 10f\\n\\n.control\\n  * Transient analysis for delay\\n  tran 1p 2n\\n  meas tran t_pLH trig v(B) val=0.9 fall=1 targ v(OUT) val=0.9 rise=1\\n  meas tran t_pHL trig v(B) val=0.9 rise=1 targ v(OUT) val=0.9 fall=1\\n\\n  * DC analysis for switching threshold\\n  dc Vb 0 1.8 0.01\\n  meas dc V_th_switch when v(OUT)=0.9 fall=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "962283",
+  "_case": "962283_image_17"
+}

@@ -1,0 +1,147 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Low-power Inverter / Delay Cell",
+    "description": "A modified CMOS inverter with an internal transmission gate (XM3, XM4) inserted between the PMOS pull-up and NMOS pull-down networks. This topology limits short-circuit current and provides asymmetric drive strengths at nodes N1 and N2, making it useful for low-power delay cells or slew-rate control in mixed-signal circuits like quantizers.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.5V <4\u03bcW CMOS Photoplethysmographic Heart-Rate Sensor IC Based on a Non-Uniform Quantizer",
+      "figure": "unknown",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "switching_threshold": {
+      "description": "Input voltage at which the output N1 crosses VDD/2.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "180nm"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD=1.8V, the pull-up for N1 is a single PMOS (W/L=10), while the pull-down is two series NMOS (effective W/L=5). Since NMOS mobility (270uA/V^2) is much higher than PMOS (50uA/V^2), the pull-down network is stronger, shifting the threshold slightly below VDD/2.",
+        "range": {
+          "min": 0.7,
+          "typical": 0.8,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "Calculated based on the mobility ratio and the series NMOS vs single PMOS pull-up for node N1."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumption of the cell at the reported 32kHz operating frequency.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "<4\u03bcW (for entire IC)",
+        "technology": "180nm"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power P = C*V^2*f. Assuming C_load = 20fF (N1+N2), V=1.8V, f=32kHz. P_dyn = 20e-15 * 3.24 * 32e3 \u2248 2nW. Short-circuit power adds ~1nW.",
+        "range": {
+          "min": 1e-09,
+          "typical": 3e-09,
+          "max": 1e-08,
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for 1.8V supply on SKY130. The paper's 4\u03bcW metric is for the entire sensor IC; a single delay cell consumes orders of magnitude less."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Average time delay between input N0 and output N1 crossing VDD/2.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "180nm"
+      },
+      "sky130_expected": {
+        "calculation": "t_pd \u2248 C * VDD / (2 * I_avg). With I_avg \u2248 400\u03bcA and C=10fF, t_pd is in the tens of picoseconds.",
+        "range": {
+          "min": 1e-11,
+          "typical": 5e-11,
+          "max": 1e-10,
+          "unit": "s"
+        },
+        "reasoning": "Based on standard CMOS delay equations for SKY130 1.8V devices with 10fF load."
+      },
+      "importance": "recommended"
+    },
+    "rise_time": {
+      "description": "Time for output N1 to transition from 10% to 90% of VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "180nm"
+      },
+      "sky130_expected": {
+        "calculation": "t_rise \u2248 C * 0.8 * VDD / I_p. I_p \u2248 200\u03bcA, C=10fF -> t_rise \u2248 72ps.",
+        "range": {
+          "min": 3e-11,
+          "typical": 7e-11,
+          "max": 1.5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Determined by the single PMOS pull-up strength and load capacitance."
+      },
+      "importance": "optional"
+    },
+    "fall_time": {
+      "description": "Time for output N1 to transition from 90% to 10% of VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "180nm"
+      },
+      "sky130_expected": {
+        "calculation": "t_fall \u2248 C * 0.8 * VDD / I_n. I_n \u2248 600\u03bcA, C=10fF -> t_fall \u2248 24ps.",
+        "range": {
+          "min": 1e-11,
+          "typical": 2.5e-11,
+          "max": 6e-11,
+          "unit": "s"
+        },
+        "reasoning": "Determined by the series NMOS pull-down strength and load capacitance. Faster than rise time due to higher electron mobility."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure switching threshold, propagation delay, rise/fall times, and power consumption of the low-power inverter cell at 32kHz.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "switching_threshold",
+      "power_consumption",
+      "propagation_delay",
+      "rise_time",
+      "fall_time"
+    ],
+    "spice": "* Low-power Inverter / Delay Cell Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\n.lib \"${SKY130_PDK}\" tt\n\nVVDD VDD 0 1.8\nVIN N0 0 PULSE(0 1.8 1u 100p 100p 15u 31.25u)\n\nXM1 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\n* Load capacitance for realistic measurements\nCL1 N1 0 10f\nCL2 N2 0 10f\n\n.control\n  * DC Analysis for Switching Threshold\n  dc VIN 0 1.8 0.01\n  meas dc vth_switch find v(N0) when v(N1)=0.9\n  print vth_switch\n  \n  * Transient Analysis for Delay and Power\n  tran 10p 35u\n  \n  * Rise and Fall Times\n  meas tran t_rise trig v(N1) val=0.18 rise=1 targ v(N1) val=1.62 rise=1\n  meas tran t_fall trig v(N1) val=1.62 fall=1 targ v(N1) val=0.18 fall=1\n  \n  * Propagation Delays\n  meas tran t_pd_hl trig v(N0) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\n  meas tran t_pd_lh trig v(N0) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\n  let t_pd = (t_pd_hl + t_pd_lh) / 2\n  print t_rise t_fall t_pd\n  \n  * Average Power Consumption\n  let inst_power = -i(VVDD) * 1.8\n  meas tran avg_power avg inst_power from=0 to=35u\n  print avg_power\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Low-power Inverter / Delay Cell\",\n    \"description\": \"A modified CMOS inverter with an internal transmission gate (XM3, XM4) inserted between the PMOS pull-up and NMOS pull-down networks. This topology limits short-circuit current and provides asymmetric drive strengths at nodes N1 and N2, making it useful for low-power delay cells or slew-rate control in mixed-signal circuits like quantizers.\",\n    \"node_mapping\": {\n      \"input\": [\"N0\"],\n      \"output\": [\"N1\", \"N2\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.5V <4\u03bcW CMOS Photoplethysmographic Heart-Rate Sensor IC Based on a Non-Uniform Quantizer\",\n      \"figure\": \"unknown\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"switching_threshold\": {\n      \"description\": \"Input voltage at which the output N1 crosses VDD/2.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"180nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD=1.8V, the pull-up for N1 is a single PMOS (W/L=10), while the pull-down is two series NMOS (effective W/L=5). Since NMOS mobility (270uA/V^2) is much higher than PMOS (50uA/V^2), the pull-down network is stronger, shifting the threshold slightly below VDD/2.\",\n        \"range\": {\n          \"min\": 0.7,\n          \"typical\": 0.8,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Calculated based on the mobility ratio and the series NMOS vs single PMOS pull-up for node N1.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the cell at the reported 32kHz operating frequency.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"<4\u03bcW (for entire IC)\",\n        \"technology\": \"180nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power P = C*V^2*f. Assuming C_load = 20fF (N1+N2), V=1.8V, f=32kHz. P_dyn = 20e-15 * 3.24 * 32e3 \u2248 2nW. Short-circuit power adds ~1nW.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 3e-9,\n          \"max\": 10e-9,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for 1.8V supply on SKY130. The paper's 4\u03bcW metric is for the entire sensor IC; a single delay cell consumes orders of magnitude less.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Average time delay between input N0 and output N1 crossing VDD/2.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"180nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_pd \u2248 C * VDD / (2 * I_avg). With I_avg \u2248 400\u03bcA and C=10fF, t_pd is in the tens of picoseconds.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 50e-12,\n          \"max\": 100e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on standard CMOS delay equations for SKY130 1.8V devices with 10fF load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"rise_time\": {\n      \"description\": \"Time for output N1 to transition from 10% to 90% of VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"180nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise \u2248 C * 0.8 * VDD / I_p. I_p \u2248 200\u03bcA, C=10fF -> t_rise \u2248 72ps.\",\n        \"range\": {\n          \"min\": 30e-12,\n          \"typical\": 70e-12,\n          \"max\": 150e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Determined by the single PMOS pull-up strength and load capacitance.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"fall_time\": {\n      \"description\": \"Time for output N1 to transition from 90% to 10% of VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"180nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_fall \u2248 C * 0.8 * VDD / I_n. I_n \u2248 600\u03bcA, C=10fF -> t_fall \u2248 24ps.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 25e-12,\n          \"max\": 60e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Determined by the series NMOS pull-down strength and load capacitance. Faster than rise time due to higher electron mobility.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure switching threshold, propagation delay, rise/fall times, and power consumption of the low-power inverter cell at 32kHz.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"switching_threshold\",\n      \"power_consumption\",\n      \"propagation_delay\",\n      \"rise_time\",\n      \"fall_time\"\n    ],\n    \"spice\": \"* Low-power Inverter / Delay Cell Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\nVVDD VDD 0 1.8\\nVIN N0 0 PULSE(0 1.8 1u 100p 100p 15u 31.25u)\\n\\nXM1 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Load capacitance for realistic measurements\\nCL1 N1 0 10f\\nCL2 N2 0 10f\\n\\n.control\\n  * DC Analysis for Switching Threshold\\n  dc VIN 0 1.8 0.01\\n  meas dc vth_switch find v(N0) when v(N1)=0.9\\n  print vth_switch\\n  \\n  * Transient Analysis for Delay and Power\\n  tran 10p 35u\\n  \\n  * Rise and Fall Times\\n  meas tran t_rise trig v(N1) val=0.18 rise=1 targ v(N1) val=1.62 rise=1\\n  meas tran t_fall trig v(N1) val=1.62 fall=1 targ v(N1) val=0.18 fall=1\\n  \\n  * Propagation Delays\\n  meas tran t_pd_hl trig v(N0) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\\n  meas tran t_pd_lh trig v(N0) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\\n  let t_pd = (t_pd_hl + t_pd_lh) / 2\\n  print t_rise t_fall t_pd\\n  \\n  * Average Power Consumption\\n  let inst_power = -i(VVDD) * 1.8\\n  meas tran avg_power avg inst_power from=0 to=35u\\n  print avg_power\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6487780",
+  "_case": "6487780_image_3_a"
+}

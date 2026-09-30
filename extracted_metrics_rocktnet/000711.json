@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Peak Detector / AGC Control Circuit",
+    "description": "A CMOS peak detector used for Automatic Gain Control (AGC) in a burst-mode receiver. It uses a differential amplifier and a source follower in a feedback loop to track and hold the maximum input voltage, with a PMOS switch to reset the hold node high.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT",
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "RESET_BAR"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Burst-Mode Receiver for 1.25-Gb/s Ethernet PON With AGC and Internally Created Reset Signal",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency tracking gain of the closed-loop buffer",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "21 dB (for full receiver)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Loop gain T = gm1 * (ro2 || ro4) ~= 36. Closed loop gain = T/(1+T) ~= 0.97 -> -0.26 dB.",
+        "range": {
+          "min": -1.0,
+          "typical": -0.3,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Finite output resistance of the differential pair limits the open-loop gain, resulting in a closed-loop gain slightly less than 1 (0 dB)."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "Tracking bandwidth of the peak detector",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole at N3 is ~150 MHz. With loop gain of 36, closed-loop bandwidth extends to ~1 GHz.",
+        "range": {
+          "min": "500M",
+          "typical": "1G",
+          "max": "2G",
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the paper's reported operating frequency for the 1.25 Gb/s EPON standard."
+      },
+      "importance": "essential"
+    },
+    "track_error": {
+      "description": "Voltage difference between the input peak and the held output peak",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Input peak = 1.1V. Output peak = 1.1V * 0.97 = 1.067V. Error = 1.1 - 1.067 = 33mV.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.03,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "The finite loop gain causes a small steady-state error during tracking."
+      },
+      "importance": "essential"
+    },
+    "v_reset": {
+      "description": "Output voltage when the reset signal is asserted (active low)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "When RESET_BAR=0, N1=1.8V. OUT = 1.8V - Vgs5. Vgs5 at 14uA is ~0.52V. OUT = 1.28V.",
+        "range": {
+          "min": 1.1,
+          "typical": 1.28,
+          "max": 1.4,
+          "unit": "V"
+        },
+        "reasoning": "The PMOS switch pulls the gate of the source follower to VDD, forcing the output to VDD - Vth."
+      },
+      "importance": "recommended"
+    },
+    "power": {
+      "description": "DC power consumption of the sub-circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 200uA. I_SF = 2 * 10uA = 20uA. Total current = 220uA. Power = 1.8V * 220uA = 396uW.",
+        "range": {
+          "min": "300u",
+          "typical": "400u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Dominated by the tail current source added to bias the differential pair."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure tracking bandwidth, peak detection accuracy, and reset behavior.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "bw_3db",
+      "track_error",
+      "v_hold",
+      "v_reset",
+      "t_reset"
+    ],
+    "spice": "* Peak Detector Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm5_prime=5u L_xm5_prime=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 N0 IN N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N3 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM5 VDD N1 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM5_PRIME VDD N1 OUT GND sky130_fd_pr__nfet_01v8 l={L_xm5_prime} w={W_xm5_prime}\nXM3 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM6 N1 RESET_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\n* Missing connections and biasing\nVshort N1 N2 DC 0\nI_tail N5 GND 200u\nC_hold N3 GND 250f\nC_out OUT GND 250f\nR_discharge N3 GND 100k\nR_discharge_out OUT GND 100k\n\nVVDD VDD GND 1.8\nVRESET RESET_BAR GND PWL(0 1.8 10n 1.8 10.1n 0 15n 0)\n\n* Input source: DC + AC + Transient Pulse\nVIN IN GND DC 1.0 AC 1 PWL(0 1.0 1n 1.0 1.1n 1.1 1.5n 1.1 1.6n 1.0 3n 1.0 3.1n 1.1 3.5n 1.1 3.6n 1.0)\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis for tracking bandwidth\n  ac dec 20 1Meg 10Gig\n  let gain_db = vdb(out)\n  meas ac dc_gain find gain_db at=1Meg\n  let gain_3db = dc_gain - 3\n  meas ac bw_3db when gain_db=gain_3db fall=1\n\n  * Transient Analysis for peak detection and reset\n  tran 10p 15n\n  meas tran v_peak_in max v(in) from=0 to=5n\n  meas tran v_peak_out max v(out) from=0 to=5n\n  let track_error = v_peak_in - v_peak_out\n  print track_error\n  \n  meas tran v_hold find v(out) at=9n\n  meas tran v_reset find v(out) at=14n\n  meas tran t_reset trig v(reset_bar) val=0.9 fall=1 targ v(out) val=1.2 rise=1\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Peak Detector / AGC Control Circuit\",\n    \"description\": \"A CMOS peak detector used for Automatic Gain Control (AGC) in a burst-mode receiver. It uses a differential amplifier and a source follower in a feedback loop to track and hold the maximum input voltage, with a PMOS switch to reset the hold node high.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"OUT\",\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"RESET_BAR\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Burst-Mode Receiver for 1.25-Gb/s Ethernet PON With AGC and Internally Created Reset Signal\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency tracking gain of the closed-loop buffer\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"21 dB (for full receiver)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Loop gain T = gm1 * (ro2 || ro4) ~= 36. Closed loop gain = T/(1+T) ~= 0.97 -> -0.26 dB.\",\n        \"range\": {\n          \"min\": -1.0,\n          \"typical\": -0.3,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Finite output resistance of the differential pair limits the open-loop gain, resulting in a closed-loop gain slightly less than 1 (0 dB).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"Tracking bandwidth of the peak detector\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole at N3 is ~150 MHz. With loop gain of 36, closed-loop bandwidth extends to ~1 GHz.\",\n        \"range\": {\n          \"min\": \"500M\",\n          \"typical\": \"1G\",\n          \"max\": \"2G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the paper's reported operating frequency for the 1.25 Gb/s EPON standard.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"track_error\": {\n      \"description\": \"Voltage difference between the input peak and the held output peak\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input peak = 1.1V. Output peak = 1.1V * 0.97 = 1.067V. Error = 1.1 - 1.067 = 33mV.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.03,\n          \"max\": 0.05,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The finite loop gain causes a small steady-state error during tracking.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_reset\": {\n      \"description\": \"Output voltage when the reset signal is asserted (active low)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When RESET_BAR=0, N1=1.8V. OUT = 1.8V - Vgs5. Vgs5 at 14uA is ~0.52V. OUT = 1.28V.\",\n        \"range\": {\n          \"min\": 1.1,\n          \"typical\": 1.28,\n          \"max\": 1.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The PMOS switch pulls the gate of the source follower to VDD, forcing the output to VDD - Vth.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power\": {\n      \"description\": \"DC power consumption of the sub-circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 200uA. I_SF = 2 * 10uA = 20uA. Total current = 220uA. Power = 1.8V * 220uA = 396uW.\",\n        \"range\": {\n          \"min\": \"300u\",\n          \"typical\": \"400u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dominated by the tail current source added to bias the differential pair.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure tracking bandwidth, peak detection accuracy, and reset behavior.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"bw_3db\",\n      \"track_error\",\n      \"v_hold\",\n      \"v_reset\",\n      \"t_reset\"\n    ],\n    \"spice\": \"* Peak Detector Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm5_prime=5u L_xm5_prime=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 N0 IN N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N3 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM5 VDD N1 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM5_PRIME VDD N1 OUT GND sky130_fd_pr__nfet_01v8 l={L_xm5_prime} w={W_xm5_prime}\\nXM3 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM6 N1 RESET_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Missing connections and biasing\\nVshort N1 N2 DC 0\\nI_tail N5 GND 200u\\nC_hold N3 GND 250f\\nC_out OUT GND 250f\\nR_discharge N3 GND 100k\\nR_discharge_out OUT GND 100k\\n\\nVVDD VDD GND 1.8\\nVRESET RESET_BAR GND PWL(0 1.8 10n 1.8 10.1n 0 15n 0)\\n\\n* Input source: DC + AC + Transient Pulse\\nVIN IN GND DC 1.0 AC 1 PWL(0 1.0 1n 1.0 1.1n 1.1 1.5n 1.1 1.6n 1.0 3n 1.0 3.1n 1.1 3.5n 1.1 3.6n 1.0)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis for tracking bandwidth\\n  ac dec 20 1Meg 10Gig\\n  let gain_db = vdb(out)\\n  meas ac dc_gain find gain_db at=1Meg\\n  let gain_3db = dc_gain - 3\\n  meas ac bw_3db when gain_db=gain_3db fall=1\\n\\n  * Transient Analysis for peak detection and reset\\n  tran 10p 15n\\n  meas tran v_peak_in max v(in) from=0 to=5n\\n  meas tran v_peak_out max v(out) from=0 to=5n\\n  let track_error = v_peak_in - v_peak_out\\n  print track_error\\n  \\n  meas tran v_hold find v(out) at=9n\\n  meas tran v_reset find v(out) at=14n\\n  meas tran t_reset trig v(reset_bar) val=0.9 fall=1 targ v(out) val=1.2 rise=1\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1362846",
+  "_case": "1362846_image_5_b"
+}

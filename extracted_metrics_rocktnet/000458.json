@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Frequency Divider",
+    "description": "A dynamic-loading frequency divider utilizing a common-gate topology and a single clock phase. It features clocked PMOS loads, a cross-coupled NMOS pair for state retention, and a common-gate input stage where the clock modulates the source node.",
+    "node_mapping": {
+      "input": [
+        "CLK"
+      ],
+      "output": [
+        "N3",
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS",
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 2.5-mW 5.2-GHz Frequency Divider in a 0.35-m CMOS Process",
+      "figure": "unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "operating_frequency": {
+      "description": "The frequency of the output signal, which should be a divided down version of the input clock.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5.2 GHz",
+        "technology": "0.35\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With a 5 GHz input clock, a divide-by-2 circuit will output 2.5 GHz. SKY130 is much faster than 0.35\u00b5m, so it can easily support this frequency.",
+        "range": {
+          "min": "1G",
+          "typical": "2.5G",
+          "max": "10G",
+          "unit": "Hz"
+        },
+        "reasoning": "Output frequency depends on the input clock frequency and the division ratio (typically 2)."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power dissipated by the circuit from the VDD supply during steady-state operation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.5 mW",
+        "technology": "0.35\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power scales approximately with VDD^2. The paper used 1V, while SKY130 uses 1.8V. 2.5mW * (1.8/1.0)^2 \u2248 8.1 mW.",
+        "range": {
+          "min": "2m",
+          "typical": "8m",
+          "max": "15m",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for the higher 1.8V supply voltage of the SKY130 process compared to the 1V supply in the paper."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak voltage swing of the output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported, assumed rail-to-rail or close to it.",
+        "technology": "0.35\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic logic typically achieves near rail-to-rail swing, so it should be close to VDD (1.8V).",
+        "range": {
+          "min": "1.0",
+          "typical": "1.8",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "The clocked PMOS loads pull the output to VDD, and the NMOS network pulls it to GND."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power consumption, output voltage swing, and operating frequency of the divider with a 5 GHz input clock.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "output_swing",
+      "operating_frequency"
+    ],
+    "spice": "* Testbench for Frequency Divider\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* DUT Parameters\n.param W_xmn4=5u L_xmn4=0.5u\n.param W_xmp2=5u L_xmp2=0.5u\n.param W_xmn3=5u L_xmn3=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmn5=5u L_xmn5=0.5u\n\n* DUT Instantiation\nXMN4 N4 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xmn4} w={W_xmn4}\nXMP2 N4 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\nXMN3 N1 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\nXMP1 N3 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\nXMN2 N4 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMN1 N3 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMN5 CLK BIAS N0 VDD sky130_fd_pr__pfet_01v8 l={L_xmn5} w={W_xmn5}\n\n* Fix for likely extraction error (N1 should be connected to N3 to complete the cross-coupled pair)\nRfix N1 N3 0.001\n\n* Voltage Sources\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVBIAS BIAS 0 0.9\n\n* 5 GHz Clock Input\nVCLK CLK 0 PULSE(0 1.8 0 10p 10p 90p 200p)\n\n.control\n* Run transient analysis for 5ns\ntran 1p 5n\n\n* Measure average power consumption\nmeas tran pwr_avg avg i(VVDD) from=2n to=5n\nlet power = -pwr_avg * 1.8\nprint power\n\n* Measure output voltage swing\nmeas tran vmax max v(N4) from=2n to=5n\nmeas tran vmin min v(N4) from=2n to=5n\nlet swing = vmax - vmin\nprint swing\n\n* Measure operating frequency (period between two rising edges)\nmeas tran t1 trig v(N4) val=0.9 rise=2 targ v(N4) val=0.9 rise=3\nlet freq = 1 / t1\nprint freq\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Frequency Divider\",\n    \"description\": \"A dynamic-loading frequency divider utilizing a common-gate topology and a single clock phase. It features clocked PMOS loads, a cross-coupled NMOS pair for state retention, and a common-gate input stage where the clock modulates the source node.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"CLK\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 2.5-mW 5.2-GHz Frequency Divider in a 0.35-m CMOS Process\",\n      \"figure\": \"unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"operating_frequency\": {\n      \"description\": \"The frequency of the output signal, which should be a divided down version of the input clock.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz\",\n        \"technology\": \"0.35\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 5 GHz input clock, a divide-by-2 circuit will output 2.5 GHz. SKY130 is much faster than 0.35\u00b5m, so it can easily support this frequency.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"2.5G\",\n          \"max\": \"10G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Output frequency depends on the input clock frequency and the division ratio (typically 2).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power dissipated by the circuit from the VDD supply during steady-state operation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.5 mW\",\n        \"technology\": \"0.35\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power scales approximately with VDD^2. The paper used 1V, while SKY130 uses 1.8V. 2.5mW * (1.8/1.0)^2 \u2248 8.1 mW.\",\n        \"range\": {\n          \"min\": \"2m\",\n          \"typical\": \"8m\",\n          \"max\": \"15m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for the higher 1.8V supply voltage of the SKY130 process compared to the 1V supply in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported, assumed rail-to-rail or close to it.\",\n        \"technology\": \"0.35\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic logic typically achieves near rail-to-rail swing, so it should be close to VDD (1.8V).\",\n        \"range\": {\n          \"min\": \"1.0\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The clocked PMOS loads pull the output to VDD, and the NMOS network pulls it to GND.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power consumption, output voltage swing, and operating frequency of the divider with a 5 GHz input clock.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"output_swing\",\n      \"operating_frequency\"\n    ],\n    \"spice\": \"* Testbench for Frequency Divider\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* DUT Parameters\\n.param W_xmn4=5u L_xmn4=0.5u\\n.param W_xmp2=5u L_xmp2=0.5u\\n.param W_xmn3=5u L_xmn3=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmn5=5u L_xmn5=0.5u\\n\\n* DUT Instantiation\\nXMN4 N4 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xmn4} w={W_xmn4}\\nXMP2 N4 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\\nXMN3 N1 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\\nXMP1 N3 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMN2 N4 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMN1 N3 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMN5 CLK BIAS N0 VDD sky130_fd_pr__pfet_01v8 l={L_xmn5} w={W_xmn5}\\n\\n* Fix for likely extraction error (N1 should be connected to N3 to complete the cross-coupled pair)\\nRfix N1 N3 0.001\\n\\n* Voltage Sources\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVBIAS BIAS 0 0.9\\n\\n* 5 GHz Clock Input\\nVCLK CLK 0 PULSE(0 1.8 0 10p 10p 90p 200p)\\n\\n.control\\n* Run transient analysis for 5ns\\ntran 1p 5n\\n\\n* Measure average power consumption\\nmeas tran pwr_avg avg i(VVDD) from=2n to=5n\\nlet power = -pwr_avg * 1.8\\nprint power\\n\\n* Measure output voltage swing\\nmeas tran vmax max v(N4) from=2n to=5n\\nmeas tran vmin min v(N4) from=2n to=5n\\nlet swing = vmax - vmin\\nprint swing\\n\\n* Measure operating frequency (period between two rising edges)\\nmeas tran t1 trig v(N4) val=0.9 rise=2 targ v(N4) val=0.9 rise=3\\nlet freq = 1 / t1\\nprint freq\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1233750",
+  "_case": "1233750_image_5_a"
+}

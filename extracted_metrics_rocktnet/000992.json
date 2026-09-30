@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Source Follower / Output Buffer",
+    "description": "A differential source follower circuit acting as a voltage buffer. It provides high input impedance and low output impedance to drive subsequent stages (like filters) without loading the preceding stage, typically with a voltage gain slightly less than unity.",
+    "node_mapping": {
+      "input": [
+        "N6",
+        "N0"
+      ],
+      "output": [
+        "VOUTP",
+        "VOUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N4",
+        "N5"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fully Integrated TV Tuner Front-End with 3.1dB NF, >+31dBm OIP3, >83dB HRR3/5 and >68dB HRR7",
+      "figure": "Fig. 3.7.3 (implied)",
+      "year": 2014
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Differential AC voltage gain of the buffer.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "System gain not explicitly isolated for this block",
+        "technology": "Not specified, likely 130nm or 65nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm / (gm + gmb + gds). With Id ~ 100uA, gm ~ 0.75mS. Gain is typically 0.8 to 0.9 V/V.",
+        "range": {
+          "min": -4,
+          "typical": -2,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Source followers have a voltage gain slightly less than 0 dB due to the body effect and finite output resistance of the current sink."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the buffer.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "System operates at 870MHz",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the output impedance (1/gm) and load capacitance. Without explicit load, parasitic capacitance dominates.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Source followers typically have very high bandwidth, easily exceeding the 870MHz operating frequency mentioned in the paper."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the buffer.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * (Id1 + Id4). With VBIAS=0.7V, Id ~ 100uA per branch. Total current ~ 200uA. Power = 1.8V * 200uA = 360uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00036,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Depends heavily on the bias voltage applied to the current sinks (N4, N5)."
+      },
+      "importance": "essential"
+    },
+    "linearity_oip3": {
+      "description": "Output Third-Order Intercept Point.",
+      "unit": "dBm",
+      "analysis_type": "Tran/HB",
+      "paper_reported": {
+        "value": ">+31dBm (System level)",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Buffer linearity is typically high due to local negative feedback of the source follower.",
+        "range": {
+          "min": 10,
+          "typical": 20,
+          "max": 35,
+          "unit": "dBm"
+        },
+        "reasoning": "While the system achieves >+31dBm, the buffer itself must have high linearity to not degrade the overall OIP3."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, -3dB bandwidth, and transient peak-to-peak gain of the differential source follower.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth"
+    ],
+    "spice": "* Differential Source Follower Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 VOUTP N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VDD N0 VOUTN GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VDD N6 VOUTP GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUTN N5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\nVVDD VDD 0 1.8\n* Bias for current sinks\nVB1 N4 0 0.7\nVB2 N5 0 0.7\n\n* Differential inputs (N6=VINP, N0=VINN)\nVCM VCM 0 1.2\nVINP N6 VCM DC 0 AC 0.5 SIN(0 0.1 10MEG 0 0)\nVINN N0 VCM DC 0 AC -0.5 SIN(0 -0.1 10MEG 0 0)\n\n* Dependent sources to calculate differential signals\nE_OUT VOUT_DIFF 0 VOUTP VOUTN 1.0\nE_IN VIN_DIFF 0 N6 N0 1.0\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n* DC Operating Point\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(VOUTP) v(VOUTN)\n\n* AC Analysis for Gain and Bandwidth\nac dec 20 1MEG 10G\n* Since VIN_DIFF AC magnitude is 1.0, vdb(VOUT_DIFF) is the gain in dB\nlet gain_db = vdb(VOUT_DIFF)\nmeas ac midband_gain_db find gain_db at=10MEG\nlet gain_db_3db = midband_gain_db - 3\nmeas ac bw_3db when gain_db = gain_db_3db fall=1\n\n* Transient Analysis for large-signal swing\ntran 1n 500n\nmeas tran vout_diff_pp pp v(VOUT_DIFF)\n* Input differential peak-to-peak is 0.4V (0.2V amplitude)\nlet gain_tran = vout_diff_pp / 0.4\nprint gain_tran\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Source Follower / Output Buffer\",\n    \"description\": \"A differential source follower circuit acting as a voltage buffer. It provides high input impedance and low output impedance to drive subsequent stages (like filters) without loading the preceding stage, typically with a voltage gain slightly less than unity.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N6\",\n        \"N0\"\n      ],\n      \"output\": [\n        \"VOUTP\",\n        \"VOUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N4\",\n        \"N5\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fully Integrated TV Tuner Front-End with 3.1dB NF, >+31dBm OIP3, >83dB HRR3/5 and >68dB HRR7\",\n      \"figure\": \"Fig. 3.7.3 (implied)\",\n      \"year\": 2014\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Differential AC voltage gain of the buffer.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"System gain not explicitly isolated for this block\",\n        \"technology\": \"Not specified, likely 130nm or 65nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm / (gm + gmb + gds). With Id ~ 100uA, gm ~ 0.75mS. Gain is typically 0.8 to 0.9 V/V.\",\n        \"range\": {\n          \"min\": -4,\n          \"typical\": -2,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Source followers have a voltage gain slightly less than 0 dB due to the body effect and finite output resistance of the current sink.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the buffer.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"System operates at 870MHz\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the output impedance (1/gm) and load capacitance. Without explicit load, parasitic capacitance dominates.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 5e9,\n          \"max\": 10e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Source followers typically have very high bandwidth, easily exceeding the 870MHz operating frequency mentioned in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the buffer.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * (Id1 + Id4). With VBIAS=0.7V, Id ~ 100uA per branch. Total current ~ 200uA. Power = 1.8V * 200uA = 360uW.\",\n        \"range\": {\n          \"min\": 1e-4,\n          \"typical\": 3.6e-4,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends heavily on the bias voltage applied to the current sinks (N4, N5).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"linearity_oip3\": {\n      \"description\": \"Output Third-Order Intercept Point.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran/HB\",\n      \"paper_reported\": {\n        \"value\": \">+31dBm (System level)\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Buffer linearity is typically high due to local negative feedback of the source follower.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 20,\n          \"max\": 35,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"While the system achieves >+31dBm, the buffer itself must have high linearity to not degrade the overall OIP3.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, -3dB bandwidth, and transient peak-to-peak gain of the differential source follower.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth\"\n    ],\n    \"spice\": \"* Differential Source Follower Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 VOUTP N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VDD N0 VOUTN GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VDD N6 VOUTP GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUTN N5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\nVVDD VDD 0 1.8\\n* Bias for current sinks\\nVB1 N4 0 0.7\\nVB2 N5 0 0.7\\n\\n* Differential inputs (N6=VINP, N0=VINN)\\nVCM VCM 0 1.2\\nVINP N6 VCM DC 0 AC 0.5 SIN(0 0.1 10MEG 0 0)\\nVINN N0 VCM DC 0 AC -0.5 SIN(0 -0.1 10MEG 0 0)\\n\\n* Dependent sources to calculate differential signals\\nE_OUT VOUT_DIFF 0 VOUTP VOUTN 1.0\\nE_IN VIN_DIFF 0 N6 N0 1.0\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(VOUTP) v(VOUTN)\\n\\n* AC Analysis for Gain and Bandwidth\\nac dec 20 1MEG 10G\\n* Since VIN_DIFF AC magnitude is 1.0, vdb(VOUT_DIFF) is the gain in dB\\nlet gain_db = vdb(VOUT_DIFF)\\nmeas ac midband_gain_db find gain_db at=10MEG\\nlet gain_db_3db = midband_gain_db - 3\\nmeas ac bw_3db when gain_db = gain_db_3db fall=1\\n\\n* Transient Analysis for large-signal swing\\ntran 1n 500n\\nmeas tran vout_diff_pp pp v(VOUT_DIFF)\\n* Input differential peak-to-peak is 0.4V (0.2V amplitude)\\nlet gain_tran = vout_diff_pp / 0.4\\nprint gain_tran\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "6757342",
+  "_case": "6757342_image_2_a"
+}

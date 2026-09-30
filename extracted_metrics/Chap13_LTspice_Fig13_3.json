@@ -1,0 +1,46 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 13.4",
+    "page": "377",
+    "circuit_type": "Transmission Gate (TG) with capacitive load",
+    "description": "A CMOS transmission gate with its NMOS gate tied to VDD and PMOS gate tied to ground, acting as an always-on switch passing an input signal to a 50fF load capacitor. The figure illustrates the transient discharge behavior."
+  },
+  "step2_metrics": {
+    "propagation_delay": {
+      "description": "The time required for the output to reach 50% of its final value after the input reaches 50% of its final value (tPHL and tPLH).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "377",
+        "reference": "Eq 13.2 and Fig 13.4"
+      },
+      "equation": {
+        "formula": "tPHL = tPLH = 0.7 * N * (Rn || Rp) * Cload + 0.35 * (Rn || Rp) * (Coxn + Coxp) * N^2",
+        "explanation": "Estimates the delay through a series connection of N transmission gates by modeling it as an RC circuit. The first term is the dominant RC delay of charging/discharging the load capacitor through the effective ON resistance of the TGs. The second term accounts for the RC transmission line effects of the TGs' self-capacitance.",
+        "assumptions": "Assumes triode operation for effective resistance, step input, and for this specific circuit, N=1 (single TG)."
+      },
+      "sky130_expected": {
+        "calculation": "1. Assume W/L ratios from the figure: (W/L)_n = 10, (W/L)_p = 20.\n2. Calculate effective ON resistance of NMOS: Rn \u2248 1 / (un*Cox * (W/L)_n * (VDD - Vthn)) = 1 / (270e-6 * 10 * (1.8 - 0.42)) = 268 ohms.\n3. Calculate effective ON resistance of PMOS: Rp \u2248 1 / (up*Cox * (W/L)_p * (VDD - |Vthp|)) = 1 / (50e-6 * 20 * (1.8 - 0.42)) = 724 ohms.\n4. Calculate parallel equivalent resistance: Req = Rn || Rp = (268 * 724) / (268 + 724) = 195 ohms.\n5. Calculate dominant delay term (N=1): t_delay \u2248 0.7 * Req * Cload = 0.7 * 195 * 50e-15 = 6.82 ps.",
+        "range": {
+          "min": "5p",
+          "typical": "6.8p",
+          "max": "20p",
+          "unit": "s"
+        },
+        "reasoning": "The calculated value is ~6.8ps based on the simplified linear resistor model. Actual delay in SPICE might be slightly higher due to non-linearities, velocity saturation, and the self-capacitance term (Coxn + Coxp) which adds a few extra picoseconds."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the high-to-low (tPHL) and low-to-high (tPLH) propagation delays of the transmission gate driving a 50fF load.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "propagation_delay"
+    ],
+    "spice": "* Transmission Gate Delay Measurement\n.lib ${SKY130_PDK} tt\n\n* Define parameters used in the netlist (assuming L=0.15u to match ratios 10/1 and 20/1)\n.param W_xm1=1.5u L_xm1=0.15u\n.param W_xm2=3.0u L_xm2=0.15u\n\n* --- DUT Netlist ---\nxm1 Vin VDD Vout 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nC1 Vout 0 5e-14\nVDD VDD 0 1.8\nxm2 Vout 0 Vin VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n* -------------------\n\n* Stimulus: Pulse from 1.8V to 0V and back to measure both falling and rising delays\nVin Vin 0 PULSE(1.8 0 1n 10p 10p 2n 4n)\n\n.control\ntran 1p 5n\n\n* Measure High-to-Low delay (when Vin falls)\nmeas tran tphl trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 fall=1\n\n* Measure Low-to-High delay (when Vin rises)\nmeas tran tplh trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 rise=1\n\nprint tphl tplh\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 13.4\",\n    \"page\": \"377\",\n    \"circuit_type\": \"Transmission Gate (TG) with capacitive load\",\n    \"description\": \"A CMOS transmission gate with its NMOS gate tied to VDD and PMOS gate tied to ground, acting as an always-on switch passing an input signal to a 50fF load capacitor. The figure illustrates the transient discharge behavior.\"\n  },\n  \"step2_metrics\": {\n    \"propagation_delay\": {\n      \"description\": \"The time required for the output to reach 50% of its final value after the input reaches 50% of its final value (tPHL and tPLH).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"377\",\n        \"reference\": \"Eq 13.2 and Fig 13.4\"\n      },\n      \"equation\": {\n        \"formula\": \"tPHL = tPLH = 0.7 * N * (Rn || Rp) * Cload + 0.35 * (Rn || Rp) * (Coxn + Coxp) * N^2\",\n        \"explanation\": \"Estimates the delay through a series connection of N transmission gates by modeling it as an RC circuit. The first term is the dominant RC delay of charging/discharging the load capacitor through the effective ON resistance of the TGs. The second term accounts for the RC transmission line effects of the TGs' self-capacitance.\",\n        \"assumptions\": \"Assumes triode operation for effective resistance, step input, and for this specific circuit, N=1 (single TG).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. Assume W/L ratios from the figure: (W/L)_n = 10, (W/L)_p = 20.\\n2. Calculate effective ON resistance of NMOS: Rn \u2248 1 / (un*Cox * (W/L)_n * (VDD - Vthn)) = 1 / (270e-6 * 10 * (1.8 - 0.42)) = 268 ohms.\\n3. Calculate effective ON resistance of PMOS: Rp \u2248 1 / (up*Cox * (W/L)_p * (VDD - |Vthp|)) = 1 / (50e-6 * 20 * (1.8 - 0.42)) = 724 ohms.\\n4. Calculate parallel equivalent resistance: Req = Rn || Rp = (268 * 724) / (268 + 724) = 195 ohms.\\n5. Calculate dominant delay term (N=1): t_delay \u2248 0.7 * Req * Cload = 0.7 * 195 * 50e-15 = 6.82 ps.\",\n        \"range\": {\n          \"min\": \"5p\",\n          \"typical\": \"6.8p\",\n          \"max\": \"20p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The calculated value is ~6.8ps based on the simplified linear resistor model. Actual delay in SPICE might be slightly higher due to non-linearities, velocity saturation, and the self-capacitance term (Coxn + Coxp) which adds a few extra picoseconds.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the high-to-low (tPHL) and low-to-high (tPLH) propagation delays of the transmission gate driving a 50fF load.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"propagation_delay\"\n    ],\n    \"spice\": \"* Transmission Gate Delay Measurement\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters used in the netlist (assuming L=0.15u to match ratios 10/1 and 20/1)\\n.param W_xm1=1.5u L_xm1=0.15u\\n.param W_xm2=3.0u L_xm2=0.15u\\n\\n* --- DUT Netlist ---\\nxm1 Vin VDD Vout 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nC1 Vout 0 5e-14\\nVDD VDD 0 1.8\\nxm2 Vout 0 Vin VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n* -------------------\\n\\n* Stimulus: Pulse from 1.8V to 0V and back to measure both falling and rising delays\\nVin Vin 0 PULSE(1.8 0 1n 10p 10p 2n 4n)\\n\\n.control\\ntran 1p 5n\\n\\n* Measure High-to-Low delay (when Vin falls)\\nmeas tran tphl trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 fall=1\\n\\n* Measure Low-to-High delay (when Vin rises)\\nmeas tran tplh trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 rise=1\\n\\nprint tphl tplh\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

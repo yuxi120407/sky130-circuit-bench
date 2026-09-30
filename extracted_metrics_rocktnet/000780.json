@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CML/ECL Latch or Buffer (part of MS-DFF)",
+    "description": "A high-speed current-mode logic (CML) or emitter-coupled logic (ECL) sub-circuit, likely a latch or buffer used in the master-slave delayed flip-flop (MS-DFF) for data retiming at 54 Gb/s.",
+    "node_mapping": {
+      "input": [
+        "CLK",
+        "N5",
+        "N3"
+      ],
+      "output": [
+        "N0",
+        "N2",
+        "N8"
+      ],
+      "supply": [
+        "GND"
+      ],
+      "bias": [
+        "VEE"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "SiGe-HBT-Based 54-Gb/s 4:1 Multiplexer IC With Full-Rate Clock for Serial Communication Systems",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total power dissipated by the sub-circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.95 W (entire IC)",
+        "technology": "122-GHz 0.2um SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "P = V * I. Assuming ~3mA tail current per stage at 1.8V supply.",
+        "range": {
+          "min": "1mW",
+          "typical": "5mW",
+          "max": "10mW",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down from the full IC to a single latch/buffer block, adapted for a 1.8V supply instead of 4.8V."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "400 mVpp",
+        "technology": "122-GHz 0.2um SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_load. Typically designed for 400mV in CML to avoid deep saturation.",
+        "range": {
+          "min": "0.3",
+          "typical": "0.4",
+          "max": "0.6",
+          "unit": "V"
+        },
+        "reasoning": "CML logic typically uses 300-500mV swing regardless of technology to maximize speed."
+      },
+      "importance": "essential"
+    },
+    "rise_fall_time": {
+      "description": "10% to 90% transition time",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "11.3 ps",
+        "technology": "122-GHz 0.2um SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by fT of SKY130 devices (~30-40 GHz for NPN/NMOS).",
+        "range": {
+          "min": "20ps",
+          "typical": "40ps",
+          "max": "80ps",
+          "unit": "s"
+        },
+        "reasoning": "SKY130 is slower than the 122-GHz SiGe HBT process, so transition times will be proportionally longer."
+      },
+      "importance": "essential"
+    },
+    "rms_jitter": {
+      "description": "RMS jitter of the output data",
+      "unit": "s",
+      "analysis_type": "Tran/Noise",
+      "paper_reported": {
+        "value": "0.91 ps",
+        "technology": "122-GHz 0.2um SiGe HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Jitter depends on device noise and slew rate.",
+        "range": {
+          "min": "1ps",
+          "typical": "5ps",
+          "max": "10ps",
+          "unit": "s"
+        },
+        "reasoning": "Lower fT and higher noise in standard CMOS/BJT compared to specialized SiGe HBT will increase jitter."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power, voltage swing, and rise/fall times of the ECL/CML buffer. Resistor values are appended to the DUT netlist to allow simulation.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_swing",
+      "rise_fall_time"
+    ],
+    "spice": "* SiGe HBT MUX Subcircuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param V_EE = -1.8\n.param W_xm1 = 1 L_xm1 = 0.15\n\nVee VEE 0 {V_EE}\nVclk CLK 0 PULSE(-0.6 -0.2 0 10p 10p 100p 200p)\nVn5 N5 0 PULSE(-0.6 -0.2 50p 10p 10p 200p 400p)\nVn3 N3 0 DC -0.4\n\n* DUT (Resistor values added for simulation)\nR1 N10 N6 1k\nR2 N7 VEE 1k\nR3 N6 VEE 1k\nR4 N4 VEE 1k\nR5 GND N8 1k\nR6 GND GND 1k\nR7 GND VEE 1k\nQ1 N2 N5 N6 npn\nQ2 GND N2 N0 npn\nQ3 N8 GND N0 npn\nQ4 GND GND N2 npn\nQ5 GND N3 GND npn\nQ6 N3 CLK N4 npn\nQ7 GND N8 N2 npn\nQ8 N8 N8 GND npn\nQ9 GND N5 N10 npn\nQ10 N0 GND N7 npn\nQ11 N8 N0 GND pnp\n\n* Generic high-speed BJT models for simulation\n.model npn npn (is=1e-16 bf=100 tf=10p cje=10f cjc=10f)\n.model pnp pnp (is=1e-16 bf=50 tf=20p cje=10f cjc=10f)\n\n.control\nop\ntran 1p 1n\n\n* Power measurement\nlet power = -i(Vee) * 1.8\nmeas tran avg_power avg power\n\n* Voltage swing measurement\nmeas tran v_max max v(N0)\nmeas tran v_min min v(N0)\nlet swing = v_max - v_min\nprint swing\n\n* Rise and fall time measurement (10% to 90% of a -0.6V to -0.2V swing)\nmeas tran t_rise trig v(N0) val=-0.56 rise=1 targ v(N0) val=-0.24 rise=1\nmeas tran t_fall trig v(N0) val=-0.24 fall=1 targ v(N0) val=-0.56 fall=1\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CML/ECL Latch or Buffer (part of MS-DFF)\",\n    \"description\": \"A high-speed current-mode logic (CML) or emitter-coupled logic (ECL) sub-circuit, likely a latch or buffer used in the master-slave delayed flip-flop (MS-DFF) for data retiming at 54 Gb/s.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"CLK\",\n        \"N5\",\n        \"N3\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N2\",\n        \"N8\"\n      ],\n      \"supply\": [\n        \"GND\"\n      ],\n      \"bias\": [\n        \"VEE\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"SiGe-HBT-Based 54-Gb/s 4:1 Multiplexer IC With Full-Rate Clock for Serial Communication Systems\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the sub-circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.95 W (entire IC)\",\n        \"technology\": \"122-GHz 0.2um SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = V * I. Assuming ~3mA tail current per stage at 1.8V supply.\",\n        \"range\": {\n          \"min\": \"1mW\",\n          \"typical\": \"5mW\",\n          \"max\": \"10mW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down from the full IC to a single latch/buffer block, adapted for a 1.8V supply instead of 4.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"400 mVpp\",\n        \"technology\": \"122-GHz 0.2um SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_load. Typically designed for 400mV in CML to avoid deep saturation.\",\n        \"range\": {\n          \"min\": \"0.3\",\n          \"typical\": \"0.4\",\n          \"max\": \"0.6\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CML logic typically uses 300-500mV swing regardless of technology to maximize speed.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rise_fall_time\": {\n      \"description\": \"10% to 90% transition time\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"11.3 ps\",\n        \"technology\": \"122-GHz 0.2um SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by fT of SKY130 devices (~30-40 GHz for NPN/NMOS).\",\n        \"range\": {\n          \"min\": \"20ps\",\n          \"typical\": \"40ps\",\n          \"max\": \"80ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 is slower than the 122-GHz SiGe HBT process, so transition times will be proportionally longer.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rms_jitter\": {\n      \"description\": \"RMS jitter of the output data\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran/Noise\",\n      \"paper_reported\": {\n        \"value\": \"0.91 ps\",\n        \"technology\": \"122-GHz 0.2um SiGe HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Jitter depends on device noise and slew rate.\",\n        \"range\": {\n          \"min\": \"1ps\",\n          \"typical\": \"5ps\",\n          \"max\": \"10ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Lower fT and higher noise in standard CMOS/BJT compared to specialized SiGe HBT will increase jitter.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power, voltage swing, and rise/fall times of the ECL/CML buffer. Resistor values are appended to the DUT netlist to allow simulation.\",\n    \"analyses\": [\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_swing\",\n      \"rise_fall_time\"\n    ],\n    \"spice\": \"* SiGe HBT MUX Subcircuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param V_EE = -1.8\\n.param W_xm1 = 1 L_xm1 = 0.15\\n\\nVee VEE 0 {V_EE}\\nVclk CLK 0 PULSE(-0.6 -0.2 0 10p 10p 100p 200p)\\nVn5 N5 0 PULSE(-0.6 -0.2 50p 10p 10p 200p 400p)\\nVn3 N3 0 DC -0.4\\n\\n* DUT (Resistor values added for simulation)\\nR1 N10 N6 1k\\nR2 N7 VEE 1k\\nR3 N6 VEE 1k\\nR4 N4 VEE 1k\\nR5 GND N8 1k\\nR6 GND GND 1k\\nR7 GND VEE 1k\\nQ1 N2 N5 N6 npn\\nQ2 GND N2 N0 npn\\nQ3 N8 GND N0 npn\\nQ4 GND GND N2 npn\\nQ5 GND N3 GND npn\\nQ6 N3 CLK N4 npn\\nQ7 GND N8 N2 npn\\nQ8 N8 N8 GND npn\\nQ9 GND N5 N10 npn\\nQ10 N0 GND N7 npn\\nQ11 N8 N0 GND pnp\\n\\n* Generic high-speed BJT models for simulation\\n.model npn npn (is=1e-16 bf=100 tf=10p cje=10f cjc=10f)\\n.model pnp pnp (is=1e-16 bf=50 tf=20p cje=10f cjc=10f)\\n\\n.control\\nop\\ntran 1p 1n\\n\\n* Power measurement\\nlet power = -i(Vee) * 1.8\\nmeas tran avg_power avg power\\n\\n* Voltage swing measurement\\nmeas tran v_max max v(N0)\\nmeas tran v_min min v(N0)\\nlet swing = v_max - v_min\\nprint swing\\n\\n* Rise and fall time measurement (10% to 90% of a -0.6V to -0.2V swing)\\nmeas tran t_rise trig v(N0) val=-0.56 rise=1 targ v(N0) val=-0.24 rise=1\\nmeas tran t_fall trig v(N0) val=-0.24 fall=1 targ v(N0) val=-0.56 fall=1\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1408101",
+  "_case": "1408101_image_1_a"
+}

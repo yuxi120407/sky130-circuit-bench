@@ -1,0 +1,112 @@
+{
+  "step1_analysis": {
+    "circuit_type": "I/Q Upconversion Mixer (Modulator)",
+    "description": "This circuit is a double-balanced I/Q upconversion mixer based on a Gilbert cell architecture. It mixes differential baseband I and Q signals with quadrature LO signals to produce a modulated RF/IF output.",
+    "node_mapping": {
+      "input": [
+        "BBIN",
+        "BBIQ",
+        "BBQP",
+        "BBQN",
+        "LOIN",
+        "LOIP",
+        "LOQN",
+        "LOQP"
+      ],
+      "output": [
+        "IFON",
+        "IFOP"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "VBIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "SiGe W-CDMA Transmitter for Mobile Terminal Application",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the mixer circuit.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "270 mW",
+        "technology": "IBM 0.5um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a bias current of ~2mA per branch (4 branches) from VBIAS=0.7V, total current is ~8mA. Power = 8mA * 1.8V = 14.4mW.",
+        "range": {
+          "min": "5m",
+          "typical": "15m",
+          "max": "25m",
+          "unit": "W"
+        },
+        "reasoning": "The paper's 270mW is for the entire transmitter IC. The mixer block alone in a 1.8V CMOS process will consume significantly less power."
+      },
+      "importance": "essential"
+    },
+    "conversion_gain": {
+      "description": "Voltage ratio of the IF output to the baseband input.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "IBM 0.5um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 (2/\u03c0) * gm * Rload. With Rload = 500\u03a9 and gm \u2248 10mS, Gain \u2248 3.18 V/V = 10 dB.",
+        "range": {
+          "min": "5",
+          "typical": "10",
+          "max": "15",
+          "unit": "dB"
+        },
+        "reasoning": "Typical upconversion mixers have a conversion gain around 5-15 dB depending on the load resistors and transconductance of the baseband differential pairs."
+      },
+      "importance": "essential"
+    },
+    "oip3": {
+      "description": "Third-order output intercept point, indicating linearity.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "25.0 dBm",
+        "technology": "IBM 0.5um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mixer OIP3 is typically 10-15 dB above the 1dB compression point. With 1.8V supply, max output swing is ~1Vpp.",
+        "range": {
+          "min": "0",
+          "typical": "8",
+          "max": "15",
+          "unit": "dBm"
+        },
+        "reasoning": "The 25 dBm OIP3 reported in the paper is for the entire transmitter (including the PA driver). The mixer alone will have a lower OIP3, typically around 5-10 dBm in a 1.8V process."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power consumption and conversion gain of the I/Q upconversion mixer using a 1GHz LO and 10MHz baseband signal.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "conversion_gain"
+    ],
+    "spice": "* I/Q Upconversion Mixer Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* DUT (Adapted for standard SPICE syntax and SKY130)\nR1 VCC IFON 500\nR2 VCC IFOP 500\nQ1 IFON LOIN N1_D npn\nQ2 IFOP LOIP N1_D npn\nQ5 IFON LOQN N2_D npn\nQ6 IFOP LOQP N2_D npn\nQ3 IFON LOQN N3_D npn\nQ4 IFOP LOQP N3_D npn\nQ7 IFON LOIN N4_D npn\nQ8 IFOP LOIP N4_D npn\nM1 N1_D BBIN N5 GND sky130_fd_pr__nmos5v W=20u L=0.5u\nM3 N2_D BBQP N7 GND sky130_fd_pr__nmos5v W=20u L=0.5u\nM2 N3_D BBIQ N6 GND sky130_fd_pr__nmos5v W=20u L=0.5u\nM4 N4_D BBQN N8 GND sky130_fd_pr__nmos5v W=20u L=0.5u\nM5 N5 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\nM6 N6 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\nM7 N7 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\nM8 N8 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\nR3 N5 N6 100\nR4 N7 N8 100\n\n* Generic NPN model for the BiCMOS switching quad\n.model npn npn (bf=100 is=1e-16 vaf=50)\n\n* DC Sources\nVCC VCC 0 1.8\nVVBIAS VBIAS 0 0.7\n\n* LO signals (1 GHz, 0.6Vpp differential)\nVLOIP LOIP 0 dc 1.2 sin(1.2 0.3 1G 0 0 0)\nVLOIN LOIN 0 dc 1.2 sin(1.2 0.3 1G 0 0 180)\nVLOQP LOQP 0 dc 1.2\nVLOQN LOQN 0 dc 1.2\n\n* BB signals (10 MHz, 0.2Vpp differential on I-channel)\nVBBIN BBIN 0 dc 0.9 sin(0.9 0.1 10Meg 0 0 180)\nVBBIQ BBIQ 0 dc 0.9 sin(0.9 0.1 10Meg 0 0 0)\nVBBQP BBQP 0 dc 0.9\nVBBQN BBQN 0 dc 0.9\n\n.control\n  * Run transient analysis for 2 baseband periods\n  tran 10p 200n\n  \n  * 1. Measure Power Consumption\n  let pwr = -i(VCC) * 1.8\n  meas tran avg_pwr avg pwr\n  \n  * 2. Measure Conversion Gain\n  * The output is a DSB-SC signal. The envelope varies at the baseband frequency.\n  let vout_diff = v(IFOP) - v(IFON)\n  meas tran vout_max max vout_diff from=100n to=200n\n  meas tran vout_min min vout_diff from=100n to=200n\n  \n  * Calculate peak output voltage and gain\n  let vout_pk = (vout_max - vout_min) / 2\n  let vin_pk = 0.2\n  let gain = vout_pk / vin_pk\n  let gain_db = 20 * log10(gain)\n  \n  print avg_pwr\n  print gain_db\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"I/Q Upconversion Mixer (Modulator)\",\n    \"description\": \"This circuit is a double-balanced I/Q upconversion mixer based on a Gilbert cell architecture. It mixes differential baseband I and Q signals with quadrature LO signals to produce a modulated RF/IF output.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"BBIN\",\n        \"BBIQ\",\n        \"BBQP\",\n        \"BBQN\",\n        \"LOIN\",\n        \"LOIP\",\n        \"LOQN\",\n        \"LOQP\"\n      ],\n      \"output\": [\n        \"IFON\",\n        \"IFOP\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"VBIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"SiGe W-CDMA Transmitter for Mobile Terminal Application\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the mixer circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"270 mW\",\n        \"technology\": \"IBM 0.5um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a bias current of ~2mA per branch (4 branches) from VBIAS=0.7V, total current is ~8mA. Power = 8mA * 1.8V = 14.4mW.\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"15m\",\n          \"max\": \"25m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 270mW is for the entire transmitter IC. The mixer block alone in a 1.8V CMOS process will consume significantly less power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"conversion_gain\": {\n      \"description\": \"Voltage ratio of the IF output to the baseband input.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"IBM 0.5um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 (2/\u03c0) * gm * Rload. With Rload = 500\u03a9 and gm \u2248 10mS, Gain \u2248 3.18 V/V = 10 dB.\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"10\",\n          \"max\": \"15\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical upconversion mixers have a conversion gain around 5-15 dB depending on the load resistors and transconductance of the baseband differential pairs.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"oip3\": {\n      \"description\": \"Third-order output intercept point, indicating linearity.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"25.0 dBm\",\n        \"technology\": \"IBM 0.5um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mixer OIP3 is typically 10-15 dB above the 1dB compression point. With 1.8V supply, max output swing is ~1Vpp.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"8\",\n          \"max\": \"15\",\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"The 25 dBm OIP3 reported in the paper is for the entire transmitter (including the PA driver). The mixer alone will have a lower OIP3, typically around 5-10 dBm in a 1.8V process.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power consumption and conversion gain of the I/Q upconversion mixer using a 1GHz LO and 10MHz baseband signal.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"conversion_gain\"\n    ],\n    \"spice\": \"* I/Q Upconversion Mixer Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* DUT (Adapted for standard SPICE syntax and SKY130)\\nR1 VCC IFON 500\\nR2 VCC IFOP 500\\nQ1 IFON LOIN N1_D npn\\nQ2 IFOP LOIP N1_D npn\\nQ5 IFON LOQN N2_D npn\\nQ6 IFOP LOQP N2_D npn\\nQ3 IFON LOQN N3_D npn\\nQ4 IFOP LOQP N3_D npn\\nQ7 IFON LOIN N4_D npn\\nQ8 IFOP LOIP N4_D npn\\nM1 N1_D BBIN N5 GND sky130_fd_pr__nmos5v W=20u L=0.5u\\nM3 N2_D BBQP N7 GND sky130_fd_pr__nmos5v W=20u L=0.5u\\nM2 N3_D BBIQ N6 GND sky130_fd_pr__nmos5v W=20u L=0.5u\\nM4 N4_D BBQN N8 GND sky130_fd_pr__nmos5v W=20u L=0.5u\\nM5 N5 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\\nM6 N6 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\\nM7 N7 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\\nM8 N8 VBIAS GND GND sky130_fd_pr__nmos5v W=40u L=0.5u\\nR3 N5 N6 100\\nR4 N7 N8 100\\n\\n* Generic NPN model for the BiCMOS switching quad\\n.model npn npn (bf=100 is=1e-16 vaf=50)\\n\\n* DC Sources\\nVCC VCC 0 1.8\\nVVBIAS VBIAS 0 0.7\\n\\n* LO signals (1 GHz, 0.6Vpp differential)\\nVLOIP LOIP 0 dc 1.2 sin(1.2 0.3 1G 0 0 0)\\nVLOIN LOIN 0 dc 1.2 sin(1.2 0.3 1G 0 0 180)\\nVLOQP LOQP 0 dc 1.2\\nVLOQN LOQN 0 dc 1.2\\n\\n* BB signals (10 MHz, 0.2Vpp differential on I-channel)\\nVBBIN BBIN 0 dc 0.9 sin(0.9 0.1 10Meg 0 0 180)\\nVBBIQ BBIQ 0 dc 0.9 sin(0.9 0.1 10Meg 0 0 0)\\nVBBQP BBQP 0 dc 0.9\\nVBBQN BBQN 0 dc 0.9\\n\\n.control\\n  * Run transient analysis for 2 baseband periods\\n  tran 10p 200n\\n  \\n  * 1. Measure Power Consumption\\n  let pwr = -i(VCC) * 1.8\\n  meas tran avg_pwr avg pwr\\n  \\n  * 2. Measure Conversion Gain\\n  * The output is a DSB-SC signal. The envelope varies at the baseband frequency.\\n  let vout_diff = v(IFOP) - v(IFON)\\n  meas tran vout_max max vout_diff from=100n to=200n\\n  meas tran vout_min min vout_diff from=100n to=200n\\n  \\n  * Calculate peak output voltage and gain\\n  let vout_pk = (vout_max - vout_min) / 2\\n  let vin_pk = 0.2\\n  let gain = vout_pk / vin_pk\\n  let gain_db = 20 * log10(gain)\\n  \\n  print avg_pwr\\n  print gain_db\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1225801",
+  "_case": "1225801_image_2"
+}

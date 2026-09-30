@@ -1,0 +1,172 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential Current-Mirror Operational Transconductance Amplifier (OTA)",
+    "description": "This circuit is a fully differential OTA consisting of an NMOS input differential pair (XM1A/B) with diode-connected PMOS loads (XM2A/B). The currents are mirrored to the output branches via PMOS mirrors (XM3A/B), working against constant NMOS current source loads (XM4A/B). It provides high output impedance and is typically used in open-loop configurations or with a common-mode feedback (CMFB) circuit.",
+    "node_mapping": {
+      "input": [
+        "VINP",
+        "VINN"
+      ],
+      "output": [
+        "VOUTP",
+        "VOUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Device Mismatch and Tradeoffs in the Design of Analog Circuits",
+      "figure": "Not specified",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the OTA.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1W / 6W (Note: likely refers to a larger system in the paper)",
+        "technology": "50 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current I_tail = 0.5 * 270u * 10 * (0.54-0.42)^2 = 19.4uA. The output branches mirror half the tail current each (9.7uA). Total current = 19.4uA + 2*9.7uA = 38.8uA. Power = 1.8V * 38.8uA = 70uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 7e-05,
+          "max": 0.0001,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on VBIAS=0.54V and typical SKY130 NMOS threshold voltages."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "sky130_expected": {
+        "calculation": "Gm = 2 * (9.7uA) / 0.084V = 230 uA/V. Rout = ro_pmos || ro_nmos = 1.03MOhm || 515kOhm = 343 kOhm. Gain = Gm * Rout = 78.9 V/V = 38 dB.",
+        "range": {
+          "min": 30,
+          "typical": 38,
+          "max": 45,
+          "unit": "dB"
+        },
+        "reasoning": "Derived from the transconductance of the input pair and the parallel output resistance of the mirror and load transistors."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity gain bandwidth with a 1pF load capacitance.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "sky130_expected": {
+        "calculation": "UGBW = Gm / (2 * pi * C_load) = 230uA/V / (2 * pi * 1pF) = 36.6 MHz.",
+        "range": {
+          "min": 20000000.0,
+          "typical": 36600000.0,
+          "max": 50000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Directly proportional to the input pair Gm and inversely proportional to the load capacitance."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at the unity gain frequency.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "sky130_expected": {
+        "calculation": "Single-stage OTA with the dominant pole at the output node. The non-dominant pole at the current mirror node is at a much higher frequency.",
+        "range": {
+          "min": 60,
+          "typical": 85,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard behavior for a single-stage OTA driving a relatively large 1pF load."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the differential output voltage.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "sky130_expected": {
+        "calculation": "SR = I_out_max / C_load. The maximum charging/discharging current available to the load is half the tail current (9.7uA). SR = 9.7uA / 1pF = 9.7 V/us.",
+        "range": {
+          "min": 5,
+          "typical": 9.7,
+          "max": 15,
+          "unit": "V/us"
+        },
+        "reasoning": "Limited by the tail current and the 1:1 current mirror ratio."
+      },
+      "importance": "essential"
+    },
+    "cmrr": {
+      "description": "Common-Mode Rejection Ratio.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "sky130_expected": {
+        "calculation": "CMRR = Ad / Acm. In a perfectly symmetric schematic simulation, Acm is near zero.",
+        "range": {
+          "min": 60,
+          "typical": 100,
+          "max": 150,
+          "unit": "dB"
+        },
+        "reasoning": "Simulation without mismatch yields artificially high CMRR. Real-world CMRR would be limited by device mismatch."
+      },
+      "importance": "recommended"
+    },
+    "input_offset_voltage": {
+      "description": "Input-referred offset voltage due to random device mismatch.",
+      "unit": "V",
+      "analysis_type": "Monte Carlo",
+      "paper_reported": {
+        "value": "6 mV",
+        "technology": "50 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Mismatch is inversely proportional to sqrt(W*L). For W=5u, L=0.5u (Area=2.5um^2), Vth mismatch is typically a few millivolts.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.006,
+          "max": 0.015,
+          "unit": "V"
+        },
+        "reasoning": "Matches the paper's reported 6mV, which is a realistic expectation for this device area in 130nm."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, differential AC gain, UGBW, phase margin, CMRR, and transient slew rate. Large inductors are used to set the output DC operating point to VDD/2 (acting as an ideal CMFB) without loading the AC signal.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "cmrr",
+      "slew_rate"
+    ],
+    "spice": "* Fully Differential OTA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized W/L\n.param W_xm3a=5u L_xm3a=0.5u\n.param W_xm4a=5u L_xm4a=0.5u\n.param W_xm2a=5u L_xm2a=0.5u\n.param W_xm2b=5u L_xm2b=0.5u\n.param W_xm3b=5u L_xm3b=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm1b=5u L_xm1b=0.5u\n.param W_xm1a=5u L_xm1a=0.5u\n.param W_xm4b=5u L_xm4b=0.5u\n\n* DUT\nXM3A VOUTP N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3a} w={W_xm3a}\nXM4A VOUTP VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4a} w={W_xm4a}\nXM2A N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2a} w={W_xm2a}\nXM2B N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2b} w={W_xm2b}\nXM3B VOUTN N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3b} w={W_xm3b}\nXM5 N1 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM1B N0 VINN N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1b} w={W_xm1b}\nXM1A N2 VINP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1a} w={W_xm1a}\nXM4B VOUTN VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4b} w={W_xm4b}\n\n* Power and Bias\nVVDD VDD 0 1.8\nVVBIAS VBIAS 0 0.54\n\n* Input Signals (Common-mode and Differential)\nV_IN_CM IN_CM 0 DC 0.9 AC 0\nV_IN_DIFF IN_DIFF 0 DC 0 AC 1 PULSE(-0.5 0.5 10n 1n 1n 1u 2u)\n\nE_VINP VINP 0 vol='v(IN_CM) + 0.5*v(IN_DIFF)'\nE_VINN VINN 0 vol='v(IN_CM) - 0.5*v(IN_DIFF)'\n\n* Ideal CMFB / DC Biasing using Inductors\nL1 VOUTP VCM 1000H\nL2 VOUTN VCM 1000H\nVCM VCM 0 0.9\n\n* Load Capacitors\nC1 VOUTP 0 1p\nC2 VOUTN 0 1p\n\n* Dummy node for differential output measurement\nE_DIFF VOUT_DIFF 0 vol='v(VOUTP) - v(VOUTN)'\n\n.control\n  * 1. DC Operating Point for Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis - Differential\n  ac dec 100 1 1G\n  let gain_db = vdb(VOUT_DIFF)\n  let phase = 180/PI * cph(v(VOUT_DIFF))\n  meas ac dc_gain find gain_db at=10\n  meas ac ugbw when gain_db=0 fall=1\n  meas ac pm_phase find phase when gain_db=0 fall=1\n  let phase_margin = pm_phase + 180\n  print dc_gain ugbw phase_margin\n\n  * 3. AC Analysis - Common Mode (for CMRR)\n  alter V_IN_DIFF ac=0\n  alter V_IN_CM ac=1\n  ac dec 100 1 1G\n  let gain_cm_db = vdb(VOUT_DIFF)\n  meas ac cm_gain find gain_cm_db at=10\n  let cmrr_db = dc_gain - cm_gain\n  print cmrr_db\n\n  * 4. Transient Analysis for Slew Rate\n  alter V_IN_DIFF ac=1\n  alter V_IN_CM ac=0\n  tran 1n 2u\n  * Measure time to slew 1V (from -0.5V to +0.5V)\n  meas tran t_rise trig v(VOUT_DIFF) val=-0.5 rise=1 targ v(VOUT_DIFF) val=0.5 rise=1\n  let sr_rise_vus = 1e-6 / t_rise\n  \n  * Measure time to slew 1V (from +0.5V to -0.5V)\n  meas tran t_fall trig v(VOUT_DIFF) val=0.5 fall=1 targ v(VOUT_DIFF) val=-0.5 fall=1\n  let sr_fall_vus = 1e-6 / t_fall\n  \n  print sr_rise_vus sr_fall_vus\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential Current-Mirror Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"This circuit is a fully differential OTA consisting of an NMOS input differential pair (XM1A/B) with diode-connected PMOS loads (XM2A/B). The currents are mirrored to the output branches via PMOS mirrors (XM3A/B), working against constant NMOS current source loads (XM4A/B). It provides high output impedance and is typically used in open-loop configurations or with a common-mode feedback (CMFB) circuit.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VINP\",\n        \"VINN\"\n      ],\n      \"output\": [\n        \"VOUTP\",\n        \"VOUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Device Mismatch and Tradeoffs in the Design of Analog Circuits\",\n      \"figure\": \"Not specified\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the OTA.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1W / 6W (Note: likely refers to a larger system in the paper)\",\n        \"technology\": \"50 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current I_tail = 0.5 * 270u * 10 * (0.54-0.42)^2 = 19.4uA. The output branches mirror half the tail current each (9.7uA). Total current = 19.4uA + 2*9.7uA = 38.8uA. Power = 1.8V * 38.8uA = 70uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 70e-6,\n          \"max\": 100e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on VBIAS=0.54V and typical SKY130 NMOS threshold voltages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"sky130_expected\": {\n        \"calculation\": \"Gm = 2 * (9.7uA) / 0.084V = 230 uA/V. Rout = ro_pmos || ro_nmos = 1.03MOhm || 515kOhm = 343 kOhm. Gain = Gm * Rout = 78.9 V/V = 38 dB.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 38,\n          \"max\": 45,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Derived from the transconductance of the input pair and the parallel output resistance of the mirror and load transistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity gain bandwidth with a 1pF load capacitance.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = Gm / (2 * pi * C_load) = 230uA/V / (2 * pi * 1pF) = 36.6 MHz.\",\n        \"range\": {\n          \"min\": 20e6,\n          \"typical\": 36.6e6,\n          \"max\": 50e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Directly proportional to the input pair Gm and inversely proportional to the load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at the unity gain frequency.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"sky130_expected\": {\n        \"calculation\": \"Single-stage OTA with the dominant pole at the output node. The non-dominant pole at the current mirror node is at a much higher frequency.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 85,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard behavior for a single-stage OTA driving a relatively large 1pF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the differential output voltage.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_out_max / C_load. The maximum charging/discharging current available to the load is half the tail current (9.7uA). SR = 9.7uA / 1pF = 9.7 V/us.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 9.7,\n          \"max\": 15,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Limited by the tail current and the 1:1 current mirror ratio.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cmrr\": {\n      \"description\": \"Common-Mode Rejection Ratio.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"sky130_expected\": {\n        \"calculation\": \"CMRR = Ad / Acm. In a perfectly symmetric schematic simulation, Acm is near zero.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 100,\n          \"max\": 150,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Simulation without mismatch yields artificially high CMRR. Real-world CMRR would be limited by device mismatch.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"input_offset_voltage\": {\n      \"description\": \"Input-referred offset voltage due to random device mismatch.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Monte Carlo\",\n      \"paper_reported\": {\n        \"value\": \"6 mV\",\n        \"technology\": \"50 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mismatch is inversely proportional to sqrt(W*L). For W=5u, L=0.5u (Area=2.5um^2), Vth mismatch is typically a few millivolts.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 6e-3,\n          \"max\": 15e-3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Matches the paper's reported 6mV, which is a realistic expectation for this device area in 130nm.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, differential AC gain, UGBW, phase margin, CMRR, and transient slew rate. Large inductors are used to set the output DC operating point to VDD/2 (acting as an ideal CMFB) without loading the AC signal.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"cmrr\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Fully Differential OTA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized W/L\\n.param W_xm3a=5u L_xm3a=0.5u\\n.param W_xm4a=5u L_xm4a=0.5u\\n.param W_xm2a=5u L_xm2a=0.5u\\n.param W_xm2b=5u L_xm2b=0.5u\\n.param W_xm3b=5u L_xm3b=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm1b=5u L_xm1b=0.5u\\n.param W_xm1a=5u L_xm1a=0.5u\\n.param W_xm4b=5u L_xm4b=0.5u\\n\\n* DUT\\nXM3A VOUTP N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3a} w={W_xm3a}\\nXM4A VOUTP VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4a} w={W_xm4a}\\nXM2A N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2a} w={W_xm2a}\\nXM2B N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2b} w={W_xm2b}\\nXM3B VOUTN N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3b} w={W_xm3b}\\nXM5 N1 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM1B N0 VINN N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1b} w={W_xm1b}\\nXM1A N2 VINP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1a} w={W_xm1a}\\nXM4B VOUTN VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4b} w={W_xm4b}\\n\\n* Power and Bias\\nVVDD VDD 0 1.8\\nVVBIAS VBIAS 0 0.54\\n\\n* Input Signals (Common-mode and Differential)\\nV_IN_CM IN_CM 0 DC 0.9 AC 0\\nV_IN_DIFF IN_DIFF 0 DC 0 AC 1 PULSE(-0.5 0.5 10n 1n 1n 1u 2u)\\n\\nE_VINP VINP 0 vol='v(IN_CM) + 0.5*v(IN_DIFF)'\\nE_VINN VINN 0 vol='v(IN_CM) - 0.5*v(IN_DIFF)'\\n\\n* Ideal CMFB / DC Biasing using Inductors\\nL1 VOUTP VCM 1000H\\nL2 VOUTN VCM 1000H\\nVCM VCM 0 0.9\\n\\n* Load Capacitors\\nC1 VOUTP 0 1p\\nC2 VOUTN 0 1p\\n\\n* Dummy node for differential output measurement\\nE_DIFF VOUT_DIFF 0 vol='v(VOUTP) - v(VOUTN)'\\n\\n.control\\n  * 1. DC Operating Point for Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis - Differential\\n  ac dec 100 1 1G\\n  let gain_db = vdb(VOUT_DIFF)\\n  let phase = 180/PI * cph(v(VOUT_DIFF))\\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugbw when gain_db=0 fall=1\\n  meas ac pm_phase find phase when gain_db=0 fall=1\\n  let phase_margin = pm_phase + 180\\n  print dc_gain ugbw phase_margin\\n\\n  * 3. AC Analysis - Common Mode (for CMRR)\\n  alter V_IN_DIFF ac=0\\n  alter V_IN_CM ac=1\\n  ac dec 100 1 1G\\n  let gain_cm_db = vdb(VOUT_DIFF)\\n  meas ac cm_gain find gain_cm_db at=10\\n  let cmrr_db = dc_gain - cm_gain\\n  print cmrr_db\\n\\n  * 4. Transient Analysis for Slew Rate\\n  alter V_IN_DIFF ac=1\\n  alter V_IN_CM ac=0\\n  tran 1n 2u\\n  * Measure time to slew 1V (from -0.5V to +0.5V)\\n  meas tran t_rise trig v(VOUT_DIFF) val=-0.5 rise=1 targ v(VOUT_DIFF) val=0.5 rise=1\\n  let sr_rise_vus = 1e-6 / t_rise\\n  \\n  * Measure time to slew 1V (from +0.5V to -0.5V)\\n  meas tran t_fall trig v(VOUT_DIFF) val=0.5 fall=1 targ v(VOUT_DIFF) val=-0.5 fall=1\\n  let sr_fall_vus = 1e-6 / t_fall\\n  \\n  print sr_rise_vus sr_fall_vus\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1435599",
+  "_case": "1435599_image_5_a"
+}

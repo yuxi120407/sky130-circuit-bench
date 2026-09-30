@@ -1,0 +1,97 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Amplifier / Bias Subcircuit",
+    "description": "This circuit appears to be a sub-block of a track-and-hold amplifier or bootstrapped switch network from a pipeline ADC. It consists of several NMOS and PMOS transistors forming gain stages or bias branches, with nodes like N3 acting as a high-impedance output between a PMOS and NMOS pair.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_1",
+        "LABEL_NET_3",
+        "LABEL_NET_5",
+        "LABEL_NET_6",
+        "LABEL_NET_7",
+        "LABEL_NET_8",
+        "LABEL_NET_10"
+      ],
+      "output": [
+        "N3",
+        "N2",
+        "N6"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N4",
+        "N5",
+        "LABEL_NET_4",
+        "LABEL_NET_9"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 3-V 340-mW 14-b 75-Msample/s CMOS ADC With 85-dB SFDR at Nyquist Input",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipation of the subcircuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "340 mW (entire ADC)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming ~100uA per branch for 3 active branches at 1.8V: 3 * 100uA * 1.8V = 0.54mW.",
+        "range": {
+          "min": "0.1m",
+          "typical": "0.5m",
+          "max": "2m",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 340mW for the entire 14-bit ADC. This small subcircuit will consume a tiny fraction of that, scaled down for the 1.8V SKY130 supply."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Small-signal voltage gain from LABEL_NET_6 to N3.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * (ro_n || ro_p). gm ~ 1mS, ro ~ 10kOhm. Gain ~ 10 V/V = 20 dB.",
+        "range": {
+          "min": "10",
+          "typical": "20",
+          "max": "40",
+          "unit": "dB"
+        },
+        "reasoning": "Typical intrinsic gain of a single-stage common-source amplifier in 130nm."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, power consumption, and small-signal AC gain of the subcircuit.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain"
+    ],
+    "spice": "* Subcircuit Testbench\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\nXM1 N2 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 LABEL_NET_3 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 LABEL_NET_4 LABEL_NET_5 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 LABEL_NET_6 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N6 LABEL_NET_7 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 LABEL_NET_8 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N2 LABEL_NET_10 LABEL_NET_9 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* DC Biases and Inputs\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVLABEL_NET_3 LABEL_NET_3 0 0.9\nVLABEL_NET_4 LABEL_NET_4 0 1.8\nVLABEL_NET_5 LABEL_NET_5 0 0.9\nVLABEL_NET_6 LABEL_NET_6 0 0.9 AC 1\nVLABEL_NET_7 LABEL_NET_7 0 0.9\nVLABEL_NET_8 LABEL_NET_8 0 0.9\nVLABEL_NET_10 LABEL_NET_10 0 0.9\nVLABEL_NET_9 LABEL_NET_9 0 0\n\n* Tie floating nodes to reasonable DC levels\nVN0 N0 0 0.9\nVN4 N4 0 1.8\nVN5 N5 0 0\n\n.control\n* DC Operating Point and Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* AC Analysis for Gain\nac dec 100 1 1G\nlet gain_db = vdb(N3)\nmeas ac max_gain MAX gain_db\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Amplifier / Bias Subcircuit\",\n    \"description\": \"This circuit appears to be a sub-block of a track-and-hold amplifier or bootstrapped switch network from a pipeline ADC. It consists of several NMOS and PMOS transistors forming gain stages or bias branches, with nodes like N3 acting as a high-impedance output between a PMOS and NMOS pair.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_1\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_6\",\n        \"LABEL_NET_7\",\n        \"LABEL_NET_8\",\n        \"LABEL_NET_10\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N2\",\n        \"N6\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N4\",\n        \"N5\",\n        \"LABEL_NET_4\",\n        \"LABEL_NET_9\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 3-V 340-mW 14-b 75-Msample/s CMOS ADC With 85-dB SFDR at Nyquist Input\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation of the subcircuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"340 mW (entire ADC)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming ~100uA per branch for 3 active branches at 1.8V: 3 * 100uA * 1.8V = 0.54mW.\",\n        \"range\": {\n          \"min\": \"0.1m\",\n          \"typical\": \"0.5m\",\n          \"max\": \"2m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 340mW for the entire 14-bit ADC. This small subcircuit will consume a tiny fraction of that, scaled down for the 1.8V SKY130 supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Small-signal voltage gain from LABEL_NET_6 to N3.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * (ro_n || ro_p). gm ~ 1mS, ro ~ 10kOhm. Gain ~ 10 V/V = 20 dB.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"20\",\n          \"max\": \"40\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical intrinsic gain of a single-stage common-source amplifier in 130nm.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, power consumption, and small-signal AC gain of the subcircuit.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\"\n    ],\n    \"spice\": \"* Subcircuit Testbench\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\nXM1 N2 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 LABEL_NET_3 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 LABEL_NET_4 LABEL_NET_5 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 LABEL_NET_6 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N6 LABEL_NET_7 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 LABEL_NET_8 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N2 LABEL_NET_10 LABEL_NET_9 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* DC Biases and Inputs\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVLABEL_NET_3 LABEL_NET_3 0 0.9\\nVLABEL_NET_4 LABEL_NET_4 0 1.8\\nVLABEL_NET_5 LABEL_NET_5 0 0.9\\nVLABEL_NET_6 LABEL_NET_6 0 0.9 AC 1\\nVLABEL_NET_7 LABEL_NET_7 0 0.9\\nVLABEL_NET_8 LABEL_NET_8 0 0.9\\nVLABEL_NET_10 LABEL_NET_10 0 0.9\\nVLABEL_NET_9 LABEL_NET_9 0 0\\n\\n* Tie floating nodes to reasonable DC levels\\nVN0 N0 0 0.9\\nVN4 N4 0 1.8\\nVN5 N5 0 0\\n\\n.control\\n* DC Operating Point and Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* AC Analysis for Gain\\nac dec 100 1 1G\\nlet gain_db = vdb(N3)\\nmeas ac max_gain MAX gain_db\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "972143",
+  "_case": "972143_image_2"
+}

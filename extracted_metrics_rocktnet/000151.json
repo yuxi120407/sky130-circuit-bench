@@ -1,0 +1,101 @@
+{
+  "step1_analysis": {
+    "circuit_type": "On-chip Inductor Pi-Model",
+    "description": "A lumped-element pi-model representing an on-chip spiral inductor, including series inductance, series resistance, feedforward capacitance, and substrate parasitics. This is typically used for RF matching networks or harmonic terminations in power amplifiers.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS RF Power Amplifier With Parallel Amplification for Efficient Power Control",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Inductance": {
+      "description": "Effective inductance at the operating frequency (1.4 GHz).",
+      "unit": "H",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.4 GHz operating frequency",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the physical dimensions of the spiral inductor. For a typical RF matching inductor at 1.4 GHz, L is usually in the low nH range.",
+        "range": {
+          "min": "1nH",
+          "typical": "2nH",
+          "max": "5nH",
+          "unit": "H"
+        },
+        "reasoning": "Typical values for on-chip RF inductors in the 1-2 GHz band used for PA matching or chokes."
+      },
+      "importance": "essential"
+    },
+    "Quality_Factor": {
+      "description": "Quality factor (Q) at the operating frequency, representing the ratio of energy stored to energy dissipated.",
+      "unit": "unitless",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Q = imag(Z) / real(Z). Depends on metal thickness and substrate resistivity.",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 15,
+          "unit": ""
+        },
+        "reasoning": "SKY130 thick metal layers typically yield Q factors around 8-12 at low GHz frequencies."
+      },
+      "importance": "essential"
+    },
+    "Self_Resonant_Frequency": {
+      "description": "The frequency at which the inductor resonates with its own parasitic capacitance, transitioning from inductive to capacitive.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "SRF = 1 / (2 * pi * sqrt(L * C_total)).",
+        "range": {
+          "min": "5GHz",
+          "typical": "10GHz",
+          "max": "20GHz",
+          "unit": "Hz"
+        },
+        "reasoning": "For a 2nH inductor with ~100fF parasitic capacitance, SRF is around 11 GHz, well above the 1.4 GHz operating frequency."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the effective inductance, quality factor at 1.4 GHz, and the self-resonant frequency (SRF) of the inductor pi-model using a 1-port Z-parameter setup.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "Inductance",
+      "Quality_Factor",
+      "Self_Resonant_Frequency"
+    ],
+    "spice": "* Inductor Pi-Model Characterization Testbench\n\n.lib \"${SKY130_PDK}\" tt\n\n* Define the DUT as a subcircuit to pass parameters cleanly without modifying the original netlist syntax\n.subckt ind_pi IN OUT GND Ls=2n Rs=2 Cs=50f Cox=100f Rsi=50 Csi=50f\nLS IN N1 Ls\nRS N1 OUT Rs\nCS IN OUT Cs\nCox1 IN N2 Cox\nRSi1 N2 GND Rsi\nCSi1 N2 GND Csi\nCox2 OUT N3 Cox\nRSi2 N3 GND Rsi\nCSi2 N3 GND Csi\n.ends\n\n* Instantiate the DUT\n* Port 2 (OUT) is grounded for 1-port Z-parameter measurement\nX1 IN 0 0 ind_pi\n\n* AC Current Source at Port 1 (IN)\n* 1A AC current makes v(IN) directly equal to Z11\nIIN 0 IN AC 1\n\n.control\n* Sweep from 100 MHz to 20 GHz to capture 1.4 GHz and SRF\nac dec 100 100MEG 20G\n\n* Calculate Z11, Inductance, and Q\nlet Z11 = v(IN)\nlet L_ind = imag(Z11) / (2 * pi * frequency)\nlet Q_ind = imag(Z11) / real(Z11)\n\n* Measure metrics at 1.4 GHz (operating frequency from paper)\nmeas ac L_1_4G find L_ind at=1.4G\nmeas ac Q_1_4G find Q_ind at=1.4G\n\n* Measure Self-Resonant Frequency (where Q crosses 0, transitioning from inductive to capacitive)\nmeas ac SRF when Q_ind=0 fall=1\n\nprint L_1_4G Q_1_4G SRF\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"On-chip Inductor Pi-Model\",\n    \"description\": \"A lumped-element pi-model representing an on-chip spiral inductor, including series inductance, series resistance, feedforward capacitance, and substrate parasitics. This is typically used for RF matching networks or harmonic terminations in power amplifiers.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS RF Power Amplifier With Parallel Amplification for Efficient Power Control\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Inductance\": {\n      \"description\": \"Effective inductance at the operating frequency (1.4 GHz).\",\n      \"unit\": \"H\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.4 GHz operating frequency\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the physical dimensions of the spiral inductor. For a typical RF matching inductor at 1.4 GHz, L is usually in the low nH range.\",\n        \"range\": {\n          \"min\": \"1nH\",\n          \"typical\": \"2nH\",\n          \"max\": \"5nH\",\n          \"unit\": \"H\"\n        },\n        \"reasoning\": \"Typical values for on-chip RF inductors in the 1-2 GHz band used for PA matching or chokes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Quality_Factor\": {\n      \"description\": \"Quality factor (Q) at the operating frequency, representing the ratio of energy stored to energy dissipated.\",\n      \"unit\": \"unitless\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q = imag(Z) / real(Z). Depends on metal thickness and substrate resistivity.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 10,\n          \"max\": 15,\n          \"unit\": \"\"\n        },\n        \"reasoning\": \"SKY130 thick metal layers typically yield Q factors around 8-12 at low GHz frequencies.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Self_Resonant_Frequency\": {\n      \"description\": \"The frequency at which the inductor resonates with its own parasitic capacitance, transitioning from inductive to capacitive.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SRF = 1 / (2 * pi * sqrt(L * C_total)).\",\n        \"range\": {\n          \"min\": \"5GHz\",\n          \"typical\": \"10GHz\",\n          \"max\": \"20GHz\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"For a 2nH inductor with ~100fF parasitic capacitance, SRF is around 11 GHz, well above the 1.4 GHz operating frequency.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the effective inductance, quality factor at 1.4 GHz, and the self-resonant frequency (SRF) of the inductor pi-model using a 1-port Z-parameter setup.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Inductance\",\n      \"Quality_Factor\",\n      \"Self_Resonant_Frequency\"\n    ],\n    \"spice\": \"* Inductor Pi-Model Characterization Testbench\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define the DUT as a subcircuit to pass parameters cleanly without modifying the original netlist syntax\\n.subckt ind_pi IN OUT GND Ls=2n Rs=2 Cs=50f Cox=100f Rsi=50 Csi=50f\\nLS IN N1 Ls\\nRS N1 OUT Rs\\nCS IN OUT Cs\\nCox1 IN N2 Cox\\nRSi1 N2 GND Rsi\\nCSi1 N2 GND Csi\\nCox2 OUT N3 Cox\\nRSi2 N3 GND Rsi\\nCSi2 N3 GND Csi\\n.ends\\n\\n* Instantiate the DUT\\n* Port 2 (OUT) is grounded for 1-port Z-parameter measurement\\nX1 IN 0 0 ind_pi\\n\\n* AC Current Source at Port 1 (IN)\\n* 1A AC current makes v(IN) directly equal to Z11\\nIIN 0 IN AC 1\\n\\n.control\\n* Sweep from 100 MHz to 20 GHz to capture 1.4 GHz and SRF\\nac dec 100 100MEG 20G\\n\\n* Calculate Z11, Inductance, and Q\\nlet Z11 = v(IN)\\nlet L_ind = imag(Z11) / (2 * pi * frequency)\\nlet Q_ind = imag(Z11) / real(Z11)\\n\\n* Measure metrics at 1.4 GHz (operating frequency from paper)\\nmeas ac L_1_4G find L_ind at=1.4G\\nmeas ac Q_1_4G find Q_ind at=1.4G\\n\\n* Measure Self-Resonant Frequency (where Q crosses 0, transitioning from inductive to capacitive)\\nmeas ac SRF when Q_ind=0 fall=1\\n\\nprint L_1_4G Q_1_4G SRF\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1004572",
+  "_case": "1004572_image_16"
+}

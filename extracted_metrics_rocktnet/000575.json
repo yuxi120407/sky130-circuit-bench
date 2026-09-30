@@ -1,0 +1,136 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current-Steering DAC Cell (Latch + Switch + Current Source)",
+    "description": "A single cell of a current-steering DAC. It includes a cascode current source, a differential PMOS switch, and a cross-coupled latch to synchronize the switching and minimize crossing noise.",
+    "node_mapping": {
+      "input": [
+        "N8",
+        "N9"
+      ],
+      "output": [
+        "N5",
+        "N11"
+      ],
+      "supply": [
+        "VDD",
+        "LABEL_NET_0",
+        "N12"
+      ],
+      "bias": [
+        "LABEL_NET_1",
+        "LABEL_NET_2"
+      ],
+      "ground": [
+        "GND",
+        "N7",
+        "LABEL_NET_3",
+        "LABEL_NET_4",
+        "LABEL_NET_5",
+        "LABEL_NET_6"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 12-bit 320-MSample/s Current-Steering CMOS D/A Converter in 0.44 mm2",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "I_cell": {
+      "description": "Nominal output current of the DAC cell provided by the cascode current source.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A (Full DAC power/SFDR reported)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * up*Cox * (W/L) * (VDD - VBP1 - |Vth|)^2 = 0.5 * 50uA/V^2 * (5/0.5) * (1.8 - 1.0 - 0.42)^2 = 36 uA",
+        "range": {
+          "min": "20u",
+          "typical": "36u",
+          "max": "50u",
+          "unit": "A"
+        },
+        "reasoning": "Based on the PMOS current source biased at VBP1=1.0V in SKY130 1.8V."
+      },
+      "importance": "essential"
+    },
+    "T_delay": {
+      "description": "Delay from input data crossing to output current crossing.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "320 MS/s (implies < 3ns settling)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Gate delay of the latch + switch turn-on time.",
+        "range": {
+          "min": "50p",
+          "typical": "200p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "The cross-coupled latch provides fast switching, expected to be a fraction of a nanosecond in 130nm."
+      },
+      "importance": "essential"
+    },
+    "V_cross_latch": {
+      "description": "Crossing voltage of the latch outputs (N0, N1) which drive the PMOS switches.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the relative strengths of the pull-up PMOS and pull-down NMOS in the latch.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.9",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "A crossing point near VDD/2 is typical, though it may be optimized to ensure PMOS switches are never both completely off."
+      },
+      "importance": "recommended"
+    },
+    "Power": {
+      "description": "Average power consumption of the single cell.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "82 mW (Full DAC)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Static power = 36uA * 1.8V = 65uW. Dynamic power adds a small switching overhead.",
+        "range": {
+          "min": "50u",
+          "typical": "100u",
+          "max": "200u",
+          "unit": "W"
+        },
+        "reasoning": "The full DAC has thousands of cells plus clocking. A single cell consumes a fraction of a milliwatt."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure cell current, switching delay, latch crossing voltage, and power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "I_cell",
+      "T_delay",
+      "V_cross_latch",
+      "Power"
+    ],
+    "spice": "* DAC Cell Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n\n* Supplies and Biases\nVVDD VDD 0 1.8\nV_N12 VDD N12 0\nV_L0 VDD LABEL_NET_0 0\nV_N7 N7 0 0\nVLABEL_NET_1 LABEL_NET_1 0 1.0\nVLABEL_NET_2 LABEL_NET_2 0 0.8\nVLABEL_NET_3 LABEL_NET_3 0 0\nVLABEL_NET_4 LABEL_NET_4 0 0\nVLABEL_NET_5 LABEL_NET_5 0 0\nVLABEL_NET_6 LABEL_NET_6 0 0\n\n* Differential Inputs\nVINP N8 0 PULSE(0 1.8 1n 100p 100p 4n 8n)\nVINN N9 0 PULSE(1.8 0 1n 100p 100p 4n 8n)\n\n* Output Loads\nR1 N5 0 10k\nR2 N11 0 10k\n\n* DUT\nXM1 N6 N0 N12 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N8 N10 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N8 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N1 N9 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N10 N1 N12 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N5 N0 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N11 N1 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 N9 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 LABEL_NET_1 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N2 LABEL_NET_2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 LABEL_NET_3 LABEL_NET_4 N9 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N8 LABEL_NET_6 LABEL_NET_5 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\n\n.control\ntran 10p 20n\n\n* Define differential signals\nlet vdiff_in = v(N8) - v(N9)\nlet vdiff_latch = v(N0) - v(N1)\nlet vdiff_out = v(N5) - v(N11)\n\n* Measure Cell Current\nmeas tran vout_max max v(N5)\nlet i_cell = vout_max / 10000\nprint i_cell\n\n* Measure Delay and Crossing Voltage\nmeas tran t_in_cross when vdiff_in=0 rise=1\nmeas tran t_latch_cross when vdiff_latch=0 fall=1\nmeas tran v_cross_latch find v(N0) at=t_latch_cross\nmeas tran t_out_cross when vdiff_out=0 rise=1\nlet t_delay = t_out_cross - t_in_cross\nprint t_delay\n\n* Measure Power\nmeas tran pwr_avg avg i(VVDD)\nlet power = -pwr_avg * 1.8\nprint power\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current-Steering DAC Cell (Latch + Switch + Current Source)\",\n    \"description\": \"A single cell of a current-steering DAC. It includes a cascode current source, a differential PMOS switch, and a cross-coupled latch to synchronize the switching and minimize crossing noise.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N8\",\n        \"N9\"\n      ],\n      \"output\": [\n        \"N5\",\n        \"N11\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"LABEL_NET_0\",\n        \"N12\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N7\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_4\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_6\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 12-bit 320-MSample/s Current-Steering CMOS D/A Converter in 0.44 mm2\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"I_cell\": {\n      \"description\": \"Nominal output current of the DAC cell provided by the cascode current source.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A (Full DAC power/SFDR reported)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * up*Cox * (W/L) * (VDD - VBP1 - |Vth|)^2 = 0.5 * 50uA/V^2 * (5/0.5) * (1.8 - 1.0 - 0.42)^2 = 36 uA\",\n        \"range\": {\n          \"min\": \"20u\",\n          \"typical\": \"36u\",\n          \"max\": \"50u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Based on the PMOS current source biased at VBP1=1.0V in SKY130 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"T_delay\": {\n      \"description\": \"Delay from input data crossing to output current crossing.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"320 MS/s (implies < 3ns settling)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gate delay of the latch + switch turn-on time.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"200p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The cross-coupled latch provides fast switching, expected to be a fraction of a nanosecond in 130nm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_cross_latch\": {\n      \"description\": \"Crossing voltage of the latch outputs (N0, N1) which drive the PMOS switches.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the relative strengths of the pull-up PMOS and pull-down NMOS in the latch.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.9\",\n          \"max\": \"1.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"A crossing point near VDD/2 is typical, though it may be optimized to ensure PMOS switches are never both completely off.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Power\": {\n      \"description\": \"Average power consumption of the single cell.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"82 mW (Full DAC)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static power = 36uA * 1.8V = 65uW. Dynamic power adds a small switching overhead.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"100u\",\n          \"max\": \"200u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The full DAC has thousands of cells plus clocking. A single cell consumes a fraction of a milliwatt.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure cell current, switching delay, latch crossing voltage, and power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"I_cell\",\n      \"T_delay\",\n      \"V_cross_latch\",\n      \"Power\"\n    ],\n    \"spice\": \"* DAC Cell Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n\\n* Supplies and Biases\\nVVDD VDD 0 1.8\\nV_N12 VDD N12 0\\nV_L0 VDD LABEL_NET_0 0\\nV_N7 N7 0 0\\nVLABEL_NET_1 LABEL_NET_1 0 1.0\\nVLABEL_NET_2 LABEL_NET_2 0 0.8\\nVLABEL_NET_3 LABEL_NET_3 0 0\\nVLABEL_NET_4 LABEL_NET_4 0 0\\nVLABEL_NET_5 LABEL_NET_5 0 0\\nVLABEL_NET_6 LABEL_NET_6 0 0\\n\\n* Differential Inputs\\nVINP N8 0 PULSE(0 1.8 1n 100p 100p 4n 8n)\\nVINN N9 0 PULSE(1.8 0 1n 100p 100p 4n 8n)\\n\\n* Output Loads\\nR1 N5 0 10k\\nR2 N11 0 10k\\n\\n* DUT\\nXM1 N6 N0 N12 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N8 N10 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N8 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N1 N9 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N10 N1 N12 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N5 N0 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N11 N1 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 N9 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 LABEL_NET_1 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N2 LABEL_NET_2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 LABEL_NET_3 LABEL_NET_4 N9 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N8 LABEL_NET_6 LABEL_NET_5 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\n\\n.control\\ntran 10p 20n\\n\\n* Define differential signals\\nlet vdiff_in = v(N8) - v(N9)\\nlet vdiff_latch = v(N0) - v(N1)\\nlet vdiff_out = v(N5) - v(N11)\\n\\n* Measure Cell Current\\nmeas tran vout_max max v(N5)\\nlet i_cell = vout_max / 10000\\nprint i_cell\\n\\n* Measure Delay and Crossing Voltage\\nmeas tran t_in_cross when vdiff_in=0 rise=1\\nmeas tran t_latch_cross when vdiff_latch=0 fall=1\\nmeas tran v_cross_latch find v(N0) at=t_latch_cross\\nmeas tran t_out_cross when vdiff_out=0 rise=1\\nlet t_delay = t_out_cross - t_in_cross\\nprint t_delay\\n\\n* Measure Power\\nmeas tran pwr_avg avg i(VVDD)\\nlet power = -pwr_avg * 1.8\\nprint power\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1308580",
+  "_case": "1308580_image_7"
+}

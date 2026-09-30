@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "VCO Delay Cell / Replica Bias (Fragment)",
+    "description": "The circuit appears to be a fragment of a voltage-controlled oscillator, likely a delay cell or replica bias circuit. It includes a reset mechanism (RST) and replica biasing (V_REPLICA), though some nodes like VO_MINUS appear floating or non-functional due to likely schematic extraction artifacts (e.g., NFETs with source tied to VDD).",
+    "node_mapping": {
+      "input": [
+        "VI_PLUS",
+        "RST"
+      ],
+      "output": [
+        "VO_MINUS",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "V_REPLICA"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Brief Papers",
+      "figure": "1",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Power": {
+      "description": "DC power consumption of the sub-circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1 w",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Current through VDD * 1.8V. Dominated by leakage since most paths are OFF or blocked, except when RST is high.",
+        "range": {
+          "min": 1e-09,
+          "typical": 1e-06,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Without a direct DC path to ground (except when RST is high and N0 is pulled down by XM1/XM6), static power is very low."
+      },
+      "importance": "essential"
+    },
+    "N0_Reset_Voltage": {
+      "description": "Maximum voltage at node N0 during reset",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "VDD - Vth_n = 1.8 - 0.42 = 1.38V",
+        "range": {
+          "min": 1.0,
+          "typical": 1.38,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "XM3 acts as a source follower pulling N0 high when RST is 1.8V. The voltage is limited by the threshold drop."
+      },
+      "importance": "recommended"
+    },
+    "Frequency": {
+      "description": "Operating frequency of the complete VCO",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "400 MHz, 800 MHz",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this fragment",
+        "range": {
+          "min": 200000000.0,
+          "typical": 400000000.0,
+          "max": 800000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The paper reports 400-800MHz for the full VCO. This fragment cannot oscillate on its own, so it cannot be measured in this testbench."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for VCO sub-circuit measuring DC power and transient node voltages.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power",
+      "N0_Reset_Voltage",
+      "N0_Active_Voltage"
+    ],
+    "spice": "* VCO Sub-circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nVVDD VDD 0 1.8\nVREP V_REPLICA 0 0.9\nVRST RST 0 pulse(0 1.8 1n 0.1n 0.1n 5n 10n)\nVIN VI_PLUS 0 pulse(0 1.8 2n 0.1n 0.1n 5n 10n)\n\nXM1 N0 V_REPLICA GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VDD N0 VDD GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VDD RST N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VO_MINUS VI_PLUS VDD GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VDD VO_MINUS VDD GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 V_REPLICA GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 VDD VDD VDD GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 VO_MINUS VDD VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 VDD VDD VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 VO_MINUS VDD VDD GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\n* Loads to prevent floating nodes and simulation errors\nR_VO VO_MINUS 0 1G\nC_VO VO_MINUS 0 1f\nC_N0 N0 0 1f\n\n.control\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  tran 0.1n 20n\n  meas tran n0_reset max v(N0)\n  meas tran n0_active min v(N0)\n  meas tran vo_max max v(VO_MINUS)\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"VCO Delay Cell / Replica Bias (Fragment)\",\n    \"description\": \"The circuit appears to be a fragment of a voltage-controlled oscillator, likely a delay cell or replica bias circuit. It includes a reset mechanism (RST) and replica biasing (V_REPLICA), though some nodes like VO_MINUS appear floating or non-functional due to likely schematic extraction artifacts (e.g., NFETs with source tied to VDD).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VI_PLUS\",\n        \"RST\"\n      ],\n      \"output\": [\n        \"VO_MINUS\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"V_REPLICA\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Brief Papers\",\n      \"figure\": \"1\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Power\": {\n      \"description\": \"DC power consumption of the sub-circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1 w\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Current through VDD * 1.8V. Dominated by leakage since most paths are OFF or blocked, except when RST is high.\",\n        \"range\": {\n          \"min\": 1e-09,\n          \"typical\": 1e-06,\n          \"max\": 1e-03,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Without a direct DC path to ground (except when RST is high and N0 is pulled down by XM1/XM6), static power is very low.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"N0_Reset_Voltage\": {\n      \"description\": \"Maximum voltage at node N0 during reset\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - Vth_n = 1.8 - 0.42 = 1.38V\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.38,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"XM3 acts as a source follower pulling N0 high when RST is 1.8V. The voltage is limited by the threshold drop.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Frequency\": {\n      \"description\": \"Operating frequency of the complete VCO\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"400 MHz, 800 MHz\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this fragment\",\n        \"range\": {\n          \"min\": 200000000.0,\n          \"typical\": 400000000.0,\n          \"max\": 800000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The paper reports 400-800MHz for the full VCO. This fragment cannot oscillate on its own, so it cannot be measured in this testbench.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for VCO sub-circuit measuring DC power and transient node voltages.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power\",\n      \"N0_Reset_Voltage\",\n      \"N0_Active_Voltage\"\n    ],\n    \"spice\": \"* VCO Sub-circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nVVDD VDD 0 1.8\\nVREP V_REPLICA 0 0.9\\nVRST RST 0 pulse(0 1.8 1n 0.1n 0.1n 5n 10n)\\nVIN VI_PLUS 0 pulse(0 1.8 2n 0.1n 0.1n 5n 10n)\\n\\nXM1 N0 V_REPLICA GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VDD N0 VDD GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VDD RST N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VO_MINUS VI_PLUS VDD GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VDD VO_MINUS VDD GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 V_REPLICA GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 VDD VDD VDD GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 VO_MINUS VDD VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 VDD VDD VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 VO_MINUS VDD VDD GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Loads to prevent floating nodes and simulation errors\\nR_VO VO_MINUS 0 1G\\nC_VO VO_MINUS 0 1f\\nC_N0 N0 0 1f\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  tran 0.1n 20n\\n  meas tran n0_reset max v(N0)\\n  meas tran n0_active min v(N0)\\n  meas tran vo_max max v(VO_MINUS)\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "953487",
+  "_case": "953487_image_10_b"
+}

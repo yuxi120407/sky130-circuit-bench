@@ -1,0 +1,150 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.10",
+    "page": "494",
+    "circuit_type": "Switched-Capacitor Charge Pump (DSM Feedback Element)",
+    "description": "This circuit uses non-overlapping clocks (phi1, phi2) to charge a capacitor (Ccup) to VDD and then dump that charge into the bit line (Vbit). It serves as the feedback current source in a Delta-Sigma Modulator (DSM) for sensing memory cells."
+  },
+  "step2_metrics": {
+    "charge_dumped_per_cycle": {
+      "description": "The amount of charge transferred from the supply to the bit line in one clock cycle.",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "493",
+        "reference": "Eq 17.11"
+      },
+      "equation": {
+        "formula": "Qcup = Ccup * (VDD - Vbit)",
+        "explanation": "The charge dumped is the product of the cup capacitance and the voltage difference between VDD and the bit line voltage.",
+        "assumptions": "Assumes complete settling of the capacitor voltage and ideal switch behavior."
+      },
+      "sky130_expected": {
+        "calculation": "Given VDD = 1.8V, Ccup = 100fF (1e-13 from netlist). If we assume a typical bit line voltage Vbit = 0.9V (VDD/2): Qcup = 100e-15 * (1.8 - 0.9) = 90 fC.",
+        "range": {
+          "min": "0",
+          "typical": "90fC",
+          "max": "180fC",
+          "unit": "C"
+        },
+        "reasoning": "Maximum charge is 180fC when Vbit is 0V. Minimum is 0fC when Vbit is at VDD."
+      },
+      "importance": "essential"
+    },
+    "average_feedback_current": {
+      "description": "The equivalent average current provided by the switched-capacitor circuit into the bit line.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "494",
+        "reference": "Fig 17.11b"
+      },
+      "equation": {
+        "formula": "I_avg = Qcup / T = Ccup * (VDD - Vbit) * fclk",
+        "explanation": "Average current is the charge dumped per cycle multiplied by the clock frequency.",
+        "assumptions": "Continuous clocking at frequency fclk."
+      },
+      "sky130_expected": {
+        "calculation": "Using Qcup = 90fC (at Vbit=0.9V) and assuming a clock frequency fclk = 100MHz (T=10ns): I_avg = 90e-15 * 100e6 = 9.0 uA.",
+        "range": {
+          "min": "0",
+          "typical": "9uA",
+          "max": "18uA",
+          "unit": "A"
+        },
+        "reasoning": "Scales linearly with clock frequency and depends on the bit line voltage."
+      },
+      "importance": "essential"
+    },
+    "max_bitline_deviation": {
+      "description": "The maximum voltage change on the bit line capacitance in a single clock cycle.",
+      "unit": "V",
+      "analysis_type": "System",
+      "source": {
+        "page": "489",
+        "reference": "Eq 17.8"
+      },
+      "equation": {
+        "formula": "dVbit,max = (Icup * T) / Cbit",
+        "explanation": "The voltage step on the bit line caused by one full charge dump from the feedback circuit.",
+        "assumptions": "Assumes the feedback circuit dumps its maximum charge into a fixed bit line capacitance Cbit."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Icup (average) = 9uA, T = 10ns (100MHz), and a system bit line capacitance Cbit = 500fF: dVbit,max = (9e-6 * 10e-9) / 500e-15 = 0.18 V (180 mV).",
+        "range": {
+          "min": "0",
+          "typical": "180mV",
+          "max": "360mV",
+          "unit": "V"
+        },
+        "reasoning": "Depends on the external bit line capacitance which is not part of this specific subcircuit, but driven by it."
+      },
+      "importance": "optional"
+    },
+    "dynamic_range": {
+      "description": "The dynamic range of the DSM sensing operation using this feedback circuit.",
+      "unit": "dB",
+      "analysis_type": "System",
+      "source": {
+        "page": "490",
+        "reference": "Eq 17.9"
+      },
+      "equation": {
+        "formula": "DR = 20 * log10(N)",
+        "explanation": "The ratio of the maximum counter output code (N) to the smallest output code (1).",
+        "assumptions": "N is the total number of clock cycles the DSM is run."
+      },
+      "sky130_expected": {
+        "calculation": "For a typical sense operation of N = 15 cycles (4-bit counter): DR = 20 * log10(15) = 23.5 dB. For N = 1000: DR = 60 dB.",
+        "range": {
+          "min": "0",
+          "typical": "23.5",
+          "max": "60",
+          "unit": "dB"
+        },
+        "reasoning": "This is a system-level mathematical metric independent of the process node, relying only on the number of cycles."
+      },
+      "importance": "optional"
+    },
+    "minimum_resolvable_signal": {
+      "description": "The smallest programmed cell current that can be resolved by the DSM.",
+      "unit": "A",
+      "analysis_type": "System",
+      "source": {
+        "page": "491",
+        "reference": "Eq 17.10"
+      },
+      "equation": {
+        "formula": "I_min = Icup / N",
+        "explanation": "The average fed-back signal current divided by the total number of clock cycles.",
+        "assumptions": "Assumes ideal quantization and no noise."
+      },
+      "sky130_expected": {
+        "calculation": "Using the calculated typical Icup (I_avg) of 9uA and N = 15 cycles: I_min = 9uA / 15 = 0.6 uA.",
+        "range": {
+          "min": "10nA",
+          "typical": "0.6uA",
+          "max": "1.2uA",
+          "unit": "A"
+        },
+        "reasoning": "Directly proportional to the feedback current generated by this subcircuit and inversely proportional to the number of cycles."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the charge dumped per cycle (Qcup) and average current (I_avg) of the switched-capacitor circuit. It also calculates system-level DSM metrics based on these measured values.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "charge_dumped_per_cycle",
+      "average_feedback_current",
+      "max_bitline_deviation",
+      "dynamic_range",
+      "minimum_resolvable_signal"
+    ],
+    "spice": "* Testbench for Switched-Capacitor Charge Pump (Fig 17.10)\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters used in the parameterized netlist\n.param W_xm1=5u L_xm1=0.15u\n.param W_xm2=5u L_xm2=0.15u\n.param W_xm3=5u L_xm3=0.15u\n\n* --- DUT (Device Under Test) ---\nVDD VDD 0 1.8\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nxm2 vbit 0 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nC1 N001 0 1e-13\n* -------------------------------\n\n* Non-overlapping clocks (100MHz, T=10ns)\n* phi1: active low (0V) from 0 to 4.8ns (M1 ON, charges Ccup)\nVphi1 phi1 0 PULSE(0 1.8 0 100p 100p 4.8n 10n)\n* phi2: active low (0V) from 5.0ns to 9.8ns (M2 ON, dumps Ccup to vbit)\nVphi2 phi2 0 PULSE(1.8 0 5n 100p 100p 4.8n 10n)\n\n* Bitline voltage source (fixed at 0.9V to measure charge transfer)\nVbit_src vbit 0 DC 0.9\n\n.control\n* Run transient for 5 cycles (50ns)\ntran 10p 50n\n\n* 1. Measure charge dumped into vbit during the 3rd cycle (t=25n to 30n)\n* Current flows from vbit node into Vbit_src, so i(Vbit_src) is negative when charge enters vbit.\nmeas tran q_dump_neg integ i(Vbit_src) from=25n to=30n\nlet q_dump = -q_dump_neg\nprint q_dump\n\n* 2. Measure average current over one full cycle (20n to 30n)\nmeas tran q_cycle_neg integ i(Vbit_src) from=20n to=30n\nlet i_avg = -q_cycle_neg / 10n\nprint i_avg\n\n* --- Calculate System-Level Metrics (Eq 17.8, 17.9, 17.10) ---\n* Assume typical system parameters:\nlet N_cycles = 15\nlet Cbit_sys = 500e-15\nlet Tclk = 10e-9\n\n* Eq 17.9: Dynamic Range (dB)\nlet dynamic_range_db = 20 * log10(N_cycles)\nprint dynamic_range_db\n\n* Eq 17.10: Minimum resolvable signal (A)\nlet i_min_resolvable = i_avg / N_cycles\nprint i_min_resolvable\n\n* Eq 17.8: Max bitline deviation (V)\nlet dvbit_max = (i_avg * Tclk) / Cbit_sys\nprint dvbit_max\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.10\",\n    \"page\": \"494\",\n    \"circuit_type\": \"Switched-Capacitor Charge Pump (DSM Feedback Element)\",\n    \"description\": \"This circuit uses non-overlapping clocks (phi1, phi2) to charge a capacitor (Ccup) to VDD and then dump that charge into the bit line (Vbit). It serves as the feedback current source in a Delta-Sigma Modulator (DSM) for sensing memory cells.\"\n  },\n  \"step2_metrics\": {\n    \"charge_dumped_per_cycle\": {\n      \"description\": \"The amount of charge transferred from the supply to the bit line in one clock cycle.\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"493\",\n        \"reference\": \"Eq 17.11\"\n      },\n      \"equation\": {\n        \"formula\": \"Qcup = Ccup * (VDD - Vbit)\",\n        \"explanation\": \"The charge dumped is the product of the cup capacitance and the voltage difference between VDD and the bit line voltage.\",\n        \"assumptions\": \"Assumes complete settling of the capacitor voltage and ideal switch behavior.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Given VDD = 1.8V, Ccup = 100fF (1e-13 from netlist). If we assume a typical bit line voltage Vbit = 0.9V (VDD/2): Qcup = 100e-15 * (1.8 - 0.9) = 90 fC.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"90fC\",\n          \"max\": \"180fC\",\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Maximum charge is 180fC when Vbit is 0V. Minimum is 0fC when Vbit is at VDD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"average_feedback_current\": {\n      \"description\": \"The equivalent average current provided by the switched-capacitor circuit into the bit line.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"494\",\n        \"reference\": \"Fig 17.11b\"\n      },\n      \"equation\": {\n        \"formula\": \"I_avg = Qcup / T = Ccup * (VDD - Vbit) * fclk\",\n        \"explanation\": \"Average current is the charge dumped per cycle multiplied by the clock frequency.\",\n        \"assumptions\": \"Continuous clocking at frequency fclk.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using Qcup = 90fC (at Vbit=0.9V) and assuming a clock frequency fclk = 100MHz (T=10ns): I_avg = 90e-15 * 100e6 = 9.0 uA.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"9uA\",\n          \"max\": \"18uA\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Scales linearly with clock frequency and depends on the bit line voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"max_bitline_deviation\": {\n      \"description\": \"The maximum voltage change on the bit line capacitance in a single clock cycle.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"System\",\n      \"source\": {\n        \"page\": \"489\",\n        \"reference\": \"Eq 17.8\"\n      },\n      \"equation\": {\n        \"formula\": \"dVbit,max = (Icup * T) / Cbit\",\n        \"explanation\": \"The voltage step on the bit line caused by one full charge dump from the feedback circuit.\",\n        \"assumptions\": \"Assumes the feedback circuit dumps its maximum charge into a fixed bit line capacitance Cbit.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Icup (average) = 9uA, T = 10ns (100MHz), and a system bit line capacitance Cbit = 500fF: dVbit,max = (9e-6 * 10e-9) / 500e-15 = 0.18 V (180 mV).\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"180mV\",\n          \"max\": \"360mV\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the external bit line capacitance which is not part of this specific subcircuit, but driven by it.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"dynamic_range\": {\n      \"description\": \"The dynamic range of the DSM sensing operation using this feedback circuit.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"System\",\n      \"source\": {\n        \"page\": \"490\",\n        \"reference\": \"Eq 17.9\"\n      },\n      \"equation\": {\n        \"formula\": \"DR = 20 * log10(N)\",\n        \"explanation\": \"The ratio of the maximum counter output code (N) to the smallest output code (1).\",\n        \"assumptions\": \"N is the total number of clock cycles the DSM is run.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a typical sense operation of N = 15 cycles (4-bit counter): DR = 20 * log10(15) = 23.5 dB. For N = 1000: DR = 60 dB.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"23.5\",\n          \"max\": \"60\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"This is a system-level mathematical metric independent of the process node, relying only on the number of cycles.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"minimum_resolvable_signal\": {\n      \"description\": \"The smallest programmed cell current that can be resolved by the DSM.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"System\",\n      \"source\": {\n        \"page\": \"491\",\n        \"reference\": \"Eq 17.10\"\n      },\n      \"equation\": {\n        \"formula\": \"I_min = Icup / N\",\n        \"explanation\": \"The average fed-back signal current divided by the total number of clock cycles.\",\n        \"assumptions\": \"Assumes ideal quantization and no noise.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using the calculated typical Icup (I_avg) of 9uA and N = 15 cycles: I_min = 9uA / 15 = 0.6 uA.\",\n        \"range\": {\n          \"min\": \"10nA\",\n          \"typical\": \"0.6uA\",\n          \"max\": \"1.2uA\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Directly proportional to the feedback current generated by this subcircuit and inversely proportional to the number of cycles.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the charge dumped per cycle (Qcup) and average current (I_avg) of the switched-capacitor circuit. It also calculates system-level DSM metrics based on these measured values.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"charge_dumped_per_cycle\",\n      \"average_feedback_current\",\n      \"max_bitline_deviation\",\n      \"dynamic_range\",\n      \"minimum_resolvable_signal\"\n    ],\n    \"spice\": \"* Testbench for Switched-Capacitor Charge Pump (Fig 17.10)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters used in the parameterized netlist\\n.param W_xm1=5u L_xm1=0.15u\\n.param W_xm2=5u L_xm2=0.15u\\n.param W_xm3=5u L_xm3=0.15u\\n\\n* --- DUT (Device Under Test) ---\\nVDD VDD 0 1.8\\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 vbit 0 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nC1 N001 0 1e-13\\n* -------------------------------\\n\\n* Non-overlapping clocks (100MHz, T=10ns)\\n* phi1: active low (0V) from 0 to 4.8ns (M1 ON, charges Ccup)\\nVphi1 phi1 0 PULSE(0 1.8 0 100p 100p 4.8n 10n)\\n* phi2: active low (0V) from 5.0ns to 9.8ns (M2 ON, dumps Ccup to vbit)\\nVphi2 phi2 0 PULSE(1.8 0 5n 100p 100p 4.8n 10n)\\n\\n* Bitline voltage source (fixed at 0.9V to measure charge transfer)\\nVbit_src vbit 0 DC 0.9\\n\\n.control\\n* Run transient for 5 cycles (50ns)\\ntran 10p 50n\\n\\n* 1. Measure charge dumped into vbit during the 3rd cycle (t=25n to 30n)\\n* Current flows from vbit node into Vbit_src, so i(Vbit_src) is negative when charge enters vbit.\\nmeas tran q_dump_neg integ i(Vbit_src) from=25n to=30n\\nlet q_dump = -q_dump_neg\\nprint q_dump\\n\\n* 2. Measure average current over one full cycle (20n to 30n)\\nmeas tran q_cycle_neg integ i(Vbit_src) from=20n to=30n\\nlet i_avg = -q_cycle_neg / 10n\\nprint i_avg\\n\\n* --- Calculate System-Level Metrics (Eq 17.8, 17.9, 17.10) ---\\n* Assume typical system parameters:\\nlet N_cycles = 15\\nlet Cbit_sys = 500e-15\\nlet Tclk = 10e-9\\n\\n* Eq 17.9: Dynamic Range (dB)\\nlet dynamic_range_db = 20 * log10(N_cycles)\\nprint dynamic_range_db\\n\\n* Eq 17.10: Minimum resolvable signal (A)\\nlet i_min_resolvable = i_avg / N_cycles\\nprint i_min_resolvable\\n\\n* Eq 17.8: Max bitline deviation (V)\\nlet dvbit_max = (i_avg * Tclk) / Cbit_sys\\nprint dvbit_max\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LVDS Driver (Double Current Source)",
+    "description": "A double current source (DCS) LVDS driver that steers a constant current through an external load resistor to generate a high-speed differential output voltage. It uses a top PMOS current source, a bottom NMOS current source, and four MOS switches (an H-bridge) to alternate the current direction through the load.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_4",
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_3"
+      ],
+      "output": [
+        "N1",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_5",
+        "LABEL_NET_2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low-Voltage Low-Power LVDS Drivers",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Vod": {
+      "description": "Output differential voltage swing (single-ended peak-to-peak equivalent)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "320 mV, 400 mV",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With W=5u, L=0.5u, the maximum tail current is ~1.5mA. Across a standard 100 ohm differential load, Vod = 1.5mA * 100 ohm = 150mV.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.15,
+          "max": 0.35,
+          "unit": "V"
+        },
+        "reasoning": "The provided transistor widths (5um) are relatively small for a standard 3.5mA LVDS driver, so the expected swing is lower than the standard 350mV unless W is increased."
+      },
+      "importance": "essential"
+    },
+    "Vocm": {
+      "description": "Output common-mode voltage",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.25 V",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Set by the center-tapped termination resistors to 1.25V.",
+        "range": {
+          "min": 1.1,
+          "typical": 1.25,
+          "max": 1.4,
+          "unit": "V"
+        },
+        "reasoning": "Standard LVDS common-mode voltage is typically 1.2V to 1.25V. In this open-loop testbench, it is forced by the termination network."
+      },
+      "importance": "essential"
+    },
+    "Power": {
+      "description": "Total power consumption",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "60% reduction",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail * VDD = 1.5mA * 1.8V = 2.7mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0027,
+          "max": 0.0065,
+          "unit": "W"
+        },
+        "reasoning": "Depends heavily on the bias voltages applied to the current sources. 2.7mW is expected for a 1.5mA tail current."
+      },
+      "importance": "essential"
+    },
+    "t_rise": {
+      "description": "Rise time of the differential output signal",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Gigabits-per-second operation",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant of the load. R=50 ohms (single-ended), C=2pF -> tau = 100ps. Rise time ~ 2.2 * tau = 220ps.",
+        "range": {
+          "min": 1e-10,
+          "typical": 2.5e-10,
+          "max": 5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Fast switching (<300ps) is required for Gbps operation as mentioned in the paper."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure output differential swing, common-mode voltage, power consumption, and rise/fall times of the LVDS driver.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Vod",
+      "Vocm",
+      "Power",
+      "t_rise",
+      "t_fall"
+    ],
+    "spice": "* LVDS Driver Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* VDD\nVVDD VDD 0 1.8\n\n* Biases (VBP for top PMOS source, VBN for bottom NMOS source)\nV_VBP LABEL_NET_5 0 DC 0.4\nV_VBN LABEL_NET_2 0 DC 1.0\n\n* Inputs (500 MHz for 1 Gbps data rate)\n* LABEL_NET_4 = INP (NMOS switch), LABEL_NET_0 = INP_B (PMOS switch)\n* LABEL_NET_1 = INN (NMOS switch), LABEL_NET_3 = INN_B (PMOS switch)\nV_INP LABEL_NET_4 0 PULSE(0 1.8 0.5n 50p 50p 0.95n 2n)\nV_INP_B LABEL_NET_0 0 PULSE(1.8 0 0.5n 50p 50p 0.95n 2n)\nV_INN LABEL_NET_1 0 PULSE(1.8 0 0.5n 50p 50p 0.95n 2n)\nV_INN_B LABEL_NET_3 0 PULSE(0 1.8 0.5n 50p 50p 0.95n 2n)\n\n* Load (Center-tapped 100 ohm differential termination)\nR1 N1 VCM 50\nR2 N0 VCM 50\nVVCM VCM 0 1.25\n\n* Parasitic Capacitance (Receiver + routing)\nC1 N1 0 2p\nC2 N0 0 2p\n\n.control\n  tran 10p 10n\n  \n  * Calculate differential and common-mode signals\n  let vdiff = v(N1) - v(N0)\n  let vcm_out = (v(N1) + v(N0)) / 2\n  \n  * Measure Vod (Differential Swing)\n  meas tran vod_max max vdiff from=5n to=10n\n  meas tran vod_min min vdiff from=5n to=10n\n  let vod = (vod_max - vod_min) / 2\n  print vod\n  \n  * Measure Vocm\n  meas tran vocm_avg avg vcm_out from=5n to=10n\n  print vocm_avg\n  \n  * Measure Power\n  meas tran i_vdd avg i(VVDD) from=5n to=10n\n  let power = -i_vdd * 1.8\n  print power\n  \n  * Measure Rise and Fall times (crossing -50mV to +50mV)\n  meas tran t_rise trig vdiff val=-0.05 rise=2 targ vdiff val=0.05 rise=2\n  meas tran t_fall trig vdiff val=0.05 fall=2 targ vdiff val=-0.05 fall=2\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LVDS Driver (Double Current Source)\",\n    \"description\": \"A double current source (DCS) LVDS driver that steers a constant current through an external load resistor to generate a high-speed differential output voltage. It uses a top PMOS current source, a bottom NMOS current source, and four MOS switches (an H-bridge) to alternate the current direction through the load.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_4\", \n        \"LABEL_NET_0\", \n        \"LABEL_NET_1\", \n        \"LABEL_NET_3\"\n      ],\n      \"output\": [\n        \"N1\", \n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_5\", \n        \"LABEL_NET_2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low-Voltage Low-Power LVDS Drivers\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Vod\": {\n      \"description\": \"Output differential voltage swing (single-ended peak-to-peak equivalent)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"320 mV, 400 mV\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W=5u, L=0.5u, the maximum tail current is ~1.5mA. Across a standard 100 ohm differential load, Vod = 1.5mA * 100 ohm = 150mV.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.15,\n          \"max\": 0.35,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The provided transistor widths (5um) are relatively small for a standard 3.5mA LVDS driver, so the expected swing is lower than the standard 350mV unless W is increased.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Vocm\": {\n      \"description\": \"Output common-mode voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.25 V\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set by the center-tapped termination resistors to 1.25V.\",\n        \"range\": {\n          \"min\": 1.1,\n          \"typical\": 1.25,\n          \"max\": 1.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard LVDS common-mode voltage is typically 1.2V to 1.25V. In this open-loop testbench, it is forced by the termination network.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power\": {\n      \"description\": \"Total power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"60% reduction\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail * VDD = 1.5mA * 1.8V = 2.7mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 2.7e-3,\n          \"max\": 6.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends heavily on the bias voltages applied to the current sources. 2.7mW is expected for a 1.5mA tail current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_rise\": {\n      \"description\": \"Rise time of the differential output signal\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Gigabits-per-second operation\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant of the load. R=50 ohms (single-ended), C=2pF -> tau = 100ps. Rise time ~ 2.2 * tau = 220ps.\",\n        \"range\": {\n          \"min\": 100e-12,\n          \"typical\": 250e-12,\n          \"max\": 500e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Fast switching (<300ps) is required for Gbps operation as mentioned in the paper.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure output differential swing, common-mode voltage, power consumption, and rise/fall times of the LVDS driver.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Vod\",\n      \"Vocm\",\n      \"Power\",\n      \"t_rise\",\n      \"t_fall\"\n    ],\n    \"spice\": \"* LVDS Driver Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* VDD\\nVVDD VDD 0 1.8\\n\\n* Biases (VBP for top PMOS source, VBN for bottom NMOS source)\\nV_VBP LABEL_NET_5 0 DC 0.4\\nV_VBN LABEL_NET_2 0 DC 1.0\\n\\n* Inputs (500 MHz for 1 Gbps data rate)\\n* LABEL_NET_4 = INP (NMOS switch), LABEL_NET_0 = INP_B (PMOS switch)\\n* LABEL_NET_1 = INN (NMOS switch), LABEL_NET_3 = INN_B (PMOS switch)\\nV_INP LABEL_NET_4 0 PULSE(0 1.8 0.5n 50p 50p 0.95n 2n)\\nV_INP_B LABEL_NET_0 0 PULSE(1.8 0 0.5n 50p 50p 0.95n 2n)\\nV_INN LABEL_NET_1 0 PULSE(1.8 0 0.5n 50p 50p 0.95n 2n)\\nV_INN_B LABEL_NET_3 0 PULSE(0 1.8 0.5n 50p 50p 0.95n 2n)\\n\\n* Load (Center-tapped 100 ohm differential termination)\\nR1 N1 VCM 50\\nR2 N0 VCM 50\\nVVCM VCM 0 1.25\\n\\n* Parasitic Capacitance (Receiver + routing)\\nC1 N1 0 2p\\nC2 N0 0 2p\\n\\n.control\\n  tran 10p 10n\\n  \\n  * Calculate differential and common-mode signals\\n  let vdiff = v(N1) - v(N0)\\n  let vcm_out = (v(N1) + v(N0)) / 2\\n  \\n  * Measure Vod (Differential Swing)\\n  meas tran vod_max max vdiff from=5n to=10n\\n  meas tran vod_min min vdiff from=5n to=10n\\n  let vod = (vod_max - vod_min) / 2\\n  print vod\\n  \\n  * Measure Vocm\\n  meas tran vocm_avg avg vcm_out from=5n to=10n\\n  print vocm_avg\\n  \\n  * Measure Power\\n  meas tran i_vdd avg i(VVDD) from=5n to=10n\\n  let power = -i_vdd * 1.8\\n  print power\\n  \\n  * Measure Rise and Fall times (crossing -50mV to +50mV)\\n  meas tran t_rise trig vdiff val=-0.05 rise=2 targ vdiff val=0.05 rise=2\\n  meas tran t_fall trig vdiff val=0.05 fall=2 targ vdiff val=-0.05 fall=2\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1388636",
+  "_case": "1388636_image_3_a"
+}

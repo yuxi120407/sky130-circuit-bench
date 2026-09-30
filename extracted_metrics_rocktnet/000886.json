@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Power Amplifier with Avalanche-Tolerant Bias Circuit",
+    "description": "An RF amplifier stage (Q2) equipped with a specialized active bias circuit designed to sink collector-base avalanche current. This allows the amplifier to operate at supply voltages exceeding the standard BVCEO limit by presenting a low DC impedance to the base of the RF transistor.",
+    "node_mapping": {
+      "input": [
+        "RF_in"
+      ],
+      "output": [
+        "PA_out"
+      ],
+      "supply": [
+        "VCC_bias",
+        "VCC_PA"
+      ],
+      "bias": [
+        "N6",
+        "N7",
+        "N8",
+        "N5",
+        "N0",
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Analyses and Design of Bias Circuits Tolerating Output Voltages Above BVCEO",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "operating_frequency": {
+      "description": "The target frequency for the RF amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "60 GHz",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Generic NPN models in standard SPICE can simulate at 1 GHz to 60 GHz, but accurate 60 GHz operation requires extracted parasitic models. We will test at 1 GHz for functional verification.",
+        "range": {
+          "min": "1G",
+          "typical": "60G",
+          "max": "130G",
+          "unit": "Hz"
+        },
+        "reasoning": "Paper reports 60 GHz to 130 GHz for SiGe. For a generic testbench, 1 GHz is used to verify AC gain."
+      },
+      "importance": "essential"
+    },
+    "dc_power": {
+      "description": "Total DC power consumption of the bias circuit and PA stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Not explicitly given, but efficiency is 50%",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I1=100uA, I2=100uA. Q4 sets 1*Vbe, mirrored to Q2. I_Q2 \u2248 100uA. Total current \u2248 300uA. Power = 1.8V * 300uA = 0.54mW.",
+        "range": {
+          "min": "0.4m",
+          "typical": "0.6m",
+          "max": "1.0m",
+          "unit": "W"
+        },
+        "reasoning": "Based on the 100uA bias currents and 1:1 current mirroring to the PA stage."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "AC voltage gain from RF_in to PA_out.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gm of Q2 at 100uA is Ic/Vt = 100uA/26mV \u2248 3.8mS. With a 50 ohm load, gain = Gm * Rl = 3.8mS * 50 = 0.19 (-14 dB). To get positive gain, higher bias current (e.g., 5mA) is typically used in PAs.",
+        "range": {
+          "min": "-20",
+          "typical": "10",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the chosen bias current and load impedance. The testbench uses 100uA for functional verification."
+      },
+      "importance": "essential"
+    },
+    "bias_voltage": {
+      "description": "DC voltage at the base of the RF transistor (N7).",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N8 is at 2*Vbe. Q3 drops 1*Vbe. N6 is at 1*Vbe. L1 is a DC short, so N7 is at 1*Vbe \u2248 0.7V to 0.8V.",
+        "range": {
+          "min": "0.65",
+          "typical": "0.75",
+          "max": "0.85",
+          "unit": "V"
+        },
+        "reasoning": "Standard forward-biased base-emitter voltage for a bipolar transistor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to verify the DC bias point, AC voltage gain, and transient output swing of the avalanche-tolerant PA circuit.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "bias_voltage",
+      "max_gain",
+      "vout_swing"
+    ],
+    "spice": "* Avalanche-Tolerant Bias Circuit and PA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic BJT models for functional verification\n.model npn npn (is=1e-16 bf=100)\n.model pnp pnp (is=1e-16 bf=50)\n\n* Parameters\n.param I_bias=100u\n.param L_val=1n\n.param C_val=1p\n.param VDD=1.8\n\n* DUT\nI1 VCC_bias N8 {I_bias}\nI2 VCC_bias N0 {I_bias}\nQ3 N0 N8 N6 npn\nQ7 N1 N5 N0 pnp\nQ2 N3 N7 GND npn\nQ8 N6 N1 GND npn\nQ4 N5 N5 GND npn\nQ9 N8 N1 GND npn\nQ1 N8 N8 N5 npn\nC1 N3 PA_out {C_val}\nC2 N7 RF_in {C_val}\nL1 N6 N7 {L_val}\nL2 N3 VCC_PA {L_val}\n\n* Sources and Loads\nV1 VCC_bias GND {VDD}\nV2 VCC_PA GND {VDD}\nVrf RF_in GND dc 0 ac 1 sin(0 0.1 1G)\nRload PA_out GND 50\n\n.control\n* 1. DC Operating Point\nop\nlet power = (-i(V1) - i(V2)) * 1.8\nprint power\nprint v(N6) v(N7)\n\n* 2. AC Analysis\nac dec 20 100M 10G\nlet gain_db = vdb(PA_out)\nmeas ac max_gain max gain_db\n\n* 3. Transient Analysis\ntran 10p 5n\nmeas tran v_max max v(PA_out)\nmeas tran v_min min v(PA_out)\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Power Amplifier with Avalanche-Tolerant Bias Circuit\",\n    \"description\": \"An RF amplifier stage (Q2) equipped with a specialized active bias circuit designed to sink collector-base avalanche current. This allows the amplifier to operate at supply voltages exceeding the standard BVCEO limit by presenting a low DC impedance to the base of the RF transistor.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RF_in\"\n      ],\n      \"output\": [\n        \"PA_out\"\n      ],\n      \"supply\": [\n        \"VCC_bias\",\n        \"VCC_PA\"\n      ],\n      \"bias\": [\n        \"N6\",\n        \"N7\",\n        \"N8\",\n        \"N5\",\n        \"N0\",\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Analyses and Design of Bias Circuits Tolerating Output Voltages Above BVCEO\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"operating_frequency\": {\n      \"description\": \"The target frequency for the RF amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"60 GHz\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Generic NPN models in standard SPICE can simulate at 1 GHz to 60 GHz, but accurate 60 GHz operation requires extracted parasitic models. We will test at 1 GHz for functional verification.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"60G\",\n          \"max\": \"130G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Paper reports 60 GHz to 130 GHz for SiGe. For a generic testbench, 1 GHz is used to verify AC gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the bias circuit and PA stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly given, but efficiency is 50%\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I1=100uA, I2=100uA. Q4 sets 1*Vbe, mirrored to Q2. I_Q2 \u2248 100uA. Total current \u2248 300uA. Power = 1.8V * 300uA = 0.54mW.\",\n        \"range\": {\n          \"min\": \"0.4m\",\n          \"typical\": \"0.6m\",\n          \"max\": \"1.0m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the 100uA bias currents and 1:1 current mirroring to the PA stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"AC voltage gain from RF_in to PA_out.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm of Q2 at 100uA is Ic/Vt = 100uA/26mV \u2248 3.8mS. With a 50 ohm load, gain = Gm * Rl = 3.8mS * 50 = 0.19 (-14 dB). To get positive gain, higher bias current (e.g., 5mA) is typically used in PAs.\",\n        \"range\": {\n          \"min\": \"-20\",\n          \"typical\": \"10\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen bias current and load impedance. The testbench uses 100uA for functional verification.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bias_voltage\": {\n      \"description\": \"DC voltage at the base of the RF transistor (N7).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N8 is at 2*Vbe. Q3 drops 1*Vbe. N6 is at 1*Vbe. L1 is a DC short, so N7 is at 1*Vbe \u2248 0.7V to 0.8V.\",\n        \"range\": {\n          \"min\": \"0.65\",\n          \"typical\": \"0.75\",\n          \"max\": \"0.85\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard forward-biased base-emitter voltage for a bipolar transistor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to verify the DC bias point, AC voltage gain, and transient output swing of the avalanche-tolerant PA circuit.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"bias_voltage\",\n      \"max_gain\",\n      \"vout_swing\"\n    ],\n    \"spice\": \"* Avalanche-Tolerant Bias Circuit and PA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic BJT models for functional verification\\n.model npn npn (is=1e-16 bf=100)\\n.model pnp pnp (is=1e-16 bf=50)\\n\\n* Parameters\\n.param I_bias=100u\\n.param L_val=1n\\n.param C_val=1p\\n.param VDD=1.8\\n\\n* DUT\\nI1 VCC_bias N8 {I_bias}\\nI2 VCC_bias N0 {I_bias}\\nQ3 N0 N8 N6 npn\\nQ7 N1 N5 N0 pnp\\nQ2 N3 N7 GND npn\\nQ8 N6 N1 GND npn\\nQ4 N5 N5 GND npn\\nQ9 N8 N1 GND npn\\nQ1 N8 N8 N5 npn\\nC1 N3 PA_out {C_val}\\nC2 N7 RF_in {C_val}\\nL1 N6 N7 {L_val}\\nL2 N3 VCC_PA {L_val}\\n\\n* Sources and Loads\\nV1 VCC_bias GND {VDD}\\nV2 VCC_PA GND {VDD}\\nVrf RF_in GND dc 0 ac 1 sin(0 0.1 1G)\\nRload PA_out GND 50\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet power = (-i(V1) - i(V2)) * 1.8\\nprint power\\nprint v(N6) v(N7)\\n\\n* 2. AC Analysis\\nac dec 20 100M 10G\\nlet gain_db = vdb(PA_out)\\nmeas ac max_gain max gain_db\\n\\n* 3. Transient Analysis\\ntran 10p 5n\\nmeas tran v_max max v(PA_out)\\nmeas tran v_min min v(PA_out)\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1506888",
+  "_case": "1506888_image_17"
+}

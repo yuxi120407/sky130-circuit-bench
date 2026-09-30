@@ -1,0 +1,200 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 21.21",
+    "page": "675",
+    "circuit_type": "Cascode Common-Source Amplifier with Self-Biasing",
+    "description": "The netlist implements a modified version of the common-source amplifier in Fig 21.21. While the figure shows a simple CS amplifier with a current source load, the netlist uses a telescopic cascode topology (cascode NMOS and cascode PMOS load) to achieve the higher 'open circuit gain' discussed on page 673. It retains the exact AC coupling (100k Rs, 1uF Cbig) and DC self-biasing feedback (1G Rbig) shown in Fig 21.21."
+  },
+  "step2_metrics": {
+    "cascode_output_resistance": {
+      "description": "The small-signal resistance looking into the drain of the cascode topology.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "source": {
+        "page": "668",
+        "reference": "Eq 21.26"
+      },
+      "equation": {
+        "formula": "R_o \\approx (1 + g_m R) r_o \\approx g_m r_o^2",
+        "explanation": "The output resistance is boosted by the intrinsic gain (gm*ro) of the cascode device.",
+        "assumptions": "Assumes R = r_o (cascoded MOSFET topology) and neglects body effect."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a typical bias current I_D = 20uA and W/L = 10 for NMOS. g_m = sqrt(2 * un*Cox * (W/L) * I_D) = sqrt(2 * 270u * 10 * 20u) = 328 uS. r_o = 1 / (lambda * I_D) = 1 / (0.1 * 20u) = 500 kOhm. R_o_nmos = g_m * r_o^2 = 328u * (500k)^2 = 82 MOhm. For PMOS (W/L=20), g_m = sqrt(2 * 50u * 20 * 20u) = 200 uS. R_o_pmos = 200u * (500k)^2 = 50 MOhm. Total R_out = 82M || 50M = 31 MOhm.",
+        "range": {
+          "min": "10M",
+          "typical": "31M",
+          "max": "100M",
+          "unit": "ohm"
+        },
+        "reasoning": "Depends heavily on the exact parameterized W/L ratios and the resulting bias current from the SUB_1 bias network."
+      },
+      "importance": "essential"
+    },
+    "open_circuit_gain": {
+      "description": "The maximum possible gain attainable with a single MOSFET (or the intrinsic gain of the stage).",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "673",
+        "reference": "Eq 21.40"
+      },
+      "equation": {
+        "formula": "Open circuit gain = -g_{m1} r_{o1} = -\\sqrt{2 \\beta_1 I_D} / (I_D \\lambda_1)",
+        "explanation": "The gain when the load is purely the transistor's own output resistance.",
+        "assumptions": "Assumes ideal current source load with infinite resistance."
+      },
+      "sky130_expected": {
+        "calculation": "Using the previously calculated values: g_m1 = 328 uS, r_o1 = 500 kOhm. Intrinsic gain = -328uS * 500kOhm = -164 V/V. For the full cascode circuit, the gain is -g_m1 * R_out = -328uS * 31MOhm = -10,168 V/V (approx 80 dB).",
+        "range": {
+          "min": "60",
+          "typical": "80",
+          "max": "100",
+          "unit": "dB"
+        },
+        "reasoning": "The cascode topology significantly boosts the gain from the single-stage open circuit gain to roughly (g_m*r_o)^2 / 2."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "The maximum rate at which the load capacitor can be charged or discharged.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "672",
+        "reference": "Eq 21.38"
+      },
+      "equation": {
+        "formula": "slew rate = dV_{out}/dt = I / C_L",
+        "explanation": "Limited by the maximum current the amplifier can source or sink into the load capacitance.",
+        "assumptions": "Assumes the amplifier is fully slewing (one side of the differential pair or current source is fully steering the tail current)."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming the bias circuit sets a maximum current of 20 uA (as in Ex 21.5). The netlist specifies Cload = 1e-13 F (0.1 pF). Slew rate = 20uA / 0.1pF = 200,000,000 V/s = 200 V/us.",
+        "range": {
+          "min": "50",
+          "typical": "200",
+          "max": "500",
+          "unit": "V/us"
+        },
+        "reasoning": "Directly proportional to the bias current set by SUB_1 and inversely proportional to the fixed 0.1pF load."
+      },
+      "importance": "essential"
+    },
+    "input_capacitance": {
+      "description": "The effective capacitance looking into the input of the amplifier, dominated by the Miller effect.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "675",
+        "reference": "Eq 21.47"
+      },
+      "equation": {
+        "formula": "C_{in} = C_{gs1} + C_{gd1}(1 + |A_v|)",
+        "explanation": "The gate-drain capacitance is multiplied by the voltage gain due to the Miller effect.",
+        "assumptions": "Assumes the gain A_v is large and constant up to the input pole frequency."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming C_gs1 ~ 5 fF and C_gd1 ~ 1 fF for a small device. With a cascode gain |A_v| ~ 10,000, C_in = 5fF + 1fF*(1 + 10000) = 10.005 pF.",
+        "range": {
+          "min": "1p",
+          "typical": "10p",
+          "max": "50p",
+          "unit": "F"
+        },
+        "reasoning": "The extremely high gain of the cascode stage creates a massive Miller capacitance, even for small intrinsic C_gd."
+      },
+      "importance": "recommended"
+    },
+    "input_pole": {
+      "description": "The frequency of the pole associated with the input node.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "674",
+        "reference": "Eq 21.41"
+      },
+      "equation": {
+        "formula": "f_{in} = 1 / (2\\pi(C_{gs1} + C_{gd1}(1 + |A_v|)) \\cdot R_s)",
+        "explanation": "Formed by the source resistance and the total input capacitance (including Miller capacitance).",
+        "assumptions": "Assumes a dominant Miller effect and a purely resistive source."
+      },
+      "sky130_expected": {
+        "calculation": "Using R_s = 100 kOhm (from netlist) and calculated C_in = 10 pF. f_in = 1 / (2 * pi * 100k * 10p) = 159 kHz.",
+        "range": {
+          "min": "30k",
+          "typical": "159k",
+          "max": "1M",
+          "unit": "Hz"
+        },
+        "reasoning": "The large 100k source resistor combined with the massive Miller capacitance pushes this pole to a relatively low frequency."
+      },
+      "importance": "essential"
+    },
+    "output_pole": {
+      "description": "The frequency of the pole associated with the output node.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "674",
+        "reference": "Eq 21.42"
+      },
+      "equation": {
+        "formula": "f_{out} = 1 / (2\\pi(C_{dg2} + C_{gd1}(1 + 1/|A_v|)) \\cdot r_{o1} || r_{o2})",
+        "explanation": "Formed by the output resistance and the total output capacitance.",
+        "assumptions": "The text notes this equation can be inaccurate due to pole splitting when A_v decreases at high frequencies."
+      },
+      "sky130_expected": {
+        "calculation": "Using R_out = 31 MOhm and C_out ~ C_load = 0.1 pF. f_out = 1 / (2 * pi * 31M * 0.1p) = 51.3 kHz. (Note: Pole splitting will likely push the actual output pole to a much higher frequency, as discussed on page 676).",
+        "range": {
+          "min": "10k",
+          "typical": "50k",
+          "max": "500k",
+          "unit": "Hz"
+        },
+        "reasoning": "The extremely high output resistance of the cascode makes the un-split output pole very low, potentially making it the dominant pole depending on the exact Miller capacitance."
+      },
+      "importance": "recommended"
+    },
+    "transfer_function_zero": {
+      "description": "The frequency of the right-half-plane zero caused by feedforward through Cgd.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "674",
+        "reference": "Eq 21.43"
+      },
+      "equation": {
+        "formula": "f_z = g_{m1} / (2\\pi C_{gd1})",
+        "explanation": "Occurs because Cgd provides a feedforward path that bypasses the transconductance stage at high frequencies.",
+        "assumptions": "Assumes Cgd is the primary feedforward path."
+      },
+      "sky130_expected": {
+        "calculation": "Using g_m1 = 328 uS and C_gd1 = 1 fF. f_z = 328u / (2 * pi * 1f) = 52.2 GHz.",
+        "range": {
+          "min": "10G",
+          "typical": "52G",
+          "max": "100G",
+          "unit": "Hz"
+        },
+        "reasoning": "Typically at a very high frequency in modern deep-submicron processes due to small parasitic capacitances and high gm."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC operating point, AC open-loop gain, bandwidth, and transient slew rate of the cascode amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "open_circuit_gain",
+      "input_pole",
+      "slew_rate"
+    ],
+    "spice": "* Cascode CS Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters to allow the parameterized netlist to run\n.param W_xm1=2 L_xm1=0.5 W_xm2=2 L_xm2=0.5 W_xm3=4 L_xm3=0.5 W_xm4=4 L_xm4=0.5\n.param W_xmsu1=2 L_xmsu1=0.5 W_xmsu2=4 L_xmsu2=0.5 W_xmsu3=2 L_xmsu3=0.5 W_xmsu4=2 L_xmsu4=0.5\n.param W_xm5=2 L_xm5=0.5 W_xm6=2 L_xm6=0.5 W_xm7=4 L_xm7=0.5 W_xm8=2 L_xm8=0.5\n.param W_xm9=2 L_xm9=0.5 W_xm10=2 L_xm10=0.5 W_xm11=2 L_xm11=0.5 W_xm12=2 L_xm12=0.5\n.param W_xm13=2 L_xm13=0.5 W_xm14=2 L_xm14=0.5 W_xm15=2 L_xm15=0.5 W_xm16=2 L_xm16=0.5\n.param W_xm17=2 L_xm17=0.5 W_xm18=2 L_xm18=0.5\n.param W_xma1=4 L_xma1=0.5 W_xma2=4 L_xma2=0.5 W_xma3=4 L_xma3=0.5 W_xma4=4 L_xma4=0.5\n.param W_xma5=4 L_xma5=0.5 W_xma6=4 L_xma6=0.5 W_xma7=4 L_xma7=0.5 W_xma8=4 L_xma8=0.5\n.param W_xma9=4 L_xma9=0.5 W_xma10=4 L_xma10=0.5 W_xma11=4 L_xma11=0.5 W_xma12=4 L_xma12=0.5\n\n* DUT\nVDD VDD 0 1.8\nxm1 N003 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm2 Vout Vbias3 N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm4 N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm3 Vout Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nCload Vout 0 1e-13\nRS N004 P001 100000.0\nRbig N002 Vout 1000000000.0\nCbig P001 N002 1e-06\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n\n* Stimulus\nVin N004 0 dc 0 ac 1 pulse(-0.5 0.5 10u 1n 1n 20u 40u)\n\n.control\n* DC Operating Point\nop\nlet power = -i(VDD) * 1.8\nprint power\n\n* AC Analysis\nac dec 100 1 1G\nlet gain_db = vdb(Vout)\nmeas ac low_freq_gain max gain_db\nmeas ac f3db when gain_db=low_freq_gain-3 fall=1\n\n* Transient Analysis for Slew Rate\ntran 10n 40u\nmeas tran t_rise trig v(Vout) val=0.5 rise=1 targ v(Vout) val=1.3 rise=1\nlet slew_rate_v_us = (1.3 - 0.5) / (t_rise * 1e6)\nprint slew_rate_v_us\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 21.21\",\n    \"page\": \"675\",\n    \"circuit_type\": \"Cascode Common-Source Amplifier with Self-Biasing\",\n    \"description\": \"The netlist implements a modified version of the common-source amplifier in Fig 21.21. While the figure shows a simple CS amplifier with a current source load, the netlist uses a telescopic cascode topology (cascode NMOS and cascode PMOS load) to achieve the higher 'open circuit gain' discussed on page 673. It retains the exact AC coupling (100k Rs, 1uF Cbig) and DC self-biasing feedback (1G Rbig) shown in Fig 21.21.\"\n  },\n  \"step2_metrics\": {\n    \"cascode_output_resistance\": {\n      \"description\": \"The small-signal resistance looking into the drain of the cascode topology.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"668\",\n        \"reference\": \"Eq 21.26\"\n      },\n      \"equation\": {\n        \"formula\": \"R_o \\\\approx (1 + g_m R) r_o \\\\approx g_m r_o^2\",\n        \"explanation\": \"The output resistance is boosted by the intrinsic gain (gm*ro) of the cascode device.\",\n        \"assumptions\": \"Assumes R = r_o (cascoded MOSFET topology) and neglects body effect.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a typical bias current I_D = 20uA and W/L = 10 for NMOS. g_m = sqrt(2 * un*Cox * (W/L) * I_D) = sqrt(2 * 270u * 10 * 20u) = 328 uS. r_o = 1 / (lambda * I_D) = 1 / (0.1 * 20u) = 500 kOhm. R_o_nmos = g_m * r_o^2 = 328u * (500k)^2 = 82 MOhm. For PMOS (W/L=20), g_m = sqrt(2 * 50u * 20 * 20u) = 200 uS. R_o_pmos = 200u * (500k)^2 = 50 MOhm. Total R_out = 82M || 50M = 31 MOhm.\",\n        \"range\": {\n          \"min\": \"10M\",\n          \"typical\": \"31M\",\n          \"max\": \"100M\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Depends heavily on the exact parameterized W/L ratios and the resulting bias current from the SUB_1 bias network.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"open_circuit_gain\": {\n      \"description\": \"The maximum possible gain attainable with a single MOSFET (or the intrinsic gain of the stage).\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"673\",\n        \"reference\": \"Eq 21.40\"\n      },\n      \"equation\": {\n        \"formula\": \"Open circuit gain = -g_{m1} r_{o1} = -\\\\sqrt{2 \\\\beta_1 I_D} / (I_D \\\\lambda_1)\",\n        \"explanation\": \"The gain when the load is purely the transistor's own output resistance.\",\n        \"assumptions\": \"Assumes ideal current source load with infinite resistance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using the previously calculated values: g_m1 = 328 uS, r_o1 = 500 kOhm. Intrinsic gain = -328uS * 500kOhm = -164 V/V. For the full cascode circuit, the gain is -g_m1 * R_out = -328uS * 31MOhm = -10,168 V/V (approx 80 dB).\",\n        \"range\": {\n          \"min\": \"60\",\n          \"typical\": \"80\",\n          \"max\": \"100\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The cascode topology significantly boosts the gain from the single-stage open circuit gain to roughly (g_m*r_o)^2 / 2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"The maximum rate at which the load capacitor can be charged or discharged.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"672\",\n        \"reference\": \"Eq 21.38\"\n      },\n      \"equation\": {\n        \"formula\": \"slew rate = dV_{out}/dt = I / C_L\",\n        \"explanation\": \"Limited by the maximum current the amplifier can source or sink into the load capacitance.\",\n        \"assumptions\": \"Assumes the amplifier is fully slewing (one side of the differential pair or current source is fully steering the tail current).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming the bias circuit sets a maximum current of 20 uA (as in Ex 21.5). The netlist specifies Cload = 1e-13 F (0.1 pF). Slew rate = 20uA / 0.1pF = 200,000,000 V/s = 200 V/us.\",\n        \"range\": {\n          \"min\": \"50\",\n          \"typical\": \"200\",\n          \"max\": \"500\",\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Directly proportional to the bias current set by SUB_1 and inversely proportional to the fixed 0.1pF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"The effective capacitance looking into the input of the amplifier, dominated by the Miller effect.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"675\",\n        \"reference\": \"Eq 21.47\"\n      },\n      \"equation\": {\n        \"formula\": \"C_{in} = C_{gs1} + C_{gd1}(1 + |A_v|)\",\n        \"explanation\": \"The gate-drain capacitance is multiplied by the voltage gain due to the Miller effect.\",\n        \"assumptions\": \"Assumes the gain A_v is large and constant up to the input pole frequency.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming C_gs1 ~ 5 fF and C_gd1 ~ 1 fF for a small device. With a cascode gain |A_v| ~ 10,000, C_in = 5fF + 1fF*(1 + 10000) = 10.005 pF.\",\n        \"range\": {\n          \"min\": \"1p\",\n          \"typical\": \"10p\",\n          \"max\": \"50p\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"The extremely high gain of the cascode stage creates a massive Miller capacitance, even for small intrinsic C_gd.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"input_pole\": {\n      \"description\": \"The frequency of the pole associated with the input node.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"674\",\n        \"reference\": \"Eq 21.41\"\n      },\n      \"equation\": {\n        \"formula\": \"f_{in} = 1 / (2\\\\pi(C_{gs1} + C_{gd1}(1 + |A_v|)) \\\\cdot R_s)\",\n        \"explanation\": \"Formed by the source resistance and the total input capacitance (including Miller capacitance).\",\n        \"assumptions\": \"Assumes a dominant Miller effect and a purely resistive source.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using R_s = 100 kOhm (from netlist) and calculated C_in = 10 pF. f_in = 1 / (2 * pi * 100k * 10p) = 159 kHz.\",\n        \"range\": {\n          \"min\": \"30k\",\n          \"typical\": \"159k\",\n          \"max\": \"1M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The large 100k source resistor combined with the massive Miller capacitance pushes this pole to a relatively low frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_pole\": {\n      \"description\": \"The frequency of the pole associated with the output node.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"674\",\n        \"reference\": \"Eq 21.42\"\n      },\n      \"equation\": {\n        \"formula\": \"f_{out} = 1 / (2\\\\pi(C_{dg2} + C_{gd1}(1 + 1/|A_v|)) \\\\cdot r_{o1} || r_{o2})\",\n        \"explanation\": \"Formed by the output resistance and the total output capacitance.\",\n        \"assumptions\": \"The text notes this equation can be inaccurate due to pole splitting when A_v decreases at high frequencies.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using R_out = 31 MOhm and C_out ~ C_load = 0.1 pF. f_out = 1 / (2 * pi * 31M * 0.1p) = 51.3 kHz. (Note: Pole splitting will likely push the actual output pole to a much higher frequency, as discussed on page 676).\",\n        \"range\": {\n          \"min\": \"10k\",\n          \"typical\": \"50k\",\n          \"max\": \"500k\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The extremely high output resistance of the cascode makes the un-split output pole very low, potentially making it the dominant pole depending on the exact Miller capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"transfer_function_zero\": {\n      \"description\": \"The frequency of the right-half-plane zero caused by feedforward through Cgd.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"674\",\n        \"reference\": \"Eq 21.43\"\n      },\n      \"equation\": {\n        \"formula\": \"f_z = g_{m1} / (2\\\\pi C_{gd1})\",\n        \"explanation\": \"Occurs because Cgd provides a feedforward path that bypasses the transconductance stage at high frequencies.\",\n        \"assumptions\": \"Assumes Cgd is the primary feedforward path.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using g_m1 = 328 uS and C_gd1 = 1 fF. f_z = 328u / (2 * pi * 1f) = 52.2 GHz.\",\n        \"range\": {\n          \"min\": \"10G\",\n          \"typical\": \"52G\",\n          \"max\": \"100G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Typically at a very high frequency in modern deep-submicron processes due to small parasitic capacitances and high gm.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC operating point, AC open-loop gain, bandwidth, and transient slew rate of the cascode amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"open_circuit_gain\",\n      \"input_pole\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Cascode CS Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters to allow the parameterized netlist to run\\n.param W_xm1=2 L_xm1=0.5 W_xm2=2 L_xm2=0.5 W_xm3=4 L_xm3=0.5 W_xm4=4 L_xm4=0.5\\n.param W_xmsu1=2 L_xmsu1=0.5 W_xmsu2=4 L_xmsu2=0.5 W_xmsu3=2 L_xmsu3=0.5 W_xmsu4=2 L_xmsu4=0.5\\n.param W_xm5=2 L_xm5=0.5 W_xm6=2 L_xm6=0.5 W_xm7=4 L_xm7=0.5 W_xm8=2 L_xm8=0.5\\n.param W_xm9=2 L_xm9=0.5 W_xm10=2 L_xm10=0.5 W_xm11=2 L_xm11=0.5 W_xm12=2 L_xm12=0.5\\n.param W_xm13=2 L_xm13=0.5 W_xm14=2 L_xm14=0.5 W_xm15=2 L_xm15=0.5 W_xm16=2 L_xm16=0.5\\n.param W_xm17=2 L_xm17=0.5 W_xm18=2 L_xm18=0.5\\n.param W_xma1=4 L_xma1=0.5 W_xma2=4 L_xma2=0.5 W_xma3=4 L_xma3=0.5 W_xma4=4 L_xma4=0.5\\n.param W_xma5=4 L_xma5=0.5 W_xma6=4 L_xma6=0.5 W_xma7=4 L_xma7=0.5 W_xma8=4 L_xma8=0.5\\n.param W_xma9=4 L_xma9=0.5 W_xma10=4 L_xma10=0.5 W_xma11=4 L_xma11=0.5 W_xma12=4 L_xma12=0.5\\n\\n* DUT\\nVDD VDD 0 1.8\\nxm1 N003 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 Vout Vbias3 N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm4 N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm3 Vout Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nCload Vout 0 1e-13\\nRS N004 P001 100000.0\\nRbig N002 Vout 1000000000.0\\nCbig P001 N002 1e-06\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n\\n* Stimulus\\nVin N004 0 dc 0 ac 1 pulse(-0.5 0.5 10u 1n 1n 20u 40u)\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1 1G\\nlet gain_db = vdb(Vout)\\nmeas ac low_freq_gain max gain_db\\nmeas ac f3db when gain_db=low_freq_gain-3 fall=1\\n\\n* Transient Analysis for Slew Rate\\ntran 10n 40u\\nmeas tran t_rise trig v(Vout) val=0.5 rise=1 targ v(Vout) val=1.3 rise=1\\nlet slew_rate_v_us = (1.3 - 0.5) / (t_rise * 1e6)\\nprint slew_rate_v_us\\nquit\\n.endc\"\n  }\n}\n```"
+}

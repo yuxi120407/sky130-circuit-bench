@@ -1,0 +1,147 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor MDAC Stage",
+    "description": "A multiplying digital-to-analog converter (MDAC) stage for a pipelined ADC, utilizing a behavioral amplifier and ideal switches. It performs sampling and amplification of the residual voltage.",
+    "node_mapping": {
+      "input": [
+        "Vr_x_D2",
+        "VCMO"
+      ],
+      "output": [
+        "N_OUT",
+        "V3f"
+      ],
+      "supply": [],
+      "bias": [
+        "VCMO"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5.37mW 10b 200MS/s Dual-Path Pipelined ADC",
+      "figure": "N/A",
+      "year": 2012
+    }
+  },
+  "step2_metrics": {
+    "closed_loop_gain": {
+      "description": "Closed-loop AC gain of the MDAC stage",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(C2B / C3B) = 20 * log10(2f / 2f) = 0 dB",
+        "range": {
+          "min": -0.5,
+          "typical": 0,
+          "max": 0.5,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the capacitor ratio C2B/C3B."
+      },
+      "importance": "essential"
+    },
+    "closed_loop_bw": {
+      "description": "-3dB bandwidth of the closed-loop MDAC",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "beta * GBW = (2f / 8f) * 1.1GHz = 275 MHz",
+        "range": {
+          "min": 200000000.0,
+          "typical": 275000000.0,
+          "max": 350000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on the feedback factor (beta = C3B / C_total_in) and the op-amp's gain-bandwidth product."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the output to settle from 10% to 90% of its final value during a step response",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "tau = 1 / (2 * pi * closed_loop_bw) = 1 / (2 * pi * 275MHz) = 0.58ns. 10-90% rise time = ln(9) * tau = 1.27ns",
+        "range": {
+          "min": 1e-09,
+          "typical": 1.3e-09,
+          "max": 2e-09,
+          "unit": "s"
+        },
+        "reasoning": "Must be fast enough to support the 200MS/s sampling rate (half period = 2.5ns)."
+      },
+      "importance": "essential"
+    },
+    "opamp_dc_gain": {
+      "description": "Open-loop DC gain of the core amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "56.7",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Modeled behaviorally to match paper",
+        "range": {
+          "min": 50,
+          "typical": 56.7,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "Directly taken from the paper's reported op-amp gain."
+      },
+      "importance": "recommended"
+    },
+    "opamp_gbw": {
+      "description": "Gain-bandwidth product of the core amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.1G",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Modeled behaviorally to match paper",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 1100000000.0,
+          "max": 1500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Directly taken from the paper's reported op-amp GBW."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure closed-loop gain, bandwidth, and step response settling time of the MDAC stage.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "closed_loop_gain",
+      "closed_loop_bw",
+      "settling_time"
+    ],
+    "spice": "* Dual-Path Pipelined ADC MDAC Stage Testbench\n.lib \"${SKY130_PDK}\" tt\n.param VDD=1.8\n\n* Behavioral models\n.subckt amplifier out in_p in_n\nG1 0 int in_p in_n 1m\n* R1 sets DC gain to 683 (56.7 dB)\nR1 int 0 683k\n* C1 sets dominant pole for GBW = 1.1 GHz\nC1 int 0 145f\nE1 out 0 int 0 1\n.ends\n\n.subckt switch_ideal n1 n2\nR1 n1 n2 1\n.ends\n\n* DUT (Modified syntax for ngspice compatibility)\nX2f V3f GND N_IN amplifier\nC3B N_IN V3f 2f\nC2B Vr_x_D2 N_IN 2f\nC1B VCMO N_IN 2f\nC4 VCMO N_IN 2f\nXS1 V3f N_OUT switch_ideal\nC3 N_OUT GND 3f\n\n* DC bias to prevent floating node\nR_fb N_IN V3f 1T\nR_in Vr_x_D2 N_IN 1T\n\n* Sources\nVVCMO VCMO 0 0.9\nV_Vr_x_D2 Vr_x_D2 0 DC 0.0 AC 1 PULSE(0.0 0.1 1n 10p 10p 10n 20n)\n\n.control\nop\nprint v(V3f) v(N_IN)\n\nac dec 100 1Meg 10Gig\nlet gain_db = vdb(V3f)\nmeas ac dc_gain find gain_db at=1Meg\nmeas ac bw_3db when gain_db=-3 fall=1\n\ntran 10p 5n\nmeas tran v_start find v(V3f) at=0.9n\nmeas tran v_final find v(V3f) at=4n\n* Measure 10% to 90% settling time for a -0.1V step\nmeas tran t_settle trig v(V3f) val=-0.01 fall=1 targ v(V3f) val=-0.09 fall=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor MDAC Stage\",\n    \"description\": \"A multiplying digital-to-analog converter (MDAC) stage for a pipelined ADC, utilizing a behavioral amplifier and ideal switches. It performs sampling and amplification of the residual voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vr_x_D2\",\n        \"VCMO\"\n      ],\n      \"output\": [\n        \"N_OUT\",\n        \"V3f\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"VCMO\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5.37mW 10b 200MS/s Dual-Path Pipelined ADC\",\n      \"figure\": \"N/A\",\n      \"year\": 2012\n    }\n  },\n  \"step2_metrics\": {\n    \"closed_loop_gain\": {\n      \"description\": \"Closed-loop AC gain of the MDAC stage\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(C2B / C3B) = 20 * log10(2f / 2f) = 0 dB\",\n        \"range\": {\n          \"min\": -0.5,\n          \"typical\": 0,\n          \"max\": 0.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by the capacitor ratio C2B/C3B.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"closed_loop_bw\": {\n      \"description\": \"-3dB bandwidth of the closed-loop MDAC\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"beta * GBW = (2f / 8f) * 1.1GHz = 275 MHz\",\n        \"range\": {\n          \"min\": 200e6,\n          \"typical\": 275e6,\n          \"max\": 350e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends on the feedback factor (beta = C3B / C_total_in) and the op-amp's gain-bandwidth product.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the output to settle from 10% to 90% of its final value during a step response\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"tau = 1 / (2 * pi * closed_loop_bw) = 1 / (2 * pi * 275MHz) = 0.58ns. 10-90% rise time = ln(9) * tau = 1.27ns\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 1.3e-9,\n          \"max\": 2e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Must be fast enough to support the 200MS/s sampling rate (half period = 2.5ns).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"opamp_dc_gain\": {\n      \"description\": \"Open-loop DC gain of the core amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"56.7\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Modeled behaviorally to match paper\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 56.7,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Directly taken from the paper's reported op-amp gain.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"opamp_gbw\": {\n      \"description\": \"Gain-bandwidth product of the core amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.1G\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Modeled behaviorally to match paper\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 1.1e9,\n          \"max\": 1.5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Directly taken from the paper's reported op-amp GBW.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure closed-loop gain, bandwidth, and step response settling time of the MDAC stage.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"closed_loop_gain\",\n      \"closed_loop_bw\",\n      \"settling_time\"\n    ],\n    \"spice\": \"* Dual-Path Pipelined ADC MDAC Stage Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.param VDD=1.8\\n\\n* Behavioral models\\n.subckt amplifier out in_p in_n\\nG1 0 int in_p in_n 1m\\n* R1 sets DC gain to 683 (56.7 dB)\\nR1 int 0 683k\\n* C1 sets dominant pole for GBW = 1.1 GHz\\nC1 int 0 145f\\nE1 out 0 int 0 1\\n.ends\\n\\n.subckt switch_ideal n1 n2\\nR1 n1 n2 1\\n.ends\\n\\n* DUT (Modified syntax for ngspice compatibility)\\nX2f V3f GND N_IN amplifier\\nC3B N_IN V3f 2f\\nC2B Vr_x_D2 N_IN 2f\\nC1B VCMO N_IN 2f\\nC4 VCMO N_IN 2f\\nXS1 V3f N_OUT switch_ideal\\nC3 N_OUT GND 3f\\n\\n* DC bias to prevent floating node\\nR_fb N_IN V3f 1T\\nR_in Vr_x_D2 N_IN 1T\\n\\n* Sources\\nVVCMO VCMO 0 0.9\\nV_Vr_x_D2 Vr_x_D2 0 DC 0.0 AC 1 PULSE(0.0 0.1 1n 10p 10p 10n 20n)\\n\\n.control\\nop\\nprint v(V3f) v(N_IN)\\n\\nac dec 100 1Meg 10Gig\\nlet gain_db = vdb(V3f)\\nmeas ac dc_gain find gain_db at=1Meg\\nmeas ac bw_3db when gain_db=-3 fall=1\\n\\ntran 10p 5n\\nmeas tran v_start find v(V3f) at=0.9n\\nmeas tran v_final find v(V3f) at=4n\\n* Measure 10% to 90% settling time for a -0.1V step\\nmeas tran t_settle trig v(V3f) val=-0.01 fall=1 targ v(V3f) val=-0.09 fall=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6177091",
+  "_case": "6177091_image_3_a"
+}

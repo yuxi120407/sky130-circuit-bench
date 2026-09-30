@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Transimpedance Amplifier (TIA)",
+    "description": "A high-speed photoreceiver front-end consisting of a common-source TIA core with a source-follower and feedback resistor, followed by a cascode output buffer to drive the load.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "N2"
+      ],
+      "bias": [
+        "N9",
+        "N6"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Photoreceiver Module Using an InP HEMT Transimpedance Amplifier for Over 40 Gb/s",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Transimpedance Gain (Zt)": {
+      "description": "Ratio of output voltage to input current, representing the conversion gain of the TIA.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "14 dB",
+        "technology": "InP HEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Zt \u2248 Rf * Gain_buffer. With Rf=1k\u03a9 and a cascode buffer gain of ~0.6 V/V, Zt \u2248 600 \u03a9. In dB\u03a9, 20*log10(600) \u2248 55 dB\u03a9.",
+        "range": {
+          "min": 40,
+          "typical": 55,
+          "max": 70,
+          "unit": "dB"
+        },
+        "reasoning": "SKY130 has lower mobility and transconductance compared to InP HEMT, resulting in lower open-loop gain and buffer gain."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB cutoff frequency of the transimpedance gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "65 GHz",
+        "technology": "InP HEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Dominated by the input pole: 1 / (2*\u03c0*Cin*Rin). Assuming Cin=50fF (PD capacitance) and Rin \u2248 Rf/A \u2248 200\u03a9, BW \u2248 16 GHz. However, device fT and parasitic capacitances will limit this further.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 3000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 130nm CMOS is significantly slower than the ultrahigh-speed InP HEMT technology used in the paper, drastically reducing the achievable bandwidth."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power dissipated by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "350 mW",
+        "technology": "InP HEMT"
+      },
+      "sky130_expected": {
+        "calculation": "I_total \u2248 I_XM1 + I_XM2 + I_XM6 \u2248 300\u00b5A + 900\u00b5A + 300\u00b5A = 1.5mA. Power = 1.8V * 1.5mA = 2.7mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.003,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "A CMOS implementation at 1.8V consumes much less power than the high-current, high-speed InP HEMT implementation."
+      },
+      "importance": "essential"
+    },
+    "Output Voltage Swing": {
+      "description": "Peak-to-peak output voltage for a given input current swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "6 dBm (Output Power)",
+        "technology": "InP HEMT"
+      },
+      "sky130_expected": {
+        "calculation": "For a 10\u00b5A peak input current and Zt=600\u03a9, Vout_peak = 10\u00b5A * 600\u03a9 = 6mV. Vout_pp = 12mV.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.012,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Depends directly on the input current amplitude and the transimpedance gain."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure transimpedance gain, bandwidth, power consumption, and output swing of the TIA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Transimpedance Gain",
+      "Bandwidth",
+      "Power Consumption",
+      "Output Voltage Swing"
+    ],
+    "spice": "* TIA Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* DUT Parameters\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\n* DUT Netlist\nXM1 N1 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N1 N3 N3 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM5 OUT N9 N10 N10 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N10 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* Biasing and Loads\nVVDD VDD 0 1.8\nR1 VDD N1 1k\nV_N2 VDD N2 0\nR2 N3 0 1k\nRF N3 IN 1k\nC_PD IN 0 50f\nV_N9 N9 0 1.2\nV_N6 N3 N6 0\nR3 VDD OUT 500\n\n* Input Source (AC=1 for Zt in dB, Tran=10uA sine)\nIIN 0 IN DC 0 AC 1 SIN(0 10u 100MEG)\n\n.control\n* DC Operating Point & Power\nop\nlet power = -i(VVDD)*1.8\nprint power\n\n* AC Analysis for Transimpedance Gain and Bandwidth\nac dec 100 1MEG 100G\nlet zt_db = vdb(out)\nmeas ac zt_max max zt_db\nmeas ac bw_3db when zt_db='zt_max-3' fall=1\n\n* Transient Analysis for Output Swing\ntran 10p 20n\nmeas tran vout_pp pp v(out)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Transimpedance Amplifier (TIA)\",\n    \"description\": \"A high-speed photoreceiver front-end consisting of a common-source TIA core with a source-follower and feedback resistor, followed by a cascode output buffer to drive the load.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"OUT\"],\n      \"supply\": [\"N2\"],\n      \"bias\": [\"N9\", \"N6\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Photoreceiver Module Using an InP HEMT Transimpedance Amplifier for Over 40 Gb/s\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Transimpedance Gain (Zt)\": {\n      \"description\": \"Ratio of output voltage to input current, representing the conversion gain of the TIA.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"14 dB\",\n        \"technology\": \"InP HEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zt \u2248 Rf * Gain_buffer. With Rf=1k\u03a9 and a cascode buffer gain of ~0.6 V/V, Zt \u2248 600 \u03a9. In dB\u03a9, 20*log10(600) \u2248 55 dB\u03a9.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 55,\n          \"max\": 70,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SKY130 has lower mobility and transconductance compared to InP HEMT, resulting in lower open-loop gain and buffer gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the transimpedance gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"65 GHz\",\n        \"technology\": \"InP HEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominated by the input pole: 1 / (2*\u03c0*Cin*Rin). Assuming Cin=50fF (PD capacitance) and Rin \u2248 Rf/A \u2248 200\u03a9, BW \u2248 16 GHz. However, device fT and parasitic capacitances will limit this further.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 3e9,\n          \"max\": 10e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 130nm CMOS is significantly slower than the ultrahigh-speed InP HEMT technology used in the paper, drastically reducing the achievable bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"350 mW\",\n        \"technology\": \"InP HEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total \u2248 I_XM1 + I_XM2 + I_XM6 \u2248 300\u00b5A + 900\u00b5A + 300\u00b5A = 1.5mA. Power = 1.8V * 1.5mA = 2.7mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 3e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"A CMOS implementation at 1.8V consumes much less power than the high-current, high-speed InP HEMT implementation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output Voltage Swing\": {\n      \"description\": \"Peak-to-peak output voltage for a given input current swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"6 dBm (Output Power)\",\n        \"technology\": \"InP HEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 10\u00b5A peak input current and Zt=600\u03a9, Vout_peak = 10\u00b5A * 600\u03a9 = 6mV. Vout_pp = 12mV.\",\n        \"range\": {\n          \"min\": 0.005,\n          \"typical\": 0.012,\n          \"max\": 0.05,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends directly on the input current amplitude and the transimpedance gain.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure transimpedance gain, bandwidth, power consumption, and output swing of the TIA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Transimpedance Gain\",\n      \"Bandwidth\",\n      \"Power Consumption\",\n      \"Output Voltage Swing\"\n    ],\n    \"spice\": \"* TIA Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* DUT Parameters\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\n* DUT Netlist\\nXM1 N1 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N1 N3 N3 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM5 OUT N9 N10 N10 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N10 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Biasing and Loads\\nVVDD VDD 0 1.8\\nR1 VDD N1 1k\\nV_N2 VDD N2 0\\nR2 N3 0 1k\\nRF N3 IN 1k\\nC_PD IN 0 50f\\nV_N9 N9 0 1.2\\nV_N6 N3 N6 0\\nR3 VDD OUT 500\\n\\n* Input Source (AC=1 for Zt in dB, Tran=10uA sine)\\nIIN 0 IN DC 0 AC 1 SIN(0 10u 100MEG)\\n\\n.control\\n* DC Operating Point & Power\\nop\\nlet power = -i(VVDD)*1.8\\nprint power\\n\\n* AC Analysis for Transimpedance Gain and Bandwidth\\nac dec 100 1MEG 100G\\nlet zt_db = vdb(out)\\nmeas ac zt_max max zt_db\\nmeas ac bw_3db when zt_db='zt_max-3' fall=1\\n\\n* Transient Analysis for Output Swing\\ntran 10p 20n\\nmeas tran vout_pp pp v(out)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1336997",
+  "_case": "1336997_image_1_a"
+}

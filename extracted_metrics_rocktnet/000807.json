@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Bias voltage generator / Phase-forcing circuit",
+    "description": "A power-gated diode string that generates multiple intermediate reference voltages (N0, N1, N2) for a low-VDD flip-flop or sleep control circuit. It uses diode-connected MOS transistors to create voltage drops and includes sleep transistors to pull nodes to ground during power-down mode.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "LABEL_NET_3"
+      ],
+      "output": [
+        "N0",
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Design Techniques for Single-Low-VDD CMOS Systems",
+      "figure": "unknown",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "v_ref_n0": {
+      "description": "Steady-state reference voltage at node N0",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "multi-VTH CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Clamped by diode-connected NMOS (XM3, XM7) to ground. V(N0) \u2248 Vthn.",
+        "range": {
+          "min": 0.3,
+          "typical": 0.45,
+          "max": 0.6,
+          "unit": "V"
+        },
+        "reasoning": "Standard SKY130 NMOS Vth is ~0.42V."
+      },
+      "importance": "essential"
+    },
+    "v_ref_n1": {
+      "description": "Steady-state reference voltage at node N1",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "multi-VTH CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V(N0) + Vthp (from diode-connected PMOS XM2, XM10).",
+        "range": {
+          "min": 0.7,
+          "typical": 0.9,
+          "max": 1.1,
+          "unit": "V"
+        },
+        "reasoning": "V(N0) \u2248 0.45V, plus PMOS Vth \u2248 0.42V."
+      },
+      "importance": "essential"
+    },
+    "v_ref_n2": {
+      "description": "Steady-state reference voltage at node N2",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "multi-VTH CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD - Vthp (from diode-connected PMOS XM5).",
+        "range": {
+          "min": 1.2,
+          "typical": 1.35,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "VDD is 1.8V, minus PMOS Vth \u2248 0.42V."
+      },
+      "importance": "essential"
+    },
+    "power_dc": {
+      "description": "Active DC power consumption of the diode string",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "multi-VTH CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Current through the diode string (XM5 -> XM6 -> XM2/10 -> XM3/7) multiplied by VDD.",
+        "range": {
+          "min": 1e-05,
+          "typical": 0.0001,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "With W/L=5u/0.5u, the string will draw moderate current in active mode."
+      },
+      "importance": "essential"
+    },
+    "t_startup": {
+      "description": "Time required for reference voltages to stabilize after exiting sleep mode",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "multi-VTH CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "RC time constant of the diode string charging internal nodes (especially N1 with capacitor XM9).",
+        "range": {
+          "min": 1e-10,
+          "typical": 1e-09,
+          "max": 5e-09,
+          "unit": "s"
+        },
+        "reasoning": "Small internal capacitances and relatively strong drive currents."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure steady-state reference voltages, active power consumption, and startup time when transitioning from sleep to active mode.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_ref_n0",
+      "v_ref_n1",
+      "v_ref_n2",
+      "power_dc",
+      "t_startup"
+    ],
+    "spice": "* Bias Generator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 GND LABEL_NET_0 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N1 LABEL_NET_2 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N0 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N1 GND N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\n\nVVDD VDD 0 1.8\n* Sleep mode initially, then active mode at 2ns\nV0 LABEL_NET_0 0 PWL(0 0 1n 0 2n 1.8)\nV1 LABEL_NET_1 0 PWL(0 1.8 1n 1.8 2n 0)\nV2 LABEL_NET_2 0 PWL(0 1.8 1n 1.8 2n 0)\nV3 LABEL_NET_3 0 PWL(0 1.8 1n 1.8 2n 0)\n\n.control\ntran 0.1n 20n\nmeas tran v_ref_n0 avg v(N0) from=15n to=20n\nmeas tran v_ref_n1 avg v(N1) from=15n to=20n\nmeas tran v_ref_n2 avg v(N2) from=15n to=20n\nmeas tran t_startup trig v(LABEL_NET_2) val=0.9 fall=1 targ v(N1) val=0.5 rise=1\nlet power = -i(VVDD) * 1.8\nmeas tran power_dc avg power from=15n to=20n\nprint v_ref_n0 v_ref_n1 v_ref_n2 t_startup power_dc\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Bias voltage generator / Phase-forcing circuit\",\n    \"description\": \"A power-gated diode string that generates multiple intermediate reference voltages (N0, N1, N2) for a low-VDD flip-flop or sleep control circuit. It uses diode-connected MOS transistors to create voltage drops and includes sleep transistors to pull nodes to ground during power-down mode.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_3\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Design Techniques for Single-Low-VDD CMOS Systems\",\n      \"figure\": \"unknown\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"v_ref_n0\": {\n      \"description\": \"Steady-state reference voltage at node N0\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"multi-VTH CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Clamped by diode-connected NMOS (XM3, XM7) to ground. V(N0) \u2248 Vthn.\",\n        \"range\": {\n          \"min\": 0.3,\n          \"typical\": 0.45,\n          \"max\": 0.6,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard SKY130 NMOS Vth is ~0.42V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_ref_n1\": {\n      \"description\": \"Steady-state reference voltage at node N1\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"multi-VTH CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V(N0) + Vthp (from diode-connected PMOS XM2, XM10).\",\n        \"range\": {\n          \"min\": 0.7,\n          \"typical\": 0.9,\n          \"max\": 1.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"V(N0) \u2248 0.45V, plus PMOS Vth \u2248 0.42V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_ref_n2\": {\n      \"description\": \"Steady-state reference voltage at node N2\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"multi-VTH CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - Vthp (from diode-connected PMOS XM5).\",\n        \"range\": {\n          \"min\": 1.2,\n          \"typical\": 1.35,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"VDD is 1.8V, minus PMOS Vth \u2248 0.42V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dc\": {\n      \"description\": \"Active DC power consumption of the diode string\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"multi-VTH CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Current through the diode string (XM5 -> XM6 -> XM2/10 -> XM3/7) multiplied by VDD.\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 100e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"With W/L=5u/0.5u, the string will draw moderate current in active mode.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_startup\": {\n      \"description\": \"Time required for reference voltages to stabilize after exiting sleep mode\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"multi-VTH CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"RC time constant of the diode string charging internal nodes (especially N1 with capacitor XM9).\",\n        \"range\": {\n          \"min\": 0.1e-9,\n          \"typical\": 1e-9,\n          \"max\": 5e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Small internal capacitances and relatively strong drive currents.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure steady-state reference voltages, active power consumption, and startup time when transitioning from sleep to active mode.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_ref_n0\",\n      \"v_ref_n1\",\n      \"v_ref_n2\",\n      \"power_dc\",\n      \"t_startup\"\n    ],\n    \"spice\": \"* Bias Generator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 GND LABEL_NET_0 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N1 LABEL_NET_2 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N0 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N1 GND N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N0 N0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\n\\nVVDD VDD 0 1.8\\n* Sleep mode initially, then active mode at 2ns\\nV0 LABEL_NET_0 0 PWL(0 0 1n 0 2n 1.8)\\nV1 LABEL_NET_1 0 PWL(0 1.8 1n 1.8 2n 0)\\nV2 LABEL_NET_2 0 PWL(0 1.8 1n 1.8 2n 0)\\nV3 LABEL_NET_3 0 PWL(0 1.8 1n 1.8 2n 0)\\n\\n.control\\ntran 0.1n 20n\\nmeas tran v_ref_n0 avg v(N0) from=15n to=20n\\nmeas tran v_ref_n1 avg v(N1) from=15n to=20n\\nmeas tran v_ref_n2 avg v(N2) from=15n to=20n\\nmeas tran t_startup trig v(LABEL_NET_2) val=0.9 fall=1 targ v(N1) val=0.5 rise=1\\nlet power = -i(VVDD) * 1.8\\nmeas tran power_dc avg power from=15n to=20n\\nprint v_ref_n0 v_ref_n1 v_ref_n2 t_startup power_dc\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1425723",
+  "_case": "1425723_image_2_a"
+}

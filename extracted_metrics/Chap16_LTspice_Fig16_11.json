@@ -1,0 +1,197 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 16.10",
+    "page": "439",
+    "circuit_type": "NMOS Sense Amplifier (NSA) with memory arrays",
+    "description": "An NMOS sense amplifier connected to two memory arrays (array0 and array1) with equilibration circuitry. It senses the small voltage change on the bitline caused by charge sharing from the memory bit capacitor when a word line is accessed."
+  },
+  "step2_metrics": {
+    "average_power": {
+      "description": "Average power consumed during a sense operation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "437",
+        "reference": "Eq 16.4"
+      },
+      "equation": {
+        "formula": "P_avg = (number of sense amplifiers) * C_col * (VDD/2)^2 * f",
+        "explanation": "Calculates the dynamic power required to charge/discharge the column capacitance during sensing.",
+        "assumptions": "Assumes one bitline is pulled to VDD and the other to ground from VDD/2."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 1 sense amplifier, C_col = 100fF, VDD = 1.8V (VDD/2 = 0.9V), and f = 100MHz: P_avg = 1 * 100e-15 * (0.9)^2 * 100e6 = 8.1uW",
+        "range": {
+          "min": "5u",
+          "typical": "8.1u",
+          "max": "15u",
+          "unit": "W"
+        },
+        "reasoning": "Depends heavily on the operating frequency and actual parasitic column capacitance in the layout."
+      },
+      "importance": "essential"
+    },
+    "total_charge": {
+      "description": "Total charge on the memory bit and column capacitance before access.",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "438",
+        "reference": "Eq 16.5"
+      },
+      "equation": {
+        "formula": "Q_tot = C_mbit * V_mbit + (VDD/2) * C_col_array",
+        "explanation": "The sum of the charge stored in the memory cell and the charge on the precharged bitline.",
+        "assumptions": "Bitline is perfectly precharged to VDD/2."
+      },
+      "sky130_expected": {
+        "calculation": "For reading a '0' (V_mbit = 0V), C_mbit = 20fF, C_col = 100fF, VDD/2 = 0.9V: Q_tot = 20e-15 * 0 + 0.9 * 100e-15 = 90fC",
+        "range": {
+          "min": "80f",
+          "typical": "90f",
+          "max": "100f",
+          "unit": "C"
+        },
+        "reasoning": "Based on the nominal capacitance values provided in the schematic."
+      },
+      "importance": "recommended"
+    },
+    "charge_conservation": {
+      "description": "Charge conservation equation after the access MOSFET turns on.",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "438",
+        "reference": "Eq 16.6"
+      },
+      "equation": {
+        "formula": "V_final * (C_mbit + C_col_array) = C_mbit * V_mbit + (VDD/2) * C_col_array",
+        "explanation": "Equates the total charge before access to the total charge after charge sharing.",
+        "assumptions": "No charge leakage during the sharing phase."
+      },
+      "sky130_expected": {
+        "calculation": "V_final * (20fF + 100fF) = 90fC -> V_final * 120fF = 90fC",
+        "range": {
+          "min": "80f",
+          "typical": "90f",
+          "max": "100f",
+          "unit": "C"
+        },
+        "reasoning": "Directly follows from the total charge calculation."
+      },
+      "importance": "optional"
+    },
+    "final_voltage": {
+      "description": "The voltage on the bitline after charge sharing but before sensing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "438",
+        "reference": "Eq 16.7"
+      },
+      "equation": {
+        "formula": "V_final = (C_mbit * V_mbit + (VDD/2) * C_col_array) / (C_mbit + C_col_array)",
+        "explanation": "Solves the charge conservation equation for the final shared voltage.",
+        "assumptions": "Access transistor is fully turned on."
+      },
+      "sky130_expected": {
+        "calculation": "V_final = 90fC / 120fF = 0.75V (when reading a '0')",
+        "range": {
+          "min": "0.7",
+          "typical": "0.75",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the ratio of C_mbit to C_col."
+      },
+      "importance": "essential"
+    },
+    "bitline_voltage_change": {
+      "description": "The small signal voltage change on the bitline caused by the memory cell.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "438",
+        "reference": "Eq 16.8"
+      },
+      "equation": {
+        "formula": "Delta_V_bit = V_final - VDD/2",
+        "explanation": "The difference between the shared voltage and the precharge reference voltage.",
+        "assumptions": "Reference bitline remains exactly at VDD/2."
+      },
+      "sky130_expected": {
+        "calculation": "Delta_V_bit = 0.75V - 0.9V = -0.15V = -150mV",
+        "range": {
+          "min": "-0.2",
+          "typical": "-0.15",
+          "max": "-0.1",
+          "unit": "V"
+        },
+        "reasoning": "A 150mV differential is typical and sufficient for the cross-coupled NSA to resolve."
+      },
+      "importance": "essential"
+    },
+    "wordline_delay": {
+      "description": "Propagation delay through a polysilicon word line.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "443",
+        "reference": "Eq 16.9"
+      },
+      "equation": {
+        "formula": "t_d = (number of columns) * (W*L*(eps_ox/t_ox) + C_parasitic) * (number of columns) * R_gate",
+        "explanation": "Estimates the distributed RC delay of the word line across the memory array.",
+        "assumptions": "Modeled as a lumped RC delay for estimation."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 512 columns, W=1um, L=0.15um, C_ox=8.6fF/um^2, C_par=1fF, R_gate=1.5 ohm: t_d = 512 * (1.29fF + 1fF) * 512 * 1.5 = 512 * 2.29fF * 768 = 900ps",
+        "range": {
+          "min": "500p",
+          "typical": "900p",
+          "max": "2n",
+          "unit": "s"
+        },
+        "reasoning": "Highly dependent on array size (number of columns) and silicide/poly sheet resistance."
+      },
+      "importance": "optional"
+    },
+    "cell_area": {
+      "description": "Layout area of a single DRAM memory bit.",
+      "unit": "m^2",
+      "analysis_type": "None",
+      "source": {
+        "page": "443",
+        "reference": "Text"
+      },
+      "equation": {
+        "formula": "Area = 6 * F^2",
+        "explanation": "Standard area metric for an open-architecture DRAM cell, where F is half the pitch.",
+        "assumptions": "Open array architecture layout."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming contacted poly pitch is ~400nm, F = 200nm. Area = 6 * (200nm)^2 = 0.24 um^2",
+        "range": {
+          "min": "0.1",
+          "typical": "0.24",
+          "max": "0.5",
+          "unit": "um^2"
+        },
+        "reasoning": "Based on SKY130 design rules for contacted pitch."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient simulation to measure bitline voltage change during charge sharing and sense delay during NSA firing.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "bitline_voltage_change",
+      "sense_delay"
+    ],
+    "spice": "* NMOS Sense Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT (Pasted from prompt, VDDby2 changed to 0.9V for VDD=1.8V)\nxm1 N001 sense_N 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nVDDby2 VDDby2 0 0.9\nxm2 bitline1 bitline0 N001 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm3 bitline0 bitline1 N001 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 bitline1 Eq bitline0 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm5 bitline0 Eq VDDby2 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 VDDby2 Eq bitline1 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nCcol1 bitline1 0 1e-13\nCcol0 bitline0 0 1e-13\nxm7 bitline0 ra0 mb0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nCmbit0 mb0 0 2e-14\nxm8 bitline1 ra1 mb1 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nCmbit1 mb1 0 2e-14\nVsn1 ra1 0 0\n\n* Parameters\n.param W_xm1=2u L_xm1=0.15u\n.param W_xm2=1u L_xm2=0.15u\n.param W_xm3=1u L_xm3=0.15u\n.param W_xm4=1u L_xm4=0.15u\n.param W_xm5=1u L_xm5=0.15u\n.param W_xm6=1u L_xm6=0.15u\n.param W_xm7=1u L_xm7=0.15u\n.param W_xm8=1u L_xm8=0.15u\n\n* Stimulus\nVeq Eq 0 PULSE(1.8 0 5n 100p 100p 20n 40n)\nVra0 ra0 0 PULSE(0 1.8 7n 100p 100p 20n 40n)\nVsn sense_N 0 PULSE(0 1.8 12n 100p 100p 20n 40n)\n\n* Initial conditions (mb0=0V to read a 0, bitlines start imbalanced to show equilibration)\n.ic v(mb0)=0 v(mb1)=1.8 v(bitline0)=0 v(bitline1)=1.8\n\n.control\ntran 10p 20n uic\n\n* Measure bitline voltage change (Delta Vbit)\nmeas tran v_precharge find v(bitline0) at=6n\nmeas tran v_final_share find v(bitline0) at=11n\nlet delta_v_bit = v_final_share - v_precharge\nprint delta_v_bit\n\n* Measure sense delay (time from sense_N going high to bitline0 dropping to 10% of VDD)\nmeas tran t_sense_start when v(sense_N)=0.9 rise=1\nmeas tran t_sense_end when v(bitline0)=0.18 fall=1\nlet sense_delay = t_sense_end - t_sense_start\nprint sense_delay\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 16.10\",\n    \"page\": \"439\",\n    \"circuit_type\": \"NMOS Sense Amplifier (NSA) with memory arrays\",\n    \"description\": \"An NMOS sense amplifier connected to two memory arrays (array0 and array1) with equilibration circuitry. It senses the small voltage change on the bitline caused by charge sharing from the memory bit capacitor when a word line is accessed.\"\n  },\n  \"step2_metrics\": {\n    \"average_power\": {\n      \"description\": \"Average power consumed during a sense operation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"437\",\n        \"reference\": \"Eq 16.4\"\n      },\n      \"equation\": {\n        \"formula\": \"P_avg = (number of sense amplifiers) * C_col * (VDD/2)^2 * f\",\n        \"explanation\": \"Calculates the dynamic power required to charge/discharge the column capacitance during sensing.\",\n        \"assumptions\": \"Assumes one bitline is pulled to VDD and the other to ground from VDD/2.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 1 sense amplifier, C_col = 100fF, VDD = 1.8V (VDD/2 = 0.9V), and f = 100MHz: P_avg = 1 * 100e-15 * (0.9)^2 * 100e6 = 8.1uW\",\n        \"range\": {\n          \"min\": \"5u\",\n          \"typical\": \"8.1u\",\n          \"max\": \"15u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends heavily on the operating frequency and actual parasitic column capacitance in the layout.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"total_charge\": {\n      \"description\": \"Total charge on the memory bit and column capacitance before access.\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"438\",\n        \"reference\": \"Eq 16.5\"\n      },\n      \"equation\": {\n        \"formula\": \"Q_tot = C_mbit * V_mbit + (VDD/2) * C_col_array\",\n        \"explanation\": \"The sum of the charge stored in the memory cell and the charge on the precharged bitline.\",\n        \"assumptions\": \"Bitline is perfectly precharged to VDD/2.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For reading a '0' (V_mbit = 0V), C_mbit = 20fF, C_col = 100fF, VDD/2 = 0.9V: Q_tot = 20e-15 * 0 + 0.9 * 100e-15 = 90fC\",\n        \"range\": {\n          \"min\": \"80f\",\n          \"typical\": \"90f\",\n          \"max\": \"100f\",\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Based on the nominal capacitance values provided in the schematic.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"charge_conservation\": {\n      \"description\": \"Charge conservation equation after the access MOSFET turns on.\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"438\",\n        \"reference\": \"Eq 16.6\"\n      },\n      \"equation\": {\n        \"formula\": \"V_final * (C_mbit + C_col_array) = C_mbit * V_mbit + (VDD/2) * C_col_array\",\n        \"explanation\": \"Equates the total charge before access to the total charge after charge sharing.\",\n        \"assumptions\": \"No charge leakage during the sharing phase.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_final * (20fF + 100fF) = 90fC -> V_final * 120fF = 90fC\",\n        \"range\": {\n          \"min\": \"80f\",\n          \"typical\": \"90f\",\n          \"max\": \"100f\",\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Directly follows from the total charge calculation.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"final_voltage\": {\n      \"description\": \"The voltage on the bitline after charge sharing but before sensing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"438\",\n        \"reference\": \"Eq 16.7\"\n      },\n      \"equation\": {\n        \"formula\": \"V_final = (C_mbit * V_mbit + (VDD/2) * C_col_array) / (C_mbit + C_col_array)\",\n        \"explanation\": \"Solves the charge conservation equation for the final shared voltage.\",\n        \"assumptions\": \"Access transistor is fully turned on.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_final = 90fC / 120fF = 0.75V (when reading a '0')\",\n        \"range\": {\n          \"min\": \"0.7\",\n          \"typical\": \"0.75\",\n          \"max\": \"0.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the ratio of C_mbit to C_col.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bitline_voltage_change\": {\n      \"description\": \"The small signal voltage change on the bitline caused by the memory cell.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"438\",\n        \"reference\": \"Eq 16.8\"\n      },\n      \"equation\": {\n        \"formula\": \"Delta_V_bit = V_final - VDD/2\",\n        \"explanation\": \"The difference between the shared voltage and the precharge reference voltage.\",\n        \"assumptions\": \"Reference bitline remains exactly at VDD/2.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta_V_bit = 0.75V - 0.9V = -0.15V = -150mV\",\n        \"range\": {\n          \"min\": \"-0.2\",\n          \"typical\": \"-0.15\",\n          \"max\": \"-0.1\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"A 150mV differential is typical and sufficient for the cross-coupled NSA to resolve.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"wordline_delay\": {\n      \"description\": \"Propagation delay through a polysilicon word line.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"443\",\n        \"reference\": \"Eq 16.9\"\n      },\n      \"equation\": {\n        \"formula\": \"t_d = (number of columns) * (W*L*(eps_ox/t_ox) + C_parasitic) * (number of columns) * R_gate\",\n        \"explanation\": \"Estimates the distributed RC delay of the word line across the memory array.\",\n        \"assumptions\": \"Modeled as a lumped RC delay for estimation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 512 columns, W=1um, L=0.15um, C_ox=8.6fF/um^2, C_par=1fF, R_gate=1.5 ohm: t_d = 512 * (1.29fF + 1fF) * 512 * 1.5 = 512 * 2.29fF * 768 = 900ps\",\n        \"range\": {\n          \"min\": \"500p\",\n          \"typical\": \"900p\",\n          \"max\": \"2n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Highly dependent on array size (number of columns) and silicide/poly sheet resistance.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"cell_area\": {\n      \"description\": \"Layout area of a single DRAM memory bit.\",\n      \"unit\": \"m^2\",\n      \"analysis_type\": \"None\",\n      \"source\": {\n        \"page\": \"443\",\n        \"reference\": \"Text\"\n      },\n      \"equation\": {\n        \"formula\": \"Area = 6 * F^2\",\n        \"explanation\": \"Standard area metric for an open-architecture DRAM cell, where F is half the pitch.\",\n        \"assumptions\": \"Open array architecture layout.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming contacted poly pitch is ~400nm, F = 200nm. Area = 6 * (200nm)^2 = 0.24 um^2\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.24\",\n          \"max\": \"0.5\",\n          \"unit\": \"um^2\"\n        },\n        \"reasoning\": \"Based on SKY130 design rules for contacted pitch.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient simulation to measure bitline voltage change during charge sharing and sense delay during NSA firing.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"bitline_voltage_change\",\n      \"sense_delay\"\n    ],\n    \"spice\": \"* NMOS Sense Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT (Pasted from prompt, VDDby2 changed to 0.9V for VDD=1.8V)\\nxm1 N001 sense_N 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nVDDby2 VDDby2 0 0.9\\nxm2 bitline1 bitline0 N001 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 bitline0 bitline1 N001 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 bitline1 Eq bitline0 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 bitline0 Eq VDDby2 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 VDDby2 Eq bitline1 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nCcol1 bitline1 0 1e-13\\nCcol0 bitline0 0 1e-13\\nxm7 bitline0 ra0 mb0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nCmbit0 mb0 0 2e-14\\nxm8 bitline1 ra1 mb1 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nCmbit1 mb1 0 2e-14\\nVsn1 ra1 0 0\\n\\n* Parameters\\n.param W_xm1=2u L_xm1=0.15u\\n.param W_xm2=1u L_xm2=0.15u\\n.param W_xm3=1u L_xm3=0.15u\\n.param W_xm4=1u L_xm4=0.15u\\n.param W_xm5=1u L_xm5=0.15u\\n.param W_xm6=1u L_xm6=0.15u\\n.param W_xm7=1u L_xm7=0.15u\\n.param W_xm8=1u L_xm8=0.15u\\n\\n* Stimulus\\nVeq Eq 0 PULSE(1.8 0 5n 100p 100p 20n 40n)\\nVra0 ra0 0 PULSE(0 1.8 7n 100p 100p 20n 40n)\\nVsn sense_N 0 PULSE(0 1.8 12n 100p 100p 20n 40n)\\n\\n* Initial conditions (mb0=0V to read a 0, bitlines start imbalanced to show equilibration)\\n.ic v(mb0)=0 v(mb1)=1.8 v(bitline0)=0 v(bitline1)=1.8\\n\\n.control\\ntran 10p 20n uic\\n\\n* Measure bitline voltage change (Delta Vbit)\\nmeas tran v_precharge find v(bitline0) at=6n\\nmeas tran v_final_share find v(bitline0) at=11n\\nlet delta_v_bit = v_final_share - v_precharge\\nprint delta_v_bit\\n\\n* Measure sense delay (time from sense_N going high to bitline0 dropping to 10% of VDD)\\nmeas tran t_sense_start when v(sense_N)=0.9 rise=1\\nmeas tran t_sense_end when v(bitline0)=0.18 fall=1\\nlet sense_delay = t_sense_end - t_sense_start\\nprint sense_delay\\n\\nquit\\n.endc\"\n  }\n}\n```"
+}

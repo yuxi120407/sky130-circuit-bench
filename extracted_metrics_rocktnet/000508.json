@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "NMOS Array for FGMOS Transconductor",
+    "description": "Three NMOS transistors forming the core of a micropower transconductor. In the full paper context, these are FGMOS devices with capacitively coupled inputs, operating in weak inversion to maximize the gm/Id ratio and minimize power consumption.",
+    "node_mapping": {
+      "input": [
+        "N3",
+        "N0",
+        "N2"
+      ],
+      "output": [
+        "IP",
+        "IN",
+        "IC"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.25-V Micropower Gm-C Filter Based on FGMOS Transistors Operating in Weak Inversion",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "gm_id_ratio": {
+      "description": "Transconductance to drain current efficiency (gm/Id), a critical metric for weak inversion operation.",
+      "unit": "1/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "25 V^-1",
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "In weak inversion, gm/Id approaches 1/(n*Vt). With Vt ~ 26mV at room temp and subthreshold swing factor n ~ 1.3-1.5 for SKY130, max gm/Id is typically 25-30 V^-1.",
+        "range": {
+          "min": 20,
+          "typical": 27,
+          "max": 35,
+          "unit": "1/V"
+        },
+        "reasoning": "Fundamental semiconductor physics limit at room temperature, consistent across most CMOS nodes including SKY130."
+      },
+      "importance": "essential"
+    },
+    "drain_current": {
+      "description": "Drain current per transistor in weak inversion bias.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "Micropower (implied < 1uA)",
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "At Vgs = 0.3V (below Vth=0.42V), the transistor is in subthreshold. Current depends exponentially on Vgs.",
+        "range": {
+          "min": 1e-09,
+          "typical": 5e-08,
+          "max": 5e-07,
+          "unit": "A"
+        },
+        "reasoning": "To maintain weak inversion and micropower operation, Id must be kept very low, typically in the tens to hundreds of nanoamps."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total static power consumption of the transistor array.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1 uW",
+        "technology": "0.8um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With VDD=1.8V and 3 transistors drawing ~50nA each, P = 1.8 * 150nA = 270nW.",
+        "range": {
+          "min": 1e-07,
+          "typical": 1e-06,
+          "max": 5e-06,
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply. The paper achieved 1uW at 1.25V; similar micropower levels are expected here."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure weak inversion characteristics (gm, Id, gm/Id) and power consumption of the NMOS array.",
+    "analyses": [
+      "DC",
+      "OP"
+    ],
+    "metrics_measured": [
+      "gm_id_ratio",
+      "drain_current",
+      "power_consumption"
+    ],
+    "spice": "* FGMOS Transconductor NMOS Array Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\nXM1 IP N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 IN N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 IC N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* Supply and Drain Bias\nV_IP IP 0 DC 1.8\nV_IN IN 0 DC 1.8\nV_IC IC 0 DC 1.8\n\n* Gate Bias (Weak Inversion Region)\nV_N3 N3 0 DC 0.3\nV_N0 N0 0 DC 0.3\nV_N2 N2 0 DC 0.3\n\n.control\n  * 1. Operating Point for Power Consumption\n  op\n  let id1_op = -i(V_IP)\n  let id2_op = -i(V_IN)\n  let id3_op = -i(V_IC)\n  let total_power = (id1_op + id2_op + id3_op) * 1.8\n  print id1_op id2_op id3_op total_power\n\n  * 2. DC Sweep for Weak Inversion Metrics (gm/Id)\n  * Sweeping gate voltage from deep subthreshold to near threshold\n  dc V_N3 0.1 0.6 0.01\n  \n  let id1_dc = -i(V_IP)\n  * Calculate transconductance (derivative of Id w.r.t sweep variable V_N3)\n  let gm1_dc = deriv(id1_dc)\n  * Calculate gm/Id efficiency\n  let gm_id1 = gm1_dc / id1_dc\n  \n  * Extract metrics\n  meas dc gm_id_max max gm_id1\n  meas dc id_at_03V find id1_dc at=0.3\n  meas dc gm_at_03V find gm1_dc at=0.3\n  meas dc gm_id_at_03V find gm_id1 at=0.3\n  \n  print gm_id_max id_at_03V gm_id_at_03V\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"NMOS Array for FGMOS Transconductor\",\n    \"description\": \"Three NMOS transistors forming the core of a micropower transconductor. In the full paper context, these are FGMOS devices with capacitively coupled inputs, operating in weak inversion to maximize the gm/Id ratio and minimize power consumption.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N3\",\n        \"N0\",\n        \"N2\"\n      ],\n      \"output\": [\n        \"IP\",\n        \"IN\",\n        \"IC\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.25-V Micropower Gm-C Filter Based on FGMOS Transistors Operating in Weak Inversion\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"gm_id_ratio\": {\n      \"description\": \"Transconductance to drain current efficiency (gm/Id), a critical metric for weak inversion operation.\",\n      \"unit\": \"1/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"25 V^-1\",\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"In weak inversion, gm/Id approaches 1/(n*Vt). With Vt ~ 26mV at room temp and subthreshold swing factor n ~ 1.3-1.5 for SKY130, max gm/Id is typically 25-30 V^-1.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 27,\n          \"max\": 35,\n          \"unit\": \"1/V\"\n        },\n        \"reasoning\": \"Fundamental semiconductor physics limit at room temperature, consistent across most CMOS nodes including SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"drain_current\": {\n      \"description\": \"Drain current per transistor in weak inversion bias.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"Micropower (implied < 1uA)\",\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At Vgs = 0.3V (below Vth=0.42V), the transistor is in subthreshold. Current depends exponentially on Vgs.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 50e-9,\n          \"max\": 500e-9,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"To maintain weak inversion and micropower operation, Id must be kept very low, typically in the tens to hundreds of nanoamps.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total static power consumption of the transistor array.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1 uW\",\n        \"technology\": \"0.8um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With VDD=1.8V and 3 transistors drawing ~50nA each, P = 1.8 * 150nA = 270nW.\",\n        \"range\": {\n          \"min\": 100e-9,\n          \"typical\": 1e-6,\n          \"max\": 5e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply. The paper achieved 1uW at 1.25V; similar micropower levels are expected here.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure weak inversion characteristics (gm, Id, gm/Id) and power consumption of the NMOS array.\",\n    \"analyses\": [\n      \"DC\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"gm_id_ratio\",\n      \"drain_current\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* FGMOS Transconductor NMOS Array Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\nXM1 IP N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 IN N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 IC N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Supply and Drain Bias\\nV_IP IP 0 DC 1.8\\nV_IN IN 0 DC 1.8\\nV_IC IC 0 DC 1.8\\n\\n* Gate Bias (Weak Inversion Region)\\nV_N3 N3 0 DC 0.3\\nV_N0 N0 0 DC 0.3\\nV_N2 N2 0 DC 0.3\\n\\n.control\\n  * 1. Operating Point for Power Consumption\\n  op\\n  let id1_op = -i(V_IP)\\n  let id2_op = -i(V_IN)\\n  let id3_op = -i(V_IC)\\n  let total_power = (id1_op + id2_op + id3_op) * 1.8\\n  print id1_op id2_op id3_op total_power\\n\\n  * 2. DC Sweep for Weak Inversion Metrics (gm/Id)\\n  * Sweeping gate voltage from deep subthreshold to near threshold\\n  dc V_N3 0.1 0.6 0.01\\n  \\n  let id1_dc = -i(V_IP)\\n  * Calculate transconductance (derivative of Id w.r.t sweep variable V_N3)\\n  let gm1_dc = deriv(id1_dc)\\n  * Calculate gm/Id efficiency\\n  let gm_id1 = gm1_dc / id1_dc\\n  \\n  * Extract metrics\\n  meas dc gm_id_max max gm_id1\\n  meas dc id_at_03V find id1_dc at=0.3\\n  meas dc gm_at_03V find gm1_dc at=0.3\\n  meas dc gm_id_at_03V find gm_id1 at=0.3\\n  \\n  print gm_id_max id_at_03V gm_id_at_03V\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1261292",
+  "_case": "1261292_image_3_a"
+}

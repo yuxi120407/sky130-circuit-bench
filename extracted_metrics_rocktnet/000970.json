@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascoded Inverter Amplifier",
+    "description": "A cascoded inverter used as a high-gain amplifier in an incremental zoom-ADC. The paper mentions it is dynamically biased for PVT immunity, though the dynamic bias switches (XMP21, XMN21) appear tied to inactive states (VDD, GND) in this static netlist extraction.",
+    "node_mapping": {
+      "input": [
+        "VOP",
+        "VON"
+      ],
+      "output": [
+        "VO"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB0",
+        "VB1",
+        "LABEL_NET_2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 6.3\u03bcW 20b Incremental Zoom-ADC with 6ppm INL and 1\u03bcV Offset",
+      "figure": "15.5.3",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "80dB",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rout. With the cascode architecture, Rout is high. Assuming gm ~ 1mS and Rout ~ 1MOhm, gain is ~60dB.",
+        "range": {
+          "min": 40,
+          "typical": 60,
+          "max": 80,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the exact bias point and whether the input devices enter the triode region due to the fixed cascode bias voltages."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the amplifier",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "6.3\u03bcW (Total ADC)",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_VDD. With Vtrip ~ 0.8V and W/L=10, Id ~ 200uA. Power ~ 360uW.",
+        "range": {
+          "min": 1e-05,
+          "typical": 0.0003,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "The default W/L of 5u/0.5u leads to higher current than the ultra-low power reported in the paper, which likely used subthreshold biasing or smaller W/L."
+      },
+      "importance": "essential"
+    },
+    "ugf": {
+      "description": "Unity Gain Frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "UGF = gm / (2*pi*CL). For gm=1mS and CL=1pF, UGF ~ 160MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 100000000.0,
+          "max": 500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Standard metric for amplifiers to determine bandwidth and settling speed."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Phase at UGF for a single-pole dominant system is ~90 degrees.",
+        "range": {
+          "min": 45,
+          "typical": 85,
+          "max": 95,
+          "unit": "degrees"
+        },
+        "reasoning": "Crucial for stability in closed-loop ADC integrator operation."
+      },
+      "importance": "essential"
+    },
+    "vtrip": {
+      "description": "DC trip point voltage where Vout = Vin",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the balance of PMOS and NMOS strengths. Since un > up and W/L are equal, Vtrip < VDD/2.",
+        "range": {
+          "min": 0.6,
+          "typical": 0.8,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "Sets the input common-mode level for the amplifier."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC trip point, power consumption, open-loop gain, UGF, and phase margin of the cascoded inverter.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "vtrip",
+      "dc_gain",
+      "ugf",
+      "phase_margin"
+    ],
+    "spice": "* Cascoded Inverter Amplifier Testbench\n\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmp22=5u L_xmp22=0.5u\n.param W_xmn22=5u L_xmn22=0.5u\n.param W_xmn21=5u L_xmn21=0.5u\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmp21=5u L_xmp21=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n\n* DUT\nXMP22 VO VB0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp22} w={W_xmp22}\nXMN22 VO VB1 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmn22} w={W_xmn22}\nXMN21 N0 GND N3 GND sky130_fd_pr__nfet_01v8 l={L_xmn21} w={W_xmn21}\nXMN1 N3 VON GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMP21 N4 VDD N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp21} w={W_xmp21}\nXMP1 N1 VOP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\nXM2 N0 N0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM1 N4 LABEL_NET_2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* DC Sources\nVVDD VDD 0 1.8\nVVB0 VB0 0 0.99\nVVB1 VB1 0 0.54\nVLABEL_NET_2 LABEL_NET_2 0 0.9\n\n* Closed loop for DC self-biasing at the trip point\n* Huge inductor shorts output to input at DC, open at AC\nL1 VO VOP 1G\n* Tie VOP and VON together for inverter operation\nR1 VOP VON 0\n* Huge capacitor couples AC signal without disturbing DC bias\nC1 VIN_AC VOP 1G\nVac VIN_AC 0 DC 0 AC 1\n\n* Load Capacitance\nCL VO 0 1p\n\n.control\n  * 1. Operating Point Analysis\n  op\n  let power = -i(VVDD) * 1.8\n  let vtrip = v(VO)\n  print power vtrip\n\n  * 2. AC Analysis\n  ac dec 100 1 10G\n  let gain_db = vdb(VO)\n  let phase = 180/PI * cph(v(VO))\n  \n  meas ac dc_gain find gain_db at=10\n  meas ac ugf when gain_db=0 fall=1\n  meas ac pm find phase when gain_db=0 fall=1\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascoded Inverter Amplifier\",\n    \"description\": \"A cascoded inverter used as a high-gain amplifier in an incremental zoom-ADC. The paper mentions it is dynamically biased for PVT immunity, though the dynamic bias switches (XMP21, XMN21) appear tied to inactive states (VDD, GND) in this static netlist extraction.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VOP\",\n        \"VON\"\n      ],\n      \"output\": [\n        \"VO\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB0\",\n        \"VB1\",\n        \"LABEL_NET_2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 6.3\u03bcW 20b Incremental Zoom-ADC with 6ppm INL and 1\u03bcV Offset\",\n      \"figure\": \"15.5.3\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"80dB\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rout. With the cascode architecture, Rout is high. Assuming gm ~ 1mS and Rout ~ 1MOhm, gain is ~60dB.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 60,\n          \"max\": 80,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the exact bias point and whether the input devices enter the triode region due to the fixed cascode bias voltages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"6.3\u03bcW (Total ADC)\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_VDD. With Vtrip ~ 0.8V and W/L=10, Id ~ 200uA. Power ~ 360uW.\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 300e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The default W/L of 5u/0.5u leads to higher current than the ultra-low power reported in the paper, which likely used subthreshold biasing or smaller W/L.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugf\": {\n      \"description\": \"Unity Gain Frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = gm / (2*pi*CL). For gm=1mS and CL=1pF, UGF ~ 160MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 100e6,\n          \"max\": 500e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Standard metric for amplifiers to determine bandwidth and settling speed.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Phase at UGF for a single-pole dominant system is ~90 degrees.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 85,\n          \"max\": 95,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Crucial for stability in closed-loop ADC integrator operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vtrip\": {\n      \"description\": \"DC trip point voltage where Vout = Vin\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the balance of PMOS and NMOS strengths. Since un > up and W/L are equal, Vtrip < VDD/2.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.8,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Sets the input common-mode level for the amplifier.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC trip point, power consumption, open-loop gain, UGF, and phase margin of the cascoded inverter.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"vtrip\",\n      \"dc_gain\",\n      \"ugf\",\n      \"phase_margin\"\n    ],\n    \"spice\": \"* Cascoded Inverter Amplifier Testbench\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmp22=5u L_xmp22=0.5u\\n.param W_xmn22=5u L_xmn22=0.5u\\n.param W_xmn21=5u L_xmn21=0.5u\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmp21=5u L_xmp21=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n\\n* DUT\\nXMP22 VO VB0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp22} w={W_xmp22}\\nXMN22 VO VB1 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmn22} w={W_xmn22}\\nXMN21 N0 GND N3 GND sky130_fd_pr__nfet_01v8 l={L_xmn21} w={W_xmn21}\\nXMN1 N3 VON GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMP21 N4 VDD N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp21} w={W_xmp21}\\nXMP1 N1 VOP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\nXM2 N0 N0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 N4 LABEL_NET_2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVVB0 VB0 0 0.99\\nVVB1 VB1 0 0.54\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\n\\n* Closed loop for DC self-biasing at the trip point\\n* Huge inductor shorts output to input at DC, open at AC\\nL1 VO VOP 1G\\n* Tie VOP and VON together for inverter operation\\nR1 VOP VON 0\\n* Huge capacitor couples AC signal without disturbing DC bias\\nC1 VIN_AC VOP 1G\\nVac VIN_AC 0 DC 0 AC 1\\n\\n* Load Capacitance\\nCL VO 0 1p\\n\\n.control\\n  * 1. Operating Point Analysis\\n  op\\n  let power = -i(VVDD) * 1.8\\n  let vtrip = v(VO)\\n  print power vtrip\\n\\n  * 2. AC Analysis\\n  ac dec 100 1 10G\\n  let gain_db = vdb(VO)\\n  let phase = 180/PI * cph(v(VO))\\n  \\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugf when gain_db=0 fall=1\\n  meas ac pm find phase when gain_db=0 fall=1\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6487733",
+  "_case": "6487733_image_3_b"
+}

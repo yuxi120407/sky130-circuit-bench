@@ -1,0 +1,253 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 24.21",
+    "page": "787",
+    "circuit_type": "Two-stage CMOS operational amplifier with indirect feedback compensation",
+    "description": "Figure 24.21 shows a two-stage op-amp where indirect frequency compensation is realized by splitting the PMOS active load transistors (M4T/M4B) and feeding the compensation current through M4B rather than connecting Cc directly to the high-impedance first-stage output node, eliminating the RHP zero and improving speed without extra power dissipation."
+  },
+  "step2_metrics": {
+    "open_loop_dc_gain": {
+      "description": "Low-frequency small-signal open-loop voltage gain AOLDC = A1 * A2",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "793",
+        "reference": "Eq. (24.35)"
+      },
+      "equation": {
+        "formula": "AOLDC = gm1 * (ro2 || ro4) * gm2 * (ro7 || ro8)",
+        "explanation": "Product of the differential stage gain A1 and the second-stage common-source gain A2.",
+        "assumptions": "Transistors in saturation; channel-length modulation parameter lambda dominates output resistances."
+      },
+      "sky130_expected": {
+        "calculation": "With tail current Iss = 20 uA, branch currents ID1 = ID2 = 10 uA. For NMOS M1/M2 (W/L = 50u/2u): gm1 = sqrt(2 * 270u * 25 * 10u) = 367 uA/V. Output resistance ro2 = 1/(0.1 * 10u) = 1 MOhm. PMOS load ro4 = 1 MOhm. First-stage output resistance R1 = 500 kOhm -> A1 = 367 uA/V * 500 kOhm = 183.5 V/V. For PMOS M7 (W/L_eff = 100u/2u = 50, ID7 = 10 uA): gm2 = sqrt(2 * 50u * 50 * 10u) = 224 uA/V. R2 = ro7 || ro8 = 500 kOhm -> A2 = 224 uA/V * 500 kOhm = 112 V/V. Total AOLDC = 183.5 * 112 = 20,552 V/V = 86.3 dB (nominally ~60 to 80 dB in Baker's models).",
+        "range": {
+          "min": 60.0,
+          "typical": 75.0,
+          "max": 90.0,
+          "unit": "dB"
+        },
+        "reasoning": "Standard Sky130 long-channel (L=2um) cascode/current-source loaded two-stage op-amp achieves 60 to 85 dB open-loop gain."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Op-amp unity-gain frequency (gain-bandwidth product), fun",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "785",
+        "reference": "Eq. (24.25)"
+      },
+      "equation": {
+        "formula": "fun = gm1 / (2 * pi * Cc)",
+        "explanation": "Determined by the input differential pair transconductance gm1 and the indirect compensation capacitance Cc.",
+        "assumptions": "gm1 is approximately equal to gmcg and second pole/zero frequencies are higher than fun."
+      },
+      "sky130_expected": {
+        "calculation": "gm1 = 367 uA/V, Cc = 240 fF = 0.24 pF. fun = 367e-6 / (2 * pi * 0.24e-12) = 243.4 MHz. With bias currents scaled as in Baker's example (where fun = 100 MHz for Cc = 240 fF), fun falls between 100 MHz and 250 MHz.",
+        "range": {
+          "min": 80000000.0,
+          "typical": 150000000.0,
+          "max": 300000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Smaller compensation capacitor (240 fF vs 2.4 pF in standard Miller) pushes unity-gain bandwidth well over 100 MHz."
+      },
+      "importance": "essential"
+    },
+    "closed_loop_bandwidth": {
+      "description": "-3 dB closed-loop bandwidth of the op-amp configured as a unity-gain follower",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "793",
+        "reference": "Eq. (24.34)"
+      },
+      "equation": {
+        "formula": "f3dBCL = fun / ACL = fun",
+        "explanation": "For closed-loop gain ACL = 1, the -3 dB bandwidth is equal to the gain-bandwidth product fun.",
+        "assumptions": "Single dominant-pole closed-loop approximation with adequate phase margin."
+      },
+      "sky130_expected": {
+        "calculation": "For ACL = 1, f3dBCL \u2248 fun \u2248 100 MHz to 200 MHz.",
+        "range": {
+          "min": 70000000.0,
+          "typical": 130000000.0,
+          "max": 250000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "In a follower configuration, the -3 dB frequency directly tracks the unity-gain frequency."
+      },
+      "importance": "recommended"
+    },
+    "slew_rate_falling": {
+      "description": "High-to-low output slew rate when discharging load and compensation capacitance",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "788",
+        "reference": "Page 788 text & Fig. 24.24"
+      },
+      "equation": {
+        "formula": "SR_fall = I_M8 / (CL + Cc)",
+        "explanation": "Constant bias current sink M8 discharges both the load capacitor CL (1 pF) and compensation capacitor Cc (0.24 pF).",
+        "assumptions": "Second stage current source M8 remains saturated during slewing."
+      },
+      "sky130_expected": {
+        "calculation": "I_M8 = 10 uA, CL = 1.0 pF, Cc = 0.24 pF -> CL + Cc = 1.24 pF. SR_fall = 10 uA / 1.24 pF = 8.06 V/us = 8.06 mV/ns.",
+        "range": {
+          "min": 5.0,
+          "typical": 8.0,
+          "max": 15.0,
+          "unit": "V/us"
+        },
+        "reasoning": "As derived in Baker text page 788: 10 uA / 1.24 pF = 8 mV/ns."
+      },
+      "importance": "essential"
+    },
+    "slew_rate_rising": {
+      "description": "Low-to-high output slew rate during large-signal positive step",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "787",
+        "reference": "Page 787 text & Fig. 24.24"
+      },
+      "equation": {
+        "formula": "SR_rise = Delta_Vout / t_rise",
+        "explanation": "When vin transitions high, M2 pulls M7 gate low, allowing M7 to charge the output load capacitance rapidly.",
+        "assumptions": "M7 conducts peak transient current much larger than quiescent bias."
+      },
+      "sky130_expected": {
+        "calculation": "For a 400 mV step (0.5 V to 0.9 V) settling in ~10 ns, the effective slew rate is approximately 400 mV / 10 ns = 40 V/us.",
+        "range": {
+          "min": 20.0,
+          "typical": 40.0,
+          "max": 80.0,
+          "unit": "V/us"
+        },
+        "reasoning": "M7 is driven hard into conduction, giving much faster low-to-high transition than high-to-low slewing."
+      },
+      "importance": "recommended"
+    },
+    "settling_time_rising": {
+      "description": "Low-to-high transition settling time for a 500 mV to 900 mV input step",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "788",
+        "reference": "Page 788 text & Fig. 24.24"
+      },
+      "equation": {
+        "formula": "t_settle_rise = time to reach 1% of final value",
+        "explanation": "Settling time for a 400 mV step driving 1 pF load.",
+        "assumptions": "Input pulse rise time is sharp (e.g. 1 ns)."
+      },
+      "sky130_expected": {
+        "calculation": "Baker Fig. 24.24 notes: low-to-high settling time is roughly 10 ns.",
+        "range": {
+          "min": 5e-09,
+          "typical": 1e-08,
+          "max": 2e-08,
+          "unit": "s"
+        },
+        "reasoning": "High drive current from M7 enables very fast low-to-high settling."
+      },
+      "importance": "recommended"
+    },
+    "settling_time_falling": {
+      "description": "High-to-low transition settling time for a 900 mV to 500 mV input step",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "788",
+        "reference": "Page 788 text & Fig. 24.24"
+      },
+      "equation": {
+        "formula": "t_settle_fall \u2248 Delta_Vout / SR_fall",
+        "explanation": "Dominated by constant current sink discharging CL + Cc.",
+        "assumptions": "Delta_Vout = 400 mV, SR_fall \u2248 8 mV/ns gives 50 ns slew time plus small-signal settling."
+      },
+      "sky130_expected": {
+        "calculation": "Slew time = 400 mV / (8 mV/ns) = 50 ns; total settling time including recovery is roughly 60 ns as stated in text.",
+        "range": {
+          "min": 4e-08,
+          "typical": 6e-08,
+          "max": 9e-08,
+          "unit": "s"
+        },
+        "reasoning": "Limited by the 10 uA current sink M8 discharging 1.24 pF."
+      },
+      "importance": "essential"
+    },
+    "lhp_zero_frequency": {
+      "description": "Location of the left-half-plane transmission zero introduced by indirect compensation",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "785",
+        "reference": "Eq. (24.22)"
+      },
+      "equation": {
+        "formula": "fz = gmcg / (2 * pi * Cc)",
+        "explanation": "The common-gate connected device M4B introduces a left-half-plane zero that adds positive phase and extends stability.",
+        "assumptions": "gmcg is the transconductance of M4B looking into its source."
+      },
+      "sky130_expected": {
+        "calculation": "For PMOS M4B with W/L = 100u/1u and ID = 10 uA: gmcg = sqrt(2 * 50u * 100 * 10u) = 316 uA/V. fz = 316e-6 / (2 * pi * 0.24e-12) \u2248 210 MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 210000000.0,
+          "max": 400000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "LHP zero appears near the unity-gain bandwidth, boosting phase margin."
+      },
+      "importance": "optional"
+    },
+    "quiescent_power": {
+      "description": "Total static DC power consumption of the op-amp and bias network",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "786",
+        "reference": "Page 786-787 text"
+      },
+      "equation": {
+        "formula": "P_dc = VDD * I_total",
+        "explanation": "Static current drawn from 1.8 V supply by diff-amp, second stage, and bias circuit.",
+        "assumptions": "Inputs held at quiescent common-mode voltage (e.g. 0.7 V)."
+      },
+      "sky130_expected": {
+        "calculation": "Diff-amp current = 20 uA, second stage = 10 uA, bias generator branches \u2248 40 uA. Total current \u2248 70 uA. P_dc = 1.8 V * 70 uA = 126 uW.",
+        "range": {
+          "min": 6e-05,
+          "typical": 0.00012,
+          "max": 0.00025,
+          "unit": "W"
+        },
+        "reasoning": "Low power consumption maintained because indirect feedback introduces no additional active current branch."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Comprehensive ngspice testbench for Baker Fig. 24.21 measuring closed-loop AC bandwidth, DC power, and transient step response (rising/falling slew rates and settling times for 500 mV to 900 mV pulse).",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "quiescent_power",
+      "closed_loop_bandwidth",
+      "slew_rate_rising",
+      "slew_rate_falling",
+      "settling_time_rising",
+      "settling_time_falling"
+    ],
+    "spice": "* Testbench for Baker Fig. 24.21 Indirect Compensation Op-Amp\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter definitions for DUT and bias subcircuit\n.param W_xm1=50u L_xm1=2u\n.param W_xm2=50u L_xm2=2u\n.param W_xm3t=100u L_xm3t=1u\n.param W_xm3b=100u L_xm3b=1u\n.param W_xm4t=100u L_xm4t=1u\n.param W_xm4b=100u L_xm4b=1u\n.param W_xm6t=100u L_xm6t=2u\n.param W_xm6b=100u L_xm6b=2u\n.param W_xm7t=100u L_xm7t=1u\n.param W_xm7b=100u L_xm7b=1u\n.param W_xm8t=50u L_xm8t=2u\n.param W_xm8b=50u L_xm8b=2u\n\n* Bias generator parameters\n.param W_xmsu1=10u L_xmsu1=2u\n.param W_xmsu2=10u L_xmsu2=2u\n.param W_xmsu3=10u L_xmsu3=2u\n.param W_xmsu4=10u L_xmsu4=2u\n.param W_xm3=10u L_xm3=2u\n.param W_xm4=10u L_xm4=2u\n.param W_xm5=10u L_xm5=2u\n.param W_xm6=10u L_xm6=2u\n.param W_xm7=10u L_xm7=2u\n.param W_xm8=10u L_xm8=2u\n.param W_xm9=10u L_xm9=2u\n.param W_xm10=10u L_xm10=2u\n.param W_xm11=10u L_xm11=2u\n.param W_xm12=10u L_xm12=2u\n.param W_xm13=10u L_xm13=2u\n.param W_xm14=10u L_xm14=2u\n.param W_xm15=10u L_xm15=2u\n.param W_xm16=10u L_xm16=2u\n.param W_xm17=10u L_xm17=2u\n.param W_xm18=10u L_xm18=2u\n.param W_xma1=10u L_xma1=2u\n.param W_xma2=10u L_xma2=2u\n.param W_xma3=10u L_xma3=2u\n.param W_xma4=10u L_xma4=2u\n.param W_xma5=10u L_xma5=2u\n.param W_xma6=10u L_xma6=2u\n.param W_xma7=10u L_xma7=2u\n.param W_xma8=10u L_xma8=2u\n.param W_xma9=10u L_xma9=2u\n.param W_xma10=10u L_xma10=2u\n.param W_xma11=10u L_xma11=2u\n.param W_xma12=10u L_xma12=2u\n\n* Circuit netlist\nVDD VDD 0 1.8\nxm2 N002 vin N006 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 vout N006 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm4t N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4t} l={L_xm4t}\nxm3t N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3t} l={L_xm3t}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nxm6t N006 Vbias3 N007 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\nxm6b N007 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\nxm7b vout N002 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm7b} l={L_xm7b}\nxm8t vout Vbias3 N008 0 sky130_fd_pr__nfet_01v8 w={W_xm8t} l={L_xm8t}\nxm8b N008 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8b} l={L_xm8b}\nCc vout N003 2.4e-13\nC3 vout 0 1e-12\nxm4b N002 N001 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm4b} l={L_xm4b}\nxm3b N001 N001 N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm3b} l={L_xm3b}\nxm7t N005 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7t} l={L_xm7t}\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n\n* Input source: 500mV to 900mV pulse (Fig. 24.24), with AC=1 for frequency response\nVin vin 0 pulse(0.5 0.9 450n 1n 1n 100n 1u) dc 0.7 ac 1\n\n.control\n* 1. Operating Point\nop\nlet power = -i(VDD) * 1.8\nprint power\n\n* 2. AC Analysis (Closed-loop follower bandwidth)\nac dec 100 1k 1G\nlet cl_gain = vdb(vout)\nlet cl_phase = 180/PI * cph(v(vout))\nmeas ac dc_gain find cl_gain at=1k\nmeas ac f_3dB when cl_gain=-3 fall=1\nprint dc_gain f_3dB\n\n* 3. Transient Analysis (Baker Ch 24 Fig. 24.24)\ntran 0.1n 700n 400n\nmeas tran v_init find v(vout) at=440n\nmeas tran v_peak max v(vout) from=450n to=550n\nmeas tran v_trough min v(vout) from=550n to=700n\nmeas tran t_rise_10 trig v(vout) val=0.54 rise=1 targ v(vout) val=0.86 rise=1\nlet sr_rising = 0.32 / (t_rise_10 * 1e6)\nprint sr_rising\nmeas tran t_fall_10 trig v(vout) val=0.86 fall=1 targ v(vout) val=0.54 fall=1\nlet sr_falling = 0.32 / (t_fall_10 * 1e6)\nprint sr_falling\nmeas tran t_settle_low_high trig v(vin) val=0.7 rise=1 targ v(vout) val=0.89 rise=1\nmeas tran t_settle_high_low trig v(vin) val=0.7 fall=1 targ v(vout) val=0.51 fall=1\nprint t_settle_low_high t_settle_high_low\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 24.21\",\n    \"page\": \"787\",\n    \"circuit_type\": \"Two-stage CMOS operational amplifier with indirect feedback compensation\",\n    \"description\": \"Figure 24.21 shows a two-stage op-amp where indirect frequency compensation is realized by splitting the PMOS active load transistors (M4T/M4B) and feeding the compensation current through M4B rather than connecting Cc directly to the high-impedance first-stage output node, eliminating the RHP zero and improving speed without extra power dissipation.\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_dc_gain\": {\n      \"description\": \"Low-frequency small-signal open-loop voltage gain AOLDC = A1 * A2\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"793\", \"reference\": \"Eq. (24.35)\" },\n      \"equation\": {\n        \"formula\": \"AOLDC = gm1 * (ro2 || ro4) * gm2 * (ro7 || ro8)\",\n        \"explanation\": \"Product of the differential stage gain A1 and the second-stage common-source gain A2.\",\n        \"assumptions\": \"Transistors in saturation; channel-length modulation parameter lambda dominates output resistances.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With tail current Iss = 20 uA, branch currents ID1 = ID2 = 10 uA. For NMOS M1/M2 (W/L = 50u/2u): gm1 = sqrt(2 * 270u * 25 * 10u) = 367 uA/V. Output resistance ro2 = 1/(0.1 * 10u) = 1 MOhm. PMOS load ro4 = 1 MOhm. First-stage output resistance R1 = 500 kOhm -> A1 = 367 uA/V * 500 kOhm = 183.5 V/V. For PMOS M7 (W/L_eff = 100u/2u = 50, ID7 = 10 uA): gm2 = sqrt(2 * 50u * 50 * 10u) = 224 uA/V. R2 = ro7 || ro8 = 500 kOhm -> A2 = 224 uA/V * 500 kOhm = 112 V/V. Total AOLDC = 183.5 * 112 = 20,552 V/V = 86.3 dB (nominally ~60 to 80 dB in Baker's models).\",\n        \"range\": { \"min\": 60.0, \"typical\": 75.0, \"max\": 90.0, \"unit\": \"dB\" },\n        \"reasoning\": \"Standard Sky130 long-channel (L=2um) cascode/current-source loaded two-stage op-amp achieves 60 to 85 dB open-loop gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Op-amp unity-gain frequency (gain-bandwidth product), fun\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"785\", \"reference\": \"Eq. (24.25)\" },\n      \"equation\": {\n        \"formula\": \"fun = gm1 / (2 * pi * Cc)\",\n        \"explanation\": \"Determined by the input differential pair transconductance gm1 and the indirect compensation capacitance Cc.\",\n        \"assumptions\": \"gm1 is approximately equal to gmcg and second pole/zero frequencies are higher than fun.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm1 = 367 uA/V, Cc = 240 fF = 0.24 pF. fun = 367e-6 / (2 * pi * 0.24e-12) = 243.4 MHz. With bias currents scaled as in Baker's example (where fun = 100 MHz for Cc = 240 fF), fun falls between 100 MHz and 250 MHz.\",\n        \"range\": { \"min\": 80000000.0, \"typical\": 150000000.0, \"max\": 300000000.0, \"unit\": \"Hz\" },\n        \"reasoning\": \"Smaller compensation capacitor (240 fF vs 2.4 pF in standard Miller) pushes unity-gain bandwidth well over 100 MHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"closed_loop_bandwidth\": {\n      \"description\": \"-3 dB closed-loop bandwidth of the op-amp configured as a unity-gain follower\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"793\", \"reference\": \"Eq. (24.34)\" },\n      \"equation\": {\n        \"formula\": \"f3dBCL = fun / ACL = fun\",\n        \"explanation\": \"For closed-loop gain ACL = 1, the -3 dB bandwidth is equal to the gain-bandwidth product fun.\",\n        \"assumptions\": \"Single dominant-pole closed-loop approximation with adequate phase margin.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For ACL = 1, f3dBCL \u2248 fun \u2248 100 MHz to 200 MHz.\",\n        \"range\": { \"min\": 70000000.0, \"typical\": 130000000.0, \"max\": 250000000.0, \"unit\": \"Hz\" },\n        \"reasoning\": \"In a follower configuration, the -3 dB frequency directly tracks the unity-gain frequency.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"slew_rate_falling\": {\n      \"description\": \"High-to-low output slew rate when discharging load and compensation capacitance\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"788\", \"reference\": \"Page 788 text & Fig. 24.24\" },\n      \"equation\": {\n        \"formula\": \"SR_fall = I_M8 / (CL + Cc)\",\n        \"explanation\": \"Constant bias current sink M8 discharges both the load capacitor CL (1 pF) and compensation capacitor Cc (0.24 pF).\",\n        \"assumptions\": \"Second stage current source M8 remains saturated during slewing.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_M8 = 10 uA, CL = 1.0 pF, Cc = 0.24 pF -> CL + Cc = 1.24 pF. SR_fall = 10 uA / 1.24 pF = 8.06 V/us = 8.06 mV/ns.\",\n        \"range\": { \"min\": 5.0, \"typical\": 8.0, \"max\": 15.0, \"unit\": \"V/us\" },\n        \"reasoning\": \"As derived in Baker text page 788: 10 uA / 1.24 pF = 8 mV/ns.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate_rising\": {\n      \"description\": \"Low-to-high output slew rate during large-signal positive step\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"787\", \"reference\": \"Page 787 text & Fig. 24.24\" },\n      \"equation\": {\n        \"formula\": \"SR_rise = Delta_Vout / t_rise\",\n        \"explanation\": \"When vin transitions high, M2 pulls M7 gate low, allowing M7 to charge the output load capacitance rapidly.\",\n        \"assumptions\": \"M7 conducts peak transient current much larger than quiescent bias.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 400 mV step (0.5 V to 0.9 V) settling in ~10 ns, the effective slew rate is approximately 400 mV / 10 ns = 40 V/us.\",\n        \"range\": { \"min\": 20.0, \"typical\": 40.0, \"max\": 80.0, \"unit\": \"V/us\" },\n        \"reasoning\": \"M7 is driven hard into conduction, giving much faster low-to-high transition than high-to-low slewing.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"settling_time_rising\": {\n      \"description\": \"Low-to-high transition settling time for a 500 mV to 900 mV input step\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"788\", \"reference\": \"Page 788 text & Fig. 24.24\" },\n      \"equation\": {\n        \"formula\": \"t_settle_rise = time to reach 1% of final value\",\n        \"explanation\": \"Settling time for a 400 mV step driving 1 pF load.\",\n        \"assumptions\": \"Input pulse rise time is sharp (e.g. 1 ns).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Baker Fig. 24.24 notes: low-to-high settling time is roughly 10 ns.\",\n        \"range\": { \"min\": 5e-09, \"typical\": 1e-08, \"max\": 2e-08, \"unit\": \"s\" },\n        \"reasoning\": \"High drive current from M7 enables very fast low-to-high settling.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"settling_time_falling\": {\n      \"description\": \"High-to-low transition settling time for a 900 mV to 500 mV input step\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"788\", \"reference\": \"Page 788 text & Fig. 24.24\" },\n      \"equation\": {\n        \"formula\": \"t_settle_fall \u2248 Delta_Vout / SR_fall\",\n        \"explanation\": \"Dominated by constant current sink discharging CL + Cc.\",\n        \"assumptions\": \"Delta_Vout = 400 mV, SR_fall \u2248 8 mV/ns gives 50 ns slew time plus small-signal settling.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Slew time = 400 mV / (8 mV/ns) = 50 ns; total settling time including recovery is roughly 60 ns as stated in text.\",\n        \"range\": { \"min\": 4e-08, \"typical\": 6e-08, \"max\": 9e-08, \"unit\": \"s\" },\n        \"reasoning\": \"Limited by the 10 uA current sink M8 discharging 1.24 pF.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"lhp_zero_frequency\": {\n      \"description\": \"Location of the left-half-plane transmission zero introduced by indirect compensation\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"785\", \"reference\": \"Eq. (24.22)\" },\n      \"equation\": {\n        \"formula\": \"fz = gmcg / (2 * pi * Cc)\",\n        \"explanation\": \"The common-gate connected device M4B introduces a left-half-plane zero that adds positive phase and extends stability.\",\n        \"assumptions\": \"gmcg is the transconductance of M4B looking into its source.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For PMOS M4B with W/L = 100u/1u and ID = 10 uA: gmcg = sqrt(2 * 50u * 100 * 10u) = 316 uA/V. fz = 316e-6 / (2 * pi * 0.24e-12) \u2248 210 MHz.\",\n        \"range\": { \"min\": 100000000.0, \"typical\": 210000000.0, \"max\": 400000000.0, \"unit\": \"Hz\" },\n        \"reasoning\": \"LHP zero appears near the unity-gain bandwidth, boosting phase margin.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"quiescent_power\": {\n      \"description\": \"Total static DC power consumption of the op-amp and bias network\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"786\", \"reference\": \"Page 786-787 text\" },\n      \"equation\": {\n        \"formula\": \"P_dc = VDD * I_total\",\n        \"explanation\": \"Static current drawn from 1.8 V supply by diff-amp, second stage, and bias circuit.\",\n        \"assumptions\": \"Inputs held at quiescent common-mode voltage (e.g. 0.7 V).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Diff-amp current = 20 uA, second stage = 10 uA, bias generator branches \u2248 40 uA. Total current \u2248 70 uA. P_dc = 1.8 V * 70 uA = 126 uW.\",\n        \"range\": { \"min\": 6e-05, \"typical\": 1.2e-04, \"max\": 2.5e-04, \"unit\": \"W\" },\n        \"reasoning\": \"Low power consumption maintained because indirect feedback introduces no additional active current branch.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Comprehensive ngspice testbench for Baker Fig. 24.21 measuring closed-loop AC bandwidth, DC power, and transient step response (rising/falling slew rates and settling times for 500 mV to 900 mV pulse).\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\n      \"quiescent_power\",\n      \"closed_loop_bandwidth\",\n      \"slew_rate_rising\",\n      \"slew_rate_falling\",\n      \"settling_time_rising\",\n      \"settling_time_falling\"\n    ],\n    \"spice\": \"* Testbench for Baker Fig. 24.21 Indirect Compensation Op-Amp\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter definitions for DUT and bias subcircuit\\n.param W_xm1=50u L_xm1=2u\\n.param W_xm2=50u L_xm2=2u\\n.param W_xm3t=100u L_xm3t=1u\\n.param W_xm3b=100u L_xm3b=1u\\n.param W_xm4t=100u L_xm4t=1u\\n.param W_xm4b=100u L_xm4b=1u\\n.param W_xm6t=100u L_xm6t=2u\\n.param W_xm6b=100u L_xm6b=2u\\n.param W_xm7t=100u L_xm7t=1u\\n.param W_xm7b=100u L_xm7b=1u\\n.param W_xm8t=50u L_xm8t=2u\\n.param W_xm8b=50u L_xm8b=2u\\n\\n* Bias generator parameters\\n.param W_xmsu1=10u L_xmsu1=2u\\n.param W_xmsu2=10u L_xmsu2=2u\\n.param W_xmsu3=10u L_xmsu3=2u\\n.param W_xmsu4=10u L_xmsu4=2u\\n.param W_xm3=10u L_xm3=2u\\n.param W_xm4=10u L_xm4=2u\\n.param W_xm5=10u L_xm5=2u\\n.param W_xm6=10u L_xm6=2u\\n.param W_xm7=10u L_xm7=2u\\n.param W_xm8=10u L_xm8=2u\\n.param W_xm9=10u L_xm9=2u\\n.param W_xm10=10u L_xm10=2u\\n.param W_xm11=10u L_xm11=2u\\n.param W_xm12=10u L_xm12=2u\\n.param W_xm13=10u L_xm13=2u\\n.param W_xm14=10u L_xm14=2u\\n.param W_xm15=10u L_xm15=2u\\n.param W_xm16=10u L_xm16=2u\\n.param W_xm17=10u L_xm17=2u\\n.param W_xm18=10u L_xm18=2u\\n.param W_xma1=10u L_xma1=2u\\n.param W_xma2=10u L_xma2=2u\\n.param W_xma3=10u L_xma3=2u\\n.param W_xma4=10u L_xma4=2u\\n.param W_xma5=10u L_xma5=2u\\n.param W_xma6=10u L_xma6=2u\\n.param W_xma7=10u L_xma7=2u\\n.param W_xma8=10u L_xma8=2u\\n.param W_xma9=10u L_xma9=2u\\n.param W_xma10=10u L_xma10=2u\\n.param W_xma11=10u L_xma11=2u\\n.param W_xma12=10u L_xma12=2u\\n\\n* Circuit netlist\\nVDD VDD 0 1.8\\nxm2 N002 vin N006 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 vout N006 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm4t N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4t} l={L_xm4t}\\nxm3t N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3t} l={L_xm3t}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nxm6t N006 Vbias3 N007 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\\nxm6b N007 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\\nxm7b vout N002 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm7b} l={L_xm7b}\\nxm8t vout Vbias3 N008 0 sky130_fd_pr__nfet_01v8 w={W_xm8t} l={L_xm8t}\\nxm8b N008 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8b} l={L_xm8b}\\nCc vout N003 2.4e-13\\nC3 vout 0 1e-12\\nxm4b N002 N001 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm4b} l={L_xm4b}\\nxm3b N001 N001 N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm3b} l={L_xm3b}\\nxm7t N005 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7t} l={L_xm7t}\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n\\n* Input source: 500mV to 900mV pulse (Fig. 24.24), with AC=1 for frequency response\\nVin vin 0 pulse(0.5 0.9 450n 1n 1n 100n 1u) dc 0.7 ac 1\\n\\n.control\\n* 1. Operating Point\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Closed-loop follower bandwidth)\\nac dec 100 1k 1G\\nlet cl_gain = vdb(vout)\\nlet cl_phase = 180/PI * cph(v(vout))\\nmeas ac dc_gain find cl_gain at=1k\\nmeas ac f_3dB when cl_gain=-3 fall=1\\nprint dc_gain f_3dB\\n\\n* 3. Transient Analysis (Baker Ch 24 Fig. 24.24)\\ntran 0.1n 700n 400n\\nmeas tran v_init find v(vout) at=440n\\nmeas tran v_peak max v(vout) from=450n to=550n\\nmeas tran v_trough min v(vout) from=550n to=700n\\nmeas tran t_rise_10 trig v(vout) val=0.54 rise=1 targ v(vout) val=0.86 rise=1\\nlet sr_rising = 0.32 / (t_rise_10 * 1e6)\\nprint sr_rising\\nmeas tran t_fall_10 trig v(vout) val=0.86 fall=1 targ v(vout) val=0.54 fall=1\\nlet sr_falling = 0.32 / (t_fall_10 * 1e6)\\nprint sr_falling\\nmeas tran t_settle_low_high trig v(vin) val=0.7 rise=1 targ v(vout) val=0.89 rise=1\\nmeas tran t_settle_high_low trig v(vin) val=0.7 fall=1 targ v(vout) val=0.51 fall=1\\nprint t_settle_low_high t_settle_high_low\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

@@ -1,0 +1,228 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.18",
+    "page": "499",
+    "circuit_type": "Delta-Sigma Modulator (DSM) Sensing Circuit for Resistive Memory",
+    "description": "The circuit senses a resistive memory cell (Rmbit) using a first-order delta-sigma modulator. It integrates charge on the bitline capacitance (Cbit) using a switched-capacitor charge-dumping stage (M1\u2013M3, Ccup), an isolation transistor (M4) to ensure linearity against bitline voltage variation, and a clocked comparator with built-in offset (Figure 17.16)."
+  },
+  "step2_metrics": {
+    "q_cup": {
+      "description": "Charge packet supplied by Ccup to the bitline during each enabled pulse",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Eq. (17.26)"
+      },
+      "equation": {
+        "formula": "Qcup = (VDD - VREF - |VTHP|) * Ccup",
+        "explanation": "Amount of charge dumped by Ccup when switched between VDD and VREF + |VTHP| through M4.",
+        "assumptions": "Complete settling of the switched-capacitor node; M4 source reaches VREF + |VTHP|."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8 V, VREF = 0.5 V, |VTHP| = 0.42 V, Ccup = 100 fF. Qcup = (1.8 - 0.5 - 0.42) * 100 fF = 0.88 V * 100 fF = 88 fC.",
+        "range": {
+          "min": 6e-14,
+          "typical": 8.8e-14,
+          "max": 1.2e-13,
+          "unit": "C"
+        },
+        "reasoning": "Finite settling time and subthreshold conduction of M4 slightly adjust the effective charge per packet."
+      },
+      "importance": "essential"
+    },
+    "vref_limit": {
+      "description": "Upper limit of reference voltage VREF for valid charge dumping through PMOS M4",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "495",
+        "reference": "Eq. (17.15)"
+      },
+      "equation": {
+        "formula": "VREF_max = VDD - |VTHP|",
+        "explanation": "If VREF >= VDD - |VTHP|, M4 cannot turn on and charge transfer Qcup drops to zero.",
+        "assumptions": "PMOS threshold voltage |VTHP| with zero substrate bias."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8 V, |VTHP| = 0.42 V. VREF_max = 1.8 - 0.42 = 1.38 V.",
+        "range": {
+          "min": 1.3,
+          "typical": 1.38,
+          "max": 1.45,
+          "unit": "V"
+        },
+        "reasoning": "Determined by PMOS threshold voltage on Sky130 1.8V process."
+      },
+      "importance": "recommended"
+    },
+    "v_comparator_offset": {
+      "description": "Built-in offset voltage of the clocked comparator",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "498",
+        "reference": "Fig. 17.16 and Fig. 17.17"
+      },
+      "equation": {
+        "formula": "Vos = V(In+) - V(In-) at decision threshold",
+        "explanation": "Offset created intentionally by sizing input device M10 wider than M1 (e.g., 13/1 vs 10/1) to provide reference offset without extra bias lines.",
+        "assumptions": "Differential pair sizing mismatch creates ~50 mV built-in offset."
+      },
+      "sky130_expected": {
+        "calculation": "With NMOS input pair width ratio 1.3:1.0 (W_xm10=1.3u vs W_xm1=1.0u), built-in Vos ~ 30 mV to 60 mV.",
+        "range": {
+          "min": 0.02,
+          "typical": 0.05,
+          "max": 0.08,
+          "unit": "V"
+        },
+        "reasoning": "Slight variation with PDK process corners and threshold mismatch."
+      },
+      "importance": "essential"
+    },
+    "i_mbit": {
+      "description": "Average discharge current drawn through the resistive memory element",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "497",
+        "reference": "Eq. (17.16)"
+      },
+      "equation": {
+        "formula": "Imbit = Vos / Rmbit",
+        "explanation": "The DSM loop regulates Vbit to VREF + Vos on average, driving current Vos / Rmbit through the memory resistor.",
+        "assumptions": "Loop settles to steady-state oscillation around VREF + Vos."
+      },
+      "sky130_expected": {
+        "calculation": "Vos = 50 mV, Rmbit = 100 k\u03a9. Imbit = 0.05 V / 100 k\u03a9 = 0.50 uA.",
+        "range": {
+          "min": 2e-07,
+          "typical": 5e-07,
+          "max": 8e-07,
+          "unit": "A"
+        },
+        "reasoning": "Directly proportional to the built-in comparator offset voltage."
+      },
+      "importance": "essential"
+    },
+    "delta_vbit": {
+      "description": "Bitline voltage step per single charge injection packet",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Eq. (17.22)"
+      },
+      "equation": {
+        "formula": "Delta_Vbit = (Ccup / Cbit) * (VDD - VREF - |VTHP|)",
+        "explanation": "Voltage change on bitline capacitance Cbit due to charge conservation from Ccup packet.",
+        "assumptions": "Cbit >> Ccup, charge dumping completes before clock transition."
+      },
+      "sky130_expected": {
+        "calculation": "Ccup = 100 fF, Cbit = 500 fF, VDD - VREF - |VTHP| = 0.88 V. Delta_Vbit = (100f / 500f) * 0.88 V = 0.2 * 0.88 V = 176 mV.",
+        "range": {
+          "min": 0.12,
+          "typical": 0.176,
+          "max": 0.22,
+          "unit": "V"
+        },
+        "reasoning": "Capacitive divider ratio Ccup / Cbit multiplied by effective driving step."
+      },
+      "importance": "essential"
+    },
+    "rsc_equivalent": {
+      "description": "Switched-capacitor equivalent feedback resistance when enabled every cycle (M = N)",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "503",
+        "reference": "Eq. (17.29)"
+      },
+      "equation": {
+        "formula": "Rsc = 1 / (Ccup * fclk)",
+        "explanation": "Effective resistance synthesized by Ccup switched at frequency fclk.",
+        "assumptions": "Non-overlapping two-phase clocking with complete settling."
+      },
+      "sky130_expected": {
+        "calculation": "Ccup = 100 fF, fclk = 100 MHz (T = 10 ns). Rsc = 1 / (100e-15 * 100e6) = 100 k\u03a9.",
+        "range": {
+          "min": 85000.0,
+          "typical": 100000.0,
+          "max": 115000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Determined purely by capacitance Ccup and switching frequency."
+      },
+      "importance": "recommended"
+    },
+    "rmbit_min": {
+      "description": "Minimum detectable resistance before feedback saturation (M = N)",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "501",
+        "reference": "Eq. (17.24)"
+      },
+      "equation": {
+        "formula": "Rmbit_min = (Vos * T) / ((VDD - VREF - |VTHP|) * Ccup)",
+        "explanation": "At Rmbit_min, DSM output is constantly high (M=N) to balance maximum discharge current.",
+        "assumptions": "Linear charge replenishment up to 100% duty cycle."
+      },
+      "sky130_expected": {
+        "calculation": "Vos = 50 mV, T = 10 ns, VDD - VREF - |VTHP| = 0.88 V, Ccup = 100 fF. Rmbit_min = (0.05 * 10e-9) / (0.88 * 100e-15) = 5.68 k\u03a9.",
+        "range": {
+          "min": 4000.0,
+          "typical": 5700.0,
+          "max": 8000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Defines the lower dynamic sensing limit for a given clock period."
+      },
+      "importance": "recommended"
+    },
+    "vbit_average": {
+      "description": "Average steady-state bitline voltage held by delta-sigma feedback loop",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Page 500 text"
+      },
+      "equation": {
+        "formula": "Vbit_avg = VREF + Vos",
+        "explanation": "The closed-loop DSM modulation forces the bitline to oscillate around the comparator threshold.",
+        "assumptions": "Loop is stable and within linear sensing bounds."
+      },
+      "sky130_expected": {
+        "calculation": "VREF = 0.50 V, Vos \u2248 0.05 V. Vbit_avg = 0.50 + 0.05 = 0.55 V.",
+        "range": {
+          "min": 0.52,
+          "typical": 0.55,
+          "max": 0.6,
+          "unit": "V"
+        },
+        "reasoning": "Comparator offset Vos adds directly to reference voltage VREF."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench running a 100 MHz two-phase non-overlapping clock and comparator clock over 500 ns (50 cycles) to verify DSM bitline regulation, bitline ripple step, average bitline voltage, and charge injection dynamics.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "q_cup",
+      "vref_limit",
+      "v_comparator_offset",
+      "i_mbit",
+      "delta_vbit",
+      "rsc_equivalent",
+      "rmbit_min",
+      "vbit_average"
+    ],
+    "spice": "* DSM Sensing Circuit for Resistive Memory (Baker Fig 17.18)\n.lib \"/home/designer/sky130_workspace/sky130A/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_xm1=2.0u L_xm1=0.15u\n.param W_xm2=2.0u L_xm2=0.15u\n.param W_xm3=2.0u L_xm3=0.15u\n.param W_xm4=4.0u L_xm4=0.15u\n.param W_xm5=1.0u L_xm5=0.15u\n.param W_xm6=1.0u L_xm6=0.15u\n.param W_xm7=2.0u L_xm7=0.15u\n.param W_xm8=1.0u L_xm8=0.15u\n.param W_xm9=1.0u L_xm9=0.15u\n.param W_xm10=1.3u L_xm10=0.15u\n.param W_xm11=1.0u L_xm11=0.15u\n.param W_xm12=1.0u L_xm12=0.15u\n\nVDD VDD 0 1.8\nVREF VREF 0 500m\n\n* Clocks: T = 10ns (100 MHz)\n* phi1: active low charging M1\nVphi1 phi1 0 PULSE(1.8 0 0.5n 0.1n 0.1n 3.0n 10n)\n* phi2: active low dumping M2\nVphi2 phi2 0 PULSE(1.8 0 4.5n 0.1n 0.1n 3.0n 10n)\n* clock: comparator strobe active high\nVclk clock 0 PULSE(0 1.8 8.0n 0.1n 0.1n 1.5n 10n)\n\n* DUT from prompt\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nxm2 N004 N003 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nC1 N001 0 1e-13\nxm4 vbit VREF N004 N004 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nX_U1 vbit VREF N003 Out clock VDD 0 SUB_1\nCbit vbit 0 5e-13\nR1 VREF vbit 100000.0\n\n.subckt SUB_1 inp inm q qi clock VDD GND\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  X_U1 Outp q qi VDD 0 NAND_2\n  X_U2 qi Outm q VDD 0 NAND_2\n.ends SUB_1\n\n.subckt NAND_2 A B Out VDD GND\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NAND_2\n\n.control\ntran 50p 500n uic\n\n* Measure bitline voltages and ripple\nmeas tran vbit_max MAX v(vbit) from=100n to=500n\nmeas tran vbit_min MIN v(vbit) from=100n to=500n\nmeas tran vbit_avg AVG v(vbit) from=100n to=500n\nlet delta_vbit = vbit_max - vbit_min\nprint delta_vbit\n\n* Comparator offset relative to VREF\nlet v_comp_offset = vbit_avg - 0.5\nprint v_comp_offset\n\n* Current through Rmbit\nlet i_mbit = (vbit_avg - 0.5) / 100e3\nprint i_mbit\n\n* Theoretical limits calculated from parameters\nlet vthp = 0.42\nlet vref_limit = 1.8 - vthp\nlet q_cup_ideal = (1.8 - 0.5 - vthp) * 1e-13\nlet rsc_eq = 1.0 / (1e-13 * 100e6)\nlet rmbit_min_calc = (v_comp_offset * 10e-9) / q_cup_ideal\nprint vref_limit q_cup_ideal rsc_eq rmbit_min_calc\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.18\",\n    \"page\": \"499\",\n    \"circuit_type\": \"Delta-Sigma Modulator (DSM) Sensing Circuit for Resistive Memory\",\n    \"description\": \"The circuit senses a resistive memory cell (Rmbit) using a first-order delta-sigma modulator. It integrates charge on the bitline capacitance (Cbit) using a switched-capacitor charge-dumping stage (M1\u2013M3, Ccup), an isolation transistor (M4) to ensure linearity against bitline voltage variation, and a clocked comparator with built-in offset (Figure 17.16).\"\n  },\n  \"step2_metrics\": {\n    \"q_cup\": {\n      \"description\": \"Charge packet supplied by Ccup to the bitline during each enabled pulse\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"500\", \"reference\": \"Eq. (17.26)\" },\n      \"equation\": {\n        \"formula\": \"Qcup = (VDD - VREF - |VTHP|) * Ccup\",\n        \"explanation\": \"Amount of charge dumped by Ccup when switched between VDD and VREF + |VTHP| through M4.\",\n        \"assumptions\": \"Complete settling of the switched-capacitor node; M4 source reaches VREF + |VTHP|.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8 V, VREF = 0.5 V, |VTHP| = 0.42 V, Ccup = 100 fF. Qcup = (1.8 - 0.5 - 0.42) * 100 fF = 0.88 V * 100 fF = 88 fC.\",\n        \"range\": { \"min\": 60e-15, \"typical\": 88e-15, \"max\": 120e-15, \"unit\": \"C\" },\n        \"reasoning\": \"Finite settling time and subthreshold conduction of M4 slightly adjust the effective charge per packet.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vref_limit\": {\n      \"description\": \"Upper limit of reference voltage VREF for valid charge dumping through PMOS M4\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"495\", \"reference\": \"Eq. (17.15)\" },\n      \"equation\": {\n        \"formula\": \"VREF_max = VDD - |VTHP|\",\n        \"explanation\": \"If VREF >= VDD - |VTHP|, M4 cannot turn on and charge transfer Qcup drops to zero.\",\n        \"assumptions\": \"PMOS threshold voltage |VTHP| with zero substrate bias.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8 V, |VTHP| = 0.42 V. VREF_max = 1.8 - 0.42 = 1.38 V.\",\n        \"range\": { \"min\": 1.3, \"typical\": 1.38, \"max\": 1.45, \"unit\": \"V\" },\n        \"reasoning\": \"Determined by PMOS threshold voltage on Sky130 1.8V process.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"v_comparator_offset\": {\n      \"description\": \"Built-in offset voltage of the clocked comparator\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"498\", \"reference\": \"Fig. 17.16 and Fig. 17.17\" },\n      \"equation\": {\n        \"formula\": \"Vos = V(In+) - V(In-) at decision threshold\",\n        \"explanation\": \"Offset created intentionally by sizing input device M10 wider than M1 (e.g., 13/1 vs 10/1) to provide reference offset without extra bias lines.\",\n        \"assumptions\": \"Differential pair sizing mismatch creates ~50 mV built-in offset.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With NMOS input pair width ratio 1.3:1.0 (W_xm10=1.3u vs W_xm1=1.0u), built-in Vos ~ 30 mV to 60 mV.\",\n        \"range\": { \"min\": 0.02, \"typical\": 0.05, \"max\": 0.08, \"unit\": \"V\" },\n        \"reasoning\": \"Slight variation with PDK process corners and threshold mismatch.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"i_mbit\": {\n      \"description\": \"Average discharge current drawn through the resistive memory element\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"497\", \"reference\": \"Eq. (17.16)\" },\n      \"equation\": {\n        \"formula\": \"Imbit = Vos / Rmbit\",\n        \"explanation\": \"The DSM loop regulates Vbit to VREF + Vos on average, driving current Vos / Rmbit through the memory resistor.\",\n        \"assumptions\": \"Loop settles to steady-state oscillation around VREF + Vos.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vos = 50 mV, Rmbit = 100 k\u03a9. Imbit = 0.05 V / 100 k\u03a9 = 0.50 uA.\",\n        \"range\": { \"min\": 0.2e-6, \"typical\": 0.5e-6, \"max\": 0.8e-6, \"unit\": \"A\" },\n        \"reasoning\": \"Directly proportional to the built-in comparator offset voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delta_vbit\": {\n      \"description\": \"Bitline voltage step per single charge injection packet\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"500\", \"reference\": \"Eq. (17.22)\" },\n      \"equation\": {\n        \"formula\": \"Delta_Vbit = (Ccup / Cbit) * (VDD - VREF - |VTHP|)\",\n        \"explanation\": \"Voltage change on bitline capacitance Cbit due to charge conservation from Ccup packet.\",\n        \"assumptions\": \"Cbit >> Ccup, charge dumping completes before clock transition.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ccup = 100 fF, Cbit = 500 fF, VDD - VREF - |VTHP| = 0.88 V. Delta_Vbit = (100f / 500f) * 0.88 V = 0.2 * 0.88 V = 176 mV.\",\n        \"range\": { \"min\": 0.12, \"typical\": 0.176, \"max\": 0.22, \"unit\": \"V\" },\n        \"reasoning\": \"Capacitive divider ratio Ccup / Cbit multiplied by effective driving step.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rsc_equivalent\": {\n      \"description\": \"Switched-capacitor equivalent feedback resistance when enabled every cycle (M = N)\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"503\", \"reference\": \"Eq. (17.29)\" },\n      \"equation\": {\n        \"formula\": \"Rsc = 1 / (Ccup * fclk)\",\n        \"explanation\": \"Effective resistance synthesized by Ccup switched at frequency fclk.\",\n        \"assumptions\": \"Non-overlapping two-phase clocking with complete settling.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ccup = 100 fF, fclk = 100 MHz (T = 10 ns). Rsc = 1 / (100e-15 * 100e6) = 100 k\u03a9.\",\n        \"range\": { \"min\": 85e3, \"typical\": 100e3, \"max\": 115e3, \"unit\": \"ohm\" },\n        \"reasoning\": \"Determined purely by capacitance Ccup and switching frequency.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"rmbit_min\": {\n      \"description\": \"Minimum detectable resistance before feedback saturation (M = N)\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"501\", \"reference\": \"Eq. (17.24)\" },\n      \"equation\": {\n        \"formula\": \"Rmbit_min = (Vos * T) / ((VDD - VREF - |VTHP|) * Ccup)\",\n        \"explanation\": \"At Rmbit_min, DSM output is constantly high (M=N) to balance maximum discharge current.\",\n        \"assumptions\": \"Linear charge replenishment up to 100% duty cycle.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vos = 50 mV, T = 10 ns, VDD - VREF - |VTHP| = 0.88 V, Ccup = 100 fF. Rmbit_min = (0.05 * 10e-9) / (0.88 * 100e-15) = 5.68 k\u03a9.\",\n        \"range\": { \"min\": 4e3, \"typical\": 5.7e3, \"max\": 8e3, \"unit\": \"ohm\" },\n        \"reasoning\": \"Defines the lower dynamic sensing limit for a given clock period.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vbit_average\": {\n      \"description\": \"Average steady-state bitline voltage held by delta-sigma feedback loop\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"500\", \"reference\": \"Page 500 text\" },\n      \"equation\": {\n        \"formula\": \"Vbit_avg = VREF + Vos\",\n        \"explanation\": \"The closed-loop DSM modulation forces the bitline to oscillate around the comparator threshold.\",\n        \"assumptions\": \"Loop is stable and within linear sensing bounds.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VREF = 0.50 V, Vos \u2248 0.05 V. Vbit_avg = 0.50 + 0.05 = 0.55 V.\",\n        \"range\": { \"min\": 0.52, \"typical\": 0.55, \"max\": 0.60, \"unit\": \"V\" },\n        \"reasoning\": \"Comparator offset Vos adds directly to reference voltage VREF.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench running a 100 MHz two-phase non-overlapping clock and comparator clock over 500 ns (50 cycles) to verify DSM bitline regulation, bitline ripple step, average bitline voltage, and charge injection dynamics.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\n      \"q_cup\",\n      \"vref_limit\",\n      \"v_comparator_offset\",\n      \"i_mbit\",\n      \"delta_vbit\",\n      \"rsc_equivalent\",\n      \"rmbit_min\",\n      \"vbit_average\"\n    ],\n    \"spice\": \"* DSM Sensing Circuit for Resistive Memory (Baker Fig 17.18)\\n.lib \\\"/home/designer/sky130_workspace/sky130A/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=2.0u L_xm1=0.15u\\n.param W_xm2=2.0u L_xm2=0.15u\\n.param W_xm3=2.0u L_xm3=0.15u\\n.param W_xm4=4.0u L_xm4=0.15u\\n.param W_xm5=1.0u L_xm5=0.15u\\n.param W_xm6=1.0u L_xm6=0.15u\\n.param W_xm7=2.0u L_xm7=0.15u\\n.param W_xm8=1.0u L_xm8=0.15u\\n.param W_xm9=1.0u L_xm9=0.15u\\n.param W_xm10=1.3u L_xm10=0.15u\\n.param W_xm11=1.0u L_xm11=0.15u\\n.param W_xm12=1.0u L_xm12=0.15u\\n\\nVDD VDD 0 1.8\\nVREF VREF 0 500m\\n\\n* Clocks: T = 10ns (100 MHz)\\n* phi1: active low charging M1\\nVphi1 phi1 0 PULSE(1.8 0 0.5n 0.1n 0.1n 3.0n 10n)\\n* phi2: active low dumping M2\\nVphi2 phi2 0 PULSE(1.8 0 4.5n 0.1n 0.1n 3.0n 10n)\\n* clock: comparator strobe active high\\nVclk clock 0 PULSE(0 1.8 8.0n 0.1n 0.1n 1.5n 10n)\\n\\n* DUT from prompt\\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 N004 N003 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nC1 N001 0 1e-13\\nxm4 vbit VREF N004 N004 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nX_U1 vbit VREF N003 Out clock VDD 0 SUB_1\\nCbit vbit 0 5e-13\\nR1 VREF vbit 100000.0\\n\\n.subckt SUB_1 inp inm q qi clock VDD GND\\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  X_U1 Outp q qi VDD 0 NAND_2\\n  X_U2 qi Outm q VDD 0 NAND_2\\n.ends SUB_1\\n\\n.subckt NAND_2 A B Out VDD GND\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NAND_2\\n\\n.control\\ntran 50p 500n uic\\n\\n* Measure bitline voltages and ripple\\nmeas tran vbit_max MAX v(vbit) from=100n to=500n\\nmeas tran vbit_min MIN v(vbit) from=100n to=500n\\nmeas tran vbit_avg AVG v(vbit) from=100n to=500n\\nlet delta_vbit = vbit_max - vbit_min\\nprint delta_vbit\\n\\n* Comparator offset relative to VREF\\nlet v_comp_offset = vbit_avg - 0.5\\nprint v_comp_offset\\n\\n* Current through Rmbit\\nlet i_mbit = (vbit_avg - 0.5) / 100e3\\nprint i_mbit\\n\\n* Theoretical limits calculated from parameters\\nlet vthp = 0.42\\nlet vref_limit = 1.8 - vthp\\nlet q_cup_ideal = (1.8 - 0.5 - vthp) * 1e-13\\nlet rsc_eq = 1.0 / (1e-13 * 100e6)\\nlet rmbit_min_calc = (v_comp_offset * 10e-9) / q_cup_ideal\\nprint vref_limit q_cup_ideal rsc_eq rmbit_min_calc\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

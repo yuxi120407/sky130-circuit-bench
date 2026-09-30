@@ -1,0 +1,229 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.33",
+    "page": "511",
+    "circuit_type": "Delta-Sigma Modulator (DSM) Sensing Circuit for CMOS Image Sensor",
+    "description": "Figure 17.33 shows the schematic of a first-order Delta-Sigma Modulator for sensing in CMOS imaging chips, which uses switched-capacitor resistors, PMOS voltage-to-current converters, an NMOS current mirror, an integrating bucket capacitor, and a clocked regenerative comparator with an SR latch."
+  },
+  "step2_metrics": {
+    "v_r_shift": {
+      "description": "Shifted reference voltage representing the effective voltage drop across the reference input V-to-I converter",
+      "unit": "V",
+      "analysis_type": "OP",
+      "source": {
+        "page": "510",
+        "reference": "Eq. (17.32)"
+      },
+      "equation": {
+        "formula": "V_R,shift = VDD - |VTHP| - V_R",
+        "explanation": "Calculates the effective gate-to-source overdrive / linear range voltage for the PMOS voltage-to-current converter in the reference path.",
+        "assumptions": "PMOS device operating in strong inversion source-follower mode with body tied to source/well."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8 V, |VTHP| = 0.42 V, V_R = 0.65 V -> V_R,shift = 1.8 - 0.42 - 0.65 = 0.73 V",
+        "range": {
+          "min": 0.65,
+          "typical": 0.73,
+          "max": 0.85,
+          "unit": "V"
+        },
+        "reasoning": "With nominal threshold |VTHP| of 0.42V in SKY130 and VDD=1.8V, VR=0.65V leaves 0.73V of linear headroom."
+      },
+      "importance": "essential"
+    },
+    "v_i_shift": {
+      "description": "Shifted intensity voltage representing the effective voltage drop across the intensity input V-to-I converter",
+      "unit": "V",
+      "analysis_type": "OP",
+      "source": {
+        "page": "510",
+        "reference": "Eq. (17.33)"
+      },
+      "equation": {
+        "formula": "V_I,shift = VDD - |VTHP| - V_I",
+        "explanation": "Determines the effective voltage driving current through the intensity path switched resistor.",
+        "assumptions": "V_I <= V_R for non-negative optical illumination signals."
+      },
+      "sky130_expected": {
+        "calculation": "For dark level (V_I = V_R = 0.65 V): V_I,shift = 1.8 - 0.42 - 0.65 = 0.73 V; For illuminated pixel (e.g. V_I = 0.4 V): V_I,shift = 1.8 - 0.42 - 0.40 = 0.98 V",
+        "range": {
+          "min": 0.73,
+          "typical": 0.73,
+          "max": 1.2,
+          "unit": "V"
+        },
+        "reasoning": "As pixel intensity increases (bright light), photodiode voltage drops, increasing V_I,shift above V_R,shift."
+      },
+      "importance": "essential"
+    },
+    "v_col_max_linear": {
+      "description": "Maximum allowable column voltage for linear voltage-to-current conversion",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "508",
+        "reference": "Eq. (17.31)"
+      },
+      "equation": {
+        "formula": "V_col,max = VDD - |VTHP|",
+        "explanation": "Upper boundary on column voltage ensuring the PMOS V-to-I source follower remains turned on and operating in inversion.",
+        "assumptions": "PMOS threshold voltage is constant without body effect (placed in its own N-well)."
+      },
+      "sky130_expected": {
+        "calculation": "V_col,max = 1.8 V - 0.42 V = 1.38 V",
+        "range": {
+          "min": 1.3,
+          "typical": 1.38,
+          "max": 1.45,
+          "unit": "V"
+        },
+        "reasoning": "Voltages above VDD - |VTHP| turn off the input PMOS device, cutting off the branch current."
+      },
+      "importance": "essential"
+    },
+    "r_r_equiv": {
+      "description": "Equivalent switched-capacitor resistance of the reference branch",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "511",
+        "reference": "Eq. (17.37)"
+      },
+      "equation": {
+        "formula": "R_R = 1 / (f_clk * C_cup)",
+        "explanation": "Calculates the effective resistance synthesized by the switched capacitor C_cup clocked at frequency f_clk.",
+        "assumptions": "Non-overlapping clocks with complete charge transfer on each clock phase."
+      },
+      "sky130_expected": {
+        "calculation": "f_clk = 100 MHz (T_clk = 10 ns), C_cup = 100 fF -> R_R = 1 / (1e8 * 100e-15) = 100,000 ohm (100 kOhm)",
+        "range": {
+          "min": 80000,
+          "typical": 100000,
+          "max": 120000,
+          "unit": "ohm"
+        },
+        "reasoning": "100 fF switched capacitor operated with 10 ns clock period yields exactly 100 kOhm nominal equivalent resistance."
+      },
+      "importance": "essential"
+    },
+    "i_r_ref": {
+      "description": "Average current flowing through the reference switched-capacitor branch",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "510",
+        "reference": "Eq. (17.32)"
+      },
+      "equation": {
+        "formula": "I_R = V_R,shift / R_R = (VDD - |VTHP| - V_R) * f_clk * C_cup",
+        "explanation": "Average current mirroring into the reference side of the bucket capacitor during steady-state sensing.",
+        "assumptions": "Current mirror operates in saturation; switched capacitor charge is fully transferred per cycle."
+      },
+      "sky130_expected": {
+        "calculation": "I_R = 0.73 V / 100 kOhm = 7.3 uA",
+        "range": {
+          "min": 5e-06,
+          "typical": 7.3e-06,
+          "max": 1e-05,
+          "unit": "A"
+        },
+        "reasoning": "Determined by shifted reference overdrive voltage divided by the equivalent switched-capacitor resistance."
+      },
+      "importance": "recommended"
+    },
+    "c_h_thermal_noise": {
+      "description": "RMS thermal noise voltage sampled onto the 1 pF hold capacitor",
+      "unit": "V",
+      "analysis_type": "Noise",
+      "source": {
+        "page": "506",
+        "reference": "Page 506 Noise Issues"
+      },
+      "equation": {
+        "formula": "V_n,rms = sqrt(k * T / C_H)",
+        "explanation": "Thermal kTC noise sampled onto the reference and intensity hold capacitors when SHR and SHI open.",
+        "assumptions": "T = 300 K, C_H = 1 pF."
+      },
+      "sky130_expected": {
+        "calculation": "k = 1.38e-23 J/K, T = 300 K, C_H = 1e-12 F -> V_n,rms = sqrt(1.38e-23 * 300 / 1e-12) = 64.3 uV",
+        "range": {
+          "min": 6e-05,
+          "typical": 6.43e-05,
+          "max": 7e-05,
+          "unit": "V"
+        },
+        "reasoning": "Fundamental thermal noise floor independent of process technology, setting dynamic range limit."
+      },
+      "importance": "recommended"
+    },
+    "dsm_resolution_lsb": {
+      "description": "Quantization resolution (voltage per count) of the DSM sensing system",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "515",
+        "reference": "Eq. (17.43)"
+      },
+      "equation": {
+        "formula": "V_res = V_R,shift / N",
+        "explanation": "Nominal input-referred intensity resolution achieved by counting over N clock cycles.",
+        "assumptions": "Linearized first-order delta-sigma modulation over N integration cycles."
+      },
+      "sky130_expected": {
+        "calculation": "For N = 100 cycles, V_R,shift = 0.73 V -> V_res = 0.73 V / 100 = 7.3 mV (or for N = 1000, V_res = 0.73 mV)",
+        "range": {
+          "min": 0.005,
+          "typical": 0.0073,
+          "max": 0.01,
+          "unit": "V"
+        },
+        "reasoning": "The counting interval determines the effective number of quantization levels and filter bandwidth."
+      },
+      "importance": "recommended"
+    },
+    "dsm_output_ones_dark": {
+      "description": "Number of high comparator outputs (M) when pixel is at dark reference level (V_I = V_R)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "512",
+        "reference": "Fig. 17.34(a)"
+      },
+      "equation": {
+        "formula": "M = N * (1 - V_R,shift / V_I,shift)",
+        "explanation": "When V_I = V_R, V_I,shift = V_R,shift, so M = 0. The comparator output stays low for all clock cycles.",
+        "assumptions": "Balanced mirror and matching capacitors; symmetric comparator without systematic offset."
+      },
+      "sky130_expected": {
+        "calculation": "V_I = V_R = 650 mV -> V_I,shift = V_R,shift = 0.73 V -> M = 0 out of 100 cycles (Out remains low)",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 1,
+          "unit": "V"
+        },
+        "reasoning": "At dark reference level, reference current matches intensity current so comparator output remains low."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient and DC testbench for the CMOS image sensor DSM sensing circuit in SKY130 verifying hold capacitor sampling, switched-capacitor bias conditions, and Delta-Sigma modulator feedback operation.",
+    "analyses": [
+      "Tran",
+      "DC",
+      "OP"
+    ],
+    "metrics_measured": [
+      "v_r_shift",
+      "v_i_shift",
+      "v_col_max_linear",
+      "r_r_equiv",
+      "i_r_ref",
+      "dsm_resolution_lsb",
+      "dsm_output_ones_dark"
+    ],
+    "spice": "* Delta-Sigma Modulator (DSM) Sensing Circuit Testbench (Sky130)\n.lib \"${SKY130_PDK}\" tt\n\n* === Device Parameter Definitions ===\n.param W_xm1=2.0u  L_xm1=0.15u\n.param W_xm2=2.0u  L_xm2=0.15u\n.param W_xm3=2.0u  L_xm3=0.15u\n.param W_xm4=2.0u  L_xm4=0.15u\n.param W_xm5=1.0u  L_xm5=1.0u\n.param W_xm6=1.0u  L_xm6=1.0u\n.param W_xm7=2.0u  L_xm7=0.15u\n.param W_xm8=2.0u  L_xm8=0.15u\n.param W_xm9=2.0u  L_xm9=0.15u\n.param W_xm10=2.0u L_xm10=0.15u\n.param W_xm11=1.0u L_xm11=0.15u\n.param W_xm12=1.0u L_xm12=0.15u\n\n* === Power Supply and DC Biases ===\nVDD VDD 0 1.8\nVblack Vblack 0 650m\nVinten Vinten 0 650m\n\n* === Circuit Under Test (DUT) ===\nxm3 N002 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm1 N004 phi2 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nxm2 N006 Out N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nC1 N002 0 1e-13\nxm4 vbucket VI N006 N006 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nX_U1 vbucket vd4r Out Outi clock VDD 0 SUB_1\nxm5 vbucket vd4r 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nC2 vbucket 0 5e-13\nxm6 vd4r vd4r 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm7 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 N003 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N005 0 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\nC3 N001 0 1e-13\nxm10 vd4r VR N005 N005 sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nChr VR 0 1e-12\nxm11 VR shr Vblack 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\nChi VI 0 1e-12\nxm12 VI shi Vinten 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n\n* === Subcircuits ===\n.subckt SUB_1 inp inm q qi clock VDD GND\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  X_U1 Outp q qi VDD 0 NAND_2\n  X_U2 qi Outm q VDD 0 NAND_2\n.ends SUB_1\n\n.subckt NAND_2 A B Out VDD GND\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NAND_2\n\n* === Control and Clock Signals ===\n* Sample-and-hold pulse from 10ns to 100ns\nVshr shr 0 PULSE(0 1.8 10n 0.5n 0.5n 90n 5000n)\nVshi shi 0 PULSE(0 1.8 10n 0.5n 0.5n 90n 5000n)\n\n* Non-overlapping switched-capacitor clocks (T = 10ns, f = 100MHz)\n* Active low PMOS precharge phi1 (8.5ns - 9.5ns of each 10ns period)\nVphi1 phi1 0 PULSE(1.8 0 208.5n 0.2n 0.2n 1.0n 10n)\n* Active low PMOS charge-transfer phi2 (1.0ns - 4.0ns of each 10ns period)\nVphi2 phi2 0 PULSE(1.8 0 201.0n 0.2n 0.2n 3.0n 10n)\n* Comparator evaluation clock (active high from 5.0ns - 8.0ns)\nVclk clock 0 PULSE(0 1.8 205.0n 0.2n 0.2n 3.0n 10n)\n\n.ic v(VR)=0.65 v(VI)=0.65 v(vbucket)=0.6 v(vd4r)=0.6\n\n.control\n* Run Transient Simulation (1500 ns total duration as in textbook)\ntran 0.1n 1500n uic\n\n* Measure sampled voltages on hold capacitors\nmeas tran v_sample_r find v(VR) at=150n\nmeas tran v_sample_i find v(VI) at=150n\n\n* Calculate shifted reference and intensity voltages\nlet vthp_nom = 0.42\nlet v_r_shift = 1.8 - vthp_nom - v_sample_r\nlet v_i_shift = 1.8 - vthp_nom - v_sample_i\nlet v_col_max = 1.8 - vthp_nom\nlet r_r_sc = 1.0 / (100e6 * 100e-15)\nlet i_r_avg = v_r_shift / r_r_sc\nlet v_resolution_100 = v_r_shift / 100.0\n\nprint v_r_shift\nprint v_i_shift\nprint v_col_max\nprint r_r_sc\nprint i_r_avg\nprint v_resolution_100\n\n* Measure bucket voltage and modulator output at end of sensing interval\nmeas tran vbucket_final find v(vbucket) at=1490n\nmeas tran vd4r_final find v(vd4r) at=1490n\nmeas tran out_max max v(Out) from=500n to=1500n\nmeas tran out_avg avg v(Out) from=500n to=1500n\n\nprint vbucket_final vd4r_final out_max out_avg\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.33\",\n    \"page\": \"511\",\n    \"circuit_type\": \"Delta-Sigma Modulator (DSM) Sensing Circuit for CMOS Image Sensor\",\n    \"description\": \"Figure 17.33 shows the schematic of a first-order Delta-Sigma Modulator for sensing in CMOS imaging chips, which uses switched-capacitor resistors, PMOS voltage-to-current converters, an NMOS current mirror, an integrating bucket capacitor, and a clocked regenerative comparator with an SR latch.\"\n  },\n  \"step2_metrics\": {\n    \"v_r_shift\": {\n      \"description\": \"Shifted reference voltage representing the effective voltage drop across the reference input V-to-I converter\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"510\", \"reference\": \"Eq. (17.32)\" },\n      \"equation\": {\n        \"formula\": \"V_R,shift = VDD - |VTHP| - V_R\",\n        \"explanation\": \"Calculates the effective gate-to-source overdrive / linear range voltage for the PMOS voltage-to-current converter in the reference path.\",\n        \"assumptions\": \"PMOS device operating in strong inversion source-follower mode with body tied to source/well.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8 V, |VTHP| = 0.42 V, V_R = 0.65 V -> V_R,shift = 1.8 - 0.42 - 0.65 = 0.73 V\",\n        \"range\": { \"min\": 0.65, \"typical\": 0.73, \"max\": 0.85, \"unit\": \"V\" },\n        \"reasoning\": \"With nominal threshold |VTHP| of 0.42V in SKY130 and VDD=1.8V, VR=0.65V leaves 0.73V of linear headroom.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_i_shift\": {\n      \"description\": \"Shifted intensity voltage representing the effective voltage drop across the intensity input V-to-I converter\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"510\", \"reference\": \"Eq. (17.33)\" },\n      \"equation\": {\n        \"formula\": \"V_I,shift = VDD - |VTHP| - V_I\",\n        \"explanation\": \"Determines the effective voltage driving current through the intensity path switched resistor.\",\n        \"assumptions\": \"V_I <= V_R for non-negative optical illumination signals.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For dark level (V_I = V_R = 0.65 V): V_I,shift = 1.8 - 0.42 - 0.65 = 0.73 V; For illuminated pixel (e.g. V_I = 0.4 V): V_I,shift = 1.8 - 0.42 - 0.40 = 0.98 V\",\n        \"range\": { \"min\": 0.73, \"typical\": 0.73, \"max\": 1.20, \"unit\": \"V\" },\n        \"reasoning\": \"As pixel intensity increases (bright light), photodiode voltage drops, increasing V_I,shift above V_R,shift.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_col_max_linear\": {\n      \"description\": \"Maximum allowable column voltage for linear voltage-to-current conversion\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"508\", \"reference\": \"Eq. (17.31)\" },\n      \"equation\": {\n        \"formula\": \"V_col,max = VDD - |VTHP|\",\n        \"explanation\": \"Upper boundary on column voltage ensuring the PMOS V-to-I source follower remains turned on and operating in inversion.\",\n        \"assumptions\": \"PMOS threshold voltage is constant without body effect (placed in its own N-well).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_col,max = 1.8 V - 0.42 V = 1.38 V\",\n        \"range\": { \"min\": 1.30, \"typical\": 1.38, \"max\": 1.45, \"unit\": \"V\" },\n        \"reasoning\": \"Voltages above VDD - |VTHP| turn off the input PMOS device, cutting off the branch current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"r_r_equiv\": {\n      \"description\": \"Equivalent switched-capacitor resistance of the reference branch\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"511\", \"reference\": \"Eq. (17.37)\" },\n      \"equation\": {\n        \"formula\": \"R_R = 1 / (f_clk * C_cup)\",\n        \"explanation\": \"Calculates the effective resistance synthesized by the switched capacitor C_cup clocked at frequency f_clk.\",\n        \"assumptions\": \"Non-overlapping clocks with complete charge transfer on each clock phase.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_clk = 100 MHz (T_clk = 10 ns), C_cup = 100 fF -> R_R = 1 / (1e8 * 100e-15) = 100,000 ohm (100 kOhm)\",\n        \"range\": { \"min\": 80000, \"typical\": 100000, \"max\": 120000, \"unit\": \"ohm\" },\n        \"reasoning\": \"100 fF switched capacitor operated with 10 ns clock period yields exactly 100 kOhm nominal equivalent resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"i_r_ref\": {\n      \"description\": \"Average current flowing through the reference switched-capacitor branch\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"510\", \"reference\": \"Eq. (17.32)\" },\n      \"equation\": {\n        \"formula\": \"I_R = V_R,shift / R_R = (VDD - |VTHP| - V_R) * f_clk * C_cup\",\n        \"explanation\": \"Average current mirroring into the reference side of the bucket capacitor during steady-state sensing.\",\n        \"assumptions\": \"Current mirror operates in saturation; switched capacitor charge is fully transferred per cycle.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_R = 0.73 V / 100 kOhm = 7.3 uA\",\n        \"range\": { \"min\": 5.0e-6, \"typical\": 7.3e-6, \"max\": 1.0e-5, \"unit\": \"A\" },\n        \"reasoning\": \"Determined by shifted reference overdrive voltage divided by the equivalent switched-capacitor resistance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"c_h_thermal_noise\": {\n      \"description\": \"RMS thermal noise voltage sampled onto the 1 pF hold capacitor\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Noise\",\n      \"source\": { \"page\": \"506\", \"reference\": \"Page 506 Noise Issues\" },\n      \"equation\": {\n        \"formula\": \"V_n,rms = sqrt(k * T / C_H)\",\n        \"explanation\": \"Thermal kTC noise sampled onto the reference and intensity hold capacitors when SHR and SHI open.\",\n        \"assumptions\": \"T = 300 K, C_H = 1 pF.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"k = 1.38e-23 J/K, T = 300 K, C_H = 1e-12 F -> V_n,rms = sqrt(1.38e-23 * 300 / 1e-12) = 64.3 uV\",\n        \"range\": { \"min\": 6.0e-5, \"typical\": 6.43e-5, \"max\": 7.0e-5, \"unit\": \"V\" },\n        \"reasoning\": \"Fundamental thermal noise floor independent of process technology, setting dynamic range limit.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dsm_resolution_lsb\": {\n      \"description\": \"Quantization resolution (voltage per count) of the DSM sensing system\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"515\", \"reference\": \"Eq. (17.43)\" },\n      \"equation\": {\n        \"formula\": \"V_res = V_R,shift / N\",\n        \"explanation\": \"Nominal input-referred intensity resolution achieved by counting over N clock cycles.\",\n        \"assumptions\": \"Linearized first-order delta-sigma modulation over N integration cycles.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For N = 100 cycles, V_R,shift = 0.73 V -> V_res = 0.73 V / 100 = 7.3 mV (or for N = 1000, V_res = 0.73 mV)\",\n        \"range\": { \"min\": 5.0e-3, \"typical\": 7.3e-3, \"max\": 1.0e-2, \"unit\": \"V\" },\n        \"reasoning\": \"The counting interval determines the effective number of quantization levels and filter bandwidth.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dsm_output_ones_dark\": {\n      \"description\": \"Number of high comparator outputs (M) when pixel is at dark reference level (V_I = V_R)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"512\", \"reference\": \"Fig. 17.34(a)\" },\n      \"equation\": {\n        \"formula\": \"M = N * (1 - V_R,shift / V_I,shift)\",\n        \"explanation\": \"When V_I = V_R, V_I,shift = V_R,shift, so M = 0. The comparator output stays low for all clock cycles.\",\n        \"assumptions\": \"Balanced mirror and matching capacitors; symmetric comparator without systematic offset.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_I = V_R = 650 mV -> V_I,shift = V_R,shift = 0.73 V -> M = 0 out of 100 cycles (Out remains low)\",\n        \"range\": { \"min\": 0, \"typical\": 0, \"max\": 1, \"unit\": \"V\" },\n        \"reasoning\": \"At dark reference level, reference current matches intensity current so comparator output remains low.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient and DC testbench for the CMOS image sensor DSM sensing circuit in SKY130 verifying hold capacitor sampling, switched-capacitor bias conditions, and Delta-Sigma modulator feedback operation.\",\n    \"analyses\": [\"Tran\", \"DC\", \"OP\"],\n    \"metrics_measured\": [\n      \"v_r_shift\",\n      \"v_i_shift\",\n      \"v_col_max_linear\",\n      \"r_r_equiv\",\n      \"i_r_ref\",\n      \"dsm_resolution_lsb\",\n      \"dsm_output_ones_dark\"\n    ],\n    \"spice\": \"* Delta-Sigma Modulator (DSM) Sensing Circuit Testbench (Sky130)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* === Device Parameter Definitions ===\\n.param W_xm1=2.0u  L_xm1=0.15u\\n.param W_xm2=2.0u  L_xm2=0.15u\\n.param W_xm3=2.0u  L_xm3=0.15u\\n.param W_xm4=2.0u  L_xm4=0.15u\\n.param W_xm5=1.0u  L_xm5=1.0u\\n.param W_xm6=1.0u  L_xm6=1.0u\\n.param W_xm7=2.0u  L_xm7=0.15u\\n.param W_xm8=2.0u  L_xm8=0.15u\\n.param W_xm9=2.0u  L_xm9=0.15u\\n.param W_xm10=2.0u L_xm10=0.15u\\n.param W_xm11=1.0u L_xm11=0.15u\\n.param W_xm12=1.0u L_xm12=0.15u\\n\\n* === Power Supply and DC Biases ===\\nVDD VDD 0 1.8\\nVblack Vblack 0 650m\\nVinten Vinten 0 650m\\n\\n* === Circuit Under Test (DUT) ===\\nxm3 N002 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm1 N004 phi2 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 N006 Out N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nC1 N002 0 1e-13\\nxm4 vbucket VI N006 N006 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nX_U1 vbucket vd4r Out Outi clock VDD 0 SUB_1\\nxm5 vbucket vd4r 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nC2 vbucket 0 5e-13\\nxm6 vd4r vd4r 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 N003 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N005 0 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\nC3 N001 0 1e-13\\nxm10 vd4r VR N005 N005 sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nChr VR 0 1e-12\\nxm11 VR shr Vblack 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\nChi VI 0 1e-12\\nxm12 VI shi Vinten 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n\\n* === Subcircuits ===\\n.subckt SUB_1 inp inm q qi clock VDD GND\\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  X_U1 Outp q qi VDD 0 NAND_2\\n  X_U2 qi Outm q VDD 0 NAND_2\\n.ends SUB_1\\n\\n.subckt NAND_2 A B Out VDD GND\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NAND_2\\n\\n* === Control and Clock Signals ===\\n* Sample-and-hold pulse from 10ns to 100ns\\nVshr shr 0 PULSE(0 1.8 10n 0.5n 0.5n 90n 5000n)\\nVshi shi 0 PULSE(0 1.8 10n 0.5n 0.5n 90n 5000n)\\n\\n* Non-overlapping switched-capacitor clocks (T = 10ns, f = 100MHz)\\n* Active low PMOS precharge phi1 (8.5ns - 9.5ns of each 10ns period)\\nVphi1 phi1 0 PULSE(1.8 0 208.5n 0.2n 0.2n 1.0n 10n)\\n* Active low PMOS charge-transfer phi2 (1.0ns - 4.0ns of each 10ns period)\\nVphi2 phi2 0 PULSE(1.8 0 201.0n 0.2n 0.2n 3.0n 10n)\\n* Comparator evaluation clock (active high from 5.0ns - 8.0ns)\\nVclk clock 0 PULSE(0 1.8 205.0n 0.2n 0.2n 3.0n 10n)\\n\\n.ic v(VR)=0.65 v(VI)=0.65 v(vbucket)=0.6 v(vd4r)=0.6\\n\\n.control\\n* Run Transient Simulation (1500 ns total duration as in textbook)\\ntran 0.1n 1500n uic\\n\\n* Measure sampled voltages on hold capacitors\\nmeas tran v_sample_r find v(VR) at=150n\\nmeas tran v_sample_i find v(VI) at=150n\\n\\n* Calculate shifted reference and intensity voltages\\nlet vthp_nom = 0.42\\nlet v_r_shift = 1.8 - vthp_nom - v_sample_r\\nlet v_i_shift = 1.8 - vthp_nom - v_sample_i\\nlet v_col_max = 1.8 - vthp_nom\\nlet r_r_sc = 1.0 / (100e6 * 100e-15)\\nlet i_r_avg = v_r_shift / r_r_sc\\nlet v_resolution_100 = v_r_shift / 100.0\\n\\nprint v_r_shift\\nprint v_i_shift\\nprint v_col_max\\nprint r_r_sc\\nprint i_r_avg\\nprint v_resolution_100\\n\\n* Measure bucket voltage and modulator output at end of sensing interval\\nmeas tran vbucket_final find v(vbucket) at=1490n\\nmeas tran vd4r_final find v(vd4r) at=1490n\\nmeas tran out_max max v(Out) from=500n to=1500n\\nmeas tran out_avg avg v(Out) from=500n to=1500n\\n\\nprint vbucket_final vd4r_final out_max out_avg\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

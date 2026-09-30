@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current Mode Logic (CML) 2:1 Multiplexer",
+    "description": "A high-speed CML 2:1 multiplexer used in the transmitter's 16:1 multiplexer tree. It steers a tail current to one of two differential output branches based on the select signal (SEL/SELN), effectively choosing between data inputs A/AN and B/BN.",
+    "node_mapping": {
+      "input": [
+        "A",
+        "AN",
+        "B",
+        "BN",
+        "SEL",
+        "SELN"
+      ],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD (requires external pull-up resistors)"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS 10-Gb/s SONET Transceiver",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "DC power consumption of the multiplexer stage",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.65 W (entire transceiver)",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With VBIAS=1.2V, the tail current source (W=5u, L=0.5u) provides approx 0.8mA. Power = 1.8V * 0.8mA = 1.44mW.",
+        "range": {
+          "min": "1m",
+          "typical": "1.5m",
+          "max": "2m",
+          "unit": "W"
+        },
+        "reasoning": "Calculated using SKY130 NMOS square-law approximation for the tail current source."
+      },
+      "importance": "essential"
+    },
+    "vswing": {
+      "description": "Single-ended output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current ~0.8mA steered through a 500 ohm load resistor. Swing = 0.8mA * 500 ohm = 0.4V.",
+        "range": {
+          "min": "0.3",
+          "typical": "0.4",
+          "max": "0.5",
+          "unit": "V"
+        },
+        "reasoning": "Standard CML swing is typically 300-500mV to keep transistors in saturation and maximize switching speed."
+      },
+      "importance": "essential"
+    },
+    "delay_A": {
+      "description": "Propagation delay from data input A to output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "RC delay dominated by load resistor (500 ohm) and parasitic/load capacitance (~50fF). Delay ~ 0.69 * RC = 17ps.",
+        "range": {
+          "min": "10p",
+          "typical": "20p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "Estimated based on the RC time constant of the output node. Must be well under 100ps for 10-Gb/s operation."
+      },
+      "importance": "essential"
+    },
+    "delay_SEL": {
+      "description": "Propagation delay from select input SEL to output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to data delay, but includes the switching of the lower differential pair. Slightly longer than data delay.",
+        "range": {
+          "min": "15p",
+          "typical": "25p",
+          "max": "60p",
+          "unit": "s"
+        },
+        "reasoning": "The select signal has to switch the tail current between the two upper pairs, adding a small extra delay."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power, output swing, and propagation delays from both data and select inputs.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "vswing",
+      "delay_A",
+      "delay_SEL",
+      "trise_n2",
+      "tfall_n2"
+    ],
+    "spice": "* CML 2:1 MUX Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\n* DUT\nXM1 N1 AN N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 B N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 SELN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N4 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 BN N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 A N3 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N3 SEL N4 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\n* Load resistors (required for CML operation)\nR1 VDD N1 500\nR2 VDD N2 500\n\n* DC Sources\nVVDD VDD 0 1.8\nVBIAS BIAS 0 1.2\n\n* Input Stimuli (Common mode 1.55V, Swing 0.5V)\nVA A 0 PWL(0 1.3 1n 1.3 1.05n 1.8 2n 1.8 2.05n 1.3 4n 1.3)\nVAN AN 0 PWL(0 1.8 1n 1.8 1.05n 1.3 2n 1.3 2.05n 1.8 4n 1.8)\nVB B 0 DC 1.8\nVBN BN 0 DC 1.3\nVSEL SEL 0 PWL(0 1.8 2.5n 1.8 2.55n 1.3 4n 1.3)\nVSELN SELN 0 PWL(0 1.3 2.5n 1.3 2.55n 1.8 4n 1.8)\n\n* Load capacitance\nC1 N1 0 10f\nC2 N2 0 10f\n\n.control\ntran 10p 4n\n\n* Measure Output Swing\nmeas tran vhigh max v(n2)\nmeas tran vlow min v(n2)\nlet vswing = vhigh - vlow\nprint vswing\n\n* Measure Propagation Delays\nmeas tran delay_A trig v(A) val=1.55 rise=1 targ v(n2) val=1.55 fall=1 td=0.9n\nmeas tran delay_SEL trig v(SEL) val=1.55 fall=1 targ v(n2) val=1.55 fall=1 td=2.4n\n\n* Measure Rise and Fall Times (20% to 80% of 400mV swing)\nmeas tran trise_n2 trig v(n2) val=1.4 rise=1 targ v(n2) val=1.7 rise=1 td=1.9n\nmeas tran tfall_n2 trig v(n2) val=1.7 fall=1 targ v(n2) val=1.4 fall=1 td=0.9n\n\n* Measure Power Consumption\nmeas tran pwr_avg avg i(VVDD)\nlet power = -pwr_avg * 1.8\nprint power\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current Mode Logic (CML) 2:1 Multiplexer\",\n    \"description\": \"A high-speed CML 2:1 multiplexer used in the transmitter's 16:1 multiplexer tree. It steers a tail current to one of two differential output branches based on the select signal (SEL/SELN), effectively choosing between data inputs A/AN and B/BN.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"A\",\n        \"AN\",\n        \"B\",\n        \"BN\",\n        \"SEL\",\n        \"SELN\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD (requires external pull-up resistors)\"\n      ],\n      \"bias\": [\n        \"BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS 10-Gb/s SONET Transceiver\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"DC power consumption of the multiplexer stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.65 W (entire transceiver)\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VBIAS=1.2V, the tail current source (W=5u, L=0.5u) provides approx 0.8mA. Power = 1.8V * 0.8mA = 1.44mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"1.5m\",\n          \"max\": \"2m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS square-law approximation for the tail current source.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vswing\": {\n      \"description\": \"Single-ended output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current ~0.8mA steered through a 500 ohm load resistor. Swing = 0.8mA * 500 ohm = 0.4V.\",\n        \"range\": {\n          \"min\": \"0.3\",\n          \"typical\": \"0.4\",\n          \"max\": \"0.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard CML swing is typically 300-500mV to keep transistors in saturation and maximize switching speed.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_A\": {\n      \"description\": \"Propagation delay from data input A to output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"RC delay dominated by load resistor (500 ohm) and parasitic/load capacitance (~50fF). Delay ~ 0.69 * RC = 17ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"20p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Estimated based on the RC time constant of the output node. Must be well under 100ps for 10-Gb/s operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_SEL\": {\n      \"description\": \"Propagation delay from select input SEL to output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to data delay, but includes the switching of the lower differential pair. Slightly longer than data delay.\",\n        \"range\": {\n          \"min\": \"15p\",\n          \"typical\": \"25p\",\n          \"max\": \"60p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The select signal has to switch the tail current between the two upper pairs, adding a small extra delay.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power, output swing, and propagation delays from both data and select inputs.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"vswing\",\n      \"delay_A\",\n      \"delay_SEL\",\n      \"trise_n2\",\n      \"tfall_n2\"\n    ],\n    \"spice\": \"* CML 2:1 MUX Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\n* DUT\\nXM1 N1 AN N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 B N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 SELN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N4 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 BN N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 A N3 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N3 SEL N4 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Load resistors (required for CML operation)\\nR1 VDD N1 500\\nR2 VDD N2 500\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVBIAS BIAS 0 1.2\\n\\n* Input Stimuli (Common mode 1.55V, Swing 0.5V)\\nVA A 0 PWL(0 1.3 1n 1.3 1.05n 1.8 2n 1.8 2.05n 1.3 4n 1.3)\\nVAN AN 0 PWL(0 1.8 1n 1.8 1.05n 1.3 2n 1.3 2.05n 1.8 4n 1.8)\\nVB B 0 DC 1.8\\nVBN BN 0 DC 1.3\\nVSEL SEL 0 PWL(0 1.8 2.5n 1.8 2.55n 1.3 4n 1.3)\\nVSELN SELN 0 PWL(0 1.3 2.5n 1.3 2.55n 1.8 4n 1.8)\\n\\n* Load capacitance\\nC1 N1 0 10f\\nC2 N2 0 10f\\n\\n.control\\ntran 10p 4n\\n\\n* Measure Output Swing\\nmeas tran vhigh max v(n2)\\nmeas tran vlow min v(n2)\\nlet vswing = vhigh - vlow\\nprint vswing\\n\\n* Measure Propagation Delays\\nmeas tran delay_A trig v(A) val=1.55 rise=1 targ v(n2) val=1.55 fall=1 td=0.9n\\nmeas tran delay_SEL trig v(SEL) val=1.55 fall=1 targ v(n2) val=1.55 fall=1 td=2.4n\\n\\n* Measure Rise and Fall Times (20% to 80% of 400mV swing)\\nmeas tran trise_n2 trig v(n2) val=1.4 rise=1 targ v(n2) val=1.7 rise=1 td=1.9n\\nmeas tran tfall_n2 trig v(n2) val=1.7 fall=1 targ v(n2) val=1.4 fall=1 td=0.9n\\n\\n* Measure Power Consumption\\nmeas tran pwr_avg avg i(VVDD)\\nlet power = -pwr_avg * 1.8\\nprint power\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1308576",
+  "_case": "1308576_image_2"
+}

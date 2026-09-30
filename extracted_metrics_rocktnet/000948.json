@@ -1,0 +1,153 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential Telescopic Cascode Amplifier",
+    "description": "A fully differential telescopic cascode operational amplifier, typically used in the MDAC (Multiplying DAC) stages of a pipelined ADC to provide high gain and high bandwidth for fast settling.",
+    "node_mapping": {
+      "input": [
+        "VI_P",
+        "VI_N"
+      ],
+      "output": [
+        "VO_P",
+        "VO_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB2",
+        "VB3",
+        "VCF3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5.37mW 10b 200MS/s Dual-Path Pipelined ADC",
+      "figure": "N/A",
+      "year": 2012
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "56.7dB / 49dB",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm1 * Rout. Rout ~ (gm3*ro3*ro1) || (ro5). With gm ~ 1mS, ro ~ 20k, Rout ~ 200k. Gain ~ 200 V/V = 46 dB.",
+        "range": {
+          "min": 40,
+          "typical": 50,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on bias current and transistor lengths. SKY130 130nm has lower intrinsic gain than 65nm at minimum length, but L=0.5um provides good output resistance."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity Gain Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.1GHz / 1.4GHz",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm1 / (2*pi*CL). With I_tail=87uA, gm1~0.87mS, CL=200fF, UGBW ~ 690MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 500000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Scaled down from 65nm due to larger parasitic capacitances and lower ft in 130nm, assuming a 200fF load typical for pipelined ADC stages."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by non-dominant poles at the cascode nodes (N7, N8). PM = 90 - atan(UGBW/p2).",
+        "range": {
+          "min": 50,
+          "typical": 65,
+          "max": 80,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard design target for stable closed-loop MDAC operation to prevent ringing during settling."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.23mW",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_tail = 1.8V * 87uA = 156uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0002,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Higher supply voltage (1.8V vs 1.0V) increases power for the same current, but current might be lower to match UGBW targets."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Large signal slew rate",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_tail / CL = 87uA / 200fF = 435 V/us.",
+        "range": {
+          "min": 200,
+          "typical": 400,
+          "max": 800,
+          "unit": "V/us"
+        },
+        "reasoning": "Critical for fast settling in a 200MS/s pipelined ADC. The output must slew quickly before linear settling begins."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for Fully Differential Telescopic Cascode Amplifier measuring DC gain, UGBW, phase margin, power, and slew rate.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "power",
+      "slew_rate"
+    ],
+    "spice": "* Testbench for Telescopic Cascode Amplifier\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm5=10u L_xm5=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm6=10u L_xm6=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm7=10u L_xm7=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\n* DUT\nXM5 VO_N VCF3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM3 VO_N VB3 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM6 VO_P VCF3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM4 N7 VI_N N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM7 N5 VB2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM1 N8 VI_P N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM10 VO_P VB3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\n* Fix floating nodes from extraction\nVshort1 N5 N2 0\nVshort2 N1 VDD 0\n\n* Supplies and Biases\nVVDD VDD 0 1.8\nVVB2 VB2 0 0.6\nVVB3 VB3 0 1.2\n\n* Ideal CMFB to set output common-mode to 0.9V\nR1 VO_P VO_CM 1Meg\nR2 VO_N VO_CM 1Meg\nBcmfb VCF3 0 V=1.1 + 100*(V(VO_CM) - 0.9)\n\n* Input Signals\nVCM VCM 0 0.9\nVd Vd 0 dc 0 ac 1 pulse(-0.2 0.2 1n 10p 10p 10n 20n)\nE1 VI_P VCM Vd 0 0.5\nE2 VI_N VCM Vd 0 -0.5\n\n* Load Capacitance\nCL1 VO_P 0 200f\nCL2 VO_N 0 200f\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1 10G\nlet vout_diff = v(VO_P) - v(VO_N)\nlet gain_db = vdb(vout_diff)\nlet phase = 180/PI * cph(vout_diff)\n\nmeas ac dc_gain find gain_db at=10\nmeas ac ugbw when gain_db=0 fall=1\nmeas ac pm find phase when gain_db=0 fall=1\nlet phase_margin = pm + 180\nprint phase_margin\n\ntran 10p 20n\nlet vout_diff_tran = v(VO_P) - v(VO_N)\nmeas tran t_rise trig vout_diff_tran val=-0.1 rise=1 targ vout_diff_tran val=0.1 rise=1\nlet sr_rise = 0.2 / t_rise\nprint sr_rise\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential Telescopic Cascode Amplifier\",\n    \"description\": \"A fully differential telescopic cascode operational amplifier, typically used in the MDAC (Multiplying DAC) stages of a pipelined ADC to provide high gain and high bandwidth for fast settling.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VI_P\",\n        \"VI_N\"\n      ],\n      \"output\": [\n        \"VO_P\",\n        \"VO_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB2\",\n        \"VB3\",\n        \"VCF3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5.37mW 10b 200MS/s Dual-Path Pipelined ADC\",\n      \"figure\": \"N/A\",\n      \"year\": 2012\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"56.7dB / 49dB\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm1 * Rout. Rout ~ (gm3*ro3*ro1) || (ro5). With gm ~ 1mS, ro ~ 20k, Rout ~ 200k. Gain ~ 200 V/V = 46 dB.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 50,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on bias current and transistor lengths. SKY130 130nm has lower intrinsic gain than 65nm at minimum length, but L=0.5um provides good output resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity Gain Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.1GHz / 1.4GHz\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm1 / (2*pi*CL). With I_tail=87uA, gm1~0.87mS, CL=200fF, UGBW ~ 690MHz.\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 500e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Scaled down from 65nm due to larger parasitic capacitances and lower ft in 130nm, assuming a 200fF load typical for pipelined ADC stages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by non-dominant poles at the cascode nodes (N7, N8). PM = 90 - atan(UGBW/p2).\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 65,\n          \"max\": 80,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard design target for stable closed-loop MDAC operation to prevent ringing during settling.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.23mW\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_tail = 1.8V * 87uA = 156uW.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 200e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Higher supply voltage (1.8V vs 1.0V) increases power for the same current, but current might be lower to match UGBW targets.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Large signal slew rate\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_tail / CL = 87uA / 200fF = 435 V/us.\",\n        \"range\": {\n          \"min\": 200,\n          \"typical\": 400,\n          \"max\": 800,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Critical for fast settling in a 200MS/s pipelined ADC. The output must slew quickly before linear settling begins.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for Fully Differential Telescopic Cascode Amplifier measuring DC gain, UGBW, phase margin, power, and slew rate.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"power\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Testbench for Telescopic Cascode Amplifier\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm5=10u L_xm5=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm6=10u L_xm6=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm7=10u L_xm7=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\n* DUT\\nXM5 VO_N VCF3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM3 VO_N VB3 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM6 VO_P VCF3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM4 N7 VI_N N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM7 N5 VB2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM1 N8 VI_P N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM10 VO_P VB3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Fix floating nodes from extraction\\nVshort1 N5 N2 0\\nVshort2 N1 VDD 0\\n\\n* Supplies and Biases\\nVVDD VDD 0 1.8\\nVVB2 VB2 0 0.6\\nVVB3 VB3 0 1.2\\n\\n* Ideal CMFB to set output common-mode to 0.9V\\nR1 VO_P VO_CM 1Meg\\nR2 VO_N VO_CM 1Meg\\nBcmfb VCF3 0 V=1.1 + 100*(V(VO_CM) - 0.9)\\n\\n* Input Signals\\nVCM VCM 0 0.9\\nVd Vd 0 dc 0 ac 1 pulse(-0.2 0.2 1n 10p 10p 10n 20n)\\nE1 VI_P VCM Vd 0 0.5\\nE2 VI_N VCM Vd 0 -0.5\\n\\n* Load Capacitance\\nCL1 VO_P 0 200f\\nCL2 VO_N 0 200f\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1 10G\\nlet vout_diff = v(VO_P) - v(VO_N)\\nlet gain_db = vdb(vout_diff)\\nlet phase = 180/PI * cph(vout_diff)\\n\\nmeas ac dc_gain find gain_db at=10\\nmeas ac ugbw when gain_db=0 fall=1\\nmeas ac pm find phase when gain_db=0 fall=1\\nlet phase_margin = pm + 180\\nprint phase_margin\\n\\ntran 10p 20n\\nlet vout_diff_tran = v(VO_P) - v(VO_N)\\nmeas tran t_rise trig vout_diff_tran val=-0.1 rise=1 targ vout_diff_tran val=0.1 rise=1\\nlet sr_rise = 0.2 / t_rise\\nprint sr_rise\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6177091",
+  "_case": "6177091_image_4_b"
+}

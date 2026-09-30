@@ -1,0 +1,126 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Generic Common-Source Amplifier (e.g., Fig 21.2 in Baker)",
+    "page": "N/A (Chapter None provided)",
+    "circuit_type": "Common-Source Amplifier with Resistive Load",
+    "description": "A basic common-source amplifier utilizing an NMOS transistor with a passive resistor as the load and a load capacitor. It provides negative voltage gain and is typically used as a basic gain stage."
+  },
+  "step2_metrics": {
+    "dc_output_voltage": {
+      "description": "The DC bias voltage at the output node.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard CS Amp KVL"
+      },
+      "equation": {
+        "formula": "V_{OUT} = V_{DD} - I_D R_L",
+        "explanation": "The output voltage is the supply voltage minus the voltage drop across the load resistor.",
+        "assumptions": "NMOS is in saturation (V_OUT > V_IN - V_th)."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming W/L = 5: V_ov = 0.6V - 0.42V = 0.18V. I_D = 0.5 * 270uA/V^2 * 5 * (0.18V)^2 = 21.87uA. V_OUT = 1.8V - (21.87uA * 50kOhm) = 1.8V - 1.0935V = 0.7065V.",
+        "range": {
+          "min": 0.6,
+          "typical": 0.7,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on the chosen W/L ratio. For W/L=5, Vout is ~0.7V, keeping the NMOS in saturation (0.7V > 0.18V)."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Low-frequency small-signal voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard CS Amp Gain"
+      },
+      "equation": {
+        "formula": "A_v = -g_m (R_L || r_o)",
+        "explanation": "The gain is the transconductance of the NMOS multiplied by the total output resistance.",
+        "assumptions": "Low frequency, NMOS in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "g_m = 2*I_D/V_ov = 2*21.87uA/0.18V = 243uA/V. r_o = 1/(lambda*I_D) = 1/(0.1*21.87uA) = 457kOhm. R_out = 50k || 457k = 45.07kOhm. A_v = 243uA/V * 45.07kOhm = 10.95 V/V. In dB: 20*log10(10.95) = 20.79 dB.",
+        "range": {
+          "min": 18,
+          "typical": 20.8,
+          "max": 24,
+          "unit": "dB"
+        },
+        "reasoning": "Gain is limited by the 50kOhm passive load resistor and the transconductance of the NMOS."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB cutoff frequency.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard CS Amp Bandwidth"
+      },
+      "equation": {
+        "formula": "f_{-3dB} = 1 / (2 * pi * (R_L || r_o) * C_L)",
+        "explanation": "The dominant pole is formed by the total output resistance and the load capacitance.",
+        "assumptions": "C_L dominates over parasitic transistor capacitances."
+      },
+      "sky130_expected": {
+        "calculation": "R_out = 45.07kOhm. C_L = 10fF. f_{-3dB} = 1 / (2 * pi * 45.07e3 * 10e-15) = 353.1 MHz.",
+        "range": {
+          "min": 300000000.0,
+          "typical": 353000000.0,
+          "max": 400000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The 10fF load and ~45kOhm output resistance create a pole in the hundreds of MHz range."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Power Equation"
+      },
+      "equation": {
+        "formula": "P = V_{DD} * I_D",
+        "explanation": "Total power is the supply voltage multiplied by the total current drawn from the supply.",
+        "assumptions": "Static DC power only."
+      },
+      "sky130_expected": {
+        "calculation": "P = 1.8V * 21.87uA = 39.37 uW.",
+        "range": {
+          "min": 3e-05,
+          "typical": 3.94e-05,
+          "max": 5e-05,
+          "unit": "W"
+        },
+        "reasoning": "Directly proportional to the bias current set by the NMOS W/L and V_IN."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, power, low-frequency gain, and -3dB bandwidth of the CS amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC"
+    ],
+    "metrics_measured": [
+      "dc_output_voltage",
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth"
+    ],
+    "spice": "* CS Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the DUT\n.param W_XM1=5\n.param L_XM1=1\n\n* DUT Netlist\nXM1 VOUT VIN GND GND sky130_fd_pr__nfet_01v8 l={L_XM1} w={W_XM1}\nRL VDD VOUT 50e3\nCL VOUT GND 10e-15\n* Modified VIN to include AC source for AC analysis\nVIN VIN GND DC 0.6 AC 1\nVDD VDD GND DC 1.8\n\n.control\n* 1. DC Operating Point & Power\nop\nlet vout_dc = v(VOUT)\nlet id_dc = -i(VDD)\nlet power_dc = id_dc * 1.8\nprint vout_dc id_dc power_dc\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 100 1k 10G\nlet gain_db = vdb(VOUT)\nmeas ac dc_gain_db find gain_db at=1k\nlet gain_3db = dc_gain_db - 3\nmeas ac f_3db when gain_db=gain_3db fall=1\n\n* 3. DC Sweep for VTC\ndc VIN 0 1.8 0.01\nmeas dc vout_at_bias find v(VOUT) when v(VIN)=0.6\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Generic Common-Source Amplifier (e.g., Fig 21.2 in Baker)\",\n    \"page\": \"N/A (Chapter None provided)\",\n    \"circuit_type\": \"Common-Source Amplifier with Resistive Load\",\n    \"description\": \"A basic common-source amplifier utilizing an NMOS transistor with a passive resistor as the load and a load capacitor. It provides negative voltage gain and is typically used as a basic gain stage.\"\n  },\n  \"step2_metrics\": {\n    \"dc_output_voltage\": {\n      \"description\": \"The DC bias voltage at the output node.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard CS Amp KVL\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{OUT} = V_{DD} - I_D R_L\",\n        \"explanation\": \"The output voltage is the supply voltage minus the voltage drop across the load resistor.\",\n        \"assumptions\": \"NMOS is in saturation (V_OUT > V_IN - V_th).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming W/L = 5: V_ov = 0.6V - 0.42V = 0.18V. I_D = 0.5 * 270uA/V^2 * 5 * (0.18V)^2 = 21.87uA. V_OUT = 1.8V - (21.87uA * 50kOhm) = 1.8V - 1.0935V = 0.7065V.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.7,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen W/L ratio. For W/L=5, Vout is ~0.7V, keeping the NMOS in saturation (0.7V > 0.18V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency small-signal voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard CS Amp Gain\"\n      },\n      \"equation\": {\n        \"formula\": \"A_v = -g_m (R_L || r_o)\",\n        \"explanation\": \"The gain is the transconductance of the NMOS multiplied by the total output resistance.\",\n        \"assumptions\": \"Low frequency, NMOS in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"g_m = 2*I_D/V_ov = 2*21.87uA/0.18V = 243uA/V. r_o = 1/(lambda*I_D) = 1/(0.1*21.87uA) = 457kOhm. R_out = 50k || 457k = 45.07kOhm. A_v = 243uA/V * 45.07kOhm = 10.95 V/V. In dB: 20*log10(10.95) = 20.79 dB.\",\n        \"range\": {\n          \"min\": 18,\n          \"typical\": 20.8,\n          \"max\": 24,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain is limited by the 50kOhm passive load resistor and the transconductance of the NMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard CS Amp Bandwidth\"\n      },\n      \"equation\": {\n        \"formula\": \"f_{-3dB} = 1 / (2 * pi * (R_L || r_o) * C_L)\",\n        \"explanation\": \"The dominant pole is formed by the total output resistance and the load capacitance.\",\n        \"assumptions\": \"C_L dominates over parasitic transistor capacitances.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_out = 45.07kOhm. C_L = 10fF. f_{-3dB} = 1 / (2 * pi * 45.07e3 * 10e-15) = 353.1 MHz.\",\n        \"range\": {\n          \"min\": 300e6,\n          \"typical\": 353e6,\n          \"max\": 400e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The 10fF load and ~45kOhm output resistance create a pole in the hundreds of MHz range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Power Equation\"\n      },\n      \"equation\": {\n        \"formula\": \"P = V_{DD} * I_D\",\n        \"explanation\": \"Total power is the supply voltage multiplied by the total current drawn from the supply.\",\n        \"assumptions\": \"Static DC power only.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = 1.8V * 21.87uA = 39.37 uW.\",\n        \"range\": {\n          \"min\": 30e-6,\n          \"typical\": 39.4e-6,\n          \"max\": 50e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Directly proportional to the bias current set by the NMOS W/L and V_IN.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, power, low-frequency gain, and -3dB bandwidth of the CS amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"dc_output_voltage\",\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth\"\n    ],\n    \"spice\": \"* CS Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the DUT\\n.param W_XM1=5\\n.param L_XM1=1\\n\\n* DUT Netlist\\nXM1 VOUT VIN GND GND sky130_fd_pr__nfet_01v8 l={L_XM1} w={W_XM1}\\nRL VDD VOUT 50e3\\nCL VOUT GND 10e-15\\n* Modified VIN to include AC source for AC analysis\\nVIN VIN GND DC 0.6 AC 1\\nVDD VDD GND DC 1.8\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet vout_dc = v(VOUT)\\nlet id_dc = -i(VDD)\\nlet power_dc = id_dc * 1.8\\nprint vout_dc id_dc power_dc\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 100 1k 10G\\nlet gain_db = vdb(VOUT)\\nmeas ac dc_gain_db find gain_db at=1k\\nlet gain_3db = dc_gain_db - 3\\nmeas ac f_3db when gain_db=gain_3db fall=1\\n\\n* 3. DC Sweep for VTC\\ndc VIN 0 1.8 0.01\\nmeas dc vout_at_bias find v(VOUT) when v(VIN)=0.6\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

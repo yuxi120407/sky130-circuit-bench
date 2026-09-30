@@ -1,0 +1,154 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential Two-Stage Operational Amplifier with Continuous-Time Common-Mode Feedback (CMFB)",
+    "description": "The circuit amplifies the differential signal between IN_PLUS and IN_MINUS. It uses a continuous-time CMFB circuit (XM4, XM6, XM7, XM9) to compare the output common-mode voltage against VCOM and adjust the first-stage active loads (XM3, XM8) to stabilize the output DC operating point.",
+    "node_mapping": {
+      "input": [
+        "IN_PLUS",
+        "IN_MINUS",
+        "VCOM"
+      ],
+      "output": [
+        "OUT_PLUS",
+        "OUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N4",
+        "N1",
+        "N5"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Complete Single-Chip GPS Receiver With 1.6-V 24-mW Radio in 0.18-um CMOS",
+      "figure": "1",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the amplifier",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "24 mW (entire radio)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_total = I_tail1(100u) + I_tail2(50u) + I_tail3(50u) + I_load1(100u) + I_load2(100u) = 400uA. Power = 400uA * 1.8V = 0.72mW",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.00072,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Based on the added bias currents required to keep the 5u/0.5u transistors in saturation."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low frequency differential open-loop gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Av1 = gm11 * (ro11 || ro3) ~= 526uS * 100k = 52.6 V/V. Av2 = gm2 * (ro2 || ro_load) ~= 317uS * 100k = 31.7 V/V. Total Av = 52.6 * 31.7 = 1667 V/V = 64 dB.",
+        "range": {
+          "min": 50,
+          "typical": 64,
+          "max": 80,
+          "unit": "dB"
+        },
+        "reasoning": "Typical two-stage op-amp gain in 180nm/130nm processes."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity gain bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2 MHz / 5 MHz (filter bandwidths)",
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm11 / (2 * pi * Cc) = 526uS / (2 * pi * 1pF) = 83.7 MHz",
+        "range": {
+          "min": 50000000.0,
+          "typical": 83000000.0,
+          "max": 120000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by input pair transconductance and Miller compensation capacitor."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin for stability",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "With Cc=1pF and Cl=1pF, the non-dominant pole is at gm2 / (2 * pi * Cl) = 317uS / (2 * pi * 1pF) = 50 MHz. Since this is close to UGBW (83 MHz), PM will be around 45-50 degrees.",
+        "range": {
+          "min": 40,
+          "typical": 50,
+          "max": 70,
+          "unit": "degrees"
+        },
+        "reasoning": "Depends heavily on the ratio of load capacitance to compensation capacitance."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_tail1 / Cc = 100uA / 1pF = 100 V/us.",
+        "range": {
+          "min": 50,
+          "typical": 100,
+          "max": 150,
+          "unit": "V/us"
+        },
+        "reasoning": "Limited by the first stage tail current charging the Miller capacitor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, open-loop differential gain, UGBW, phase margin, and slew rate. Missing tail and load current sources have been added to properly bias the extracted netlist.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "slew_rate"
+    ],
+    "spice": "* Fully Differential Op-Amp Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters from netlist\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n\n* DUT\nXM1 N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUT_PLUS N8 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N8 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM5 N7 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM4 N7 OUT_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM6 N3 VCOM N1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N7 OUT_PLUS N5 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N10 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 VCOM N5 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 OUT_MINUS N10 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N8 IN_PLUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N10 IN_MINUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\n\n* Missing Bias and Load Sources (required for operation)\nI_tail1 N4 0 100u\nI_tail2 N1 0 50u\nI_tail3 N5 0 50u\nI_load1 OUT_PLUS 0 100u\nI_load2 OUT_MINUS 0 100u\n\n* Compensation and Load Capacitors\nCc1 OUT_PLUS N8 1p\nCc2 OUT_MINUS N10 1p\nCl1 OUT_PLUS 0 1p\nCl2 OUT_MINUS 0 1p\n\n* Voltage Sources\nVVDD VDD 0 1.8\nVCOM VCOM 0 0.9\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 0.5 PULSE(0.9 1.0 100n 1n 1n 1u 2u)\nVIN_MINUS IN_MINUS 0 DC 0.9 AC -0.5 PULSE(0.9 0.8 100n 1n 1n 1u 2u)\n\n* Dependent source for differential output\nE_diff OUT_DIFF 0 OUT_PLUS OUT_MINUS 1.0\n\n* Control Block\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 100 1 1G\n  let gain_db = vdb(OUT_DIFF)\n  let phase_deg = 180/PI * cph(v(OUT_DIFF))\n  \n  meas ac dc_gain find gain_db at=10\n  meas ac ugbw when gain_db=0 fall=1\n  meas ac phase_margin_raw find phase_deg when gain_db=0 fall=1\n  let phase_margin = 180 + phase_margin_raw\n  print phase_margin\n\n  * Transient Analysis\n  tran 1n 2u\n  meas tran v_max max v(OUT_DIFF)\n  meas tran v_min min v(OUT_DIFF)\n  meas tran t_rise trig v(OUT_DIFF) val=0.5 rise=1 targ v(OUT_DIFF) val=1.5 rise=1\n  let slew_rate_V_us = (1.0 / t_rise) * 1e-6\n  print slew_rate_V_us\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential Two-Stage Operational Amplifier with Continuous-Time Common-Mode Feedback (CMFB)\",\n    \"description\": \"The circuit amplifies the differential signal between IN_PLUS and IN_MINUS. It uses a continuous-time CMFB circuit (XM4, XM6, XM7, XM9) to compare the output common-mode voltage against VCOM and adjust the first-stage active loads (XM3, XM8) to stabilize the output DC operating point.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN_PLUS\",\n        \"IN_MINUS\",\n        \"VCOM\"\n      ],\n      \"output\": [\n        \"OUT_PLUS\",\n        \"OUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N4\",\n        \"N1\",\n        \"N5\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Complete Single-Chip GPS Receiver With 1.6-V 24-mW Radio in 0.18-um CMOS\",\n      \"figure\": \"1\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"24 mW (entire radio)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total = I_tail1(100u) + I_tail2(50u) + I_tail3(50u) + I_load1(100u) + I_load2(100u) = 400uA. Power = 400uA * 1.8V = 0.72mW\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.72e-3,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the added bias currents required to keep the 5u/0.5u transistors in saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low frequency differential open-loop gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Av1 = gm11 * (ro11 || ro3) ~= 526uS * 100k = 52.6 V/V. Av2 = gm2 * (ro2 || ro_load) ~= 317uS * 100k = 31.7 V/V. Total Av = 52.6 * 31.7 = 1667 V/V = 64 dB.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 64,\n          \"max\": 80,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical two-stage op-amp gain in 180nm/130nm processes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity gain bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2 MHz / 5 MHz (filter bandwidths)\",\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm11 / (2 * pi * Cc) = 526uS / (2 * pi * 1pF) = 83.7 MHz\",\n        \"range\": {\n          \"min\": 50e6,\n          \"typical\": 83e6,\n          \"max\": 120e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by input pair transconductance and Miller compensation capacitor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin for stability\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With Cc=1pF and Cl=1pF, the non-dominant pole is at gm2 / (2 * pi * Cl) = 317uS / (2 * pi * 1pF) = 50 MHz. Since this is close to UGBW (83 MHz), PM will be around 45-50 degrees.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 50,\n          \"max\": 70,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Depends heavily on the ratio of load capacitance to compensation capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_tail1 / Cc = 100uA / 1pF = 100 V/us.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 100,\n          \"max\": 150,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Limited by the first stage tail current charging the Miller capacitor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, open-loop differential gain, UGBW, phase margin, and slew rate. Missing tail and load current sources have been added to properly bias the extracted netlist.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Fully Differential Op-Amp Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters from netlist\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n\\n* DUT\\nXM1 N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUT_PLUS N8 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N8 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM5 N7 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM4 N7 OUT_MINUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM6 N3 VCOM N1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N7 OUT_PLUS N5 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N10 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 VCOM N5 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 OUT_MINUS N10 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N8 IN_PLUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N10 IN_MINUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\n\\n* Missing Bias and Load Sources (required for operation)\\nI_tail1 N4 0 100u\\nI_tail2 N1 0 50u\\nI_tail3 N5 0 50u\\nI_load1 OUT_PLUS 0 100u\\nI_load2 OUT_MINUS 0 100u\\n\\n* Compensation and Load Capacitors\\nCc1 OUT_PLUS N8 1p\\nCc2 OUT_MINUS N10 1p\\nCl1 OUT_PLUS 0 1p\\nCl2 OUT_MINUS 0 1p\\n\\n* Voltage Sources\\nVVDD VDD 0 1.8\\nVCOM VCOM 0 0.9\\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 0.5 PULSE(0.9 1.0 100n 1n 1n 1u 2u)\\nVIN_MINUS IN_MINUS 0 DC 0.9 AC -0.5 PULSE(0.9 0.8 100n 1n 1n 1u 2u)\\n\\n* Dependent source for differential output\\nE_diff OUT_DIFF 0 OUT_PLUS OUT_MINUS 1.0\\n\\n* Control Block\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 100 1 1G\\n  let gain_db = vdb(OUT_DIFF)\\n  let phase_deg = 180/PI * cph(v(OUT_DIFF))\\n  \\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugbw when gain_db=0 fall=1\\n  meas ac phase_margin_raw find phase_deg when gain_db=0 fall=1\\n  let phase_margin = 180 + phase_margin_raw\\n  print phase_margin\\n\\n  * Transient Analysis\\n  tran 1n 2u\\n  meas tran v_max max v(OUT_DIFF)\\n  meas tran v_min min v(OUT_DIFF)\\n  meas tran t_rise trig v(OUT_DIFF) val=0.5 rise=1 targ v(OUT_DIFF) val=1.5 rise=1\\n  let slew_rate_V_us = (1.0 / t_rise) * 1e-6\\n  print slew_rate_V_us\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1278573",
+  "_case": "1278573_image_4"
+}

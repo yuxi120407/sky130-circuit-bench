@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Input Buffer / Source Follower",
+    "description": "A pair of 50-ohm terminated source followers (adapted from emitter followers in the original bipolar design) used as an input buffer or level shifter for a high-speed logarithmic amplifier.",
+    "node_mapping": {
+      "input": [
+        "in1",
+        "in2"
+      ],
+      "output": [
+        "out1",
+        "out2"
+      ],
+      "supply": [
+        "VEE"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A DC\u20134-GHz True Logarithmic Amplifier: Theory and Implementation",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "AC voltage gain of the source follower",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "35-GHz silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Av = gm*ro / (1 + gm*ro). For NMOS in SKY130, gm*ro is typically 10-20, yielding a gain slightly less than 1 (approx -0.5 to -1 dB).",
+        "range": {
+          "min": -2,
+          "typical": -1,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Source followers have a gain close to unity. Body effect and finite output resistance reduce it slightly."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Frequency where the AC gain drops by 3 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "4.0 GHz",
+        "technology": "35-GHz silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB \u2248 gm / (2*pi*Cgs). With gm ~ 2mS and Cgs ~ 20fF, bandwidth is > 10 GHz.",
+        "range": {
+          "min": 4000000000.0,
+          "typical": 10000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Source followers are inherently wideband. SKY130 130nm NMOS can easily exceed the 4 GHz bandwidth reported for the original bipolar process."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power dissipated by the buffer",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "750 mW (entire amplifier)",
+        "technology": "35-GHz silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "P = 2 * I_bias * VDD. With I_bias = 2mA and VDD = 1.8V, P = 7.2 mW.",
+        "range": {
+          "min": 0.003,
+          "typical": 0.0072,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "The buffer consumes a small fraction of the total 750mW reported for the entire logarithmic amplifier."
+      },
+      "importance": "essential"
+    },
+    "rise_time": {
+      "description": "Transient rise time of the output signal",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 ps",
+        "technology": "35-GHz silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "t_rise \u2248 2.2 * R_out * C_load. R_out \u2248 1/gm \u2248 500 ohms. With parasitic load ~20fF, t_rise \u2248 22 ps.",
+        "range": {
+          "min": 2e-11,
+          "typical": 5e-11,
+          "max": 1e-10,
+          "unit": "s"
+        },
+        "reasoning": "Expected to be very fast, well within the 100 ps reported in the paper."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the differential input buffer measuring gain, bandwidth, power, and rise time.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "bandwidth",
+      "power_consumption",
+      "rise_time"
+    ],
+    "spice": "* Differential Input Buffer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_n=20u L_n=0.15u I_bias=2m\n\n* Supplies (Using negative supply to keep GND at 0V as in original netlist)\nVEE VEE 0 DC -1.8\n\n* Input Sources (50 ohm source impedance, 2V AC yields 1V at the node due to 50 ohm termination)\nVIN1 in1_src 0 DC 0 AC 2 PULSE(-0.2 0.2 1n 10p 10p 1n 2n)\nRS1 in1_src in1 50\nVIN2 in2_src 0 DC 0 AC 0\nRS2 in2_src in2 50\n\n* DUT (Adapted to SKY130 NMOS from generic npn)\nR1 0 in1 50\nR2 0 in2 50\nXM2 0 in1 out1 VEE sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nXM1 0 in2 out2 VEE sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nI2 out1 VEE {I_bias}\nI1 out2 VEE {I_bias}\n\n.control\n* DC Operating Point\nop\nlet power = i(VEE) * -1.8\nprint power\n\n* AC Analysis\nac dec 100 1M 100G\nlet gain_db = vdb(out1) - vdb(in1)\nmeas ac dc_gain find gain_db at=1M\nmeas ac f3db when gain_db=(dc_gain-3) fall=1\n\n* Transient Analysis\ntran 1p 5n\n* Measure rise time (approx 25% to 75% of a -0.7V to -0.5V swing)\nmeas tran t_rise trig v(out1) val=-0.65 rise=1 targ v(out1) val=-0.55 rise=1\n.endc\n\nquit"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Input Buffer / Source Follower\",\n    \"description\": \"A pair of 50-ohm terminated source followers (adapted from emitter followers in the original bipolar design) used as an input buffer or level shifter for a high-speed logarithmic amplifier.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"in1\",\n        \"in2\"\n      ],\n      \"output\": [\n        \"out1\",\n        \"out2\"\n      ],\n      \"supply\": [\n        \"VEE\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A DC\u20134-GHz True Logarithmic Amplifier: Theory and Implementation\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"AC voltage gain of the source follower\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"35-GHz silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Av = gm*ro / (1 + gm*ro). For NMOS in SKY130, gm*ro is typically 10-20, yielding a gain slightly less than 1 (approx -0.5 to -1 dB).\",\n        \"range\": {\n          \"min\": -2,\n          \"typical\": -1,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Source followers have a gain close to unity. Body effect and finite output resistance reduce it slightly.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Frequency where the AC gain drops by 3 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"4.0 GHz\",\n        \"technology\": \"35-GHz silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB \u2248 gm / (2*pi*Cgs). With gm ~ 2mS and Cgs ~ 20fF, bandwidth is > 10 GHz.\",\n        \"range\": {\n          \"min\": 4e9,\n          \"typical\": 10e9,\n          \"max\": 20e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Source followers are inherently wideband. SKY130 130nm NMOS can easily exceed the 4 GHz bandwidth reported for the original bipolar process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the buffer\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"750 mW (entire amplifier)\",\n        \"technology\": \"35-GHz silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = 2 * I_bias * VDD. With I_bias = 2mA and VDD = 1.8V, P = 7.2 mW.\",\n        \"range\": {\n          \"min\": 3e-3,\n          \"typical\": 7.2e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The buffer consumes a small fraction of the total 750mW reported for the entire logarithmic amplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rise_time\": {\n      \"description\": \"Transient rise time of the output signal\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 ps\",\n        \"technology\": \"35-GHz silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise \u2248 2.2 * R_out * C_load. R_out \u2248 1/gm \u2248 500 ohms. With parasitic load ~20fF, t_rise \u2248 22 ps.\",\n        \"range\": {\n          \"min\": 20e-12,\n          \"typical\": 50e-12,\n          \"max\": 100e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Expected to be very fast, well within the 100 ps reported in the paper.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the differential input buffer measuring gain, bandwidth, power, and rise time.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"power_consumption\",\n      \"rise_time\"\n    ],\n    \"spice\": \"* Differential Input Buffer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_n=20u L_n=0.15u I_bias=2m\\n\\n* Supplies (Using negative supply to keep GND at 0V as in original netlist)\\nVEE VEE 0 DC -1.8\\n\\n* Input Sources (50 ohm source impedance, 2V AC yields 1V at the node due to 50 ohm termination)\\nVIN1 in1_src 0 DC 0 AC 2 PULSE(-0.2 0.2 1n 10p 10p 1n 2n)\\nRS1 in1_src in1 50\\nVIN2 in2_src 0 DC 0 AC 0\\nRS2 in2_src in2 50\\n\\n* DUT (Adapted to SKY130 NMOS from generic npn)\\nR1 0 in1 50\\nR2 0 in2 50\\nXM2 0 in1 out1 VEE sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nXM1 0 in2 out2 VEE sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nI2 out1 VEE {I_bias}\\nI1 out2 VEE {I_bias}\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = i(VEE) * -1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1M 100G\\nlet gain_db = vdb(out1) - vdb(in1)\\nmeas ac dc_gain find gain_db at=1M\\nmeas ac f3db when gain_db=(dc_gain-3) fall=1\\n\\n* Transient Analysis\\ntran 1p 5n\\n* Measure rise time (approx 25% to 75% of a -0.7V to -0.5V swing)\\nmeas tran t_rise trig v(out1) val=-0.65 rise=1 targ v(out1) val=-0.55 rise=1\\n.endc\\n\\nquit\"\n  }\n}\n```",
+  "_paper_id": "1035943",
+  "_case": "1035943_image_12"
+}

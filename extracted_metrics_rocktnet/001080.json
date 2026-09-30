@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "MOS Current Mode Logic (MCML) Buffer / Inverter",
+    "description": "A differential buffer/inverter using MOS Current Mode Logic (MCML). It features an NMOS differential pair with PMOS transistors operating in the linear region as active loads, biased by an NMOS tail current source.",
+    "node_mapping": {
+      "input": [
+        "D",
+        "D_BAR"
+      ],
+      "output": [
+        "Q",
+        "Q_BAR"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VLOAD"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "0.18-m CMOS 10-Gb/s Multiplexer/Demultiplexer ICs Using Current Mode Logic with Tolerance to Threshold Voltage Fluctuation",
+      "figure": "Not specified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "voltage_swing": {
+      "description": "Peak-to-peak voltage swing of the single-ended output.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported for a single gate",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "PMOS load resistance Ron = 1 / (up*Cox * W/L * (VDD - |Vth|)) = 1 / (50u * 10 * (1.8 - 0.42)) = 1.45 kOhm. Tail current Itail = 0.5 * un*Cox * W/L * (VLOAD - Vth)^2 = 0.5 * 270u * 10 * (1.0 - 0.42)^2 = 454 uA. Swing = Itail * Ron = 454uA * 1.45kOhm = 0.658 V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.65,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "MCML relies on reduced voltage swings to achieve high-speed switching. The swing is determined by the tail current and the PMOS linear-region resistance."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Static power dissipation of the buffer.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.4 W (for the entire MUX/DEMUX IC)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * Itail = 1.8 V * 454 uA = 0.817 mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.0008,
+          "max": 0.0015,
+          "unit": "W"
+        },
+        "reasoning": "Unlike standard CMOS, MCML draws a constant static current (Itail) from the supply, making power consumption independent of switching frequency."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Time delay between the input differential crossing and the output differential crossing.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2 ps",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Time constant tau = Ron * Cload = 1.45 kOhm * 10 fF = 14.5 ps. Including intrinsic parasitic capacitances, the delay will be slightly higher.",
+        "range": {
+          "min": 1.5e-11,
+          "typical": 3e-11,
+          "max": 5e-11,
+          "unit": "s"
+        },
+        "reasoning": "The paper's 2 ps delay is extremely fast, likely representing an unloaded intrinsic gate delay in 180nm. With a realistic 10fF load in SKY130, 20-40 ps is expected."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not reported",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = sqrt(2 * un*Cox * W/L * (Itail/2)) = sqrt(2 * 270u * 10 * 227u) = 1.1 mS. Av = gm * Ron = 1.1mS * 1.45kOhm = 1.6 V/V. In dB: 20*log10(1.6) = 4.1 dB.",
+        "range": {
+          "min": 2,
+          "typical": 4,
+          "max": 8,
+          "unit": "dB"
+        },
+        "reasoning": "MCML buffers typically have very low voltage gain (just enough to restore logic levels) to maximize bandwidth."
+      },
+      "importance": "recommended"
+    },
+    "unity_gain_bw": {
+      "description": "Frequency at which the differential voltage gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 GHz (operating frequency)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Bandwidth is roughly 1 / (2 * pi * Ron * Cload) = 1 / (2 * pi * 1.45k * 10f) = 11 GHz. Unity gain bandwidth will be slightly higher than the 3dB bandwidth due to the low DC gain.",
+        "range": {
+          "min": 3000000000.0,
+          "typical": 8000000000.0,
+          "max": 15000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The circuit is designed for 10 Gb/s operation, requiring a bandwidth of at least 5-7 GHz to pass the fundamental frequency of the data."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure voltage swing, propagation delay, power consumption, DC gain, and unity-gain bandwidth of the MCML buffer.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_swing",
+      "propagation_delay",
+      "power_consumption",
+      "dc_gain",
+      "unity_gain_bw"
+    ],
+    "spice": "* MCML Buffer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmc1=5u L_xmc1=0.5u\n\nVVDD VDD 0 1.8\nVGND GND 0 0\nVVLOAD VLOAD 0 1.0\n\n* Differential inputs (Common mode = 1.2V, Swing = 0.4V single-ended)\nVD D 0 DC 1.2 AC 0.5 PULSE(1.0 1.4 100p 20p 20p 400p 1n)\nVDBAR D_BAR 0 DC 1.2 AC -0.5 PULSE(1.4 1.0 100p 20p 20p 400p 1n)\n\n* DUT\nXMN1 Q_BAR D NC NC sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXM2 Q_BAR GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 Q GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXMN2 Q D_BAR NC NC sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMC1 NC VLOAD GND GND sky130_fd_pr__nfet_01v8 l={L_xmc1} w={W_xmc1}\n\n* Load capacitance\nCL1 Q 0 10f\nCL2 Q_BAR 0 10f\n\n.control\n  * AC Analysis\n  ac dec 50 1Meg 100G\n  let vout_diff = v(Q) - v(Q_BAR)\n  let gain_mag = mag(vout_diff)\n  let gain_db = 20*log10(gain_mag)\n  meas ac dc_gain_db find gain_db at=1Meg\n  meas ac ugbw when gain_db=0 fall=1\n\n  * Transient Analysis\n  tran 1p 2n\n  meas tran v_high max v(Q)\n  meas tran v_low min v(Q)\n  let v_swing = v_high - v_low\n  print v_swing\n\n  * Delay measurement at differential crossing points\n  meas tran t_cross_in when v(D)=v(D_BAR) cross=1\n  meas tran t_cross_out when v(Q)=v(Q_BAR) cross=1\n  let t_delay = t_cross_out - t_cross_in\n  print t_delay\n\n  * Power measurement\n  meas tran i_vdd avg i(VVDD)\n  let power = -i_vdd * 1.8\n  print power\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"MOS Current Mode Logic (MCML) Buffer / Inverter\",\n    \"description\": \"A differential buffer/inverter using MOS Current Mode Logic (MCML). It features an NMOS differential pair with PMOS transistors operating in the linear region as active loads, biased by an NMOS tail current source.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"D\",\n        \"D_BAR\"\n      ],\n      \"output\": [\n        \"Q\",\n        \"Q_BAR\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VLOAD\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"0.18-m CMOS 10-Gb/s Multiplexer/Demultiplexer ICs Using Current Mode Logic with Tolerance to Threshold Voltage Fluctuation\",\n      \"figure\": \"Not specified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the single-ended output.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported for a single gate\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PMOS load resistance Ron = 1 / (up*Cox * W/L * (VDD - |Vth|)) = 1 / (50u * 10 * (1.8 - 0.42)) = 1.45 kOhm. Tail current Itail = 0.5 * un*Cox * W/L * (VLOAD - Vth)^2 = 0.5 * 270u * 10 * (1.0 - 0.42)^2 = 454 uA. Swing = Itail * Ron = 454uA * 1.45kOhm = 0.658 V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.65,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"MCML relies on reduced voltage swings to achieve high-speed switching. The swing is determined by the tail current and the PMOS linear-region resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Static power dissipation of the buffer.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.4 W (for the entire MUX/DEMUX IC)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * Itail = 1.8 V * 454 uA = 0.817 mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.8e-3,\n          \"max\": 1.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Unlike standard CMOS, MCML draws a constant static current (Itail) from the supply, making power consumption independent of switching frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Time delay between the input differential crossing and the output differential crossing.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2 ps\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Time constant tau = Ron * Cload = 1.45 kOhm * 10 fF = 14.5 ps. Including intrinsic parasitic capacitances, the delay will be slightly higher.\",\n        \"range\": {\n          \"min\": 15e-12,\n          \"typical\": 30e-12,\n          \"max\": 50e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The paper's 2 ps delay is extremely fast, likely representing an unloaded intrinsic gate delay in 180nm. With a realistic 10fF load in SKY130, 20-40 ps is expected.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not reported\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = sqrt(2 * un*Cox * W/L * (Itail/2)) = sqrt(2 * 270u * 10 * 227u) = 1.1 mS. Av = gm * Ron = 1.1mS * 1.45kOhm = 1.6 V/V. In dB: 20*log10(1.6) = 4.1 dB.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 4,\n          \"max\": 8,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"MCML buffers typically have very low voltage gain (just enough to restore logic levels) to maximize bandwidth.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"unity_gain_bw\": {\n      \"description\": \"Frequency at which the differential voltage gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 GHz (operating frequency)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bandwidth is roughly 1 / (2 * pi * Ron * Cload) = 1 / (2 * pi * 1.45k * 10f) = 11 GHz. Unity gain bandwidth will be slightly higher than the 3dB bandwidth due to the low DC gain.\",\n        \"range\": {\n          \"min\": 3e9,\n          \"typical\": 8e9,\n          \"max\": 15e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The circuit is designed for 10 Gb/s operation, requiring a bandwidth of at least 5-7 GHz to pass the fundamental frequency of the data.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure voltage swing, propagation delay, power consumption, DC gain, and unity-gain bandwidth of the MCML buffer.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_swing\",\n      \"propagation_delay\",\n      \"power_consumption\",\n      \"dc_gain\",\n      \"unity_gain_bw\"\n    ],\n    \"spice\": \"* MCML Buffer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmc1=5u L_xmc1=0.5u\\n\\nVVDD VDD 0 1.8\\nVGND GND 0 0\\nVVLOAD VLOAD 0 1.0\\n\\n* Differential inputs (Common mode = 1.2V, Swing = 0.4V single-ended)\\nVD D 0 DC 1.2 AC 0.5 PULSE(1.0 1.4 100p 20p 20p 400p 1n)\\nVDBAR D_BAR 0 DC 1.2 AC -0.5 PULSE(1.4 1.0 100p 20p 20p 400p 1n)\\n\\n* DUT\\nXMN1 Q_BAR D NC NC sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXM2 Q_BAR GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 Q GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXMN2 Q D_BAR NC NC sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMC1 NC VLOAD GND GND sky130_fd_pr__nfet_01v8 l={L_xmc1} w={W_xmc1}\\n\\n* Load capacitance\\nCL1 Q 0 10f\\nCL2 Q_BAR 0 10f\\n\\n.control\\n  * AC Analysis\\n  ac dec 50 1Meg 100G\\n  let vout_diff = v(Q) - v(Q_BAR)\\n  let gain_mag = mag(vout_diff)\\n  let gain_db = 20*log10(gain_mag)\\n  meas ac dc_gain_db find gain_db at=1Meg\\n  meas ac ugbw when gain_db=0 fall=1\\n\\n  * Transient Analysis\\n  tran 1p 2n\\n  meas tran v_high max v(Q)\\n  meas tran v_low min v(Q)\\n  let v_swing = v_high - v_low\\n  print v_swing\\n\\n  * Delay measurement at differential crossing points\\n  meas tran t_cross_in when v(D)=v(D_BAR) cross=1\\n  meas tran t_cross_out when v(Q)=v(Q_BAR) cross=1\\n  let t_delay = t_cross_out - t_cross_in\\n  print t_delay\\n\\n  * Power measurement\\n  meas tran i_vdd avg i(VVDD)\\n  let power = -i_vdd * 1.8\\n  print power\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "924861",
+  "_case": "924861_image_1_b"
+}

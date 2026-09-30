@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Clocked pseudo-differential amplifier / switch driver",
+    "description": "A synchronized switch driver or dynamic latch used in current-steering DACs. It features a clocked pseudo-differential input pair and a cross-coupled NMOS load that acts as a swing-limiting clamp to adjust the crossing point and increase switching speed.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN",
+        "CLK"
+      ],
+      "output": [
+        "N3",
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10-bit 1-GSample/s Nyquist Current-Steering CMOS D/A Converter",
+      "figure": "Not specified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "gain": {
+      "description": "Differential AC voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "61 dB (Note: likely refers to DAC SFDR, but gain is measured here)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm ~ 1mS (at 200uA bias). Rload = 5k (added for testability). Gain = gm * Rload = 5 V/V = 14 dB.",
+        "range": {
+          "min": 10,
+          "typical": 14,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Based on the gm of the input pair and the 5k pull-up resistors added to establish a DC operating point."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz (operating frequency)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rload * Cload). Rload = 5k, Cload ~ 20fF -> BW ~ 1.6 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 1600000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Limited by the RC time constant of the output nodes with the added 5k load and parasitic capacitances."
+      },
+      "importance": "essential"
+    },
+    "power_dc": {
+      "description": "DC power consumption when CLK is high",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "110 mW (for entire DAC)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id ~ 200uA per branch. Total current ~ 400uA. Power = 1.8V * 400uA = 0.72 mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.00072,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "Calculated from the saturation current of the input pair with 0.9V DC bias."
+      },
+      "importance": "essential"
+    },
+    "v_swing": {
+      "description": "Peak-to-peak output voltage swing during switching",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.1 V (possible crossing point or LSB)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Max voltage is 1.8V. Min voltage is clamped by the cross-coupled NMOS (XM5/XM6) turning on when V(N4)-V(N3) > Vth. Clamps at ~0.5V. Swing = 1.8 - 0.5 = 1.3V.",
+        "range": {
+          "min": 0.8,
+          "typical": 1.3,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "The cross-coupled NMOS transistors act as active clamps, preventing the output from fully discharging to 0V."
+      },
+      "importance": "essential"
+    },
+    "t_delay": {
+      "description": "Propagation delay from CLK rise to output fall",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_discharge ~ 1mA, C ~ 20fF. dV/dt = 50 V/ns. Time to drop 0.9V is ~18ps + intrinsic delay ~ 40ps.",
+        "range": {
+          "min": 2e-11,
+          "typical": 4e-11,
+          "max": 1e-10,
+          "unit": "s"
+        },
+        "reasoning": "High-speed switch drivers are designed for minimal delay to support 1 GS/s operation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, bandwidth, transient voltage swing, and propagation delay of the clocked switch driver.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_dc",
+      "gain",
+      "bandwidth",
+      "v_swing",
+      "t_delay",
+      "dyn_power"
+    ],
+    "spice": "* Clocked Switch Driver Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 N3 INP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N2 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N4 INN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VDD N4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VDD N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* Pull-up resistors added to provide DC path and baseline swing\nR1 N3 VDD 5k\nR2 N4 VDD 5k\n\nVVDD VDD 0 1.8\nVINP INP 0 DC 0.9 AC 1 PULSE(1.8 0 0 50p 50p 2n 4n)\nVINN INN 0 DC 0.9 AC -1 PULSE(0 1.8 0 50p 50p 2n 4n)\nVCLK CLK 0 DC 1.8 PULSE(0 1.8 0.5n 50p 50p 0.4n 1n)\n\n.control\n  * DC Operating Point\n  op\n  let power_dc = -i(VVDD) * 1.8\n  print power_dc\n\n  * AC Analysis\n  ac dec 50 1Meg 100G\n  let gain_db = vdb(N3)\n  meas ac max_gain find gain_db at=1Meg\n  let gain_3db = max_gain - 3\n  meas ac bw when gain_db=gain_3db fall=1\n\n  * Transient Analysis\n  tran 10p 3n\n  meas tran v_max max v(N3)\n  meas tran v_min min v(N3)\n  let v_swing = v_max - v_min\n  print v_swing\n  \n  meas tran t_delay trig v(CLK) val=0.9 rise=1 targ v(N3) val=0.9 fall=1\n  \n  meas tran avg_current avg i(VVDD) from=0 to=3n\n  let dyn_power = -avg_current * 1.8\n  print dyn_power\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Clocked pseudo-differential amplifier / switch driver\",\n    \"description\": \"A synchronized switch driver or dynamic latch used in current-steering DACs. It features a clocked pseudo-differential input pair and a cross-coupled NMOS load that acts as a swing-limiting clamp to adjust the crossing point and increase switching speed.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INN\",\n        \"CLK\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10-bit 1-GSample/s Nyquist Current-Steering CMOS D/A Converter\",\n      \"figure\": \"Not specified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"gain\": {\n      \"description\": \"Differential AC voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"61 dB (Note: likely refers to DAC SFDR, but gain is measured here)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm ~ 1mS (at 200uA bias). Rload = 5k (added for testability). Gain = gm * Rload = 5 V/V = 14 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 14,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on the gm of the input pair and the 5k pull-up resistors added to establish a DC operating point.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz (operating frequency)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rload * Cload). Rload = 5k, Cload ~ 20fF -> BW ~ 1.6 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 1.6e9,\n          \"max\": 5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Limited by the RC time constant of the output nodes with the added 5k load and parasitic capacitances.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dc\": {\n      \"description\": \"DC power consumption when CLK is high\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"110 mW (for entire DAC)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id ~ 200uA per branch. Total current ~ 400uA. Power = 1.8V * 400uA = 0.72 mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.72e-3,\n          \"max\": 2e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated from the saturation current of the input pair with 0.9V DC bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_swing\": {\n      \"description\": \"Peak-to-peak output voltage swing during switching\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.1 V (possible crossing point or LSB)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Max voltage is 1.8V. Min voltage is clamped by the cross-coupled NMOS (XM5/XM6) turning on when V(N4)-V(N3) > Vth. Clamps at ~0.5V. Swing = 1.8 - 0.5 = 1.3V.\",\n        \"range\": {\n          \"min\": 0.8,\n          \"typical\": 1.3,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The cross-coupled NMOS transistors act as active clamps, preventing the output from fully discharging to 0V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_delay\": {\n      \"description\": \"Propagation delay from CLK rise to output fall\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_discharge ~ 1mA, C ~ 20fF. dV/dt = 50 V/ns. Time to drop 0.9V is ~18ps + intrinsic delay ~ 40ps.\",\n        \"range\": {\n          \"min\": 20e-12,\n          \"typical\": 40e-12,\n          \"max\": 100e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"High-speed switch drivers are designed for minimal delay to support 1 GS/s operation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, bandwidth, transient voltage swing, and propagation delay of the clocked switch driver.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_dc\",\n      \"gain\",\n      \"bandwidth\",\n      \"v_swing\",\n      \"t_delay\",\n      \"dyn_power\"\n    ],\n    \"spice\": \"* Clocked Switch Driver Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 N3 INP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N2 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N4 INN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VDD N4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VDD N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Pull-up resistors added to provide DC path and baseline swing\\nR1 N3 VDD 5k\\nR2 N4 VDD 5k\\n\\nVVDD VDD 0 1.8\\nVINP INP 0 DC 0.9 AC 1 PULSE(1.8 0 0 50p 50p 2n 4n)\\nVINN INN 0 DC 0.9 AC -1 PULSE(0 1.8 0 50p 50p 2n 4n)\\nVCLK CLK 0 DC 1.8 PULSE(0 1.8 0.5n 50p 50p 0.4n 1n)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power_dc = -i(VVDD) * 1.8\\n  print power_dc\\n\\n  * AC Analysis\\n  ac dec 50 1Meg 100G\\n  let gain_db = vdb(N3)\\n  meas ac max_gain find gain_db at=1Meg\\n  let gain_3db = max_gain - 3\\n  meas ac bw when gain_db=gain_3db fall=1\\n\\n  * Transient Analysis\\n  tran 10p 3n\\n  meas tran v_max max v(N3)\\n  meas tran v_min min v(N3)\\n  let v_swing = v_max - v_min\\n  print v_swing\\n  \\n  meas tran t_delay trig v(CLK) val=0.9 rise=1 targ v(N3) val=0.9 fall=1\\n  \\n  meas tran avg_current avg i(VVDD) from=0 to=3n\\n  let dyn_power = -avg_current * 1.8\\n  print dyn_power\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "910469",
+  "_case": "910469_image_6_a"
+}

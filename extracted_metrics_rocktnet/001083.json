@@ -1,0 +1,141 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Tank / Resonator",
+    "description": "A parallel LC tank circuit with parasitic series resistances for the inductor and capacitor, representing the passive resonator core of an LC-VCO.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "N2"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low-Power Low-Phase-Noise Differentially Tuned Quadrature VCO Design in Standard CMOS",
+      "figure": "Fig. 1",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Resonant Frequency (f_res)": {
+      "description": "The frequency at which the tank impedance is purely resistive (phase = 0).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.71 to 1.99 GHz",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_res = 1 / (2 * pi * sqrt(L * C)). With L=1nH and C=7.4pF, f_res is approximately 1.85 GHz.",
+        "range": {
+          "min": 1700000000.0,
+          "typical": 1850000000.0,
+          "max": 2000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Targeted to match the paper's operating frequency range."
+      },
+      "importance": "essential"
+    },
+    "Quality Factor (Q)": {
+      "description": "The ratio of energy stored to energy dissipated per cycle, determining the phase noise performance of the VCO.",
+      "unit": "dimensionless",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported, but high-Q is implied for -143 dBc/Hz phase noise.",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Q = f_res / BW_3dB. Dominated by inductor Q = wL / R_L.",
+        "range": {
+          "min": 8,
+          "typical": 10,
+          "max": 15,
+          "unit": ""
+        },
+        "reasoning": "Typical Q factor for integrated spiral inductors in standard CMOS processes like SKY130."
+      },
+      "importance": "essential"
+    },
+    "Parallel Equivalent Resistance (Rp)": {
+      "description": "The maximum impedance magnitude at resonance, which determines the required negative resistance (gm) to sustain oscillation.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Rp = Q * w * L. With Q=10, w=2*pi*1.85e9, L=1nH, Rp is approx 116 ohms.",
+        "range": {
+          "min": 100,
+          "typical": 116,
+          "max": 200,
+          "unit": "ohm"
+        },
+        "reasoning": "Derived from the expected Q factor and inductance value."
+      },
+      "importance": "essential"
+    },
+    "Phase Noise": {
+      "description": "Single sideband phase noise at a specific offset frequency.",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-143 dBc/Hz @ 3MHz",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for passive tank.",
+        "range": {
+          "min": -145,
+          "typical": -143,
+          "max": -135,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Cannot be measured on a passive tank alone, requires the full active VCO core."
+      },
+      "importance": "optional"
+    },
+    "Power Consumption": {
+      "description": "Total DC power dissipated by the VCO core.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "20 mW",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for passive tank.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.02,
+          "max": 0.03,
+          "unit": "W"
+        },
+        "reasoning": "Cannot be measured on a passive tank alone."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the resonant frequency, quality factor, and parallel equivalent resistance of the LC tank using an AC current source to extract the impedance profile.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "Resonant Frequency",
+      "Quality Factor",
+      "Parallel Equivalent Resistance"
+    ],
+    "spice": "* LC Tank Impedance Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param L_val = 1n\n.param C_val = 7.4p\n.param RL_val = 1.16\n.param RC_val = 0.1\n.param R_val = 10k\n\n* DUT\nC N1 N3 {C_val}\nR_C N3 N2 {RC_val}\nL N1 N4 {L_val}\nR_L N4 N2 {RL_val}\nR N1 N2 {R_val}\n\n* Stimulus\nV_N2 N2 0 dc 0\nI_test 0 N1 dc 0 ac 1\n\n.control\nac dec 1000 100M 10G\n\nlet z_mag = mag(v(N1))\nlet z_phase = 180/PI * cph(v(N1))\n\n* Measure maximum impedance (Parallel Equivalent Resistance Rp)\nmeas ac z_max max z_mag\n\n* Measure resonant frequency (where phase crosses 0)\nmeas ac f_res when z_phase=0 fall=1\n\n* Measure -3dB bandwidth using +/- 45 degree phase points\nmeas ac f_low when z_phase=45 fall=1\nmeas ac f_high when z_phase=-45 fall=1\n\n* Calculate Quality Factor (Q)\nlet bw = f_high - f_low\nlet q_factor = f_res / bw\n\nprint f_res z_max q_factor\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Tank / Resonator\",\n    \"description\": \"A parallel LC tank circuit with parasitic series resistances for the inductor and capacitor, representing the passive resonator core of an LC-VCO.\",\n    \"node_mapping\": {\n      \"input\": [\"N1\"],\n      \"output\": [\"N1\"],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\"N2\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low-Power Low-Phase-Noise Differentially Tuned Quadrature VCO Design in Standard CMOS\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Resonant Frequency (f_res)\": {\n      \"description\": \"The frequency at which the tank impedance is purely resistive (phase = 0).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.71 to 1.99 GHz\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_res = 1 / (2 * pi * sqrt(L * C)). With L=1nH and C=7.4pF, f_res is approximately 1.85 GHz.\",\n        \"range\": {\n          \"min\": 1.7e9,\n          \"typical\": 1.85e9,\n          \"max\": 2.0e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Targeted to match the paper's operating frequency range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Quality Factor (Q)\": {\n      \"description\": \"The ratio of energy stored to energy dissipated per cycle, determining the phase noise performance of the VCO.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported, but high-Q is implied for -143 dBc/Hz phase noise.\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q = f_res / BW_3dB. Dominated by inductor Q = wL / R_L.\",\n        \"range\": {\n          \"min\": 8,\n          \"typical\": 10,\n          \"max\": 15,\n          \"unit\": \"\"\n        },\n        \"reasoning\": \"Typical Q factor for integrated spiral inductors in standard CMOS processes like SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Parallel Equivalent Resistance (Rp)\": {\n      \"description\": \"The maximum impedance magnitude at resonance, which determines the required negative resistance (gm) to sustain oscillation.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rp = Q * w * L. With Q=10, w=2*pi*1.85e9, L=1nH, Rp is approx 116 ohms.\",\n        \"range\": {\n          \"min\": 100,\n          \"typical\": 116,\n          \"max\": 200,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Derived from the expected Q factor and inductance value.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase Noise\": {\n      \"description\": \"Single sideband phase noise at a specific offset frequency.\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-143 dBc/Hz @ 3MHz\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for passive tank.\",\n        \"range\": {\n          \"min\": -145,\n          \"typical\": -143,\n          \"max\": -135,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"Cannot be measured on a passive tank alone, requires the full active VCO core.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power dissipated by the VCO core.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"20 mW\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for passive tank.\",\n        \"range\": {\n          \"min\": 10e-3,\n          \"typical\": 20e-3,\n          \"max\": 30e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Cannot be measured on a passive tank alone.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the resonant frequency, quality factor, and parallel equivalent resistance of the LC tank using an AC current source to extract the impedance profile.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Resonant Frequency\",\n      \"Quality Factor\",\n      \"Parallel Equivalent Resistance\"\n    ],\n    \"spice\": \"* LC Tank Impedance Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param L_val = 1n\\n.param C_val = 7.4p\\n.param RL_val = 1.16\\n.param RC_val = 0.1\\n.param R_val = 10k\\n\\n* DUT\\nC N1 N3 {C_val}\\nR_C N3 N2 {RC_val}\\nL N1 N4 {L_val}\\nR_L N4 N2 {RL_val}\\nR N1 N2 {R_val}\\n\\n* Stimulus\\nV_N2 N2 0 dc 0\\nI_test 0 N1 dc 0 ac 1\\n\\n.control\\nac dec 1000 100M 10G\\n\\nlet z_mag = mag(v(N1))\\nlet z_phase = 180/PI * cph(v(N1))\\n\\n* Measure maximum impedance (Parallel Equivalent Resistance Rp)\\nmeas ac z_max max z_mag\\n\\n* Measure resonant frequency (where phase crosses 0)\\nmeas ac f_res when z_phase=0 fall=1\\n\\n* Measure -3dB bandwidth using +/- 45 degree phase points\\nmeas ac f_low when z_phase=45 fall=1\\nmeas ac f_high when z_phase=-45 fall=1\\n\\n* Calculate Quality Factor (Q)\\nlet bw = f_high - f_low\\nlet q_factor = f_res / bw\\n\\nprint f_res z_max q_factor\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "933456",
+  "_case": "933456_image_1"
+}

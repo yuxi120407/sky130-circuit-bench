@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current Mode Logic (CML) Latch / Clocked Comparator",
+    "description": "A high-speed CML latch used as a quantizer in a continuous-time delta-sigma modulator. It consists of an input tracking pair and a cross-coupled latching pair sharing the same output nodes, driven by a clocked tail current steering mechanism and a cascode bias.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INM"
+      ],
+      "output": [
+        "OUTP",
+        "OUTM"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_3",
+        "LABEL_NET_4"
+      ],
+      "clock": [
+        "CLK",
+        "CLKB"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2-GHz Analog-to-Digital Delta-Sigma Modulator for CDMA Receivers With 79-dB Signal-to-Noise Ratio in 1.23-MHz Bandwidth",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Average power consumption of the latch circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "18 mW (entire ADC)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current I_tail \u2248 0.5 * u_n * C_ox * (W/L) * (V_bias - V_th)^2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2 \u2248 311 uA. Power = I_tail * VDD = 311 uA * 1.8 V \u2248 0.56 mW.",
+        "range": {
+          "min": "0.4m",
+          "typical": "0.6m",
+          "max": "1.0m",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the 0.9V bias voltage and SKY130 NMOS parameters. The paper's 18mW is for the full ADC; a single CML latch consumes a small fraction of that."
+      },
+      "importance": "essential"
+    },
+    "clk_to_q_delay": {
+      "description": "Delay from the active clock edge to the differential output crossing zero",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant at the output nodes. Assuming R_load = 1 kOhm and C_load \u2248 25 fF (parasitics for W=5u L=0.5u). tau = 25 ps. Delay is typically 2-3 tau \u2248 50-75 ps.",
+        "range": {
+          "min": "30p",
+          "typical": "60p",
+          "max": "120p",
+          "unit": "s"
+        },
+        "reasoning": "Standard delay for a CML latch in 130nm technology operating at 2 GHz. Must be significantly less than the 250ps half-period."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Single-ended peak-to-peak voltage swing at the output nodes",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_load. With I_tail \u2248 311 uA and R_load = 1 kOhm, Swing \u2248 311 mV.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.3",
+          "max": "0.5",
+          "unit": "V"
+        },
+        "reasoning": "CML logic typically uses reduced swings (300-500mV) to maximize switching speed while keeping transistors in saturation."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "Maximum clock frequency at which the latch functions correctly",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_max \u2248 1 / (4 * delay) \u2248 1 / 240ps \u2248 4 GHz. 2 GHz is well within the capability.",
+        "range": {
+          "min": "2G",
+          "typical": "3G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "The paper specifies a 2 GHz sampling rate for the modulator. The testbench verifies operation at this frequency."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify latching function at 2 GHz, measure CLK-to-Q delay, output swing, and power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "clk_to_q_delay",
+      "output_swing",
+      "power_consumption"
+    ],
+    "spice": "* CML Latch Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n* Supply and CML Load Resistors\nVVDD VDD 0 1.8\nR1 VDD OUTP 1k\nR2 VDD OUTM 1k\n\n* Bias Voltages\nVLABEL_NET_3 LABEL_NET_3 0 0.9\nVLABEL_NET_4 LABEL_NET_4 0 0.9\n\n* Differential Input (Toggles at 1 GHz, offset to change during hold phase)\nVINP INP 0 PULSE(0.7 1.1 400p 20p 20p 480p 1000p)\nVINM INM 0 PULSE(1.1 0.7 400p 20p 20p 480p 1000p)\n\n* Differential Clock (2 GHz)\nVCLK CLK 0 PULSE(0 1.8 0 20p 20p 230p 500p)\nVCLKB CLKB 0 PULSE(1.8 0 0 20p 20p 230p 500p)\n\n* DUT\nXM1 OUTP OUTM N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUTP INM N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 OUTM OUTP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTM INP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 CLKB N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N0 LABEL_NET_4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N2 CLK N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\ntran 2p 3n\n\n* Calculate differential output\nlet vdiff = v(outp) - v(outm)\n\n* Measure CLK-to-Q delay (from 2nd rising edge of CLK at 500ps to output crossing 0)\nmeas tran delay_clk_q trig v(clk) val=0.9 rise=2 targ vdiff val=0 rise=1\n\n* Measure single-ended output swing\nmeas tran out_max max v(outp) from=1n to=3n\nmeas tran out_min min v(outp) from=1n to=3n\nlet swing = out_max - out_min\nprint swing\n\n* Measure average power consumption\nmeas tran pwr_avg avg i(VVDD)\nlet power = -pwr_avg * 1.8\nprint power\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current Mode Logic (CML) Latch / Clocked Comparator\",\n    \"description\": \"A high-speed CML latch used as a quantizer in a continuous-time delta-sigma modulator. It consists of an input tracking pair and a cross-coupled latching pair sharing the same output nodes, driven by a clocked tail current steering mechanism and a cascode bias.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INM\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTM\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_3\",\n        \"LABEL_NET_4\"\n      ],\n      \"clock\": [\n        \"CLK\",\n        \"CLKB\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2-GHz Analog-to-Digital Delta-Sigma Modulator for CDMA Receivers With 79-dB Signal-to-Noise Ratio in 1.23-MHz Bandwidth\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the latch circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"18 mW (entire ADC)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current I_tail \u2248 0.5 * u_n * C_ox * (W/L) * (V_bias - V_th)^2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2 \u2248 311 uA. Power = I_tail * VDD = 311 uA * 1.8 V \u2248 0.56 mW.\",\n        \"range\": {\n          \"min\": \"0.4m\",\n          \"typical\": \"0.6m\",\n          \"max\": \"1.0m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the 0.9V bias voltage and SKY130 NMOS parameters. The paper's 18mW is for the full ADC; a single CML latch consumes a small fraction of that.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"clk_to_q_delay\": {\n      \"description\": \"Delay from the active clock edge to the differential output crossing zero\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant at the output nodes. Assuming R_load = 1 kOhm and C_load \u2248 25 fF (parasitics for W=5u L=0.5u). tau = 25 ps. Delay is typically 2-3 tau \u2248 50-75 ps.\",\n        \"range\": {\n          \"min\": \"30p\",\n          \"typical\": \"60p\",\n          \"max\": \"120p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard delay for a CML latch in 130nm technology operating at 2 GHz. Must be significantly less than the 250ps half-period.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Single-ended peak-to-peak voltage swing at the output nodes\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_load. With I_tail \u2248 311 uA and R_load = 1 kOhm, Swing \u2248 311 mV.\",\n        \"range\": {\n          \"min\": \"0.2\",\n          \"typical\": \"0.3\",\n          \"max\": \"0.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CML logic typically uses reduced swings (300-500mV) to maximize switching speed while keeping transistors in saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Maximum clock frequency at which the latch functions correctly\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_max \u2248 1 / (4 * delay) \u2248 1 / 240ps \u2248 4 GHz. 2 GHz is well within the capability.\",\n        \"range\": {\n          \"min\": \"2G\",\n          \"typical\": \"3G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The paper specifies a 2 GHz sampling rate for the modulator. The testbench verifies operation at this frequency.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify latching function at 2 GHz, measure CLK-to-Q delay, output swing, and power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"clk_to_q_delay\",\n      \"output_swing\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* CML Latch Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n* Supply and CML Load Resistors\\nVVDD VDD 0 1.8\\nR1 VDD OUTP 1k\\nR2 VDD OUTM 1k\\n\\n* Bias Voltages\\nVLABEL_NET_3 LABEL_NET_3 0 0.9\\nVLABEL_NET_4 LABEL_NET_4 0 0.9\\n\\n* Differential Input (Toggles at 1 GHz, offset to change during hold phase)\\nVINP INP 0 PULSE(0.7 1.1 400p 20p 20p 480p 1000p)\\nVINM INM 0 PULSE(1.1 0.7 400p 20p 20p 480p 1000p)\\n\\n* Differential Clock (2 GHz)\\nVCLK CLK 0 PULSE(0 1.8 0 20p 20p 230p 500p)\\nVCLKB CLKB 0 PULSE(1.8 0 0 20p 20p 230p 500p)\\n\\n* DUT\\nXM1 OUTP OUTM N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUTP INM N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 OUTM OUTP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTM INP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 CLKB N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N0 LABEL_NET_4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N2 CLK N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\ntran 2p 3n\\n\\n* Calculate differential output\\nlet vdiff = v(outp) - v(outm)\\n\\n* Measure CLK-to-Q delay (from 2nd rising edge of CLK at 500ps to output crossing 0)\\nmeas tran delay_clk_q trig v(clk) val=0.9 rise=2 targ vdiff val=0 rise=1\\n\\n* Measure single-ended output swing\\nmeas tran out_max max v(outp) from=1n to=3n\\nmeas tran out_min min v(outp) from=1n to=3n\\nlet swing = out_max - out_min\\nprint swing\\n\\n* Measure average power consumption\\nmeas tran pwr_avg avg i(VVDD)\\nlet power = -pwr_avg * 1.8\\nprint power\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1347313",
+  "_case": "1347313_image_8"
+}

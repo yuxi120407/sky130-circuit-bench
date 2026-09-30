@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Voltage Controlled Oscillator (VCO)",
+    "description": "A differential LC VCO core with a beta-helper current mirror for biasing. The LC tank uses varactors for frequency tuning, and the active devices provide the necessary negative resistance (or act as a tuned amplifier if feedback is external).",
+    "node_mapping": {
+      "input": [
+        "Vtune"
+      ],
+      "output": [
+        "OUT-",
+        "OUT+"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "VBB",
+        "N_BIAS",
+        "N_I1"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.5-Mb/s GFSK 5.0-Mb/s 4-FSK Automatically Calibrated \u2013 Frequency Synthesizer",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "operating_frequency": {
+      "description": "The oscillation or resonance frequency of the LC tank.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.8 GHz",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). Assuming L=1nH and C=7.8pF (varactor + parasitics), f ~ 1.8 GHz.",
+        "range": {
+          "min": "1.6G",
+          "typical": "1.8G",
+          "max": "2.0G",
+          "unit": "Hz"
+        },
+        "reasoning": "The tank components are chosen to target the paper's 1.8 GHz frequency."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "DC power consumed by the VCO core.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1 W (likely for entire PLL/chip)",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_bias ~ 1mA per branch. Total current ~ 3mA. P = 1.8V * 3mA = 5.4mW.",
+        "range": {
+          "min": "1m",
+          "typical": "5m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "A typical LC VCO in 1.8V consumes around 5-10 mW. The 1W figure from the paper is for the entire system."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Phase noise at a specific offset (e.g., 1 MHz).",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "Not explicitly listed, but standard for VCOs",
+        "technology": "0.6um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Typical LC VCO phase noise in 130nm is around -110 to -120 dBc/Hz at 1MHz offset.",
+        "range": {
+          "min": "-130",
+          "typical": "-115",
+          "max": "-100",
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Based on standard performance of LC VCOs in 130nm CMOS."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the resonance frequency of the LC tank using AC analysis and the DC power consumption. Missing component values are parameterized to hit the 1.8 GHz target, and NPNs are mapped to SKY130 NMOS.",
+    "analyses": [
+      "AC",
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "operating_frequency",
+      "power_consumption"
+    ],
+    "spice": "* VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_m=50u L_m=0.15u\n.param L_val=1n C_val=7.8p\n\n* Power supplies\nVCC VCC 0 1.8\nVEE VEE 0 0\nVtune Vtune 0 0.9\nVVBB VBB 0 0.75\n\n* DUT with missing values filled and NPN mapped to NMOS\nL1 VCC OUT- {L_val}\nL2 VCC OUT+ {L_val}\nCR1 OUT- Vtune {C_val}\nCR2 OUT+ Vtune {C_val}\nM1 OUT- VBB N_Q1 VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\nM2 OUT+ VBB N_Q2 VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\nM3 N_Q1 N_BIAS VEE VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\nM4 N_Q2 N_BIAS VEE VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\nI1 VCC N_I1 1m\nM5 VCC N_I1 N_BIAS VEE sky130_fd_pr__nfet_01v8 W=10u L={L_m}\nM6 N_I1 N_BIAS VEE VEE sky130_fd_pr__nfet_01v8 W=10u L={L_m}\nC1 N_Q1 VCC 2.793p\nC2 N_Q2 VCC 2.793p\nC3a N_Q1 N_Q2 2.497p\nC3b N_Q1 N_Q2 2.497p\n\n* Damping resistor to prevent infinite Q in AC analysis\nR_tank OUT+ OUT- 1k\n\n* AC stimulus for resonance measurement\nIac OUT- OUT+ AC 1\n\n.control\n  op\n  let power = -i(VCC) * 1.8\n  print power\n  \n  ac dec 100 100Meg 10Gig\n  meas ac res_freq max_at v(OUT+)\n  \n  tran 10p 10n\n  meas tran v_max max v(OUT+)\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Voltage Controlled Oscillator (VCO)\",\n    \"description\": \"A differential LC VCO core with a beta-helper current mirror for biasing. The LC tank uses varactors for frequency tuning, and the active devices provide the necessary negative resistance (or act as a tuned amplifier if feedback is external).\",\n    \"node_mapping\": {\n      \"input\": [\"Vtune\"],\n      \"output\": [\"OUT-\", \"OUT+\"],\n      \"supply\": [\"VCC\"],\n      \"bias\": [\"VBB\", \"N_BIAS\", \"N_I1\"],\n      \"ground\": [\"VEE\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.5-Mb/s GFSK 5.0-Mb/s 4-FSK Automatically Calibrated \u2013 Frequency Synthesizer\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"operating_frequency\": {\n      \"description\": \"The oscillation or resonance frequency of the LC tank.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.8 GHz\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). Assuming L=1nH and C=7.8pF (varactor + parasitics), f ~ 1.8 GHz.\",\n        \"range\": { \"min\": \"1.6G\", \"typical\": \"1.8G\", \"max\": \"2.0G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"The tank components are chosen to target the paper's 1.8 GHz frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"DC power consumed by the VCO core.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1 W (likely for entire PLL/chip)\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_bias ~ 1mA per branch. Total current ~ 3mA. P = 1.8V * 3mA = 5.4mW.\",\n        \"range\": { \"min\": \"1m\", \"typical\": \"5m\", \"max\": \"10m\", \"unit\": \"W\" },\n        \"reasoning\": \"A typical LC VCO in 1.8V consumes around 5-10 mW. The 1W figure from the paper is for the entire system.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise at a specific offset (e.g., 1 MHz).\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed, but standard for VCOs\",\n        \"technology\": \"0.6um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Typical LC VCO phase noise in 130nm is around -110 to -120 dBc/Hz at 1MHz offset.\",\n        \"range\": { \"min\": \"-130\", \"typical\": \"-115\", \"max\": \"-100\", \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"Based on standard performance of LC VCOs in 130nm CMOS.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the resonance frequency of the LC tank using AC analysis and the DC power consumption. Missing component values are parameterized to hit the 1.8 GHz target, and NPNs are mapped to SKY130 NMOS.\",\n    \"analyses\": [\"AC\", \"OP\", \"Tran\"],\n    \"metrics_measured\": [\"operating_frequency\", \"power_consumption\"],\n    \"spice\": \"* VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_m=50u L_m=0.15u\\n.param L_val=1n C_val=7.8p\\n\\n* Power supplies\\nVCC VCC 0 1.8\\nVEE VEE 0 0\\nVtune Vtune 0 0.9\\nVVBB VBB 0 0.75\\n\\n* DUT with missing values filled and NPN mapped to NMOS\\nL1 VCC OUT- {L_val}\\nL2 VCC OUT+ {L_val}\\nCR1 OUT- Vtune {C_val}\\nCR2 OUT+ Vtune {C_val}\\nM1 OUT- VBB N_Q1 VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\\nM2 OUT+ VBB N_Q2 VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\\nM3 N_Q1 N_BIAS VEE VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\\nM4 N_Q2 N_BIAS VEE VEE sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\\nI1 VCC N_I1 1m\\nM5 VCC N_I1 N_BIAS VEE sky130_fd_pr__nfet_01v8 W=10u L={L_m}\\nM6 N_I1 N_BIAS VEE VEE sky130_fd_pr__nfet_01v8 W=10u L={L_m}\\nC1 N_Q1 VCC 2.793p\\nC2 N_Q2 VCC 2.793p\\nC3a N_Q1 N_Q2 2.497p\\nC3b N_Q1 N_Q2 2.497p\\n\\n* Damping resistor to prevent infinite Q in AC analysis\\nR_tank OUT+ OUT- 1k\\n\\n* AC stimulus for resonance measurement\\nIac OUT- OUT+ AC 1\\n\\n.control\\n  op\\n  let power = -i(VCC) * 1.8\\n  print power\\n  \\n  ac dec 100 100Meg 10Gig\\n  meas ac res_freq max_at v(OUT+)\\n  \\n  tran 10p 10n\\n  meas tran v_max max v(OUT+)\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "974542",
+  "_case": "974542_image_16"
+}

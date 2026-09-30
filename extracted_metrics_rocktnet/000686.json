@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Adaptive Bias Circuit",
+    "description": "An adaptive bias generation circuit consisting of a PMOS current mirror and NMOS source followers. It is designed to provide dynamic biasing for an upconversion mixer and RF amplifier to minimize quiescent power and provide current boost when needed.",
+    "node_mapping": {
+      "input": [
+        "N_M1_D",
+        "N_M2_G",
+        "N_M3_D",
+        "N_X1_C"
+      ],
+      "output": [
+        "DELTA_ICQ",
+        "N_BIAS",
+        "N_BIAS2",
+        "N_X2_C"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Digital-IF WCDMA Handset Transmitter IC in 0.25-m SiGe BiCMOS",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total power consumption of the transmitter IC (or this sub-circuit).",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "180 mW (max), 120 mW (backoff)",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "For this specific bias sub-circuit: I_total \u2248 I_M1 + I_M3 + I_XM2 + I_XM5 + I_XM6 + I_XM4 \u2248 10uA + 10uA + 8uA + 7uA + 3uA + 10uA = 48uA. Power = 48uA * 1.8V = 86.4uW.",
+        "range": {
+          "min": "50u",
+          "typical": "86u",
+          "max": "150u",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports the power for the entire TxIC. For this isolated bias circuit in SKY130, power is determined by the applied bias currents and loads."
+      },
+      "importance": "essential"
+    },
+    "mirror_ratio": {
+      "description": "Current transfer ratio of the PMOS current mirror (XM3 to XM4).",
+      "unit": "A/A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "XM3 and XM4 have identical W/L (5u/0.5u). Ratio = (W/L)_4 / (W/L)_3 = 1.",
+        "range": {
+          "min": "0.9",
+          "typical": "1.0",
+          "max": "1.1",
+          "unit": "A/A"
+        },
+        "reasoning": "Standard current mirror with matched devices should yield a ratio close to 1, subject to channel length modulation."
+      },
+      "importance": "essential"
+    },
+    "level_shift": {
+      "description": "Voltage drop across the NMOS source follower (XM5).",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Vgs = Vth + sqrt(2*I / (un*Cox*W/L)). Vth \u2248 0.42V. I \u2248 7uA. Vgs \u2248 0.42 + sqrt(2*7u / (270u * 10)) \u2248 0.42 + 0.07 = 0.49V.",
+        "range": {
+          "min": "0.4",
+          "typical": "0.5",
+          "max": "0.6",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the threshold voltage and overdrive of the NMOS device in SKY130."
+      },
+      "importance": "recommended"
+    },
+    "adaptive_bias_voltage": {
+      "description": "Output bias voltage at N_BIAS2 for a given control voltage at N_M2_G.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "At V_M2_G = 1.2V, XM2 sources ~8uA into 100k load -> V(N_X2_C) \u2248 0.8V. XM6 shifts this down by ~0.5V -> V(N_BIAS2) \u2248 0.3V.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.3",
+          "max": "0.5",
+          "unit": "V"
+        },
+        "reasoning": "Demonstrates the adaptive nature of the bias circuit translating a control voltage to a bias voltage."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the current mirror ratio, source follower level shift, and adaptive bias transfer characteristics.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "mirror_ratio",
+      "level_shift",
+      "adaptive_bias_voltage"
+    ],
+    "spice": "* Adaptive Bias Circuit Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 N_M1_D N_M1_D VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N_X2_C N_M2_G VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N_M3_D N_M3_D VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 DELTA_ICQ N_M3_D VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VDD N_X1_C N_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VDD N_X2_C N_BIAS2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\nVGND GND 0 0\nVVDD VDD 0 1.8\nI_M1 N_M1_D 0 10u\nV_M2_G N_M2_G 0 1.2\nI_M3 N_M3_D 0 10u\nV_X1_C N_X1_C 0 1.2\n\nR_X2_C N_X2_C 0 100k\nR_BIAS N_BIAS 0 100k\nR_BIAS2 N_BIAS2 0 100k\nV_DELTA DELTA_ICQ 0 0.9\n\n.control\n  op\n  let mirror_ratio = i(V_DELTA) / 10u\n  let level_shift = v(N_X1_C) - v(N_BIAS)\n  let pwr = -i(VVDD) * 1.8\n  print mirror_ratio level_shift pwr\n\n  dc V_M2_G 0 1.8 0.01\n  meas dc v_bias2_at_1v2 find v(N_BIAS2) when v(N_M2_G)=1.2\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Adaptive Bias Circuit\",\n    \"description\": \"An adaptive bias generation circuit consisting of a PMOS current mirror and NMOS source followers. It is designed to provide dynamic biasing for an upconversion mixer and RF amplifier to minimize quiescent power and provide current boost when needed.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N_M1_D\",\n        \"N_M2_G\",\n        \"N_M3_D\",\n        \"N_X1_C\"\n      ],\n      \"output\": [\n        \"DELTA_ICQ\",\n        \"N_BIAS\",\n        \"N_BIAS2\",\n        \"N_X2_C\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Digital-IF WCDMA Handset Transmitter IC in 0.25-m SiGe BiCMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total power consumption of the transmitter IC (or this sub-circuit).\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"180 mW (max), 120 mW (backoff)\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For this specific bias sub-circuit: I_total \u2248 I_M1 + I_M3 + I_XM2 + I_XM5 + I_XM6 + I_XM4 \u2248 10uA + 10uA + 8uA + 7uA + 3uA + 10uA = 48uA. Power = 48uA * 1.8V = 86.4uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"86u\",\n          \"max\": \"150u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports the power for the entire TxIC. For this isolated bias circuit in SKY130, power is determined by the applied bias currents and loads.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"mirror_ratio\": {\n      \"description\": \"Current transfer ratio of the PMOS current mirror (XM3 to XM4).\",\n      \"unit\": \"A/A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"XM3 and XM4 have identical W/L (5u/0.5u). Ratio = (W/L)_4 / (W/L)_3 = 1.\",\n        \"range\": {\n          \"min\": \"0.9\",\n          \"typical\": \"1.0\",\n          \"max\": \"1.1\",\n          \"unit\": \"A/A\"\n        },\n        \"reasoning\": \"Standard current mirror with matched devices should yield a ratio close to 1, subject to channel length modulation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"level_shift\": {\n      \"description\": \"Voltage drop across the NMOS source follower (XM5).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs = Vth + sqrt(2*I / (un*Cox*W/L)). Vth \u2248 0.42V. I \u2248 7uA. Vgs \u2248 0.42 + sqrt(2*7u / (270u * 10)) \u2248 0.42 + 0.07 = 0.49V.\",\n        \"range\": {\n          \"min\": \"0.4\",\n          \"typical\": \"0.5\",\n          \"max\": \"0.6\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the threshold voltage and overdrive of the NMOS device in SKY130.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"adaptive_bias_voltage\": {\n      \"description\": \"Output bias voltage at N_BIAS2 for a given control voltage at N_M2_G.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At V_M2_G = 1.2V, XM2 sources ~8uA into 100k load -> V(N_X2_C) \u2248 0.8V. XM6 shifts this down by ~0.5V -> V(N_BIAS2) \u2248 0.3V.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.3\",\n          \"max\": \"0.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Demonstrates the adaptive nature of the bias circuit translating a control voltage to a bias voltage.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the current mirror ratio, source follower level shift, and adaptive bias transfer characteristics.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"mirror_ratio\",\n      \"level_shift\",\n      \"adaptive_bias_voltage\"\n    ],\n    \"spice\": \"* Adaptive Bias Circuit Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 N_M1_D N_M1_D VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N_X2_C N_M2_G VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N_M3_D N_M3_D VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 DELTA_ICQ N_M3_D VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VDD N_X1_C N_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VDD N_X2_C N_BIAS2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVGND GND 0 0\\nVVDD VDD 0 1.8\\nI_M1 N_M1_D 0 10u\\nV_M2_G N_M2_G 0 1.2\\nI_M3 N_M3_D 0 10u\\nV_X1_C N_X1_C 0 1.2\\n\\nR_X2_C N_X2_C 0 100k\\nR_BIAS N_BIAS 0 100k\\nR_BIAS2 N_BIAS2 0 100k\\nV_DELTA DELTA_ICQ 0 0.9\\n\\n.control\\n  op\\n  let mirror_ratio = i(V_DELTA) / 10u\\n  let level_shift = v(N_X1_C) - v(N_BIAS)\\n  let pwr = -i(VVDD) * 1.8\\n  print mirror_ratio level_shift pwr\\n\\n  dc V_M2_G 0 1.8 0.01\\n  meas dc v_bias2_at_1v2 find v(N_BIAS2) when v(N_M2_G)=1.2\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362830",
+  "_case": "1362830_image_16"
+}

@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Voltage-Controlled Oscillator (VCO) Core / PMOS Cross-Coupled Pair",
+    "description": "This circuit is the active negative-resistance core of an all-PMOS LC voltage-controlled oscillator. The cross-coupled PMOS transistors provide the transconductance necessary to overcome the LC tank's losses and sustain oscillation.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0"
+      ],
+      "output": [
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N3"
+      ],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "The Impact of Device Type and Sizing on Phase Noise Mechanisms",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "Fundamental oscillation frequency of the VCO",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5.3 GHz",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). With L=1nH and C=1pF added in the testbench, f = 5.03 GHz.",
+        "range": {
+          "min": "4.8G",
+          "typical": "5.03G",
+          "max": "5.3G",
+          "unit": "Hz"
+        },
+        "reasoning": "Determined primarily by the LC tank components. Matches the paper's ~5 GHz target."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power dissipated by the oscillator",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "13.5 mW",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_tail = 1.8V * 7.5mA = 13.5 mW.",
+        "range": {
+          "min": "12m",
+          "typical": "13.5m",
+          "max": "15m",
+          "unit": "W"
+        },
+        "reasoning": "Tail current is explicitly set to 7.5mA to match the paper's reported power consumption at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "phase_noise_1MHz": {
+      "description": "Phase noise at 1 MHz offset from the carrier frequency",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-124 dBc/Hz",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Dependent on tank Q and device noise. Assuming similar Q and thermal noise floor.",
+        "range": {
+          "min": "-130",
+          "typical": "-120",
+          "max": "-110",
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "SKY130 PMOS devices have different flicker noise corners, but thermal-noise-dominated phase noise should be comparable."
+      },
+      "importance": "essential"
+    },
+    "output_amplitude": {
+      "description": "Peak-to-peak voltage swing of the differential output",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "V_swing \u2248 (4/pi) * I_tail * R_tank. With I_tail=7.5mA and R_tank=200 ohm, V_swing \u2248 1.9V.",
+        "range": {
+          "min": "1.0",
+          "typical": "1.8",
+          "max": "2.5",
+          "unit": "V"
+        },
+        "reasoning": "Amplitude is limited by the tail current and the equivalent parallel resistance of the LC tank."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the PMOS VCO core. It completes the cross-coupled pair by shorting the input label to the opposite drain, adds an LC tank and a tail current source, and runs a transient analysis to measure oscillation frequency, amplitude, and power.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "power_consumption",
+      "output_amplitude"
+    ],
+    "spice": "* PMOS VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=50u L_xm1=0.15u\n.param W_xm2=50u L_xm2=0.15u\n\n* DUT\nXM1 N0 LABEL_NET_0 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N0 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\n\n* Supply\nVVDD VDD 0 1.8\n\n* Short LABEL_NET_0 to N1 to complete the cross-coupled pair\nVshort LABEL_NET_0 N1 0\n\n* Tail current source (7.5mA for 13.5mW power)\nItail VDD N3 7.5m\n\n* LC Tank (Resonant frequency ~ 5.03 GHz)\nL1 N0 0 1n\nL2 N1 0 1n\nC1 N0 0 1p\nC2 N1 0 1p\nR1 N0 0 200\nR2 N1 0 200\n\n* Initial conditions to kickstart oscillation\n.ic v(N0)=0.5 v(N1)=-0.5\n\n.control\n  * Run transient analysis\n  tran 2p 5n uic\n  \n  * Measure Power Consumption\n  meas tran i_vdd avg i(VVDD) from=3n to=5n\n  let power = -i_vdd * 1.8\n  print power\n  \n  * Measure Oscillation Frequency\n  meas tran t1 trig v(N0) val=0 rise=10\n  meas tran t2 trig v(N0) val=0 rise=20\n  let osc_freq = 10 / (t2 - t1)\n  print osc_freq\n  \n  * Measure Output Amplitude (Peak-to-Peak)\n  meas tran v_max max v(N0) from=3n to=5n\n  meas tran v_min min v(N0) from=3n to=5n\n  let v_pp = v_max - v_min\n  print v_pp\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Voltage-Controlled Oscillator (VCO) Core / PMOS Cross-Coupled Pair\",\n    \"description\": \"This circuit is the active negative-resistance core of an all-PMOS LC voltage-controlled oscillator. The cross-coupled PMOS transistors provide the transconductance necessary to overcome the LC tank's losses and sustain oscillation.\",\n    \"node_mapping\": {\n      \"input\": [\"LABEL_NET_0\"],\n      \"output\": [\"N0\", \"N1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N3\"],\n      \"ground\": [\"0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"The Impact of Device Type and Sizing on Phase Noise Mechanisms\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"Fundamental oscillation frequency of the VCO\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5.3 GHz\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). With L=1nH and C=1pF added in the testbench, f = 5.03 GHz.\",\n        \"range\": { \"min\": \"4.8G\", \"typical\": \"5.03G\", \"max\": \"5.3G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Determined primarily by the LC tank components. Matches the paper's ~5 GHz target.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipated by the oscillator\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"13.5 mW\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_tail = 1.8V * 7.5mA = 13.5 mW.\",\n        \"range\": { \"min\": \"12m\", \"typical\": \"13.5m\", \"max\": \"15m\", \"unit\": \"W\" },\n        \"reasoning\": \"Tail current is explicitly set to 7.5mA to match the paper's reported power consumption at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise_1MHz\": {\n      \"description\": \"Phase noise at 1 MHz offset from the carrier frequency\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-124 dBc/Hz\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dependent on tank Q and device noise. Assuming similar Q and thermal noise floor.\",\n        \"range\": { \"min\": \"-130\", \"typical\": \"-120\", \"max\": \"-110\", \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"SKY130 PMOS devices have different flicker noise corners, but thermal-noise-dominated phase noise should be comparable.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_amplitude\": {\n      \"description\": \"Peak-to-peak voltage swing of the differential output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_swing \u2248 (4/pi) * I_tail * R_tank. With I_tail=7.5mA and R_tank=200 ohm, V_swing \u2248 1.9V.\",\n        \"range\": { \"min\": \"1.0\", \"typical\": \"1.8\", \"max\": \"2.5\", \"unit\": \"V\" },\n        \"reasoning\": \"Amplitude is limited by the tail current and the equivalent parallel resistance of the LC tank.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the PMOS VCO core. It completes the cross-coupled pair by shorting the input label to the opposite drain, adds an LC tank and a tail current source, and runs a transient analysis to measure oscillation frequency, amplitude, and power.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"oscillation_frequency\", \"power_consumption\", \"output_amplitude\"],\n    \"spice\": \"* PMOS VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=50u L_xm1=0.15u\\n.param W_xm2=50u L_xm2=0.15u\\n\\n* DUT\\nXM1 N0 LABEL_NET_0 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N0 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Supply\\nVVDD VDD 0 1.8\\n\\n* Short LABEL_NET_0 to N1 to complete the cross-coupled pair\\nVshort LABEL_NET_0 N1 0\\n\\n* Tail current source (7.5mA for 13.5mW power)\\nItail VDD N3 7.5m\\n\\n* LC Tank (Resonant frequency ~ 5.03 GHz)\\nL1 N0 0 1n\\nL2 N1 0 1n\\nC1 N0 0 1p\\nC2 N1 0 1p\\nR1 N0 0 200\\nR2 N1 0 200\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(N0)=0.5 v(N1)=-0.5\\n\\n.control\\n  * Run transient analysis\\n  tran 2p 5n uic\\n  \\n  * Measure Power Consumption\\n  meas tran i_vdd avg i(VVDD) from=3n to=5n\\n  let power = -i_vdd * 1.8\\n  print power\\n  \\n  * Measure Oscillation Frequency\\n  meas tran t1 trig v(N0) val=0 rise=10\\n  meas tran t2 trig v(N0) val=0 rise=20\\n  let osc_freq = 10 / (t2 - t1)\\n  print osc_freq\\n  \\n  * Measure Output Amplitude (Peak-to-Peak)\\n  meas tran v_max max v(N0) from=3n to=5n\\n  meas tran v_min min v(N0) from=3n to=5n\\n  let v_pp = v_max - v_min\\n  print v_pp\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1388625",
+  "_case": "1388625_image_12_a"
+}

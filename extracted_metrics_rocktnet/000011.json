@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Common-Source Amplifier / Level Shifter Branch",
+    "description": "This circuit is a common-source amplifier stage with a PMOS current source load. Transistor XM2 acts as a diode-connected device to generate a bias voltage, which is typically mirrored to XM1 to provide an active load for the NMOS input transistor XM3.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2",
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 250mV 7.5\u03bcW 61dB SNDR CMOS SC \u0394\u03a3 Modulator Using a Near-Threshold-Voltage-Biased CMOS Inverter Technique",
+      "figure": "27.4.2",
+      "year": 2011
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total static power dissipated by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "7.5\u03bcW (entire modulator)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 10uA bias current is applied to N2 and mirrored to N4. Total current = 20uA. Power = 1.8V * 20uA = 36uW.",
+        "range": {
+          "min": "20u",
+          "typical": "36u",
+          "max": "50u",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 nominal 1.8V supply and a standard 10uA bias current, which is much higher than the near-threshold 250mV operation in the paper."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency small-signal voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "gm3 = sqrt(2 * 270u * 10 * 10u) = 232uS. ro1 = ro3 = 1 / (0.1 * 10u) = 1M\u03a9. Rout = 500k\u03a9. Av = gm3 * Rout = 116 V/V = 41.3 dB.",
+        "range": {
+          "min": "35",
+          "typical": "41",
+          "max": "45",
+          "unit": "dB"
+        },
+        "reasoning": "Based on standard square-law approximations for SKY130 devices at 10uA bias."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency at which the open-loop voltage gain drops to 0 dB (1 V/V).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "UGF = gm3 / (2 * pi * Cload). With Cload = 1pF, UGF = 232uS / (2 * pi * 1pF) = 36.9 MHz.",
+        "range": {
+          "min": "20M",
+          "typical": "37M",
+          "max": "50M",
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the assumed load capacitance (1pF used for typical on-chip routing/next stage gate capacitance)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, power consumption, AC gain, and unity gain frequency. The circuit is self-biased using a large feedback resistor to ensure the output sits in the high-gain region.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "unity_gain_frequency"
+    ],
+    "spice": "* Common-Source Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\n* DUT\nXM1 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N4 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* Supplies and Bias\nVVDD VDD 0 1.8\nIbias N2 0 10u\nVshort N3 N2 0\n\n* Self-biasing feedback for high-gain region\nRfb N4 N1 10Meg\nCin in_ac N1 1u\nVac in_ac 0 DC 0 AC 1\n\n* Load\nCload N4 0 1p\n\n.control\n* DC Operating Point and Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(N4)\nprint v(N1)\n\n* AC Analysis for Gain and Bandwidth\nac dec 100 1 1G\nlet gain_db = vdb(N4)\nlet phase = 180/PI * cph(v(N4))\n\nmeas ac dc_gain find gain_db at=100\nmeas ac ugf when gain_db=0 fall=1\nmeas ac phase_at_ugf find phase when gain_db=0 fall=1\n\n* Transient Analysis\ntran 1n 2u\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Common-Source Amplifier / Level Shifter Branch\",\n    \"description\": \"This circuit is a common-source amplifier stage with a PMOS current source load. Transistor XM2 acts as a diode-connected device to generate a bias voltage, which is typically mirrored to XM1 to provide an active load for the NMOS input transistor XM3.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\"\n      ],\n      \"output\": [\n        \"N4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N2\",\n        \"N3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 250mV 7.5\u03bcW 61dB SNDR CMOS SC \u0394\u03a3 Modulator Using a Near-Threshold-Voltage-Biased CMOS Inverter Technique\",\n      \"figure\": \"27.4.2\",\n      \"year\": 2011\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total static power dissipated by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"7.5\u03bcW (entire modulator)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 10uA bias current is applied to N2 and mirrored to N4. Total current = 20uA. Power = 1.8V * 20uA = 36uW.\",\n        \"range\": {\n          \"min\": \"20u\",\n          \"typical\": \"36u\",\n          \"max\": \"50u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 nominal 1.8V supply and a standard 10uA bias current, which is much higher than the near-threshold 250mV operation in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency small-signal voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm3 = sqrt(2 * 270u * 10 * 10u) = 232uS. ro1 = ro3 = 1 / (0.1 * 10u) = 1M\u03a9. Rout = 500k\u03a9. Av = gm3 * Rout = 116 V/V = 41.3 dB.\",\n        \"range\": {\n          \"min\": \"35\",\n          \"typical\": \"41\",\n          \"max\": \"45\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on standard square-law approximations for SKY130 devices at 10uA bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency at which the open-loop voltage gain drops to 0 dB (1 V/V).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = gm3 / (2 * pi * Cload). With Cload = 1pF, UGF = 232uS / (2 * pi * 1pF) = 36.9 MHz.\",\n        \"range\": {\n          \"min\": \"20M\",\n          \"typical\": \"37M\",\n          \"max\": \"50M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the assumed load capacitance (1pF used for typical on-chip routing/next stage gate capacitance).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, power consumption, AC gain, and unity gain frequency. The circuit is self-biased using a large feedback resistor to ensure the output sits in the high-gain region.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\",\n      \"unity_gain_frequency\"\n    ],\n    \"spice\": \"* Common-Source Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\n* DUT\\nXM1 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N4 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Supplies and Bias\\nVVDD VDD 0 1.8\\nIbias N2 0 10u\\nVshort N3 N2 0\\n\\n* Self-biasing feedback for high-gain region\\nRfb N4 N1 10Meg\\nCin in_ac N1 1u\\nVac in_ac 0 DC 0 AC 1\\n\\n* Load\\nCload N4 0 1p\\n\\n.control\\n* DC Operating Point and Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(N4)\\nprint v(N1)\\n\\n* AC Analysis for Gain and Bandwidth\\nac dec 100 1 1G\\nlet gain_db = vdb(N4)\\nlet phase = 180/PI * cph(v(N4))\\n\\nmeas ac dc_gain find gain_db at=100\\nmeas ac ugf when gain_db=0 fall=1\\nmeas ac phase_at_ugf find phase when gain_db=0 fall=1\\n\\n* Transient Analysis\\ntran 1n 2u\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "5746404",
+  "_case": "5746404_image_3_b"
+}

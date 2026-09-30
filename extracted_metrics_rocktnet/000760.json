@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Continuous-Time FIR Filter Delay Cell",
+    "description": "A pseudo-differential delay cell for a continuous-time FIR filter. Each half uses a transconductor and an active feedback network (likely forming an active inductor or 2nd-order low-pass filter) to synthesize a tunable delay.",
+    "node_mapping": {
+      "input": [
+        "IN_PLUS",
+        "IN_MINUS"
+      ],
+      "output": [
+        "OUT_PLUS",
+        "OUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS 0.25-m Continuous-Time FIR Filter With 125 ps per Tap Delay as a Fractionally Spaced Receiver Equalizer for 1-Gb/s Data Transmission",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "delay": {
+      "description": "Propagation delay through the tap",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "125 ps",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Expected to be similar to the paper's reported 125 ps, tunable between 100 ps and 300 ps.",
+        "range": {
+          "min": "100p",
+          "typical": "125p",
+          "max": "300p",
+          "unit": "s"
+        },
+        "reasoning": "The delay is determined by the active inductor and load capacitance, which can be tuned. Sky130 is faster than 0.25um, so similar or lower delays are easily achievable."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the delay cell",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.1 GHz",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Paper reports 2.1 GHz at 100 ps delay and 800 MHz at 300 ps delay.",
+        "range": {
+          "min": "800M",
+          "typical": "2.1G",
+          "max": "3G",
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is inversely proportional to the delay. Sky130 can easily achieve >2GHz bandwidth."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "DC power consumption per tap",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "45 mW (total for 6 taps)",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "45 mW / 6 taps = 7.5 mW per tap. At 1.8V, this is ~4.1 mA.",
+        "range": {
+          "min": "5m",
+          "typical": "7.5m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "Power scales with technology and supply voltage. 1.8V in Sky130 will likely consume similar power to achieve the same bandwidth."
+      },
+      "importance": "essential"
+    },
+    "gain": {
+      "description": "Low frequency voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay cells in FIR filters typically have unity gain (0 dB) to prevent signal saturation across multiple taps.",
+        "range": {
+          "min": "-2",
+          "typical": "0",
+          "max": "2",
+          "unit": "dB"
+        },
+        "reasoning": "Unity gain is standard for delay lines."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure delay, bandwidth, gain, and power consumption of the continuous-time FIR filter delay cell.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "bandwidth",
+      "delay_avg"
+    ],
+    "spice": "* Continuous-Time FIR Filter Delay Cell Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3_prime=5u L_xm3_prime=0.5u\n.param W_xm1_prime=5u L_xm1_prime=0.5u\n.param W_xm4_prime=5u L_xm4_prime=0.5u\n.param W_xm2_prime=5u L_xm2_prime=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM4 OUT_MINUS OUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM3_PRIME N2 IN_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3_prime} w={W_xm3_prime}\nXM1_PRIME N4 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1_prime} w={W_xm1_prime}\nXM4_PRIME OUT_PLUS OUT_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4_prime} w={W_xm4_prime}\nXM2_PRIME OUT_PLUS N4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2_prime} w={W_xm2_prime}\nXM1 N0 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM3 N3 IN_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM2 OUT_MINUS N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Sources\nVVDD VDD 0 1.8\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 0.5 PULSE(0.8 1.0 1n 50p 50p 1n 2n)\nVIN_MINUS IN_MINUS 0 DC 0.9 AC -0.5 PULSE(1.0 0.8 1n 50p 50p 1n 2n)\n\n.control\n  * OP Analysis for Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis for Bandwidth and Gain\n  ac dec 50 1Meg 10G\n  let vout_diff = v(OUT_PLUS) - v(OUT_MINUS)\n  let vin_diff = v(IN_PLUS) - v(IN_MINUS)\n  let out_mag = mag(vout_diff)\n  let in_mag = mag(vin_diff)\n  let gain_db = 20 * log10(out_mag / in_mag)\n  \n  meas ac dc_gain find gain_db at=1Meg\n  let gain_3db = dc_gain - 3\n  meas ac bandwidth when gain_db=gain_3db fall=1\n\n  * Transient Analysis for Delay\n  tran 10p 5n\n  let vout_diff_tran = v(OUT_PLUS) - v(OUT_MINUS)\n  let vin_diff_tran = v(IN_PLUS) - v(IN_MINUS)\n  \n  meas tran delay_rise trig vin_diff_tran val=0 rise=1 targ vout_diff_tran val=0 rise=1\n  meas tran delay_fall trig vin_diff_tran val=0 fall=1 targ vout_diff_tran val=0 fall=1\n  let delay_avg = (delay_rise + delay_fall) / 2\n  print delay_avg\n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Continuous-Time FIR Filter Delay Cell\",\n    \"description\": \"A pseudo-differential delay cell for a continuous-time FIR filter. Each half uses a transconductor and an active feedback network (likely forming an active inductor or 2nd-order low-pass filter) to synthesize a tunable delay.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN_PLUS\",\n        \"IN_MINUS\"\n      ],\n      \"output\": [\n        \"OUT_PLUS\",\n        \"OUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS 0.25-m Continuous-Time FIR Filter With 125 ps per Tap Delay as a Fractionally Spaced Receiver Equalizer for 1-Gb/s Data Transmission\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"delay\": {\n      \"description\": \"Propagation delay through the tap\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"125 ps\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Expected to be similar to the paper's reported 125 ps, tunable between 100 ps and 300 ps.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"125p\",\n          \"max\": \"300p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The delay is determined by the active inductor and load capacitance, which can be tuned. Sky130 is faster than 0.25um, so similar or lower delays are easily achievable.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the delay cell\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.1 GHz\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Paper reports 2.1 GHz at 100 ps delay and 800 MHz at 300 ps delay.\",\n        \"range\": {\n          \"min\": \"800M\",\n          \"typical\": \"2.1G\",\n          \"max\": \"3G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is inversely proportional to the delay. Sky130 can easily achieve >2GHz bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"DC power consumption per tap\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"45 mW (total for 6 taps)\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"45 mW / 6 taps = 7.5 mW per tap. At 1.8V, this is ~4.1 mA.\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"7.5m\",\n          \"max\": \"10m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Power scales with technology and supply voltage. 1.8V in Sky130 will likely consume similar power to achieve the same bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain\": {\n      \"description\": \"Low frequency voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay cells in FIR filters typically have unity gain (0 dB) to prevent signal saturation across multiple taps.\",\n        \"range\": {\n          \"min\": \"-2\",\n          \"typical\": \"0\",\n          \"max\": \"2\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Unity gain is standard for delay lines.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure delay, bandwidth, gain, and power consumption of the continuous-time FIR filter delay cell.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"bandwidth\",\n      \"delay_avg\"\n    ],\n    \"spice\": \"* Continuous-Time FIR Filter Delay Cell Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3_prime=5u L_xm3_prime=0.5u\\n.param W_xm1_prime=5u L_xm1_prime=0.5u\\n.param W_xm4_prime=5u L_xm4_prime=0.5u\\n.param W_xm2_prime=5u L_xm2_prime=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM4 OUT_MINUS OUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM3_PRIME N2 IN_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3_prime} w={W_xm3_prime}\\nXM1_PRIME N4 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1_prime} w={W_xm1_prime}\\nXM4_PRIME OUT_PLUS OUT_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4_prime} w={W_xm4_prime}\\nXM2_PRIME OUT_PLUS N4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2_prime} w={W_xm2_prime}\\nXM1 N0 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM3 N3 IN_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM2 OUT_MINUS N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 0.5 PULSE(0.8 1.0 1n 50p 50p 1n 2n)\\nVIN_MINUS IN_MINUS 0 DC 0.9 AC -0.5 PULSE(1.0 0.8 1n 50p 50p 1n 2n)\\n\\n.control\\n  * OP Analysis for Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis for Bandwidth and Gain\\n  ac dec 50 1Meg 10G\\n  let vout_diff = v(OUT_PLUS) - v(OUT_MINUS)\\n  let vin_diff = v(IN_PLUS) - v(IN_MINUS)\\n  let out_mag = mag(vout_diff)\\n  let in_mag = mag(vin_diff)\\n  let gain_db = 20 * log10(out_mag / in_mag)\\n  \\n  meas ac dc_gain find gain_db at=1Meg\\n  let gain_3db = dc_gain - 3\\n  meas ac bandwidth when gain_db=gain_3db fall=1\\n\\n  * Transient Analysis for Delay\\n  tran 10p 5n\\n  let vout_diff_tran = v(OUT_PLUS) - v(OUT_MINUS)\\n  let vin_diff_tran = v(IN_PLUS) - v(IN_MINUS)\\n  \\n  meas tran delay_rise trig vin_diff_tran val=0 rise=1 targ vout_diff_tran val=0 rise=1\\n  meas tran delay_fall trig vin_diff_tran val=0 fall=1 targ vout_diff_tran val=0 fall=1\\n  let delay_avg = (delay_rise + delay_fall) / 2\\n  print delay_avg\\n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1408079",
+  "_case": "1408079_image_5"
+}

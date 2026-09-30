@@ -1,0 +1,162 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Common-Source Amplifier (Core Transistor)",
+    "description": "A single PMOS transistor extracted from the paper's amplifier circuit. In the testbench, it is configured as a common-source amplifier with an ideal current source load to evaluate its intrinsic gain, bandwidth, and power consumption, representing the core amplification stage for surface EMG signals.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "N2"
+      ],
+      "supply": [
+        "N1"
+      ],
+      "bias": [],
+      "ground": []
+    },
+    "paper_reference": {
+      "title": "1\u03bcm-Thickness 64-Channel Surface Electromyogram Measurement Sheet with 2V Organic Transistors for Prosthetic Hand Control",
+      "figure": "Fig. 6.4.3(c)",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "Supply_Voltage": {
+      "description": "Operating supply voltage for the circuit.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "2V",
+        "technology": "Organic Transistors"
+      },
+      "sky130_expected": {
+        "calculation": "Standard nominal supply for SKY130 1.8V devices.",
+        "range": {
+          "min": 1.71,
+          "typical": 1.8,
+          "max": 1.89,
+          "unit": "V"
+        },
+        "reasoning": "Adapted to SKY130 standard 1.8V process instead of the 2V used for organic TFTs."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumed by the amplifier stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "30\u03bcW",
+        "technology": "Organic Transistors"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * Id. Using the paper's 30uW power at 1.8V gives an expected bias current of Id = 30uW / 1.8V = 16.7uA.",
+        "range": {
+          "min": 2.5e-05,
+          "typical": 3e-05,
+          "max": 3.5e-05,
+          "unit": "W"
+        },
+        "reasoning": "The testbench forces a 16.7uA bias current from a 1.8V supply to exactly match the paper's reported power consumption."
+      },
+      "importance": "essential"
+    },
+    "AC_Gain": {
+      "description": "Low-frequency small-signal voltage gain of the amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20dB",
+        "technology": "Organic Transistors"
+      },
+      "sky130_expected": {
+        "calculation": "gm = sqrt(2 * up*Cox * W/L * Id) = sqrt(2 * 50u * 10 * 16.7u) = 129 uS. ro = 1 / (lambda * Id) = 1 / (0.1 * 16.7u) = 600 kOhm. Gain = gm * ro = 77.4 V/V = 37.8 dB.",
+        "range": {
+          "min": 30,
+          "typical": 37.8,
+          "max": 45,
+          "unit": "dB"
+        },
+        "reasoning": "SKY130 silicon PMOS devices have significantly higher mobility and intrinsic gain compared to the organic transistors used in the original paper."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB cutoff frequency of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "500Hz",
+        "technology": "Organic Transistors"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * ro * Cload). To achieve ~500Hz with ro=600kOhm, Cload = 1 / (2 * pi * 600k * 500) = 530 pF. Testbench uses 500pF.",
+        "range": {
+          "min": 400,
+          "typical": 530,
+          "max": 700,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is heavily dependent on the load capacitance. A 500pF load is added to the testbench to artificially limit the bandwidth to the EMG signal range (500Hz) reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "Energy_per_operation": {
+      "description": "Energy consumed per operation.",
+      "unit": "J",
+      "analysis_type": "None",
+      "paper_reported": {
+        "value": "2J",
+        "technology": "System level"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "J"
+        },
+        "reasoning": "This is a system-level metric for the entire prosthetic hand control system and is not applicable to a single continuous-time analog amplifier transistor."
+      },
+      "importance": "optional"
+    },
+    "Efficiency": {
+      "description": "System efficiency or mismatch ratio.",
+      "unit": "%",
+      "analysis_type": "None",
+      "paper_reported": {
+        "value": "92%",
+        "technology": "System level"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "%"
+        },
+        "reasoning": "System-level metric, not measurable on a single transistor."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench configures the single PMOS as a common-source amplifier. A 16.7uA ideal current source acts as the load to match the paper's 30uW power at 1.8V. A massive inductor (1G) provides DC feedback to automatically bias the gate, while a massive capacitor (1G) couples the AC input. A 500pF load capacitor sets the bandwidth to ~500Hz.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "AC_Gain",
+      "Bandwidth"
+    ],
+    "spice": "* PMOS Common-Source Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\nXM1 N2 N0 N1 N1 sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\n\n* Supply and Bias\nVdd N1 0 DC 1.8\nIload N2 0 DC 16.7u\n\n* DC Feedback for Biasing (Acts as open circuit for AC)\nLbias N2 N0 1G\n\n* AC Input Coupling (Acts as short circuit for AC)\nCin in_ac N0 1G\nVac in_ac 0 DC 0 AC 1\n\n* Load Capacitance to set bandwidth to ~500Hz\nCload N2 0 500p\n\n.control\nop\nlet power = -i(Vdd) * 1.8\nprint power\nprint v(N2) v(N0)\n\nac dec 10 1 100k\nlet gain_db = vdb(N2)\nmeas ac gain_10Hz find gain_db at=10\nmeas ac gain_100Hz find gain_db at=100\nmeas ac gain_500Hz find gain_db at=500\nmeas ac gain_1kHz find gain_db at=1k\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Common-Source Amplifier (Core Transistor)\",\n    \"description\": \"A single PMOS transistor extracted from the paper's amplifier circuit. In the testbench, it is configured as a common-source amplifier with an ideal current source load to evaluate its intrinsic gain, bandwidth, and power consumption, representing the core amplification stage for surface EMG signals.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\"\n      ],\n      \"output\": [\n        \"N2\"\n      ],\n      \"supply\": [\n        \"N1\"\n      ],\n      \"bias\": [],\n      \"ground\": []\n    },\n    \"paper_reference\": {\n      \"title\": \"1\u03bcm-Thickness 64-Channel Surface Electromyogram Measurement Sheet with 2V Organic Transistors for Prosthetic Hand Control\",\n      \"figure\": \"Fig. 6.4.3(c)\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"Supply_Voltage\": {\n      \"description\": \"Operating supply voltage for the circuit.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"2V\",\n        \"technology\": \"Organic Transistors\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard nominal supply for SKY130 1.8V devices.\",\n        \"range\": {\n          \"min\": 1.71,\n          \"typical\": 1.8,\n          \"max\": 1.89,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Adapted to SKY130 standard 1.8V process instead of the 2V used for organic TFTs.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumed by the amplifier stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"30\u03bcW\",\n        \"technology\": \"Organic Transistors\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * Id. Using the paper's 30uW power at 1.8V gives an expected bias current of Id = 30uW / 1.8V = 16.7uA.\",\n        \"range\": {\n          \"min\": 25e-6,\n          \"typical\": 30e-6,\n          \"max\": 35e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The testbench forces a 16.7uA bias current from a 1.8V supply to exactly match the paper's reported power consumption.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"AC_Gain\": {\n      \"description\": \"Low-frequency small-signal voltage gain of the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20dB\",\n        \"technology\": \"Organic Transistors\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = sqrt(2 * up*Cox * W/L * Id) = sqrt(2 * 50u * 10 * 16.7u) = 129 uS. ro = 1 / (lambda * Id) = 1 / (0.1 * 16.7u) = 600 kOhm. Gain = gm * ro = 77.4 V/V = 37.8 dB.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 37.8,\n          \"max\": 45,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SKY130 silicon PMOS devices have significantly higher mobility and intrinsic gain compared to the organic transistors used in the original paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"500Hz\",\n        \"technology\": \"Organic Transistors\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * ro * Cload). To achieve ~500Hz with ro=600kOhm, Cload = 1 / (2 * pi * 600k * 500) = 530 pF. Testbench uses 500pF.\",\n        \"range\": {\n          \"min\": 400,\n          \"typical\": 530,\n          \"max\": 700,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is heavily dependent on the load capacitance. A 500pF load is added to the testbench to artificially limit the bandwidth to the EMG signal range (500Hz) reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Energy_per_operation\": {\n      \"description\": \"Energy consumed per operation.\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"None\",\n      \"paper_reported\": {\n        \"value\": \"2J\",\n        \"technology\": \"System level\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"J\"\n        },\n        \"reasoning\": \"This is a system-level metric for the entire prosthetic hand control system and is not applicable to a single continuous-time analog amplifier transistor.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Efficiency\": {\n      \"description\": \"System efficiency or mismatch ratio.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"None\",\n      \"paper_reported\": {\n        \"value\": \"92%\",\n        \"technology\": \"System level\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"System-level metric, not measurable on a single transistor.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench configures the single PMOS as a common-source amplifier. A 16.7uA ideal current source acts as the load to match the paper's 30uW power at 1.8V. A massive inductor (1G) provides DC feedback to automatically bias the gate, while a massive capacitor (1G) couples the AC input. A 500pF load capacitor sets the bandwidth to ~500Hz.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"AC_Gain\",\n      \"Bandwidth\"\n    ],\n    \"spice\": \"* PMOS Common-Source Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\nXM1 N2 N0 N1 N1 sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Supply and Bias\\nVdd N1 0 DC 1.8\\nIload N2 0 DC 16.7u\\n\\n* DC Feedback for Biasing (Acts as open circuit for AC)\\nLbias N2 N0 1G\\n\\n* AC Input Coupling (Acts as short circuit for AC)\\nCin in_ac N0 1G\\nVac in_ac 0 DC 0 AC 1\\n\\n* Load Capacitance to set bandwidth to ~500Hz\\nCload N2 0 500p\\n\\n.control\\nop\\nlet power = -i(Vdd) * 1.8\\nprint power\\nprint v(N2) v(N0)\\n\\nac dec 10 1 100k\\nlet gain_db = vdb(N2)\\nmeas ac gain_10Hz find gain_db at=10\\nmeas ac gain_100Hz find gain_db at=100\\nmeas ac gain_500Hz find gain_db at=500\\nmeas ac gain_1kHz find gain_db at=1k\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6487656",
+  "_case": "6487656_image_5_a"
+}

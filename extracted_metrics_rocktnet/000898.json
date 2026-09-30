@@ -1,0 +1,165 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual Current Source",
+    "description": "Two NMOS transistors biased by a common voltage to act as current sources. Given the context of a BiCMOS adaptive cable equalizer, these likely provide tail currents for a differential pair, mixer, or output buffer.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "N7",
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10 Gb/s BiCMOS Adaptive Cable Equalizer",
+      "figure": "unknown",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_current": {
+      "description": "DC current provided by each current source transistor.",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * un*Cox * (W/L) * (VBIAS - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.54 - 0.42)^2 = 19.44 uA",
+        "range": {
+          "min": 1.5e-05,
+          "typical": 1.94e-05,
+          "max": 2.5e-05,
+          "unit": "A"
+        },
+        "reasoning": "Calculated using the square-law model for SKY130 NMOS with VBIAS=0.54V."
+      },
+      "importance": "essential"
+    },
+    "output_resistance": {
+      "description": "Small-signal output resistance of the current source.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Rout = 1 / (lambda * Id) = 1 / (0.1 * 19.44u) = 514 kOhm",
+        "range": {
+          "min": 300000.0,
+          "typical": 514000.0,
+          "max": 800000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using channel length modulation parameter lambda=0.1/V."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power consumed by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "350 mW",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = 2 * Id * VDD = 2 * 19.44uA * 1.8V = 70 uW",
+        "range": {
+          "min": 5e-05,
+          "typical": 7e-05,
+          "max": 0.0001,
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 350 mW for the entire equalizer chip. This isolated dual current source sub-circuit consumes only a tiny fraction of that."
+      },
+      "importance": "essential"
+    },
+    "supply_voltage": {
+      "description": "Operating supply voltage.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "3.3 V",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Standard nominal supply for SKY130 1.8V devices.",
+        "range": {
+          "min": 1.71,
+          "typical": 1.8,
+          "max": 1.89,
+          "unit": "V"
+        },
+        "reasoning": "Adapted from the paper's 3.3V to the SKY130 standard 1.8V process."
+      },
+      "importance": "essential"
+    },
+    "gain": {
+      "description": "Equalizer high-frequency boost / gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "22 dB",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "dB"
+        },
+        "reasoning": "This metric applies to the full equalizer circuit. The extracted netlist is only a dual current source, which does not provide voltage gain."
+      },
+      "importance": "optional"
+    },
+    "operating_frequency": {
+      "description": "Maximum operating frequency / data rate.",
+      "unit": "GHz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 GHz (10 Gb/s)",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "GHz"
+        },
+        "reasoning": "Applies to the full equalizer. The current source operates at DC."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC current, output resistance, and power consumption of the dual current source.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "dc_current",
+      "output_resistance",
+      "power_consumption"
+    ],
+    "spice": "* Dual Current Source Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N7 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\nVVDD VDD 0 1.8\nVVBIAS VBIAS 0 0.54\n\n* Connect drains to VDD to keep in saturation. V1 has AC=1 for Rout measurement.\nV1 N7 0 DC 1.8 AC 1\nV2 N3 0 DC 1.8\n\n.control\nop\nlet id1 = -i(V1)\nlet id2 = -i(V2)\nlet total_power = (id1 + id2) * 1.8\nprint id1 id2 total_power\n\nac dec 10 1 1G\nlet rout1 = 1 / mag(i(V1))\nmeas ac rout_val find rout1 at=1k\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual Current Source\",\n    \"description\": \"Two NMOS transistors biased by a common voltage to act as current sources. Given the context of a BiCMOS adaptive cable equalizer, these likely provide tail currents for a differential pair, mixer, or output buffer.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"N7\", \"N3\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"VBIAS\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10 Gb/s BiCMOS Adaptive Cable Equalizer\",\n      \"figure\": \"unknown\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_current\": {\n      \"description\": \"DC current provided by each current source transistor.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * un*Cox * (W/L) * (VBIAS - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.54 - 0.42)^2 = 19.44 uA\",\n        \"range\": { \"min\": 15e-6, \"typical\": 19.4e-6, \"max\": 25e-6, \"unit\": \"A\" },\n        \"reasoning\": \"Calculated using the square-law model for SKY130 NMOS with VBIAS=0.54V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal output resistance of the current source.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = 1 / (lambda * Id) = 1 / (0.1 * 19.44u) = 514 kOhm\",\n        \"range\": { \"min\": 300e3, \"typical\": 514e3, \"max\": 800e3, \"unit\": \"ohm\" },\n        \"reasoning\": \"Calculated using channel length modulation parameter lambda=0.1/V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumed by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"350 mW\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = 2 * Id * VDD = 2 * 19.44uA * 1.8V = 70 uW\",\n        \"range\": { \"min\": 50e-6, \"typical\": 70e-6, \"max\": 100e-6, \"unit\": \"W\" },\n        \"reasoning\": \"The paper reports 350 mW for the entire equalizer chip. This isolated dual current source sub-circuit consumes only a tiny fraction of that.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"supply_voltage\": {\n      \"description\": \"Operating supply voltage.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"3.3 V\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard nominal supply for SKY130 1.8V devices.\",\n        \"range\": { \"min\": 1.71, \"typical\": 1.8, \"max\": 1.89, \"unit\": \"V\" },\n        \"reasoning\": \"Adapted from the paper's 3.3V to the SKY130 standard 1.8V process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain\": {\n      \"description\": \"Equalizer high-frequency boost / gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"22 dB\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": { \"min\": null, \"typical\": null, \"max\": null, \"unit\": \"dB\" },\n        \"reasoning\": \"This metric applies to the full equalizer circuit. The extracted netlist is only a dual current source, which does not provide voltage gain.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Maximum operating frequency / data rate.\",\n      \"unit\": \"GHz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 GHz (10 Gb/s)\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": { \"min\": null, \"typical\": null, \"max\": null, \"unit\": \"GHz\" },\n        \"reasoning\": \"Applies to the full equalizer. The current source operates at DC.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC current, output resistance, and power consumption of the dual current source.\",\n    \"analyses\": [\"OP\", \"AC\"],\n    \"metrics_measured\": [\"dc_current\", \"output_resistance\", \"power_consumption\"],\n    \"spice\": \"* Dual Current Source Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N7 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 VBIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVVDD VDD 0 1.8\\nVVBIAS VBIAS 0 0.54\\n\\n* Connect drains to VDD to keep in saturation. V1 has AC=1 for Rout measurement.\\nV1 N7 0 DC 1.8 AC 1\\nV2 N3 0 DC 1.8\\n\\n.control\\nop\\nlet id1 = -i(V1)\\nlet id2 = -i(V2)\\nlet total_power = (id1 + id2) * 1.8\\nprint id1 id2 total_power\\n\\nac dec 10 1 1G\\nlet rout1 = 1 / mag(i(V1))\\nmeas ac rout_val find rout1 at=1k\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1522552",
+  "_case": "1522552_image_11"
+}

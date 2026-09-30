@@ -1,0 +1,146 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Class-E Power Amplifier (Switching PA)",
+    "description": "A high-efficiency switching power amplifier that utilizes a resonant load network to achieve zero-voltage switching (ZVS). The provided netlist contains the main switching transistor (XM1), which requires an external RF choke, shunt capacitor, and series LC resonator to operate in Class-E mode.",
+    "node_mapping": {
+      "input": [
+        "N13"
+      ],
+      "output": [
+        "N5"
+      ],
+      "supply": [
+        "vdd"
+      ],
+      "bias": [
+        "N16"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A High Efficiency Broadband Class-E Power Amplifier Using a Reactance Compensation Technique",
+      "figure": "Fig. 1",
+      "year": 2010
+    }
+  },
+  "step2_metrics": {
+    "Operating Frequency": {
+      "description": "The frequency of the RF input signal at which the PA is designed to operate.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.8 GHz",
+        "technology": "0.5 um E/D-PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Selected based on the fT of the 0.5um SKY130 NMOS device to ensure sufficient switching speed.",
+        "range": {
+          "min": "900M",
+          "typical": "1G",
+          "max": "2.4G",
+          "unit": "Hz"
+        },
+        "reasoning": "While the paper operates at 3.8 GHz using PHEMTs, a 0.5um length NMOS in SKY130 is slower. 1 GHz is chosen for reliable Class-E switching."
+      },
+      "importance": "essential"
+    },
+    "Output Power (Pout)": {
+      "description": "The RF power delivered to the load at the fundamental frequency.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "27 dBm",
+        "technology": "0.5 um E/D-PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = 0.5768 * VDD^2 / R_load. With VDD=1.8V and R_load=1k ohm (chosen due to small W=5um), Pout = 1.86 mW = 2.7 dBm.",
+        "range": {
+          "min": "0",
+          "typical": "2.7",
+          "max": "5",
+          "unit": "dBm"
+        },
+        "reasoning": "The extracted transistor width (5um) is extremely small for a PA, limiting the maximum current and requiring a high load impedance (1k ohm) to achieve Class-E voltage swings."
+      },
+      "importance": "essential"
+    },
+    "Drain Efficiency": {
+      "description": "The ratio of RF output power to DC input power.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "62% (PAE)",
+        "technology": "0.5 um E/D-PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Ideal Class-E is 100%. Finite Ron (L=0.5um) and switching overlap losses reduce this.",
+        "range": {
+          "min": "40",
+          "typical": "65",
+          "max": "85",
+          "unit": "%"
+        },
+        "reasoning": "At 1 GHz, the 0.5um NMOS will have moderate switching losses, yielding typical Class-E efficiencies around 60-70%."
+      },
+      "importance": "essential"
+    },
+    "Power Added Efficiency (PAE)": {
+      "description": "The ratio of (RF output power - RF input power) to DC input power.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "62%",
+        "technology": "0.5 um E/D-PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "PAE = (Pout - Pin) / Pdc. Pin is roughly f * Cgg * VDD^2 = 1e9 * 12.5fF * 1.8^2 = 40 uW. Since Pin << Pout (1.86 mW), PAE is close to Drain Efficiency.",
+        "range": {
+          "min": "35",
+          "typical": "60",
+          "max": "80",
+          "unit": "%"
+        },
+        "reasoning": "High gain due to small gate capacitance means PAE will only be slightly lower than Drain Efficiency."
+      },
+      "importance": "essential"
+    },
+    "Power Gain": {
+      "description": "The ratio of RF output power to RF input power.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly stated (P1dB is 27dBm)",
+        "technology": "0.5 um E/D-PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = 10 * log10(Pout / Pin) = 10 * log10(1.86mW / 40uW) = 16.6 dB.",
+        "range": {
+          "min": "10",
+          "typical": "16",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "The device is driven by a hard square wave to act as a switch, resulting in high apparent power gain."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure Output Power, DC Power, Drain Efficiency, and PAE of the Class-E PA at 1 GHz.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Output Power",
+      "Drain Efficiency",
+      "Power Added Efficiency",
+      "Power Gain"
+    ],
+    "spice": "* High Efficiency Broadband Class-E Power Amplifier\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 N5 N13 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 GND N16 N9 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Terminate unused/dummy transistor XM2 to prevent floating nodes\nR_N16 N16 GND 1k\nR_N9 N9 GND 1k\n\n* Class-E Load Network for XM1 (Designed for 1 GHz, Rload=1k)\nVvdd vdd GND 1.8\nLchoke vdd N5 10u\nCshunt N5 GND 20f\nLseries N5 N_mid 1.59u\nCseries N_mid out 17.9f\nRload out GND 1k\n\n* Input Signal (1 GHz square wave for hard switching)\nVin N13 GND PULSE(0 1.8 0 10p 10p 490p 1n)\n\n* Non-linear dependent sources to calculate instantaneous power\nB_Pout Pout_node 0 V=v(out)*v(out)/1000\nB_Pin Pin_node 0 V=-i(Vin)*v(N13)\nB_Pdc Pdc_node 0 V=-i(Vvdd)*1.8\n\n.control\n* Run transient analysis for 40 cycles at 1 GHz\ntran 10p 40n\n\n* Measure average powers over the last 10 cycles (steady state)\nmeas tran Pout avg v(Pout_node) from=30n to=40n\nmeas tran Pin avg v(Pin_node) from=30n to=40n\nmeas tran Pdc avg v(Pdc_node) from=30n to=40n\n\n* Calculate Metrics\nlet eff = (Pout / Pdc) * 100\nlet pae = ((Pout - Pin) / Pdc) * 100\nlet Pout_dBm = 10 * log10(Pout * 1000 + 1e-15)\nlet Gain_dB = 10 * log10((Pout + 1e-15) / (Pin + 1e-15))\n\nprint Pout\nprint Pout_dBm\nprint Pdc\nprint eff\nprint pae\nprint Gain_dB\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Class-E Power Amplifier (Switching PA)\",\n    \"description\": \"A high-efficiency switching power amplifier that utilizes a resonant load network to achieve zero-voltage switching (ZVS). The provided netlist contains the main switching transistor (XM1), which requires an external RF choke, shunt capacitor, and series LC resonator to operate in Class-E mode.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N13\"\n      ],\n      \"output\": [\n        \"N5\"\n      ],\n      \"supply\": [\n        \"vdd\"\n      ],\n      \"bias\": [\n        \"N16\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A High Efficiency Broadband Class-E Power Amplifier Using a Reactance Compensation Technique\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2010\n    }\n  },\n  \"step2_metrics\": {\n    \"Operating Frequency\": {\n      \"description\": \"The frequency of the RF input signal at which the PA is designed to operate.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.8 GHz\",\n        \"technology\": \"0.5 um E/D-PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Selected based on the fT of the 0.5um SKY130 NMOS device to ensure sufficient switching speed.\",\n        \"range\": {\n          \"min\": \"900M\",\n          \"typical\": \"1G\",\n          \"max\": \"2.4G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"While the paper operates at 3.8 GHz using PHEMTs, a 0.5um length NMOS in SKY130 is slower. 1 GHz is chosen for reliable Class-E switching.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output Power (Pout)\": {\n      \"description\": \"The RF power delivered to the load at the fundamental frequency.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"27 dBm\",\n        \"technology\": \"0.5 um E/D-PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = 0.5768 * VDD^2 / R_load. With VDD=1.8V and R_load=1k ohm (chosen due to small W=5um), Pout = 1.86 mW = 2.7 dBm.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"2.7\",\n          \"max\": \"5\",\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"The extracted transistor width (5um) is extremely small for a PA, limiting the maximum current and requiring a high load impedance (1k ohm) to achieve Class-E voltage swings.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Drain Efficiency\": {\n      \"description\": \"The ratio of RF output power to DC input power.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"62% (PAE)\",\n        \"technology\": \"0.5 um E/D-PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal Class-E is 100%. Finite Ron (L=0.5um) and switching overlap losses reduce this.\",\n        \"range\": {\n          \"min\": \"40\",\n          \"typical\": \"65\",\n          \"max\": \"85\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"At 1 GHz, the 0.5um NMOS will have moderate switching losses, yielding typical Class-E efficiencies around 60-70%.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Added Efficiency (PAE)\": {\n      \"description\": \"The ratio of (RF output power - RF input power) to DC input power.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"62%\",\n        \"technology\": \"0.5 um E/D-PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PAE = (Pout - Pin) / Pdc. Pin is roughly f * Cgg * VDD^2 = 1e9 * 12.5fF * 1.8^2 = 40 uW. Since Pin << Pout (1.86 mW), PAE is close to Drain Efficiency.\",\n        \"range\": {\n          \"min\": \"35\",\n          \"typical\": \"60\",\n          \"max\": \"80\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"High gain due to small gate capacitance means PAE will only be slightly lower than Drain Efficiency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Gain\": {\n      \"description\": \"The ratio of RF output power to RF input power.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated (P1dB is 27dBm)\",\n        \"technology\": \"0.5 um E/D-PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = 10 * log10(Pout / Pin) = 10 * log10(1.86mW / 40uW) = 16.6 dB.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"16\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The device is driven by a hard square wave to act as a switch, resulting in high apparent power gain.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure Output Power, DC Power, Drain Efficiency, and PAE of the Class-E PA at 1 GHz.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Output Power\",\n      \"Drain Efficiency\",\n      \"Power Added Efficiency\",\n      \"Power Gain\"\n    ],\n    \"spice\": \"* High Efficiency Broadband Class-E Power Amplifier\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 N5 N13 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 GND N16 N9 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Terminate unused/dummy transistor XM2 to prevent floating nodes\\nR_N16 N16 GND 1k\\nR_N9 N9 GND 1k\\n\\n* Class-E Load Network for XM1 (Designed for 1 GHz, Rload=1k)\\nVvdd vdd GND 1.8\\nLchoke vdd N5 10u\\nCshunt N5 GND 20f\\nLseries N5 N_mid 1.59u\\nCseries N_mid out 17.9f\\nRload out GND 1k\\n\\n* Input Signal (1 GHz square wave for hard switching)\\nVin N13 GND PULSE(0 1.8 0 10p 10p 490p 1n)\\n\\n* Non-linear dependent sources to calculate instantaneous power\\nB_Pout Pout_node 0 V=v(out)*v(out)/1000\\nB_Pin Pin_node 0 V=-i(Vin)*v(N13)\\nB_Pdc Pdc_node 0 V=-i(Vvdd)*1.8\\n\\n.control\\n* Run transient analysis for 40 cycles at 1 GHz\\ntran 10p 40n\\n\\n* Measure average powers over the last 10 cycles (steady state)\\nmeas tran Pout avg v(Pout_node) from=30n to=40n\\nmeas tran Pin avg v(Pin_node) from=30n to=40n\\nmeas tran Pdc avg v(Pdc_node) from=30n to=40n\\n\\n* Calculate Metrics\\nlet eff = (Pout / Pdc) * 100\\nlet pae = ((Pout - Pin) / Pdc) * 100\\nlet Pout_dBm = 10 * log10(Pout * 1000 + 1e-15)\\nlet Gain_dB = 10 * log10((Pout + 1e-15) / (Pin + 1e-15))\\n\\nprint Pout\\nprint Pout_dBm\\nprint Pdc\\nprint eff\\nprint pae\\nprint Gain_dB\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "lmwc.2010.2056675",
+  "_case": "lmwc.2010.2056675_image_3"
+}

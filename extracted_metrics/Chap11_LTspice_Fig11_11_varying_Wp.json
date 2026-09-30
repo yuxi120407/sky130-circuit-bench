@@ -1,0 +1,353 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 11.9",
+    "page": "5",
+    "circuit_type": "CMOS Inverter",
+    "description": "The figure shows the transistor-level schematic of a CMOS inverter with an NMOS (M1) and a PMOS (M2), matching the provided netlist structure. It also includes the equivalent digital RC switch model used for calculating propagation delays."
+  },
+  "step2_metrics": {
+    "noise_margin_high": {
+      "description": "Noise margin for the high logic level (NMH).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "1",
+        "reference": "Eq 11.1"
+      },
+      "equation": {
+        "formula": "NMH = V_OH - V_IH",
+        "explanation": "The difference between the maximum output high voltage and the minimum input high voltage recognized as a logic 1.",
+        "assumptions": "V_OH is typically VDD in an unloaded CMOS inverter."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming V_OH = 1.8V. V_IH is the point where d(Vout)/d(Vin) = -1. For a typical symmetric inverter, V_IH is around 5/8 of VDD. V_IH \u2248 1.125V. NMH = 1.8V - 1.125V = 0.675V.",
+        "range": {
+          "min": 0.5,
+          "typical": 0.7,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the Wp/Wn sizing ratio. If PMOS is weak, V_IH shifts lower, increasing NMH."
+      },
+      "importance": "essential"
+    },
+    "noise_margin_low": {
+      "description": "Noise margin for the low logic level (NML).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "1",
+        "reference": "Eq 11.2"
+      },
+      "equation": {
+        "formula": "NML = V_IL - V_OL",
+        "explanation": "The difference between the maximum input low voltage recognized as a logic 0 and the minimum output low voltage.",
+        "assumptions": "V_OL is typically 0V in an unloaded CMOS inverter."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming V_OL = 0V. V_IL is the point where d(Vout)/d(Vin) = -1. For a typical symmetric inverter, V_IL is around 3/8 of VDD. V_IL \u2248 0.675V. NML = 0.675V - 0V = 0.675V.",
+        "range": {
+          "min": 0.5,
+          "typical": 0.7,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the Wp/Wn sizing ratio. If NMOS is strong, V_IL shifts lower, decreasing NML."
+      },
+      "importance": "essential"
+    },
+    "switching_point_voltage": {
+      "description": "The input voltage where Vin = Vout, causing both MOSFETs to be in saturation.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "2",
+        "reference": "Eq 11.4"
+      },
+      "equation": {
+        "formula": "V_SP = (sqrt(beta_n/beta_p)*V_THN + (VDD - V_THP)) / (1 + sqrt(beta_n/beta_p))",
+        "explanation": "Calculates the trip point of the inverter based on the transconductance parameters and threshold voltages of the NMOS and PMOS.",
+        "assumptions": "Assumes long-channel square-law model where both devices are in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "Using SKY130 params: V_THN=0.42V, |V_THP|=0.42V, un*Cox=270uA/V^2, up*Cox=50uA/V^2. Assuming Wn=1u, Wp=2u, L=0.15u. beta_n = 270*(1/0.15) = 1800uA/V^2. beta_p = 50*(2/0.15) = 667uA/V^2. sqrt(beta_n/beta_p) = sqrt(2.7) = 1.64. V_SP = (1.64*0.42 + (1.8 - 0.42)) / (1 + 1.64) = (0.688 + 1.38) / 2.64 = 0.78V.",
+        "range": {
+          "min": 0.7,
+          "typical": 0.9,
+          "max": 1.1,
+          "unit": "V"
+        },
+        "reasoning": "V_SP is highly sensitive to the Wp/Wn ratio. To achieve the ideal VDD/2 (0.9V), Wp must be sized significantly larger than Wn (approx 3-5x) due to lower hole mobility."
+      },
+      "importance": "essential"
+    },
+    "short_channel_switching_point": {
+      "description": "Switching point voltage estimated using effective switching resistances for short-channel devices.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "3",
+        "reference": "Eq 11.5"
+      },
+      "equation": {
+        "formula": "V_SP = VDD * (R_n / (R_n + R_p))",
+        "explanation": "A voltage divider approximation for the switching point using the effective pull-up and pull-down resistances.",
+        "assumptions": "Assumes devices act as linear resistors during the switching transition."
+      },
+      "sky130_expected": {
+        "calculation": "If Wp is sized such that R_p = R_n, then V_SP = 1.8 * (R_n / 2*R_n) = 0.9V.",
+        "range": {
+          "min": 0.7,
+          "typical": 0.9,
+          "max": 1.1,
+          "unit": "V"
+        },
+        "reasoning": "Matches the long-channel expectation but uses a simplified resistance model more appropriate for velocity-saturated short-channel devices."
+      },
+      "importance": "optional"
+    },
+    "input_capacitance": {
+      "description": "Effective input capacitance of the inverter.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.6"
+      },
+      "equation": {
+        "formula": "C_in = (3/2)*(C_ox1 + C_ox2) = C_inn + C_inp",
+        "explanation": "The total gate capacitance presented to the driving stage.",
+        "assumptions": "Assumes operation in the active region where gate capacitance is approx 3/2 C_ox."
+      },
+      "sky130_expected": {
+        "calculation": "Depends on W and L. For Wn=1u, Wp=2u, L=0.15u. C_ox \u2248 10fF/um^2. Area = 3um * 0.15um = 0.45um^2. C_ox_total \u2248 4.5fF. C_in \u2248 1.5 * 4.5fF = 6.75fF.",
+        "range": {
+          "min": 2e-15,
+          "typical": 5e-15,
+          "max": 2e-14,
+          "unit": "F"
+        },
+        "reasoning": "Scales directly with the chosen W_xm1 and W_xm2 parameters."
+      },
+      "importance": "recommended"
+    },
+    "output_capacitance": {
+      "description": "Effective intrinsic output capacitance of the inverter.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.7"
+      },
+      "equation": {
+        "formula": "C_out = C_ox1 + C_ox2 = C_outn + C_outp",
+        "explanation": "The parasitic capacitance at the output node, primarily drain-to-bulk and drain-to-gate overlap capacitances.",
+        "assumptions": "Simplified digital model approximation."
+      },
+      "sky130_expected": {
+        "calculation": "Using the same dimensions as C_in, C_out is roughly 2/3 of C_in in this simplified model. C_out \u2248 4.5fF.",
+        "range": {
+          "min": 1e-15,
+          "typical": 4e-15,
+          "max": 1.5e-14,
+          "unit": "F"
+        },
+        "reasoning": "Depends on device sizing and specific PDK parasitic extraction."
+      },
+      "importance": "recommended"
+    },
+    "intrinsic_propagation_delay_lh": {
+      "description": "Low-to-high intrinsic propagation delay (no external load).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.8"
+      },
+      "equation": {
+        "formula": "t_PLH = 0.7 * R_p2 * C_out",
+        "explanation": "Time taken for the output to rise to 50% of VDD, driven by the PMOS charging the intrinsic output capacitance.",
+        "assumptions": "Step input, RC delay model."
+      },
+      "sky130_expected": {
+        "calculation": "R_p \u2248 1 / (beta_p * (VDD - |V_THP|)) = 1 / (667uA/V^2 * 1.38V) \u2248 1086 ohms. C_out \u2248 4.5fF. t_PLH = 0.7 * 1086 * 4.5e-15 \u2248 3.4ps.",
+        "range": {
+          "min": 2e-12,
+          "typical": 5e-12,
+          "max": 1.5e-11,
+          "unit": "s"
+        },
+        "reasoning": "Intrinsic delays in 130nm are typically in the single-digit picosecond range."
+      },
+      "importance": "optional"
+    },
+    "intrinsic_propagation_delay_hl": {
+      "description": "High-to-low intrinsic propagation delay (no external load).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.8"
+      },
+      "equation": {
+        "formula": "t_PHL = 0.7 * R_n1 * C_out",
+        "explanation": "Time taken for the output to fall to 50% of VDD, driven by the NMOS discharging the intrinsic output capacitance.",
+        "assumptions": "Step input, RC delay model."
+      },
+      "sky130_expected": {
+        "calculation": "R_n \u2248 1 / (beta_n * (VDD - V_THN)) = 1 / (1800uA/V^2 * 1.38V) \u2248 402 ohms. C_out \u2248 4.5fF. t_PHL = 0.7 * 402 * 4.5e-15 \u2248 1.3ps.",
+        "range": {
+          "min": 1e-12,
+          "typical": 3e-12,
+          "max": 1e-11,
+          "unit": "s"
+        },
+        "reasoning": "NMOS is typically faster than PMOS unless Wp is sized up significantly."
+      },
+      "importance": "optional"
+    },
+    "loaded_propagation_delay_lh": {
+      "description": "Low-to-high propagation delay with a capacitive load.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "6",
+        "reference": "Eq 11.9"
+      },
+      "equation": {
+        "formula": "t_PLH = 0.7 * R_p2 * C_tot = 0.7 * R_p2 * (C_out + C_load)",
+        "explanation": "Rise time delay accounting for both intrinsic and external load capacitance.",
+        "assumptions": "RC delay model dominates."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming C_load = 50fF. C_tot \u2248 54.5fF. R_p \u2248 1086 ohms. t_PLH = 0.7 * 1086 * 54.5e-15 \u2248 41ps.",
+        "range": {
+          "min": 2e-11,
+          "typical": 4e-11,
+          "max": 1e-10,
+          "unit": "s"
+        },
+        "reasoning": "Dominated by the 50fF load capacitor."
+      },
+      "importance": "essential"
+    },
+    "loaded_propagation_delay_hl": {
+      "description": "High-to-low propagation delay with a capacitive load.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "6",
+        "reference": "Eq 11.10"
+      },
+      "equation": {
+        "formula": "t_PHL = 0.7 * R_n1 * C_tot = 0.7 * R_n1 * (C_out + C_load)",
+        "explanation": "Fall time delay accounting for both intrinsic and external load capacitance.",
+        "assumptions": "RC delay model dominates."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming C_load = 50fF. C_tot \u2248 54.5fF. R_n \u2248 402 ohms. t_PHL = 0.7 * 402 * 54.5e-15 \u2248 15ps.",
+        "range": {
+          "min": 1e-11,
+          "typical": 2e-11,
+          "max": 5e-11,
+          "unit": "s"
+        },
+        "reasoning": "Dominated by the 50fF load capacitor."
+      },
+      "importance": "essential"
+    },
+    "ring_oscillator_frequency": {
+      "description": "Oscillation frequency of an n-stage ring oscillator.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "7",
+        "reference": "Eq 11.11"
+      },
+      "equation": {
+        "formula": "f_osc = 1 / (n * (t_PHL + t_PLH))",
+        "explanation": "The frequency is inversely proportional to the number of stages and the sum of the rise and fall delays of a single stage.",
+        "assumptions": "Assumes identical stages and n is an odd number."
+      },
+      "sky130_expected": {
+        "calculation": "For an 11-stage oscillator using the intrinsic delays calculated above (t_PHL=1.3ps, t_PLH=3.4ps): f_osc = 1 / (11 * (1.3ps + 3.4ps)) = 1 / (11 * 4.7ps) \u2248 19 GHz. (Note: Real intrinsic delays in SPICE will be higher due to layout parasitics, likely yielding 2-5 GHz as seen in the text's 50nm example).",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 3000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Highly dependent on the number of stages (n) and the parasitic extraction."
+      },
+      "importance": "optional"
+    },
+    "dynamic_power_dissipation": {
+      "description": "Average dynamic power dissipated by the inverter switching at a given frequency.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "7",
+        "reference": "Eq 11.15"
+      },
+      "equation": {
+        "formula": "P_avg = C_tot * VDD^2 * f_clk",
+        "explanation": "Power consumed by charging and discharging the total load capacitance.",
+        "assumptions": "Ignores short-circuit (crossing) current and leakage current."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming C_tot = 50fF, VDD = 1.8V, f_clk = 100MHz. P_avg = 50e-15 * (1.8)^2 * 100e6 = 16.2 uW.",
+        "range": {
+          "min": 1e-05,
+          "typical": 1.6e-05,
+          "max": 3e-05,
+          "unit": "W"
+        },
+        "reasoning": "Scales linearly with frequency and capacitance, and quadratically with VDD."
+      },
+      "importance": "essential"
+    },
+    "power_delay_product": {
+      "description": "Figure of merit representing the energy consumed per switching event.",
+      "unit": "J",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "8",
+        "reference": "Eq 11.16"
+      },
+      "equation": {
+        "formula": "PDP = P_avg * (t_PHL + t_PLH)",
+        "explanation": "The product of average power and the total delay (or period). Often simplified to C_tot * VDD^2 for a full cycle.",
+        "assumptions": "Evaluated at the maximum operating frequency or a normalized frequency."
+      },
+      "sky130_expected": {
+        "calculation": "Using the energy per cycle approximation: PDP \u2248 C_tot * VDD^2 = 50e-15 * (1.8)^2 = 162 fJ.",
+        "range": {
+          "min": 5e-14,
+          "typical": 1.6e-13,
+          "max": 3e-13,
+          "unit": "J"
+        },
+        "reasoning": "Represents the fundamental energy required to charge the load capacitance to VDD."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure CMOS inverter VTC (VSP, NMH, NML, crossing current) via DC sweep, and switching characteristics (t_PHL, t_PLH, dynamic power, PDP) via Transient analysis.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "switching_point_voltage",
+      "noise_margin_high",
+      "noise_margin_low",
+      "loaded_propagation_delay_hl",
+      "loaded_propagation_delay_lh",
+      "dynamic_power_dissipation",
+      "power_delay_product"
+    ],
+    "spice": "* CMOS Inverter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for device sizing\n.param W_xm1=1u L_xm1=0.15u\n.param W_xm2=2u L_xm2=0.15u\n\n* DUT Instantiation\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n\n* Load Capacitance (50fF as per text examples)\nCload Vout 0 50fF\n\n* Input Source (Pulse for Tran, overridden by DC sweep)\nVin Vin 0 PULSE(0 1.8 1n 50p 50p 4n 10n)\n\n.control\n* ==========================================\n* 1. DC Analysis (VTC, VSP, Noise Margins)\n* ==========================================\ndc Vin 0 1.8 0.01\n\n* Find Switching Point Voltage (VSP) where Vin = Vout\nlet vdiff = v(Vout) - v(Vin)\nmeas dc vsp find v(Vin) when vdiff=0\n\n* Find Noise Margins (VIL, VIH where dVout/dVin = -1)\nlet dvout = deriv(v(Vout))\nmeas dc vil find v(Vin) when dvout=-1 cross=1\nmeas dc vih find v(Vin) when dvout=-1 cross=2\n\nlet nml = vil - 0\nlet nmh = 1.8 - vih\nprint nml nmh\n\n* Measure peak crossing (short-circuit) current\nlet i_vdd_dc = -i(VDD)\nmeas dc max_cross_current max i_vdd_dc\n\n* ==========================================\n* 2. Transient Analysis (Delay, Power, PDP)\n* ==========================================\ntran 10p 20n\n\n* Measure Propagation Delays (50% to 50%)\nmeas tran tphl trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\nmeas tran tplh trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\n\n* Measure Average Dynamic Power over 2 cycles (20ns)\nmeas tran i_avg avg i(VDD) from=0 to=20n\nlet p_avg = -i_avg * 1.8\nprint p_avg\n\n* Calculate Power Delay Product (PDP)\nlet pdp = p_avg * (tphl + tplh) / 2\nprint pdp\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 11.9\",\n    \"page\": \"5\",\n    \"circuit_type\": \"CMOS Inverter\",\n    \"description\": \"The figure shows the transistor-level schematic of a CMOS inverter with an NMOS (M1) and a PMOS (M2), matching the provided netlist structure. It also includes the equivalent digital RC switch model used for calculating propagation delays.\"\n  },\n  \"step2_metrics\": {\n    \"noise_margin_high\": {\n      \"description\": \"Noise margin for the high logic level (NMH).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"1\",\n        \"reference\": \"Eq 11.1\"\n      },\n      \"equation\": {\n        \"formula\": \"NMH = V_OH - V_IH\",\n        \"explanation\": \"The difference between the maximum output high voltage and the minimum input high voltage recognized as a logic 1.\",\n        \"assumptions\": \"V_OH is typically VDD in an unloaded CMOS inverter.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming V_OH = 1.8V. V_IH is the point where d(Vout)/d(Vin) = -1. For a typical symmetric inverter, V_IH is around 5/8 of VDD. V_IH \u2248 1.125V. NMH = 1.8V - 1.125V = 0.675V.\",\n        \"range\": {\n          \"min\": 0.5,\n          \"typical\": 0.7,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the Wp/Wn sizing ratio. If PMOS is weak, V_IH shifts lower, increasing NMH.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_margin_low\": {\n      \"description\": \"Noise margin for the low logic level (NML).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"1\",\n        \"reference\": \"Eq 11.2\"\n      },\n      \"equation\": {\n        \"formula\": \"NML = V_IL - V_OL\",\n        \"explanation\": \"The difference between the maximum input low voltage recognized as a logic 0 and the minimum output low voltage.\",\n        \"assumptions\": \"V_OL is typically 0V in an unloaded CMOS inverter.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming V_OL = 0V. V_IL is the point where d(Vout)/d(Vin) = -1. For a typical symmetric inverter, V_IL is around 3/8 of VDD. V_IL \u2248 0.675V. NML = 0.675V - 0V = 0.675V.\",\n        \"range\": {\n          \"min\": 0.5,\n          \"typical\": 0.7,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the Wp/Wn sizing ratio. If NMOS is strong, V_IL shifts lower, decreasing NML.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"switching_point_voltage\": {\n      \"description\": \"The input voltage where Vin = Vout, causing both MOSFETs to be in saturation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"2\",\n        \"reference\": \"Eq 11.4\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = (sqrt(beta_n/beta_p)*V_THN + (VDD - V_THP)) / (1 + sqrt(beta_n/beta_p))\",\n        \"explanation\": \"Calculates the trip point of the inverter based on the transconductance parameters and threshold voltages of the NMOS and PMOS.\",\n        \"assumptions\": \"Assumes long-channel square-law model where both devices are in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using SKY130 params: V_THN=0.42V, |V_THP|=0.42V, un*Cox=270uA/V^2, up*Cox=50uA/V^2. Assuming Wn=1u, Wp=2u, L=0.15u. beta_n = 270*(1/0.15) = 1800uA/V^2. beta_p = 50*(2/0.15) = 667uA/V^2. sqrt(beta_n/beta_p) = sqrt(2.7) = 1.64. V_SP = (1.64*0.42 + (1.8 - 0.42)) / (1 + 1.64) = (0.688 + 1.38) / 2.64 = 0.78V.\",\n        \"range\": {\n          \"min\": 0.7,\n          \"typical\": 0.9,\n          \"max\": 1.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"V_SP is highly sensitive to the Wp/Wn ratio. To achieve the ideal VDD/2 (0.9V), Wp must be sized significantly larger than Wn (approx 3-5x) due to lower hole mobility.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"short_channel_switching_point\": {\n      \"description\": \"Switching point voltage estimated using effective switching resistances for short-channel devices.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"3\",\n        \"reference\": \"Eq 11.5\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = VDD * (R_n / (R_n + R_p))\",\n        \"explanation\": \"A voltage divider approximation for the switching point using the effective pull-up and pull-down resistances.\",\n        \"assumptions\": \"Assumes devices act as linear resistors during the switching transition.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"If Wp is sized such that R_p = R_n, then V_SP = 1.8 * (R_n / 2*R_n) = 0.9V.\",\n        \"range\": {\n          \"min\": 0.7,\n          \"typical\": 0.9,\n          \"max\": 1.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Matches the long-channel expectation but uses a simplified resistance model more appropriate for velocity-saturated short-channel devices.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"Effective input capacitance of the inverter.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.6\"\n      },\n      \"equation\": {\n        \"formula\": \"C_in = (3/2)*(C_ox1 + C_ox2) = C_inn + C_inp\",\n        \"explanation\": \"The total gate capacitance presented to the driving stage.\",\n        \"assumptions\": \"Assumes operation in the active region where gate capacitance is approx 3/2 C_ox.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on W and L. For Wn=1u, Wp=2u, L=0.15u. C_ox \u2248 10fF/um^2. Area = 3um * 0.15um = 0.45um^2. C_ox_total \u2248 4.5fF. C_in \u2248 1.5 * 4.5fF = 6.75fF.\",\n        \"range\": {\n          \"min\": 2e-15,\n          \"typical\": 5e-15,\n          \"max\": 20e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Scales directly with the chosen W_xm1 and W_xm2 parameters.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"output_capacitance\": {\n      \"description\": \"Effective intrinsic output capacitance of the inverter.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.7\"\n      },\n      \"equation\": {\n        \"formula\": \"C_out = C_ox1 + C_ox2 = C_outn + C_outp\",\n        \"explanation\": \"The parasitic capacitance at the output node, primarily drain-to-bulk and drain-to-gate overlap capacitances.\",\n        \"assumptions\": \"Simplified digital model approximation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using the same dimensions as C_in, C_out is roughly 2/3 of C_in in this simplified model. C_out \u2248 4.5fF.\",\n        \"range\": {\n          \"min\": 1e-15,\n          \"typical\": 4e-15,\n          \"max\": 15e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Depends on device sizing and specific PDK parasitic extraction.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"intrinsic_propagation_delay_lh\": {\n      \"description\": \"Low-to-high intrinsic propagation delay (no external load).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.8\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PLH = 0.7 * R_p2 * C_out\",\n        \"explanation\": \"Time taken for the output to rise to 50% of VDD, driven by the PMOS charging the intrinsic output capacitance.\",\n        \"assumptions\": \"Step input, RC delay model.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_p \u2248 1 / (beta_p * (VDD - |V_THP|)) = 1 / (667uA/V^2 * 1.38V) \u2248 1086 ohms. C_out \u2248 4.5fF. t_PLH = 0.7 * 1086 * 4.5e-15 \u2248 3.4ps.\",\n        \"range\": {\n          \"min\": 2e-12,\n          \"typical\": 5e-12,\n          \"max\": 15e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Intrinsic delays in 130nm are typically in the single-digit picosecond range.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"intrinsic_propagation_delay_hl\": {\n      \"description\": \"High-to-low intrinsic propagation delay (no external load).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.8\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL = 0.7 * R_n1 * C_out\",\n        \"explanation\": \"Time taken for the output to fall to 50% of VDD, driven by the NMOS discharging the intrinsic output capacitance.\",\n        \"assumptions\": \"Step input, RC delay model.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_n \u2248 1 / (beta_n * (VDD - V_THN)) = 1 / (1800uA/V^2 * 1.38V) \u2248 402 ohms. C_out \u2248 4.5fF. t_PHL = 0.7 * 402 * 4.5e-15 \u2248 1.3ps.\",\n        \"range\": {\n          \"min\": 1e-12,\n          \"typical\": 3e-12,\n          \"max\": 10e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"NMOS is typically faster than PMOS unless Wp is sized up significantly.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"loaded_propagation_delay_lh\": {\n      \"description\": \"Low-to-high propagation delay with a capacitive load.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"6\",\n        \"reference\": \"Eq 11.9\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PLH = 0.7 * R_p2 * C_tot = 0.7 * R_p2 * (C_out + C_load)\",\n        \"explanation\": \"Rise time delay accounting for both intrinsic and external load capacitance.\",\n        \"assumptions\": \"RC delay model dominates.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming C_load = 50fF. C_tot \u2248 54.5fF. R_p \u2248 1086 ohms. t_PLH = 0.7 * 1086 * 54.5e-15 \u2248 41ps.\",\n        \"range\": {\n          \"min\": 20e-12,\n          \"typical\": 40e-12,\n          \"max\": 100e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Dominated by the 50fF load capacitor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"loaded_propagation_delay_hl\": {\n      \"description\": \"High-to-low propagation delay with a capacitive load.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"6\",\n        \"reference\": \"Eq 11.10\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL = 0.7 * R_n1 * C_tot = 0.7 * R_n1 * (C_out + C_load)\",\n        \"explanation\": \"Fall time delay accounting for both intrinsic and external load capacitance.\",\n        \"assumptions\": \"RC delay model dominates.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming C_load = 50fF. C_tot \u2248 54.5fF. R_n \u2248 402 ohms. t_PHL = 0.7 * 402 * 54.5e-15 \u2248 15ps.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 20e-12,\n          \"max\": 50e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Dominated by the 50fF load capacitor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ring_oscillator_frequency\": {\n      \"description\": \"Oscillation frequency of an n-stage ring oscillator.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"7\",\n        \"reference\": \"Eq 11.11\"\n      },\n      \"equation\": {\n        \"formula\": \"f_osc = 1 / (n * (t_PHL + t_PLH))\",\n        \"explanation\": \"The frequency is inversely proportional to the number of stages and the sum of the rise and fall delays of a single stage.\",\n        \"assumptions\": \"Assumes identical stages and n is an odd number.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For an 11-stage oscillator using the intrinsic delays calculated above (t_PHL=1.3ps, t_PLH=3.4ps): f_osc = 1 / (11 * (1.3ps + 3.4ps)) = 1 / (11 * 4.7ps) \u2248 19 GHz. (Note: Real intrinsic delays in SPICE will be higher due to layout parasitics, likely yielding 2-5 GHz as seen in the text's 50nm example).\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 3e9,\n          \"max\": 20e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Highly dependent on the number of stages (n) and the parasitic extraction.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"dynamic_power_dissipation\": {\n      \"description\": \"Average dynamic power dissipated by the inverter switching at a given frequency.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"7\",\n        \"reference\": \"Eq 11.15\"\n      },\n      \"equation\": {\n        \"formula\": \"P_avg = C_tot * VDD^2 * f_clk\",\n        \"explanation\": \"Power consumed by charging and discharging the total load capacitance.\",\n        \"assumptions\": \"Ignores short-circuit (crossing) current and leakage current.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming C_tot = 50fF, VDD = 1.8V, f_clk = 100MHz. P_avg = 50e-15 * (1.8)^2 * 100e6 = 16.2 uW.\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 16e-6,\n          \"max\": 30e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scales linearly with frequency and capacitance, and quadratically with VDD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_delay_product\": {\n      \"description\": \"Figure of merit representing the energy consumed per switching event.\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"8\",\n        \"reference\": \"Eq 11.16\"\n      },\n      \"equation\": {\n        \"formula\": \"PDP = P_avg * (t_PHL + t_PLH)\",\n        \"explanation\": \"The product of average power and the total delay (or period). Often simplified to C_tot * VDD^2 for a full cycle.\",\n        \"assumptions\": \"Evaluated at the maximum operating frequency or a normalized frequency.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using the energy per cycle approximation: PDP \u2248 C_tot * VDD^2 = 50e-15 * (1.8)^2 = 162 fJ.\",\n        \"range\": {\n          \"min\": 50e-15,\n          \"typical\": 160e-15,\n          \"max\": 300e-15,\n          \"unit\": \"J\"\n        },\n        \"reasoning\": \"Represents the fundamental energy required to charge the load capacitance to VDD.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure CMOS inverter VTC (VSP, NMH, NML, crossing current) via DC sweep, and switching characteristics (t_PHL, t_PLH, dynamic power, PDP) via Transient analysis.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"switching_point_voltage\",\n      \"noise_margin_high\",\n      \"noise_margin_low\",\n      \"loaded_propagation_delay_hl\",\n      \"loaded_propagation_delay_lh\",\n      \"dynamic_power_dissipation\",\n      \"power_delay_product\"\n    ],\n    \"spice\": \"* CMOS Inverter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for device sizing\\n.param W_xm1=1u L_xm1=0.15u\\n.param W_xm2=2u L_xm2=0.15u\\n\\n* DUT Instantiation\\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n\\n* Load Capacitance (50fF as per text examples)\\nCload Vout 0 50fF\\n\\n* Input Source (Pulse for Tran, overridden by DC sweep)\\nVin Vin 0 PULSE(0 1.8 1n 50p 50p 4n 10n)\\n\\n.control\\n* ==========================================\\n* 1. DC Analysis (VTC, VSP, Noise Margins)\\n* ==========================================\\ndc Vin 0 1.8 0.01\\n\\n* Find Switching Point Voltage (VSP) where Vin = Vout\\nlet vdiff = v(Vout) - v(Vin)\\nmeas dc vsp find v(Vin) when vdiff=0\\n\\n* Find Noise Margins (VIL, VIH where dVout/dVin = -1)\\nlet dvout = deriv(v(Vout))\\nmeas dc vil find v(Vin) when dvout=-1 cross=1\\nmeas dc vih find v(Vin) when dvout=-1 cross=2\\n\\nlet nml = vil - 0\\nlet nmh = 1.8 - vih\\nprint nml nmh\\n\\n* Measure peak crossing (short-circuit) current\\nlet i_vdd_dc = -i(VDD)\\nmeas dc max_cross_current max i_vdd_dc\\n\\n* ==========================================\\n* 2. Transient Analysis (Delay, Power, PDP)\\n* ==========================================\\ntran 10p 20n\\n\\n* Measure Propagation Delays (50% to 50%)\\nmeas tran tphl trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\\nmeas tran tplh trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\\n\\n* Measure Average Dynamic Power over 2 cycles (20ns)\\nmeas tran i_avg avg i(VDD) from=0 to=20n\\nlet p_avg = -i_avg * 1.8\\nprint p_avg\\n\\n* Calculate Power Delay Product (PDP)\\nlet pdp = p_avg * (tphl + tplh) / 2\\nprint pdp\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

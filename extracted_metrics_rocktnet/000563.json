@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Wide-Band Low-Noise Amplifier (LNA)",
+    "description": "A wideband LNA utilizing a common-emitter input stage, an emitter follower, and a common-emitter output stage. It employs shunt-shunt feedback for broadband impedance matching and flat gain.",
+    "node_mapping": {
+      "input": [
+        "n1"
+      ],
+      "output": [
+        "n4",
+        "n5"
+      ],
+      "supply": [
+        "n7"
+      ],
+      "bias": [
+        "n2"
+      ],
+      "ground": [
+        "n0",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low-Power, High-Gain, and High-Linearity SiGe BiCMOS Wide-Band Low-Noise Amplifier",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "Total DC power dissipation of the amplifier",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "54 mW",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With VDD=1.8V and typical bias currents of 10-15mA per stage.",
+        "range": {
+          "min": "20m",
+          "typical": "50m",
+          "max": "80m",
+          "unit": "W"
+        },
+        "reasoning": "Matches the paper's reported 54 mW dissipation at 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "ac_gain": {
+      "description": "Maximum AC voltage gain (S21 proxy)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "14.5 dB",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the ratio of collector loads (R3, R4) to emitter degeneration (R1, R5) and feedback (R6).",
+        "range": {
+          "min": "10",
+          "typical": "14.5",
+          "max": "18",
+          "unit": "dB"
+        },
+        "reasoning": "Expected to closely match the paper's 14.5 dB target when properly biased."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Unity gain frequency (0 dB crossing)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "23 GHz (3-dB bandwidth)",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by the fT of the NPN transistors and parasitic node capacitances.",
+        "range": {
+          "min": "5G",
+          "typical": "15G",
+          "max": "30G",
+          "unit": "Hz"
+        },
+        "reasoning": "Using generic NPN models with tf=5p yields an fT of ~30GHz, providing an amplifier bandwidth in the 10-20GHz range."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Noise figure of the LNA",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "5 dB",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dominated by the base resistance of Q2 and thermal noise of R6 and R5.",
+        "range": {
+          "min": "3",
+          "typical": "5",
+          "max": "8",
+          "unit": "dB"
+        },
+        "reasoning": "Feedback LNAs typically exhibit higher NF than inductively degenerated LNAs, aligning with the 5 dB reported."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the Wideband LNA measuring DC power, AC gain, unity-gain bandwidth, and transient output swing.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "max_gain",
+      "f0db",
+      "vout_pp"
+    ],
+    "spice": "* Wideband LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic models for missing PDK specific NPN/Diodes\n.model npn npn (bf=100 is=1e-15 tf=5p cje=50f cjc=50f)\n.model diode d (is=1e-15 rs=10)\n\n* DUT (with appended component values for simulation)\nQ1 n6 n9 n3 npn\nQ2 n9 n1 n10 npn\nQ3 n4 n3 n8 npn\nR1 n0 n8 5\nR2 n2 n3 1k\nR3 n7 n9 200\nR4 n4 n5 100\nR5 n0 n10 5\nR6 n1 n3 300\nD1 n7 n6 diode\nC1 n0 n10 10p\nC2 n7 0 10p\nD2 n7 n5 diode\nD3 n2 0 diode\n\n* Bias and Supply\nVdd n7 0 1.8\nVss n0 0 0\nRbias n7 n2 2k\n\n* RF Input\nVac in_ac 0 DC 0 AC 1\nRs in_ac n1_ac 50\nCin n1_ac n1 10p\n\n* RF Output\nCout n4 out_ac 10p\nRl out_ac 0 50\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(Vdd)*1.8\n  print power\n\n  * AC Analysis\n  ac dec 20 10Meg 100Gig\n  let gain_db = vdb(out_ac)\n  meas ac max_gain max gain_db\n  meas ac f0db when gain_db=0 fall=1\n\n  * Transient Analysis\n  tran 1p 5n\n  meas tran vout_pp pp v(out_ac)\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Wide-Band Low-Noise Amplifier (LNA)\",\n    \"description\": \"A wideband LNA utilizing a common-emitter input stage, an emitter follower, and a common-emitter output stage. It employs shunt-shunt feedback for broadband impedance matching and flat gain.\",\n    \"node_mapping\": {\n      \"input\": [\"n1\"],\n      \"output\": [\"n4\", \"n5\"],\n      \"supply\": [\"n7\"],\n      \"bias\": [\"n2\"],\n      \"ground\": [\"n0\", \"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low-Power, High-Gain, and High-Linearity SiGe BiCMOS Wide-Band Low-Noise Amplifier\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"Total DC power dissipation of the amplifier\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"54 mW\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With VDD=1.8V and typical bias currents of 10-15mA per stage.\",\n        \"range\": { \"min\": \"20m\", \"typical\": \"50m\", \"max\": \"80m\", \"unit\": \"W\" },\n        \"reasoning\": \"Matches the paper's reported 54 mW dissipation at 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ac_gain\": {\n      \"description\": \"Maximum AC voltage gain (S21 proxy)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"14.5 dB\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the ratio of collector loads (R3, R4) to emitter degeneration (R1, R5) and feedback (R6).\",\n        \"range\": { \"min\": \"10\", \"typical\": \"14.5\", \"max\": \"18\", \"unit\": \"dB\" },\n        \"reasoning\": \"Expected to closely match the paper's 14.5 dB target when properly biased.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Unity gain frequency (0 dB crossing)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"23 GHz (3-dB bandwidth)\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by the fT of the NPN transistors and parasitic node capacitances.\",\n        \"range\": { \"min\": \"5G\", \"typical\": \"15G\", \"max\": \"30G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Using generic NPN models with tf=5p yields an fT of ~30GHz, providing an amplifier bandwidth in the 10-20GHz range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Noise figure of the LNA\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"5 dB\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominated by the base resistance of Q2 and thermal noise of R6 and R5.\",\n        \"range\": { \"min\": \"3\", \"typical\": \"5\", \"max\": \"8\", \"unit\": \"dB\" },\n        \"reasoning\": \"Feedback LNAs typically exhibit higher NF than inductively degenerated LNAs, aligning with the 5 dB reported.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the Wideband LNA measuring DC power, AC gain, unity-gain bandwidth, and transient output swing.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"power\", \"max_gain\", \"f0db\", \"vout_pp\"],\n    \"spice\": \"* Wideband LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic models for missing PDK specific NPN/Diodes\\n.model npn npn (bf=100 is=1e-15 tf=5p cje=50f cjc=50f)\\n.model diode d (is=1e-15 rs=10)\\n\\n* DUT (with appended component values for simulation)\\nQ1 n6 n9 n3 npn\\nQ2 n9 n1 n10 npn\\nQ3 n4 n3 n8 npn\\nR1 n0 n8 5\\nR2 n2 n3 1k\\nR3 n7 n9 200\\nR4 n4 n5 100\\nR5 n0 n10 5\\nR6 n1 n3 300\\nD1 n7 n6 diode\\nC1 n0 n10 10p\\nC2 n7 0 10p\\nD2 n7 n5 diode\\nD3 n2 0 diode\\n\\n* Bias and Supply\\nVdd n7 0 1.8\\nVss n0 0 0\\nRbias n7 n2 2k\\n\\n* RF Input\\nVac in_ac 0 DC 0 AC 1\\nRs in_ac n1_ac 50\\nCin n1_ac n1 10p\\n\\n* RF Output\\nCout n4 out_ac 10p\\nRl out_ac 0 50\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(Vdd)*1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 20 10Meg 100Gig\\n  let gain_db = vdb(out_ac)\\n  meas ac max_gain max gain_db\\n  meas ac f0db when gain_db=0 fall=1\\n\\n  * Transient Analysis\\n  tran 1p 5n\\n  meas tran vout_pp pp v(out_ac)\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1302273",
+  "_case": "1302273_image_3"
+}

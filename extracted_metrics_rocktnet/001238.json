@@ -1,0 +1,173 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CMOS Transconductor (Common-Gate OTA with CMFB)",
+    "description": "A highly linear common-gate transconductor that uses input resistors to convert input voltage to current. It features a common-mode feedback (CMFB) loop to regulate the output DC voltage.",
+    "node_mapping": {
+      "input": [
+        "N3",
+        "N4"
+      ],
+      "output": [
+        "OUT_P",
+        "OUT_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB1",
+        "VB2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Transconductor With 80-dB SFDR up to 10 MHz",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Power Consumption": {
+      "description": "Total DC power dissipated by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "10.56 mW",
+        "technology": "0.35um CMOS, 3.3V"
+      },
+      "sky130_expected": {
+        "calculation": "Total current is ~29uA (tail currents + CMFB branches). Power = 29uA * 1.8V = 52uW.",
+        "range": {
+          "min": "30u",
+          "typical": "52u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "The parameterized netlist uses W=5u for all transistors, resulting in much lower bias currents than the original 10MHz 3.3V design which dissipated 10mW."
+      },
+      "importance": "essential"
+    },
+    "Voltage Gain": {
+      "description": "Differential low-frequency voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm6 * Rout * (1/gm6)/(10k + 1/gm6) = 162uS * 1MOhm * 0.38 = 61.5 V/V = 35.8 dB.",
+        "range": {
+          "min": "30",
+          "typical": "35.8",
+          "max": "45",
+          "unit": "dB"
+        },
+        "reasoning": "Calculated based on the gm of the common-gate input, the output resistance of the cascode/current sources, and the voltage divider formed by the 10k input resistors."
+      },
+      "importance": "essential"
+    },
+    "Unity Gain Frequency": {
+      "description": "Frequency where voltage gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 MHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "UGF = Gain * BW = 61.5 * (1 / (2*pi*1MOhm*1pF)) = 9.8 MHz.",
+        "range": {
+          "min": "5M",
+          "typical": "10M",
+          "max": "20M",
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the paper's target frequency when loaded with a typical 1pF capacitor."
+      },
+      "importance": "essential"
+    },
+    "Phase Margin": {
+      "description": "Phase margin for stability.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Single dominant pole at output node.",
+        "range": {
+          "min": "60",
+          "typical": "85",
+          "max": "90",
+          "unit": "degrees"
+        },
+        "reasoning": "Standard OTA behavior with a 1pF load."
+      },
+      "importance": "essential"
+    },
+    "Output DC Voltage": {
+      "description": "Common-mode DC voltage at the output nodes.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Regulated by CMFB to match VB2 reference.",
+        "range": {
+          "min": "0.5",
+          "typical": "0.54",
+          "max": "0.6",
+          "unit": "V"
+        },
+        "reasoning": "The CMFB loop forces V(OUT_P, OUT_N) to match the VB2 reference voltage (0.54V)."
+      },
+      "importance": "recommended"
+    },
+    "Total Harmonic Distortion (THD)": {
+      "description": "Linearity of the transconductor.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "-77 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Highly linear due to common-gate topology and input resistors.",
+        "range": {
+          "min": "-80",
+          "typical": "-60",
+          "max": "-40",
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on input swing. At 20mVpp input, THD should be very low, aligning with the paper's high SFDR claims."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, bandwidth, phase margin, transient swing, and THD. Note: Because the parameterized netlist forces all W=5u, the CMFB pull-up current is insufficient to balance the tail currents. To fix this without altering the DUT netlist, the input voltage sources are given a specific DC offset (0.206V) to inject exactly the missing 14.5uA through the 10k input resistors, perfectly balancing the OTA at V_out = 0.54V.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Voltage Gain",
+      "Unity Gain Frequency",
+      "Phase Margin",
+      "Output DC Voltage",
+      "Total Harmonic Distortion (THD)"
+    ],
+    "spice": "* CMOS Transconductor Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmc14=5u L_xmc14=0.5u\n.param W_xmc11=5u L_xmc11=0.5u\n.param W_xmc2=5u L_xmc2=0.5u\n.param W_xmc5=5u L_xmc5=0.5u\n.param W_xmc4=5u L_xmc4=0.5u\n.param W_xmc7=5u L_xmc7=0.5u\n.param W_xmc12=5u L_xmc12=0.5u\n.param W_xmc8=5u L_xmc8=0.5u\n.param W_xmc10=5u L_xmc10=0.5u\n.param W_xmc13=5u L_xmc13=0.5u\n.param W_xmc3=5u L_xmc3=0.5u\n.param W_xmc1=5u L_xmc1=0.5u\n.param W_xmc15=5u L_xmc15=0.5u\n.param W_xmc9=5u L_xmc9=0.5u\n.param W_xmc6=5u L_xmc6=0.5u\n\nXMC14 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc14} w={W_xmc14}\nXMC11 N5 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc11} w={W_xmc11}\nXMC2 N0 VB2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc2} w={W_xmc2}\nXMC5 OUT_N VB2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xmc5} w={W_xmc5}\nXMC4 N5 OUT_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc4} w={W_xmc4}\nXMC7 N4 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmc7} w={W_xmc7}\nXMC12 OUT_N N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc12} w={W_xmc12}\nXMC8 N1 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmc8} w={W_xmc8}\nXMC10 N6 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc10} w={W_xmc10}\nXMC13 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc13} w={W_xmc13}\nXMC3 N0 VB2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc3} w={W_xmc3}\nXMC1 N6 OUT_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc1} w={W_xmc1}\nXMC15 OUT_P N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc15} w={W_xmc15}\nXMC9 N3 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmc9} w={W_xmc9}\nXMC6 OUT_P VB2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmc6} w={W_xmc6}\n\nVVDD VDD 0 1.8\nVVB2 VB2 0 0.54\nVVB1 VB1 0 0.54\n\n* Input resistors (as described in paper) and DC bias injection to balance CMFB\nR_in_p Vin_p N3 10k\nR_in_n Vin_n N4 10k\nV_in_p Vin_p 0 DC 0.206 AC 0.5 SIN(0.206 10m 1Meg)\nV_in_n Vin_n 0 DC 0.206 AC -0.5 SIN(0.206 -10m 1Meg)\n\n* Typical OTA load\nC_out_p OUT_P 0 1p\nC_out_n OUT_N 0 1p\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(OUT_P) v(OUT_N) v(N3) v(N4)\n\nac dec 100 1k 1G\nlet vout_diff = v(OUT_P) - v(OUT_N)\nlet gain_db = 20 * log10(mag(vout_diff))\nlet phase = 180/PI * cph(vout_diff)\n\nmeas ac dc_gain find gain_db at=1k\nmeas ac bw_3db when gain_db=(dc_gain-3) fall=1\nmeas ac ugf when gain_db=0 fall=1\nmeas ac pm find phase when gain_db=0 fall=1\n\ntran 10n 5u\nmeas tran vout_p_max max v(OUT_P)\nmeas tran vout_p_min min v(OUT_P)\nlet swing = vout_p_max - vout_p_min\nprint swing\nfourier 1Meg v(OUT_P)\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CMOS Transconductor (Common-Gate OTA with CMFB)\",\n    \"description\": \"A highly linear common-gate transconductor that uses input resistors to convert input voltage to current. It features a common-mode feedback (CMFB) loop to regulate the output DC voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N3\",\n        \"N4\"\n      ],\n      \"output\": [\n        \"OUT_P\",\n        \"OUT_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB1\",\n        \"VB2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Transconductor With 80-dB SFDR up to 10 MHz\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Power Consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"10.56 mW\",\n        \"technology\": \"0.35um CMOS, 3.3V\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current is ~29uA (tail currents + CMFB branches). Power = 29uA * 1.8V = 52uW.\",\n        \"range\": {\n          \"min\": \"30u\",\n          \"typical\": \"52u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The parameterized netlist uses W=5u for all transistors, resulting in much lower bias currents than the original 10MHz 3.3V design which dissipated 10mW.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Voltage Gain\": {\n      \"description\": \"Differential low-frequency voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm6 * Rout * (1/gm6)/(10k + 1/gm6) = 162uS * 1MOhm * 0.38 = 61.5 V/V = 35.8 dB.\",\n        \"range\": {\n          \"min\": \"30\",\n          \"typical\": \"35.8\",\n          \"max\": \"45\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated based on the gm of the common-gate input, the output resistance of the cascode/current sources, and the voltage divider formed by the 10k input resistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unity Gain Frequency\": {\n      \"description\": \"Frequency where voltage gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 MHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = Gain * BW = 61.5 * (1 / (2*pi*1MOhm*1pF)) = 9.8 MHz.\",\n        \"range\": {\n          \"min\": \"5M\",\n          \"typical\": \"10M\",\n          \"max\": \"20M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the paper's target frequency when loaded with a typical 1pF capacitor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase Margin\": {\n      \"description\": \"Phase margin for stability.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Single dominant pole at output node.\",\n        \"range\": {\n          \"min\": \"60\",\n          \"typical\": \"85\",\n          \"max\": \"90\",\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard OTA behavior with a 1pF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output DC Voltage\": {\n      \"description\": \"Common-mode DC voltage at the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Regulated by CMFB to match VB2 reference.\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"0.54\",\n          \"max\": \"0.6\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The CMFB loop forces V(OUT_P, OUT_N) to match the VB2 reference voltage (0.54V).\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Total Harmonic Distortion (THD)\": {\n      \"description\": \"Linearity of the transconductor.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"-77 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Highly linear due to common-gate topology and input resistors.\",\n        \"range\": {\n          \"min\": \"-80\",\n          \"typical\": \"-60\",\n          \"max\": \"-40\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on input swing. At 20mVpp input, THD should be very low, aligning with the paper's high SFDR claims.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, bandwidth, phase margin, transient swing, and THD. Note: Because the parameterized netlist forces all W=5u, the CMFB pull-up current is insufficient to balance the tail currents. To fix this without altering the DUT netlist, the input voltage sources are given a specific DC offset (0.206V) to inject exactly the missing 14.5uA through the 10k input resistors, perfectly balancing the OTA at V_out = 0.54V.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Voltage Gain\",\n      \"Unity Gain Frequency\",\n      \"Phase Margin\",\n      \"Output DC Voltage\",\n      \"Total Harmonic Distortion (THD)\"\n    ],\n    \"spice\": \"* CMOS Transconductor Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmc14=5u L_xmc14=0.5u\\n.param W_xmc11=5u L_xmc11=0.5u\\n.param W_xmc2=5u L_xmc2=0.5u\\n.param W_xmc5=5u L_xmc5=0.5u\\n.param W_xmc4=5u L_xmc4=0.5u\\n.param W_xmc7=5u L_xmc7=0.5u\\n.param W_xmc12=5u L_xmc12=0.5u\\n.param W_xmc8=5u L_xmc8=0.5u\\n.param W_xmc10=5u L_xmc10=0.5u\\n.param W_xmc13=5u L_xmc13=0.5u\\n.param W_xmc3=5u L_xmc3=0.5u\\n.param W_xmc1=5u L_xmc1=0.5u\\n.param W_xmc15=5u L_xmc15=0.5u\\n.param W_xmc9=5u L_xmc9=0.5u\\n.param W_xmc6=5u L_xmc6=0.5u\\n\\nXMC14 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc14} w={W_xmc14}\\nXMC11 N5 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc11} w={W_xmc11}\\nXMC2 N0 VB2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc2} w={W_xmc2}\\nXMC5 OUT_N VB2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xmc5} w={W_xmc5}\\nXMC4 N5 OUT_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc4} w={W_xmc4}\\nXMC7 N4 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmc7} w={W_xmc7}\\nXMC12 OUT_N N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc12} w={W_xmc12}\\nXMC8 N1 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmc8} w={W_xmc8}\\nXMC10 N6 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc10} w={W_xmc10}\\nXMC13 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc13} w={W_xmc13}\\nXMC3 N0 VB2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc3} w={W_xmc3}\\nXMC1 N6 OUT_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xmc1} w={W_xmc1}\\nXMC15 OUT_P N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmc15} w={W_xmc15}\\nXMC9 N3 VB1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmc9} w={W_xmc9}\\nXMC6 OUT_P VB2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xmc6} w={W_xmc6}\\n\\nVVDD VDD 0 1.8\\nVVB2 VB2 0 0.54\\nVVB1 VB1 0 0.54\\n\\n* Input resistors (as described in paper) and DC bias injection to balance CMFB\\nR_in_p Vin_p N3 10k\\nR_in_n Vin_n N4 10k\\nV_in_p Vin_p 0 DC 0.206 AC 0.5 SIN(0.206 10m 1Meg)\\nV_in_n Vin_n 0 DC 0.206 AC -0.5 SIN(0.206 -10m 1Meg)\\n\\n* Typical OTA load\\nC_out_p OUT_P 0 1p\\nC_out_n OUT_N 0 1p\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(OUT_P) v(OUT_N) v(N3) v(N4)\\n\\nac dec 100 1k 1G\\nlet vout_diff = v(OUT_P) - v(OUT_N)\\nlet gain_db = 20 * log10(mag(vout_diff))\\nlet phase = 180/PI * cph(vout_diff)\\n\\nmeas ac dc_gain find gain_db at=1k\\nmeas ac bw_3db when gain_db=(dc_gain-3) fall=1\\nmeas ac ugf when gain_db=0 fall=1\\nmeas ac pm find phase when gain_db=0 fall=1\\n\\ntran 10n 5u\\nmeas tran vout_p_max max v(OUT_P)\\nmeas tran vout_p_min min v(OUT_P)\\nlet swing = vout_p_max - vout_p_min\\nprint swing\\nfourier 1Meg v(OUT_P)\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "987089",
+  "_case": "987089_image_4"
+}

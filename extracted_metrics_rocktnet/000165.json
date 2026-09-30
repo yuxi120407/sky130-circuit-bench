@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully differential capacitive amplifier / integrator",
+    "description": "This circuit is a fully differential capacitive amplifier, which likely forms the core of a switched-capacitor resonator for a bandpass sigma-delta modulator. It uses an operational amplifier with capacitive feedback and input capacitors to process differential signals.",
+    "node_mapping": {
+      "input": [
+        "label_net_0",
+        "label_net_1"
+      ],
+      "output": [
+        "n1",
+        "n0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 80-MHz Bandpass Sigma-Delta Modulator for a 100-MHz IF Receiver",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "midband_gain": {
+      "description": "Closed-loop AC gain of the capacitive amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is determined by the ratio of input capacitance to feedback capacitance (C_in / C_fb). Assuming equal 1pF capacitors, the gain is 1 V/V or 0 dB.",
+        "range": {
+          "min": -1,
+          "typical": 0,
+          "max": 1,
+          "unit": "dB"
+        },
+        "reasoning": "The capacitive ratio strictly sets the closed-loop gain in this topology."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the closed-loop amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "100 MHz (IF frequency)",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the op-amp's gain-bandwidth product (GBW). To process a 100 MHz IF signal, the closed-loop bandwidth must be significantly higher.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 500000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "A high GBW is required to minimize phase error and settling time at the 80 MHz sampling rate."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power consumption of the modulator",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "56 mW",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Scaled for 1.8V supply in SKY130 compared to the original 3.0V supply.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.02,
+          "max": 0.03,
+          "unit": "W"
+        },
+        "reasoning": "Lower supply voltage and smaller feature size will reduce the power consumption compared to the 0.35um 3.0V original design."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the AC gain, bandwidth, and transient response of the fully differential capacitive amplifier. Idealized VCVS is used for the op-amp macro-model, and 1pF values are appended to the capacitors.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "midband_gain",
+      "bw_3db",
+      "vout_max",
+      "power"
+    ],
+    "spice": "* Testbench for Capacitive Amplifier\n.lib \"${SKY130_PDK}\" tt\n\n* Idealized fully differential amplifier macro-model\n.subckt amplifier in_p in_n out_n out_p\nE1 out_p 0 vol='0.9 + 1000*(v(in_p)-v(in_n))'\nE2 out_n 0 vol='0.9 - 1000*(v(in_p)-v(in_n))'\n.ends\n\n* DUT (Capacitor values appended to prevent syntax errors)\nX1 n2 n3 n0 n1 amplifier\nC1 n1 n3 1p\nC2 n3 label_net_0 1p\nC3 n1 GND 1p\nC4 n0 n2 1p\nC5 n0 GND 1p\nC6 n2 label_net_1 1p\n\n* DC bias resistors to stabilize operating point (1 Gohm)\nRfb1 n1 n3 1G\nRfb2 n0 n2 1G\n\n* Input sources\nVLABEL_NET_0 label_net_0 0 dc 0.9 ac 1 sin(0.9 0.1 10Meg)\nVLABEL_NET_1 label_net_1 0 dc 0.9 ac -1 sin(0.9 -0.1 10Meg)\n\n* Difference amplifiers for differential measurement\nE_out_diff out_diff 0 vol='v(n1)-v(n0)'\nE_in_diff in_diff 0 vol='v(label_net_0)-v(label_net_1)'\n\n* Dummy VDD for power measurement\nVdd vdd 0 1.8\nRdummy vdd 0 1k\n\n.control\nop\nprint v(n1) v(n0) v(n2) v(n3)\n\nac dec 10 1k 1G\nlet gain_db = vdb(out_diff) - vdb(in_diff)\nmeas ac midband_gain find gain_db at=1Meg\nmeas ac bw_3db when gain_db='midband_gain-3' fall=1\n\ntran 1n 200n\nmeas tran vout_max max v(out_diff)\nmeas tran vout_min min v(out_diff)\n\nlet power = -i(Vdd) * 1.8\nprint power\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully differential capacitive amplifier / integrator\",\n    \"description\": \"This circuit is a fully differential capacitive amplifier, which likely forms the core of a switched-capacitor resonator for a bandpass sigma-delta modulator. It uses an operational amplifier with capacitive feedback and input capacitors to process differential signals.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"label_net_0\",\n        \"label_net_1\"\n      ],\n      \"output\": [\n        \"n1\",\n        \"n0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 80-MHz Bandpass Sigma-Delta Modulator for a 100-MHz IF Receiver\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"midband_gain\": {\n      \"description\": \"Closed-loop AC gain of the capacitive amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is determined by the ratio of input capacitance to feedback capacitance (C_in / C_fb). Assuming equal 1pF capacitors, the gain is 1 V/V or 0 dB.\",\n        \"range\": {\n          \"min\": -1,\n          \"typical\": 0,\n          \"max\": 1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The capacitive ratio strictly sets the closed-loop gain in this topology.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the closed-loop amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"100 MHz (IF frequency)\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the op-amp's gain-bandwidth product (GBW). To process a 100 MHz IF signal, the closed-loop bandwidth must be significantly higher.\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 500e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"A high GBW is required to minimize phase error and settling time at the 80 MHz sampling rate.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumption of the modulator\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"56 mW\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Scaled for 1.8V supply in SKY130 compared to the original 3.0V supply.\",\n        \"range\": {\n          \"min\": 10e-3,\n          \"typical\": 20e-3,\n          \"max\": 30e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Lower supply voltage and smaller feature size will reduce the power consumption compared to the 0.35um 3.0V original design.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the AC gain, bandwidth, and transient response of the fully differential capacitive amplifier. Idealized VCVS is used for the op-amp macro-model, and 1pF values are appended to the capacitors.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"midband_gain\",\n      \"bw_3db\",\n      \"vout_max\",\n      \"power\"\n    ],\n    \"spice\": \"* Testbench for Capacitive Amplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Idealized fully differential amplifier macro-model\\n.subckt amplifier in_p in_n out_n out_p\\nE1 out_p 0 vol='0.9 + 1000*(v(in_p)-v(in_n))'\\nE2 out_n 0 vol='0.9 - 1000*(v(in_p)-v(in_n))'\\n.ends\\n\\n* DUT (Capacitor values appended to prevent syntax errors)\\nX1 n2 n3 n0 n1 amplifier\\nC1 n1 n3 1p\\nC2 n3 label_net_0 1p\\nC3 n1 GND 1p\\nC4 n0 n2 1p\\nC5 n0 GND 1p\\nC6 n2 label_net_1 1p\\n\\n* DC bias resistors to stabilize operating point (1 Gohm)\\nRfb1 n1 n3 1G\\nRfb2 n0 n2 1G\\n\\n* Input sources\\nVLABEL_NET_0 label_net_0 0 dc 0.9 ac 1 sin(0.9 0.1 10Meg)\\nVLABEL_NET_1 label_net_1 0 dc 0.9 ac -1 sin(0.9 -0.1 10Meg)\\n\\n* Difference amplifiers for differential measurement\\nE_out_diff out_diff 0 vol='v(n1)-v(n0)'\\nE_in_diff in_diff 0 vol='v(label_net_0)-v(label_net_1)'\\n\\n* Dummy VDD for power measurement\\nVdd vdd 0 1.8\\nRdummy vdd 0 1k\\n\\n.control\\nop\\nprint v(n1) v(n0) v(n2) v(n3)\\n\\nac dec 10 1k 1G\\nlet gain_db = vdb(out_diff) - vdb(in_diff)\\nmeas ac midband_gain find gain_db at=1Meg\\nmeas ac bw_3db when gain_db='midband_gain-3' fall=1\\n\\ntran 1n 200n\\nmeas tran vout_max max v(out_diff)\\nmeas tran vout_min min v(out_diff)\\n\\nlet power = -i(Vdd) * 1.8\\nprint power\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1015676",
+  "_case": "1015676_image_8_a"
+}

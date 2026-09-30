@@ -1,0 +1,105 @@
+{
+  "step1_analysis": {
+    "circuit_type": "5-Transistor (5T) Latch / SRAM Cell",
+    "description": "A cross-coupled inverter pair forming a bistable storage element, with a single NMOS access transistor for read/write operations. The access transistor's gate is tied to VDD, meaning it is permanently enabled, acting as a transparent latch or a specific DSP register cell written by strongly driving the bitline.",
+    "node_mapping": {
+      "input": [
+        "BL"
+      ],
+      "output": [
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Micropower Programmable DSP Using Approximate Signal Processing Based on Distributed Arithmetic",
+      "figure": "1",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "write0_delay": {
+      "description": "Time required to write a '0' to the cell by pulling the bitline (BL) low.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "250 kHz (max frequency)",
+        "technology": "Not specified (likely 0.13um or 0.18um based on 2004 and 1V supply)"
+      },
+      "sky130_expected": {
+        "calculation": "With W=5u and L=0.5u, the NMOS access transistor has an ON resistance of ~1-2 kOhm. The internal node capacitance is ~10-20 fF. The RC time constant is ~20-40 ps. The delay to flip the cross-coupled inverters should be in the 50-200 ps range.",
+        "range": {
+          "min": "50p",
+          "typical": "100p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "Calculated based on SKY130 NMOS drive strength at 1.8V and parasitic capacitance of the cross-coupled inverters."
+      },
+      "importance": "essential"
+    },
+    "write1_delay": {
+      "description": "Time required to write a '1' to the cell by pulling the bitline (BL) high.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Writing a '1' through an NMOS pass transistor is difficult because it passes a weak '1' (VDD - Vth). However, since all transistors are equally sized (W=5u) and NMOS is stronger than PMOS, the switching threshold of the inverters is skewed low, which may allow the weak '1' to successfully flip the cell. Delay will be longer than write0.",
+        "range": {
+          "min": "100p",
+          "typical": "300p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the voltage divider formed by the access NMOS and the pull-down NMOS of the inverter, and the skewed switching threshold."
+      },
+      "importance": "recommended"
+    },
+    "static_power": {
+      "description": "Static power consumption of the cell when holding a state.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "560 nW (total DSP power)",
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Leakage current of OFF transistors. SKY130 typical subthreshold leakage is ~10-100 pA per micron width. For W=5u, leakage is ~0.5 nA. Power = 1.8V * 0.5nA = 0.9 nW.",
+        "range": {
+          "min": "100p",
+          "typical": "1n",
+          "max": "10n",
+          "unit": "W"
+        },
+        "reasoning": "Based on typical subthreshold leakage for SKY130 standard threshold devices at 1.8V. The paper's 560 nW is for the entire DSP; a single cell will consume a tiny fraction of this."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure write delays (0 and 1) and static power consumption in both states.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "write0_delay",
+      "write1_delay",
+      "static_power_1",
+      "static_power_0"
+    ],
+    "spice": "* 5T Latch Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\n.lib \"${SKY130_PDK}\" tt\n\nVVDD VDD 0 1.8\nVBL BL 0 PULSE(1.8 0 2n 0.1n 0.1n 4n 10n)\n\nXM1 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM4 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM9 BL VDD N1 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\n.ic v(N1)=1.8 v(N0)=0\n\n.control\ntran 10p 10n uic\n\n* Measure write delays\nmeas tran write0_delay trig v(BL) val=0.9 fall=1 targ v(N1) val=0.9 fall=1\nmeas tran write1_delay trig v(BL) val=0.9 rise=1 targ v(N1) val=0.9 rise=1\n\n* Measure static current in both states\nmeas tran I_static_1 avg i(VVDD) from=1n to=1.9n\nmeas tran I_static_0 avg i(VVDD) from=5n to=5.9n\n\n* Calculate static power\nlet pwr_1 = -I_static_1 * 1.8\nlet pwr_0 = -I_static_0 * 1.8\n\nprint pwr_1 pwr_0 write0_delay write1_delay\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"5-Transistor (5T) Latch / SRAM Cell\",\n    \"description\": \"A cross-coupled inverter pair forming a bistable storage element, with a single NMOS access transistor for read/write operations. The access transistor's gate is tied to VDD, meaning it is permanently enabled, acting as a transparent latch or a specific DSP register cell written by strongly driving the bitline.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"BL\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Micropower Programmable DSP Using Approximate Signal Processing Based on Distributed Arithmetic\",\n      \"figure\": \"1\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"write0_delay\": {\n      \"description\": \"Time required to write a '0' to the cell by pulling the bitline (BL) low.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"250 kHz (max frequency)\",\n        \"technology\": \"Not specified (likely 0.13um or 0.18um based on 2004 and 1V supply)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W=5u and L=0.5u, the NMOS access transistor has an ON resistance of ~1-2 kOhm. The internal node capacitance is ~10-20 fF. The RC time constant is ~20-40 ps. The delay to flip the cross-coupled inverters should be in the 50-200 ps range.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"100p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 NMOS drive strength at 1.8V and parasitic capacitance of the cross-coupled inverters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"write1_delay\": {\n      \"description\": \"Time required to write a '1' to the cell by pulling the bitline (BL) high.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Writing a '1' through an NMOS pass transistor is difficult because it passes a weak '1' (VDD - Vth). However, since all transistors are equally sized (W=5u) and NMOS is stronger than PMOS, the switching threshold of the inverters is skewed low, which may allow the weak '1' to successfully flip the cell. Delay will be longer than write0.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"300p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the voltage divider formed by the access NMOS and the pull-down NMOS of the inverter, and the skewed switching threshold.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"static_power\": {\n      \"description\": \"Static power consumption of the cell when holding a state.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"560 nW (total DSP power)\",\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Leakage current of OFF transistors. SKY130 typical subthreshold leakage is ~10-100 pA per micron width. For W=5u, leakage is ~0.5 nA. Power = 1.8V * 0.5nA = 0.9 nW.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"1n\",\n          \"max\": \"10n\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on typical subthreshold leakage for SKY130 standard threshold devices at 1.8V. The paper's 560 nW is for the entire DSP; a single cell will consume a tiny fraction of this.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure write delays (0 and 1) and static power consumption in both states.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"write0_delay\",\n      \"write1_delay\",\n      \"static_power_1\",\n      \"static_power_0\"\n    ],\n    \"spice\": \"* 5T Latch Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\nVVDD VDD 0 1.8\\nVBL BL 0 PULSE(1.8 0 2n 0.1n 0.1n 4n 10n)\\n\\nXM1 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM4 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM9 BL VDD N1 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\n.ic v(N1)=1.8 v(N0)=0\\n\\n.control\\ntran 10p 10n uic\\n\\n* Measure write delays\\nmeas tran write0_delay trig v(BL) val=0.9 fall=1 targ v(N1) val=0.9 fall=1\\nmeas tran write1_delay trig v(BL) val=0.9 rise=1 targ v(N1) val=0.9 rise=1\\n\\n* Measure static current in both states\\nmeas tran I_static_1 avg i(VVDD) from=1n to=1.9n\\nmeas tran I_static_0 avg i(VVDD) from=5n to=5.9n\\n\\n* Calculate static power\\nlet pwr_1 = -I_static_1 * 1.8\\nlet pwr_0 = -I_static_0 * 1.8\\n\\nprint pwr_1 pwr_0 write0_delay write1_delay\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1263660",
+  "_case": "1263660_image_10"
+}

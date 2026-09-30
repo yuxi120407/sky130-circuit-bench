@@ -1,0 +1,148 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 20.10(a)",
+    "page": "621",
+    "circuit_type": "PMOS Current Mirror with Resistor Bias",
+    "description": "A basic PMOS current mirror where the reference current is established by a resistor tied from the diode-connected PMOS drain to ground. The output current is mirrored by a second PMOS transistor."
+  },
+  "step2_metrics": {
+    "current_mismatch_vth": {
+      "description": "First-order expression for the ratio of currents due to threshold voltage mismatch between the two mirror devices.",
+      "unit": "dimensionless",
+      "analysis_type": "DC",
+      "source": {
+        "page": "616",
+        "reference": "Eq 20.8"
+      },
+      "equation": {
+        "formula": "I_O / I_REF \u2248 1 - (2 * \u0394V_TH) / (V_SG - |V_THP|)",
+        "explanation": "Shows that as the gate overdrive voltage (V_SG - |V_THP|) decreases, the difference in mirrored currents increases due to threshold voltage mismatch.",
+        "assumptions": "Assumes higher-order terms are ignored and mismatch is distributed across both devices."
+      },
+      "sky130_expected": {
+        "calculation": "1. Find I_REF: VDD = V_SG + I_REF*R -> 1.8 = V_SG + I_REF*65k. Using PMOS square law: I_REF = (50u/2)*(100/2)*(V_SG - 0.42)^2 = 1.25m * (V_SG - 0.42)^2. Solving iteratively: V_SG \u2248 0.545V, I_REF \u2248 19.3uA. 2. Overdrive = 0.545 - 0.42 = 0.125V. 3. Sensitivity multiplier = 2 / 0.125 = 16 V^-1. For a 1mV \u0394V_TH, error is 1.6%.",
+        "range": {
+          "min": 0.984,
+          "typical": 1.0,
+          "max": 1.016,
+          "unit": "A/A"
+        },
+        "reasoning": "Assuming a typical threshold mismatch (\u0394V_TH) of \u00b11mV for large devices (100/2), the current ratio will deviate by approximately \u00b11.6% from the ideal."
+      },
+      "importance": "essential"
+    },
+    "current_mismatch_kp": {
+      "description": "Difference in mirrored currents due to transconductance parameter (KP) mismatch.",
+      "unit": "dimensionless",
+      "analysis_type": "DC",
+      "source": {
+        "page": "616",
+        "reference": "Eq 20.9"
+      },
+      "equation": {
+        "formula": "I_O / I_REF \u2248 1 + (\u0394KP / KP)",
+        "explanation": "Demonstrates a direct 1:1 proportional error in the current ratio based on the percentage mismatch of the transconductance parameter.",
+        "assumptions": "Assumes perfect matching on all other parameters (Vth, lambda, layout)."
+      },
+      "sky130_expected": {
+        "calculation": "Directly proportional to \u0394KP/KP. If \u0394KP/KP is 1%, the ratio error is 1%.",
+        "range": {
+          "min": 0.99,
+          "typical": 1.0,
+          "max": 1.01,
+          "unit": "A/A"
+        },
+        "reasoning": "For large area devices (100/2), KP mismatch is typically very small, around 1% or less."
+      },
+      "importance": "recommended"
+    },
+    "current_ratio_lambda": {
+      "description": "Ratio of the output current to the reference current affected by channel-length modulation (finite output resistance) and differing drain-to-source voltages.",
+      "unit": "A/A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "617",
+        "reference": "Eq 20.10"
+      },
+      "equation": {
+        "formula": "I_O / I_REF = (1 + \u03bb * V_SD2) / (1 + \u03bb * V_SD1)",
+        "explanation": "Because the drain of M2 is tied to ground (V_SD2 = 1.8V) and the drain of M1 is at V_SG (V_SD1 \u2248 0.545V), the currents will not match perfectly due to channel-length modulation.",
+        "assumptions": "Assumes identical V_TH and KP, and devices are in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "V_SD2 = 1.8V (drain at 0V). V_SD1 = V_SG1 \u2248 0.545V. \u03bb = 0.1 V^-1. Ratio = (1 + 0.1*1.8) / (1 + 0.1*0.545) = 1.18 / 1.0545 = 1.119.",
+        "range": {
+          "min": 1.1,
+          "typical": 1.119,
+          "max": 1.14,
+          "unit": "A/A"
+        },
+        "reasoning": "The significant difference in V_SD (1.8V vs 0.545V) combined with \u03bb=0.1 causes an expected ~12% systematic error in the mirror ratio."
+      },
+      "importance": "essential"
+    },
+    "current_mismatch_layout": {
+      "description": "Current ratio error due to layout parasitics such as lateral diffusion and oxide encroachment when device dimensions differ.",
+      "unit": "dimensionless",
+      "analysis_type": "DC",
+      "source": {
+        "page": "620",
+        "reference": "Eq 20.11"
+      },
+      "equation": {
+        "formula": "I_O / I_REF = [ (W_2drawn - 2W_enc) * (L_1drawn - 2L_diff) ] / [ (W_1drawn - 2W_enc) * (L_2drawn - 2L_diff) ]",
+        "explanation": "Shows how physical layout effects alter the effective W/L ratio, causing mismatch if devices are not laid out using identical unit fingers.",
+        "assumptions": "Ignores lambda and VDS differences."
+      },
+      "sky130_expected": {
+        "calculation": "Since the netlist specifies identical drawn dimensions (W1=W2=100, L1=L2=2), the layout mismatch equation evaluates exactly to 1.0.",
+        "range": {
+          "min": 1.0,
+          "typical": 1.0,
+          "max": 1.0,
+          "unit": "A/A"
+        },
+        "reasoning": "With identically parameterized W and L in the netlist, systematic layout mismatch is eliminated."
+      },
+      "importance": "optional"
+    },
+    "supply_sensitivity_iref": {
+      "description": "Sensitivity of the reference current to variations in the power supply voltage (VDD).",
+      "unit": "A/V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "623",
+        "reference": "Eq 20.19"
+      },
+      "equation": {
+        "formula": "\u2202I_REF / \u2202VDD \u2248 1 / R",
+        "explanation": "For a resistor-biased current mirror, the reference current is highly dependent on VDD, changing linearly with a slope of approximately 1/R.",
+        "assumptions": "Assumes the change in V_SG with VDD is small compared to the change in VDD itself."
+      },
+      "sky130_expected": {
+        "calculation": "1 / R = 1 / 65000 = 15.38 uA/V.",
+        "range": {
+          "min": 1.4e-05,
+          "typical": 1.538e-05,
+          "max": 1.6e-05,
+          "unit": "A/V"
+        },
+        "reasoning": "The resistor dominates the VDD dependency. A 1V change in VDD causes roughly a 15.38uA change in I_REF."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC operating point to find I_REF, I_O, and their ratio (Lambda mismatch), and performs a DC sweep on VDD to measure the supply sensitivity of I_REF.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "current_ratio_lambda",
+      "supply_sensitivity_iref"
+    ],
+    "spice": "* Testbench for PMOS Current Mirror with Resistor Bias\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the parameterized netlist\n.param W_xm1=100 L_xm1=2\n.param W_xm2=100 L_xm2=2\n\n* --- DUT (Device Under Test) ---\nxm2 0 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nR1 N001 0 65000.0\n* -------------------------------\n\n.control\n* 1. Operating Point Analysis (Measure currents and Lambda mismatch)\nop\n* I_REF is the current through R1\nlet iref_op = v(N001) / 65000.0\n* Total current supplied by VDD\nlet itotal_op = -i(VDD)\n* I_O is the current through xm2 (Total - I_REF)\nlet iout_op = itotal_op - iref_op\n* Calculate the current ratio (I_O / I_REF)\nlet current_ratio = iout_op / iref_op\n\nprint iref_op iout_op current_ratio\n\n* 2. DC Sweep Analysis (Measure Supply Sensitivity)\ndc VDD 0.9 1.8 0.01\n* Calculate I_REF across the sweep\nlet iref_sweep = v(N001) / 65000.0\n* Calculate the derivative (Sensitivity = d(I_REF)/d(VDD))\nlet sensitivity = deriv(iref_sweep)\n\n* Extract the sensitivity at nominal VDD (1.8V)\nmeas dc sens_at_1v8 find sensitivity at=1.8\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 20.10(a)\",\n    \"page\": \"621\",\n    \"circuit_type\": \"PMOS Current Mirror with Resistor Bias\",\n    \"description\": \"A basic PMOS current mirror where the reference current is established by a resistor tied from the diode-connected PMOS drain to ground. The output current is mirrored by a second PMOS transistor.\"\n  },\n  \"step2_metrics\": {\n    \"current_mismatch_vth\": {\n      \"description\": \"First-order expression for the ratio of currents due to threshold voltage mismatch between the two mirror devices.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"616\",\n        \"reference\": \"Eq 20.8\"\n      },\n      \"equation\": {\n        \"formula\": \"I_O / I_REF \u2248 1 - (2 * \u0394V_TH) / (V_SG - |V_THP|)\",\n        \"explanation\": \"Shows that as the gate overdrive voltage (V_SG - |V_THP|) decreases, the difference in mirrored currents increases due to threshold voltage mismatch.\",\n        \"assumptions\": \"Assumes higher-order terms are ignored and mismatch is distributed across both devices.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. Find I_REF: VDD = V_SG + I_REF*R -> 1.8 = V_SG + I_REF*65k. Using PMOS square law: I_REF = (50u/2)*(100/2)*(V_SG - 0.42)^2 = 1.25m * (V_SG - 0.42)^2. Solving iteratively: V_SG \u2248 0.545V, I_REF \u2248 19.3uA. 2. Overdrive = 0.545 - 0.42 = 0.125V. 3. Sensitivity multiplier = 2 / 0.125 = 16 V^-1. For a 1mV \u0394V_TH, error is 1.6%.\",\n        \"range\": {\n          \"min\": 0.984,\n          \"typical\": 1.0,\n          \"max\": 1.016,\n          \"unit\": \"A/A\"\n        },\n        \"reasoning\": \"Assuming a typical threshold mismatch (\u0394V_TH) of \u00b11mV for large devices (100/2), the current ratio will deviate by approximately \u00b11.6% from the ideal.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"current_mismatch_kp\": {\n      \"description\": \"Difference in mirrored currents due to transconductance parameter (KP) mismatch.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"616\",\n        \"reference\": \"Eq 20.9\"\n      },\n      \"equation\": {\n        \"formula\": \"I_O / I_REF \u2248 1 + (\u0394KP / KP)\",\n        \"explanation\": \"Demonstrates a direct 1:1 proportional error in the current ratio based on the percentage mismatch of the transconductance parameter.\",\n        \"assumptions\": \"Assumes perfect matching on all other parameters (Vth, lambda, layout).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Directly proportional to \u0394KP/KP. If \u0394KP/KP is 1%, the ratio error is 1%.\",\n        \"range\": {\n          \"min\": 0.99,\n          \"typical\": 1.0,\n          \"max\": 1.01,\n          \"unit\": \"A/A\"\n        },\n        \"reasoning\": \"For large area devices (100/2), KP mismatch is typically very small, around 1% or less.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"current_ratio_lambda\": {\n      \"description\": \"Ratio of the output current to the reference current affected by channel-length modulation (finite output resistance) and differing drain-to-source voltages.\",\n      \"unit\": \"A/A\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"617\",\n        \"reference\": \"Eq 20.10\"\n      },\n      \"equation\": {\n        \"formula\": \"I_O / I_REF = (1 + \u03bb * V_SD2) / (1 + \u03bb * V_SD1)\",\n        \"explanation\": \"Because the drain of M2 is tied to ground (V_SD2 = 1.8V) and the drain of M1 is at V_SG (V_SD1 \u2248 0.545V), the currents will not match perfectly due to channel-length modulation.\",\n        \"assumptions\": \"Assumes identical V_TH and KP, and devices are in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_SD2 = 1.8V (drain at 0V). V_SD1 = V_SG1 \u2248 0.545V. \u03bb = 0.1 V^-1. Ratio = (1 + 0.1*1.8) / (1 + 0.1*0.545) = 1.18 / 1.0545 = 1.119.\",\n        \"range\": {\n          \"min\": 1.10,\n          \"typical\": 1.119,\n          \"max\": 1.14,\n          \"unit\": \"A/A\"\n        },\n        \"reasoning\": \"The significant difference in V_SD (1.8V vs 0.545V) combined with \u03bb=0.1 causes an expected ~12% systematic error in the mirror ratio.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"current_mismatch_layout\": {\n      \"description\": \"Current ratio error due to layout parasitics such as lateral diffusion and oxide encroachment when device dimensions differ.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"620\",\n        \"reference\": \"Eq 20.11\"\n      },\n      \"equation\": {\n        \"formula\": \"I_O / I_REF = [ (W_2drawn - 2W_enc) * (L_1drawn - 2L_diff) ] / [ (W_1drawn - 2W_enc) * (L_2drawn - 2L_diff) ]\",\n        \"explanation\": \"Shows how physical layout effects alter the effective W/L ratio, causing mismatch if devices are not laid out using identical unit fingers.\",\n        \"assumptions\": \"Ignores lambda and VDS differences.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since the netlist specifies identical drawn dimensions (W1=W2=100, L1=L2=2), the layout mismatch equation evaluates exactly to 1.0.\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.0,\n          \"max\": 1.0,\n          \"unit\": \"A/A\"\n        },\n        \"reasoning\": \"With identically parameterized W and L in the netlist, systematic layout mismatch is eliminated.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"supply_sensitivity_iref\": {\n      \"description\": \"Sensitivity of the reference current to variations in the power supply voltage (VDD).\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"623\",\n        \"reference\": \"Eq 20.19\"\n      },\n      \"equation\": {\n        \"formula\": \"\u2202I_REF / \u2202VDD \u2248 1 / R\",\n        \"explanation\": \"For a resistor-biased current mirror, the reference current is highly dependent on VDD, changing linearly with a slope of approximately 1/R.\",\n        \"assumptions\": \"Assumes the change in V_SG with VDD is small compared to the change in VDD itself.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / R = 1 / 65000 = 15.38 uA/V.\",\n        \"range\": {\n          \"min\": 14.0e-6,\n          \"typical\": 15.38e-6,\n          \"max\": 16.0e-6,\n          \"unit\": \"A/V\"\n        },\n        \"reasoning\": \"The resistor dominates the VDD dependency. A 1V change in VDD causes roughly a 15.38uA change in I_REF.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC operating point to find I_REF, I_O, and their ratio (Lambda mismatch), and performs a DC sweep on VDD to measure the supply sensitivity of I_REF.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"current_ratio_lambda\",\n      \"supply_sensitivity_iref\"\n    ],\n    \"spice\": \"* Testbench for PMOS Current Mirror with Resistor Bias\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm1=100 L_xm1=2\\n.param W_xm2=100 L_xm2=2\\n\\n* --- DUT (Device Under Test) ---\\nxm2 0 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nR1 N001 0 65000.0\\n* -------------------------------\\n\\n.control\\n* 1. Operating Point Analysis (Measure currents and Lambda mismatch)\\nop\\n* I_REF is the current through R1\\nlet iref_op = v(N001) / 65000.0\\n* Total current supplied by VDD\\nlet itotal_op = -i(VDD)\\n* I_O is the current through xm2 (Total - I_REF)\\nlet iout_op = itotal_op - iref_op\\n* Calculate the current ratio (I_O / I_REF)\\nlet current_ratio = iout_op / iref_op\\n\\nprint iref_op iout_op current_ratio\\n\\n* 2. DC Sweep Analysis (Measure Supply Sensitivity)\\ndc VDD 0.9 1.8 0.01\\n* Calculate I_REF across the sweep\\nlet iref_sweep = v(N001) / 65000.0\\n* Calculate the derivative (Sensitivity = d(I_REF)/d(VDD))\\nlet sensitivity = deriv(iref_sweep)\\n\\n* Extract the sensitivity at nominal VDD (1.8V)\\nmeas dc sens_at_1v8 find sensitivity at=1.8\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "3-Stage Operational Amplifier",
+    "description": "A three-stage operational amplifier consisting of a PMOS differential pair with an NMOS active load, an NMOS common-source second stage, and a PMOS source follower output stage. It is likely used as the core amplifier for the active RC filters or PGAs mentioned in the paper.",
+    "node_mapping": {
+      "input": [
+        "VIN_PLUS",
+        "VIN_MINUS"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1",
+        "N7",
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Highly Integrated Analog Front-End for 3G",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "Total DC power consumption of the amplifier",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "55 mA (Total AFE)",
+        "technology": "0.18um / 0.35um analog"
+      },
+      "sky130_expected": {
+        "calculation": "4 bias branches (XM9, XM6, XM4, XM8) each mirroring Ibias=20uA. Total current = 80uA. Power = 80uA * 1.8V = 144uW.",
+        "range": {
+          "min": "100u",
+          "typical": "144u",
+          "max": "200u",
+          "unit": "W"
+        },
+        "reasoning": "Based on W/L=10 for all current mirrors and a 20uA reference current."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Open-loop DC voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "70 dB",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Stage 1 gain \u2248 50 V/V. Stage 2 gain \u2248 82 V/V. Stage 3 gain \u2248 1 V/V. Total gain \u2248 4100 V/V = 72 dB.",
+        "range": {
+          "min": "60",
+          "typical": "72",
+          "max": "80",
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using standard gm*Ro approximations for SKY130 parameters (lambda=0.1)."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency at which the open-loop gain drops to 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "50 MHz",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole determined by Miller capacitance of stage 2 and XMC. Assuming C_miller \u2248 150fF, fp1 \u2248 2 MHz. UGF = Gain * fp1 \u2248 4100 * 2 MHz \u2248 8 GHz (uncompensated). With 1pF load, UGF will be lower, around 50-100 MHz.",
+        "range": {
+          "min": "10M",
+          "typical": "50M",
+          "max": "200M",
+          "unit": "Hz"
+        },
+        "reasoning": "Matches typical op-amp bandwidths for this technology and the paper's reported 50 MHz frequency."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Depends heavily on compensation capacitor XMC and load capacitance. Expected to be designed for >45 degrees.",
+        "range": {
+          "min": "45",
+          "typical": "60",
+          "max": "90",
+          "unit": "degrees"
+        },
+        "reasoning": "Standard stability requirement for closed-loop amplifiers."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_tail / C_comp or I_out / C_load. With 20uA tail and 1pF load, SR \u2248 20uA / 1pF = 20 V/us.",
+        "range": {
+          "min": "10",
+          "typical": "20",
+          "max": "50",
+          "unit": "V/us"
+        },
+        "reasoning": "Limited by the bias currents and load/compensation capacitors."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for measuring DC power, open-loop AC gain/phase, and closed-loop transient response of the 3-stage op-amp. A DC level shifter is used in the feedback loop to bridge the non-overlapping input (0-0.8V) and output (0.8-1.8V) common-mode ranges.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "dc_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate"
+    ],
+    "spice": "* Op-Amp Testbench\n.lib \"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xmc=5u L_xmc=0.5u\n\n* DUT\nXM12 N4 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\nXM2 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N6 VIN_PLUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N6 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 VOUT N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N2 VIN_MINUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM1 GND N4 VOUT VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\n* MOScap compensation\nXMC N9 N0 N6 GND sky130_fd_pr__nfet_01v8 l={L_xmc} w={W_xmc}\n\n* Prevent floating node error on XMC drain\nR_N9 N9 0 1G\n\n* Biasing and Supplies\nVVDD VDD 0 1.8\nIbias N1 0 20u\nVtie N7 N1 0\n\n* Load\nCL VOUT 0 1p\n\n* Feedback network for DC operating point and AC open-loop\n* Vshift bridges the gap between input CM (0.6V) and output CM (1.2V)\nVshift VOUT VFB DC 0.6\nL1 VFB VIN_MINUS 1G\nC1 0 VIN_MINUS 1G\n\n* Input source\nVVIN_PLUS VIN_PLUS 0 DC 0.6 AC 1 PULSE(0.5 0.7 10n 1n 1n 40n 100n)\n\n.control\n  * 1. DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis (Open Loop)\n  ac dec 100 1 10G\n  let gain_db = vdb(vout)\n  let phase_margin = 180 + 180/PI * cph(v(vout))\n  \n  meas ac dc_gain_db find gain_db at=10\n  meas ac ugf when gain_db=0 fall=1\n  meas ac pm find phase_margin when gain_db=0 fall=1\n\n  * 3. Transient Analysis (Closed Loop)\n  * Alter L and C to close the loop for transient\n  alter L1 1p\n  alter C1 1a\n  tran 0.1n 100n\n  \n  meas tran v_max max v(vout)\n  meas tran v_min min v(vout)\n  \n  * Output pulses from 1.1V to 1.3V (0.2V step)\n  * 10% = 1.12V, 90% = 1.28V\n  meas tran t_rise trig v(vout) val=1.12 rise=1 targ v(vout) val=1.28 rise=1\n  meas tran t_fall trig v(vout) val=1.28 fall=1 targ v(vout) val=1.12 fall=1\n  \n  meas tran sr_rise param='0.16 / t_rise'\n  meas tran sr_fall param='0.16 / t_fall'\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"3-Stage Operational Amplifier\",\n    \"description\": \"A three-stage operational amplifier consisting of a PMOS differential pair with an NMOS active load, an NMOS common-source second stage, and a PMOS source follower output stage. It is likely used as the core amplifier for the active RC filters or PGAs mentioned in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_PLUS\",\n        \"VIN_MINUS\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"N7\",\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Highly Integrated Analog Front-End for 3G\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the amplifier\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"55 mA (Total AFE)\",\n        \"technology\": \"0.18um / 0.35um analog\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"4 bias branches (XM9, XM6, XM4, XM8) each mirroring Ibias=20uA. Total current = 80uA. Power = 80uA * 1.8V = 144uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"144u\",\n          \"max\": \"200u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on W/L=10 for all current mirrors and a 20uA reference current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Open-loop DC voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"70 dB\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Stage 1 gain \u2248 50 V/V. Stage 2 gain \u2248 82 V/V. Stage 3 gain \u2248 1 V/V. Total gain \u2248 4100 V/V = 72 dB.\",\n        \"range\": {\n          \"min\": \"60\",\n          \"typical\": \"72\",\n          \"max\": \"80\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using standard gm*Ro approximations for SKY130 parameters (lambda=0.1).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency at which the open-loop gain drops to 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"50 MHz\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole determined by Miller capacitance of stage 2 and XMC. Assuming C_miller \u2248 150fF, fp1 \u2248 2 MHz. UGF = Gain * fp1 \u2248 4100 * 2 MHz \u2248 8 GHz (uncompensated). With 1pF load, UGF will be lower, around 50-100 MHz.\",\n        \"range\": {\n          \"min\": \"10M\",\n          \"typical\": \"50M\",\n          \"max\": \"200M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches typical op-amp bandwidths for this technology and the paper's reported 50 MHz frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends heavily on compensation capacitor XMC and load capacitance. Expected to be designed for >45 degrees.\",\n        \"range\": {\n          \"min\": \"45\",\n          \"typical\": \"60\",\n          \"max\": \"90\",\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard stability requirement for closed-loop amplifiers.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_tail / C_comp or I_out / C_load. With 20uA tail and 1pF load, SR \u2248 20uA / 1pF = 20 V/us.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"20\",\n          \"max\": \"50\",\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Limited by the bias currents and load/compensation capacitors.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for measuring DC power, open-loop AC gain/phase, and closed-loop transient response of the 3-stage op-amp. A DC level shifter is used in the feedback loop to bridge the non-overlapping input (0-0.8V) and output (0.8-1.8V) common-mode ranges.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"dc_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Op-Amp Testbench\\n.lib \\\"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xmc=5u L_xmc=0.5u\\n\\n* DUT\\nXM12 N4 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\nXM2 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N6 VIN_PLUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N6 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 VOUT N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N2 VIN_MINUS N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM1 GND N4 VOUT VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\n* MOScap compensation\\nXMC N9 N0 N6 GND sky130_fd_pr__nfet_01v8 l={L_xmc} w={W_xmc}\\n\\n* Prevent floating node error on XMC drain\\nR_N9 N9 0 1G\\n\\n* Biasing and Supplies\\nVVDD VDD 0 1.8\\nIbias N1 0 20u\\nVtie N7 N1 0\\n\\n* Load\\nCL VOUT 0 1p\\n\\n* Feedback network for DC operating point and AC open-loop\\n* Vshift bridges the gap between input CM (0.6V) and output CM (1.2V)\\nVshift VOUT VFB DC 0.6\\nL1 VFB VIN_MINUS 1G\\nC1 0 VIN_MINUS 1G\\n\\n* Input source\\nVVIN_PLUS VIN_PLUS 0 DC 0.6 AC 1 PULSE(0.5 0.7 10n 1n 1n 40n 100n)\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis (Open Loop)\\n  ac dec 100 1 10G\\n  let gain_db = vdb(vout)\\n  let phase_margin = 180 + 180/PI * cph(v(vout))\\n  \\n  meas ac dc_gain_db find gain_db at=10\\n  meas ac ugf when gain_db=0 fall=1\\n  meas ac pm find phase_margin when gain_db=0 fall=1\\n\\n  * 3. Transient Analysis (Closed Loop)\\n  * Alter L and C to close the loop for transient\\n  alter L1 1p\\n  alter C1 1a\\n  tran 0.1n 100n\\n  \\n  meas tran v_max max v(vout)\\n  meas tran v_min min v(vout)\\n  \\n  * Output pulses from 1.1V to 1.3V (0.2V step)\\n  * 10% = 1.12V, 90% = 1.28V\\n  meas tran t_rise trig v(vout) val=1.12 rise=1 targ v(vout) val=1.28 rise=1\\n  meas tran t_fall trig v(vout) val=1.28 fall=1 targ v(vout) val=1.12 fall=1\\n  \\n  meas tran sr_rise param='0.16 / t_rise'\\n  meas tran sr_fall param='0.16 / t_fall'\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1196224",
+  "_case": "1196224_image_9"
+}

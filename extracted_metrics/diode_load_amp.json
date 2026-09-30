@@ -1,0 +1,124 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 21.14",
+    "page": "685",
+    "circuit_type": "Common-Source Amplifier with Diode-Connected Load",
+    "description": "A single-stage common-source amplifier utilizing an NMOS input device and a diode-connected PMOS device as the active load. This configuration provides a relatively low, well-defined voltage gain determined primarily by the transconductance ratio of the two devices."
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Low-frequency small-signal voltage gain",
+      "unit": "V/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "685",
+        "reference": "Eq 21.35"
+      },
+      "equation": {
+        "formula": "Av = -gmn / (gmp + gdsn + gdsp)",
+        "explanation": "Ratio of input transconductance to total output conductance (dominated by the diode-connected PMOS gmp).",
+        "assumptions": "Both transistors are in saturation (active region) and follow the square-law model."
+      },
+      "sky130_expected": {
+        "calculation": "Assume W/L = 10u/1u for both NMOS and PMOS. 1) NMOS Overdrive: Vovn = Vin - Vthn = 0.6V - 0.42V = 0.18V. 2) Drain Current: Id = 0.5 * un*Cox * (W/L)n * Vovn^2 = 0.5 * 270u * 10 * (0.18)^2 = 43.74 uA. 3) PMOS Overdrive: Id = 0.5 * up*Cox * (W/L)p * Vovp^2 => 43.74u = 0.5 * 50u * 10 * Vovp^2 => Vovp = sqrt(0.175) = 0.418V. 4) Transconductances: gmn = 2*Id/Vovn = 2*43.74u/0.18 = 486 uA/V. gmp = 2*Id/Vovp = 2*43.74u/0.418 = 209 uA/V. 5) Output conductances: gdsn = gdsp = lambda * Id = 0.1 * 43.74u = 4.37 uA/V. 6) Gain: Av = -486 / (209 + 4.37 + 4.37) = -2.23 V/V.",
+        "range": {
+          "min": -3.0,
+          "typical": -2.23,
+          "max": -1.5,
+          "unit": "V/V"
+        },
+        "reasoning": "Gain is heavily dependent on the ratio of electron to hole mobility (un/up) and the overdrive voltages, which vary slightly across corners."
+      },
+      "importance": "essential"
+    },
+    "output_resistance": {
+      "description": "Small-signal output resistance of the amplifier",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "source": {
+        "page": "685",
+        "reference": "Eq 21.36"
+      },
+      "equation": {
+        "formula": "Rout = 1 / (gmp + gdsn + gdsp)",
+        "explanation": "Parallel combination of the PMOS diode impedance (1/gmp) and the output resistances of both transistors.",
+        "assumptions": "Channel length modulation is small compared to gmp."
+      },
+      "sky130_expected": {
+        "calculation": "Using values from voltage gain: gmp = 209 uA/V, gdsn = 4.37 uA/V, gdsp = 4.37 uA/V. Rout = 1 / (209u + 4.37u + 4.37u) = 1 / 217.74u = 4592 Ohms.",
+        "range": {
+          "min": 3500,
+          "typical": 4592,
+          "max": 6000,
+          "unit": "ohm"
+        },
+        "reasoning": "Dominated by 1/gmp. Variations in PMOS threshold and mobility will shift this value."
+      },
+      "importance": "recommended"
+    },
+    "bandwidth": {
+      "description": "-3dB cutoff frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "686",
+        "reference": "Eq 21.38"
+      },
+      "equation": {
+        "formula": "f3dB = 1 / (2 * pi * Rout * CL)",
+        "explanation": "The dominant pole formed by the output resistance and the load capacitance.",
+        "assumptions": "Intrinsic parasitic capacitances are negligible compared to the 10fF load capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "Rout = 4592 Ohms. CL = 10e-15 F. f3dB = 1 / (2 * 3.14159 * 4592 * 10e-15) = 3.46e9 Hz (3.46 GHz).",
+        "range": {
+          "min": 2500000000.0,
+          "typical": 3460000000.0,
+          "max": 4500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the low output resistance of the diode-connected load and the small 10fF load capacitance."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power dissipated by the circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "685",
+        "reference": "Eq 21.40"
+      },
+      "equation": {
+        "formula": "P = VDD * Id",
+        "explanation": "Product of the supply voltage and the quiescent drain current.",
+        "assumptions": "Static DC bias with no transient switching power."
+      },
+      "sky130_expected": {
+        "calculation": "Id = 43.74 uA. VDD = 1.8V. P = 1.8 * 43.74e-6 = 78.73 uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 7.87e-05,
+          "max": 0.00011,
+          "unit": "W"
+        },
+        "reasoning": "Depends on the exact threshold voltage and mobility variations in the TT corner setting the DC bias current."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, low-frequency voltage gain, and -3dB bandwidth of the diode-loaded common-source amplifier.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth"
+    ],
+    "spice": "* Common-Source Amplifier with Diode-Connected Load Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters used in the DUT\n.param L_XM_INPUT=1\n.param W_XM_INPUT=10\n.param L_XM_LOAD=1\n.param W_XM_LOAD=10\n\n* --- DUT ---\n.global VDD GND\n.temp 27\n\nXM_INPUT VOUT VIN GND GND sky130_fd_pr__nfet_01v8 l={L_XM_INPUT} w={W_XM_INPUT}\n\n* Diode-connected load (PMOS)\nXM_LOAD VOUT VOUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM_LOAD} w={W_XM_LOAD}\n\n* Load capacitor\nCL VOUT GND 10e-15\n\nVIN VIN GND DC 0.6\n\n* Supply\nVDD VDD GND DC 1.8\n* -----------\n\n.control\n* 1. DC Operating Point & Power\nop\nlet id = -i(VDD)\nlet power = id * 1.8\nprint power\n\n* 2. AC Analysis for Gain and Bandwidth\n* Add AC stimulus to VIN without modifying the DUT netlist\nalter @VIN[ac]=1\nac dec 100 1k 100G\n\nlet gain_mag = v(VOUT)\nlet gain_db = vdb(VOUT)\n\n* Measure low-frequency gain\nmeas ac dc_gain_mag MAX gain_mag\nmeas ac dc_gain_db MAX gain_db\n\n* Measure -3dB bandwidth\nlet f3db_target = dc_gain_db - 3\nmeas ac f3db WHEN gain_db=f3db_target FALL=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 21.14\",\n    \"page\": \"685\",\n    \"circuit_type\": \"Common-Source Amplifier with Diode-Connected Load\",\n    \"description\": \"A single-stage common-source amplifier utilizing an NMOS input device and a diode-connected PMOS device as the active load. This configuration provides a relatively low, well-defined voltage gain determined primarily by the transconductance ratio of the two devices.\"\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency small-signal voltage gain\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"685\",\n        \"reference\": \"Eq 21.35\"\n      },\n      \"equation\": {\n        \"formula\": \"Av = -gmn / (gmp + gdsn + gdsp)\",\n        \"explanation\": \"Ratio of input transconductance to total output conductance (dominated by the diode-connected PMOS gmp).\",\n        \"assumptions\": \"Both transistors are in saturation (active region) and follow the square-law model.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume W/L = 10u/1u for both NMOS and PMOS. 1) NMOS Overdrive: Vovn = Vin - Vthn = 0.6V - 0.42V = 0.18V. 2) Drain Current: Id = 0.5 * un*Cox * (W/L)n * Vovn^2 = 0.5 * 270u * 10 * (0.18)^2 = 43.74 uA. 3) PMOS Overdrive: Id = 0.5 * up*Cox * (W/L)p * Vovp^2 => 43.74u = 0.5 * 50u * 10 * Vovp^2 => Vovp = sqrt(0.175) = 0.418V. 4) Transconductances: gmn = 2*Id/Vovn = 2*43.74u/0.18 = 486 uA/V. gmp = 2*Id/Vovp = 2*43.74u/0.418 = 209 uA/V. 5) Output conductances: gdsn = gdsp = lambda * Id = 0.1 * 43.74u = 4.37 uA/V. 6) Gain: Av = -486 / (209 + 4.37 + 4.37) = -2.23 V/V.\",\n        \"range\": {\n          \"min\": -3.0,\n          \"typical\": -2.23,\n          \"max\": -1.5,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Gain is heavily dependent on the ratio of electron to hole mobility (un/up) and the overdrive voltages, which vary slightly across corners.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal output resistance of the amplifier\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"685\",\n        \"reference\": \"Eq 21.36\"\n      },\n      \"equation\": {\n        \"formula\": \"Rout = 1 / (gmp + gdsn + gdsp)\",\n        \"explanation\": \"Parallel combination of the PMOS diode impedance (1/gmp) and the output resistances of both transistors.\",\n        \"assumptions\": \"Channel length modulation is small compared to gmp.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using values from voltage gain: gmp = 209 uA/V, gdsn = 4.37 uA/V, gdsp = 4.37 uA/V. Rout = 1 / (209u + 4.37u + 4.37u) = 1 / 217.74u = 4592 Ohms.\",\n        \"range\": {\n          \"min\": 3500,\n          \"typical\": 4592,\n          \"max\": 6000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Dominated by 1/gmp. Variations in PMOS threshold and mobility will shift this value.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"686\",\n        \"reference\": \"Eq 21.38\"\n      },\n      \"equation\": {\n        \"formula\": \"f3dB = 1 / (2 * pi * Rout * CL)\",\n        \"explanation\": \"The dominant pole formed by the output resistance and the load capacitance.\",\n        \"assumptions\": \"Intrinsic parasitic capacitances are negligible compared to the 10fF load capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = 4592 Ohms. CL = 10e-15 F. f3dB = 1 / (2 * 3.14159 * 4592 * 10e-15) = 3.46e9 Hz (3.46 GHz).\",\n        \"range\": {\n          \"min\": 2.5e9,\n          \"typical\": 3.46e9,\n          \"max\": 4.5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the low output resistance of the diode-connected load and the small 10fF load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"685\",\n        \"reference\": \"Eq 21.40\"\n      },\n      \"equation\": {\n        \"formula\": \"P = VDD * Id\",\n        \"explanation\": \"Product of the supply voltage and the quiescent drain current.\",\n        \"assumptions\": \"Static DC bias with no transient switching power.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 43.74 uA. VDD = 1.8V. P = 1.8 * 43.74e-6 = 78.73 uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 78.7e-6,\n          \"max\": 110e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on the exact threshold voltage and mobility variations in the TT corner setting the DC bias current.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, low-frequency voltage gain, and -3dB bandwidth of the diode-loaded common-source amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth\"\n    ],\n    \"spice\": \"* Common-Source Amplifier with Diode-Connected Load Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters used in the DUT\\n.param L_XM_INPUT=1\\n.param W_XM_INPUT=10\\n.param L_XM_LOAD=1\\n.param W_XM_LOAD=10\\n\\n* --- DUT ---\\n.global VDD GND\\n.temp 27\\n\\nXM_INPUT VOUT VIN GND GND sky130_fd_pr__nfet_01v8 l={L_XM_INPUT} w={W_XM_INPUT}\\n\\n* Diode-connected load (PMOS)\\nXM_LOAD VOUT VOUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM_LOAD} w={W_XM_LOAD}\\n\\n* Load capacitor\\nCL VOUT GND 10e-15\\n\\nVIN VIN GND DC 0.6\\n\\n* Supply\\nVDD VDD GND DC 1.8\\n* -----------\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet id = -i(VDD)\\nlet power = id * 1.8\\nprint power\\n\\n* 2. AC Analysis for Gain and Bandwidth\\n* Add AC stimulus to VIN without modifying the DUT netlist\\nalter @VIN[ac]=1\\nac dec 100 1k 100G\\n\\nlet gain_mag = v(VOUT)\\nlet gain_db = vdb(VOUT)\\n\\n* Measure low-frequency gain\\nmeas ac dc_gain_mag MAX gain_mag\\nmeas ac dc_gain_db MAX gain_db\\n\\n* Measure -3dB bandwidth\\nlet f3db_target = dc_gain_db - 3\\nmeas ac f3db WHEN gain_db=f3db_target FALL=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

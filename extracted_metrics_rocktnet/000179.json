@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Phase Detector / Mixer",
+    "description": "A single-balanced mixer (XM3, XM5) acting as a phase detector, accompanied by dummy transistor branches (XM1/6, XM2, XM4) to provide symmetric capacitive loading to the input ports. This symmetric loading is critical in oscillator injection-locking schemes to prevent phase errors.",
+    "node_mapping": {
+      "input": [
+        "N14",
+        "N0"
+      ],
+      "output": [
+        "N12",
+        "N11",
+        "N16",
+        "N8"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Injection-Locking Scheme for Precision Quadrature Generation",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Ratio of the IF output amplitude to the RF input amplitude.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "45 dB (likely for the entire system including limiting amplifiers)",
+        "technology": "0.25um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm ~ 2mS for W/L=5/0.5 at 1mA. With 1k load, gain ~ (2/pi) * gm * Rload ~ 1.2 V/V ~ 1.5 dB.",
+        "range": {
+          "min": -10,
+          "typical": 0,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "A passive-like single-balanced mixer with moderate load resistors typically has a conversion gain around 0 dB. The 45 dB reported in the paper includes high-gain limiting amplifiers."
+      },
+      "importance": "essential"
+    },
+    "phase_detector_gain": {
+      "description": "The change in DC output voltage per radian of phase difference between the two inputs.",
+      "unit": "V/rad",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Kpd = V_p2p / (2*pi). If V_p2p is ~0.8V, Kpd ~ 0.8 / 6.28 ~ 0.13 V/rad.",
+        "range": {
+          "min": 0.05,
+          "typical": 0.15,
+          "max": 0.5,
+          "unit": "V/rad"
+        },
+        "reasoning": "Derived from the expected IF peak-to-peak voltage swing divided by 2*pi."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power dissipation of the phase detector core.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 mW",
+        "technology": "0.25um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming ~1mA per branch and 4 active branches (including dummies), total current ~4mA. Power = 4mA * 1.8V = 7.2mW.",
+        "range": {
+          "min": 0.002,
+          "typical": 0.007,
+          "max": 0.02,
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply and typical bias currents for 5um/0.5um devices."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis applying 2.7 GHz and 2.6 GHz signals to the inputs to measure the 100 MHz IF beat signal. This extracts the conversion gain, phase detector gain, and power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "conversion_gain",
+      "phase_detector_gain",
+      "power_consumption"
+    ],
+    "spice": "* Testbench for Phase Detector / Mixer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\n* DUT\nXM1 N1 N14 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N16 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 N14 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N8 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N12 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N11 N14 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* Supplies and Loads\nVDD VDD 0 1.8\nR11 N11 VDD 1k\nR12 N12 VDD 1k\nR16 N16 VDD 1k\nR8 N8 VDD 1k\n\n* IF Filter Capacitors (Pole at ~160 MHz to filter out 2.7 GHz RF ripple)\nC11 N11 0 1p\nC12 N12 0 1p\nC16 N16 0 1p\nC8 N8 0 1p\n\n* Inputs (LO at 2.7 GHz, RF at 2.6 GHz to generate 100 MHz IF)\nVLO N14 0 DC 0.9 SIN(0.9 0.4 2.7G)\nVRF N0 0 DC 0.9 SIN(0.9 0.4 2.6G)\n\n.control\n  * Transient analysis for mixing\n  tran 10p 50n\n  \n  * Measure power\n  meas tran i_vdd avg i(VDD) from=20n to=50n\n  let power = -i_vdd * 1.8\n  print power\n  \n  * Measure IF amplitude at N12 (100 MHz IF)\n  meas tran v_max max v(N12) from=20n to=50n\n  meas tran v_min min v(N12) from=20n to=50n\n  let v_p2p = v_max - v_min\n  let if_amp = v_p2p / 2\n  let rf_amp = 0.4\n  \n  * Conversion Gain\n  let conversion_gain = if_amp / rf_amp\n  let cg_db = 20 * log10(conversion_gain)\n  print cg_db\n  \n  * Phase Detector Gain (Kpd = V_p2p / 2*pi)\n  let kpd = v_p2p / 6.2831853\n  print kpd\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Phase Detector / Mixer\",\n    \"description\": \"A single-balanced mixer (XM3, XM5) acting as a phase detector, accompanied by dummy transistor branches (XM1/6, XM2, XM4) to provide symmetric capacitive loading to the input ports. This symmetric loading is critical in oscillator injection-locking schemes to prevent phase errors.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N14\",\n        \"N0\"\n      ],\n      \"output\": [\n        \"N12\",\n        \"N11\",\n        \"N16\",\n        \"N8\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Injection-Locking Scheme for Precision Quadrature Generation\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Ratio of the IF output amplitude to the RF input amplitude.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"45 dB (likely for the entire system including limiting amplifiers)\",\n        \"technology\": \"0.25um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm ~ 2mS for W/L=5/0.5 at 1mA. With 1k load, gain ~ (2/pi) * gm * Rload ~ 1.2 V/V ~ 1.5 dB.\",\n        \"range\": {\n          \"min\": -10,\n          \"typical\": 0,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A passive-like single-balanced mixer with moderate load resistors typically has a conversion gain around 0 dB. The 45 dB reported in the paper includes high-gain limiting amplifiers.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_detector_gain\": {\n      \"description\": \"The change in DC output voltage per radian of phase difference between the two inputs.\",\n      \"unit\": \"V/rad\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Kpd = V_p2p / (2*pi). If V_p2p is ~0.8V, Kpd ~ 0.8 / 6.28 ~ 0.13 V/rad.\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.15,\n          \"max\": 0.5,\n          \"unit\": \"V/rad\"\n        },\n        \"reasoning\": \"Derived from the expected IF peak-to-peak voltage swing divided by 2*pi.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation of the phase detector core.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 mW\",\n        \"technology\": \"0.25um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming ~1mA per branch and 4 active branches (including dummies), total current ~4mA. Power = 4mA * 1.8V = 7.2mW.\",\n        \"range\": {\n          \"min\": 0.002,\n          \"typical\": 0.007,\n          \"max\": 0.020,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply and typical bias currents for 5um/0.5um devices.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis applying 2.7 GHz and 2.6 GHz signals to the inputs to measure the 100 MHz IF beat signal. This extracts the conversion gain, phase detector gain, and power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"conversion_gain\",\n      \"phase_detector_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Testbench for Phase Detector / Mixer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\n* DUT\\nXM1 N1 N14 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N16 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 N14 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N8 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N12 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N11 N14 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Supplies and Loads\\nVDD VDD 0 1.8\\nR11 N11 VDD 1k\\nR12 N12 VDD 1k\\nR16 N16 VDD 1k\\nR8 N8 VDD 1k\\n\\n* IF Filter Capacitors (Pole at ~160 MHz to filter out 2.7 GHz RF ripple)\\nC11 N11 0 1p\\nC12 N12 0 1p\\nC16 N16 0 1p\\nC8 N8 0 1p\\n\\n* Inputs (LO at 2.7 GHz, RF at 2.6 GHz to generate 100 MHz IF)\\nVLO N14 0 DC 0.9 SIN(0.9 0.4 2.7G)\\nVRF N0 0 DC 0.9 SIN(0.9 0.4 2.6G)\\n\\n.control\\n  * Transient analysis for mixing\\n  tran 10p 50n\\n  \\n  * Measure power\\n  meas tran i_vdd avg i(VDD) from=20n to=50n\\n  let power = -i_vdd * 1.8\\n  print power\\n  \\n  * Measure IF amplitude at N12 (100 MHz IF)\\n  meas tran v_max max v(N12) from=20n to=50n\\n  meas tran v_min min v(N12) from=20n to=50n\\n  let v_p2p = v_max - v_min\\n  let if_amp = v_p2p / 2\\n  let rf_amp = 0.4\\n  \\n  * Conversion Gain\\n  let conversion_gain = if_amp / rf_amp\\n  let cg_db = 20 * log10(conversion_gain)\\n  print cg_db\\n  \\n  * Phase Detector Gain (Kpd = V_p2p / 2*pi)\\n  let kpd = v_p2p / 6.2831853\\n  print kpd\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1015681",
+  "_case": "1015681_image_11"
+}

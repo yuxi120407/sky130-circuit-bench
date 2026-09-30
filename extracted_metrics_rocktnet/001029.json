@@ -1,0 +1,169 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Charge Pump",
+    "description": "A source-switched charge pump circuit for a Phase-Locked Loop (PLL). It uses current mirrors to source and sink current to the output node based on digital UP and DOWN control signals. Note: While the paper metadata refers to the overall VCO/Synthesizer, this specific extracted netlist is the Charge Pump sub-block.",
+    "node_mapping": {
+      "input": [
+        "UP_BAR",
+        "DOWN_BAR"
+      ],
+      "output": [
+        "CP_OUTPUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N_BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 900-MHz 2.5-mA CMOS Frequency Synthesizer with an Automatic SC Tuning Loop",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "I_up": {
+      "description": "Pump-up current sourced to the output when UP_BAR is high.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 50uA reference current injected into N_BIAS. The current is mirrored via XM4/XM8 and XM3/XM1 with a 1:1 ratio (W/L=5u/0.5u for all).",
+        "range": {
+          "min": "45u",
+          "typical": "50u",
+          "max": "55u",
+          "unit": "A"
+        },
+        "reasoning": "1:1 current mirror from a 50uA reference."
+      },
+      "importance": "essential"
+    },
+    "I_down": {
+      "description": "Pump-down current sunk from the output when DOWN_BAR is high.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mirrored via XM4/XM2 with a 1:1 ratio.",
+        "range": {
+          "min": "45u",
+          "typical": "50u",
+          "max": "55u",
+          "unit": "A"
+        },
+        "reasoning": "1:1 current mirror from a 50uA reference."
+      },
+      "importance": "essential"
+    },
+    "I_mismatch": {
+      "description": "Percentage mismatch between I_up and I_down.",
+      "unit": "%",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "abs(I_up - I_down) / average(I_up, I_down) * 100",
+        "range": {
+          "min": "0",
+          "typical": "1",
+          "max": "5",
+          "unit": "%"
+        },
+        "reasoning": "Matched transistor sizes should yield low mismatch, limited primarily by channel length modulation."
+      },
+      "importance": "essential"
+    },
+    "V_comp_max": {
+      "description": "Maximum output voltage where I_up remains within 10% of its nominal value.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD - Vdsat_XM1. Vdsat_XM1 = sqrt(2*Id / (upCox * W/L)) = sqrt(2*50u / (50u * 10)) = 0.45V. V_comp_max = 1.8 - 0.45 = 1.35V.",
+        "range": {
+          "min": "1.2",
+          "typical": "1.35",
+          "max": "1.5",
+          "unit": "V"
+        },
+        "reasoning": "The PMOS current source requires sufficient Vds to stay in saturation."
+      },
+      "importance": "essential"
+    },
+    "V_comp_min": {
+      "description": "Minimum output voltage where I_down remains within 10% of its nominal value.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vdsat_XM2 + Vdrop_XM7. Vdsat_XM2 = sqrt(2*50u / (270u * 10)) = 0.19V. Vdrop_XM7 is small (~10mV). V_comp_min = 0.2V.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.2",
+          "max": "0.4",
+          "unit": "V"
+        },
+        "reasoning": "The NMOS current sink requires sufficient Vds to stay in saturation."
+      },
+      "importance": "essential"
+    },
+    "I_leakage": {
+      "description": "Leakage current at the output when both UP and DOWN signals are low.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Subthreshold leakage of XM1 and XM2.",
+        "range": {
+          "min": "0",
+          "typical": "100p",
+          "max": "1n",
+          "unit": "A"
+        },
+        "reasoning": "Switches XM6 and XM7 are off, cutting off the current mirrors."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "DC sweeps to measure pump-up current, pump-down current, compliance voltages, mismatch, and leakage.",
+    "analyses": [
+      "DC"
+    ],
+    "metrics_measured": [
+      "I_up",
+      "I_down",
+      "I_mismatch",
+      "V_comp_max",
+      "V_comp_min",
+      "I_leakage"
+    ],
+    "spice": "* Charge Pump Testbench\n.lib \"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\nVVDD VDD 0 1.8\nIREF VDD N_BIAS 50u\n\nXM1 CP_OUTPUT N_PMIRROR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM3 N_PMIRROR N_PMIRROR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM2 CP_OUTPUT N_BIAS N_SW2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM4 N_BIAS N_BIAS N_SRC1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N_SRC1 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM8 N_PMIRROR N_BIAS N_SW1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM6 N_SW1 UP_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N_SW2 DOWN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\nVUP UP_BAR 0 0\nVDOWN DOWN_BAR 0 0\nVOUT CP_OUTPUT 0 0.9\n\n.control\n  * 1. UP Current and Compliance\n  alter VUP 1.8\n  alter VDOWN 0\n  dc VOUT 0 1.8 0.01\n  let i_up = i(VOUT)\n  meas dc i_up_nom find i_up at=0.9\n  let target_up = i_up_nom * 0.9\n  meas dc v_comp_max when i_up = $&target_up fall=1\n  \n  * 2. DOWN Current and Compliance\n  alter VUP 0\n  alter VDOWN 1.8\n  dc VOUT 0 1.8 0.01\n  let i_down = -i(VOUT)\n  meas dc i_down_nom find i_down at=0.9\n  let target_down = i_down_nom * 0.9\n  meas dc v_comp_min when i_down = $&target_down rise=1\n  \n  * 3. Leakage Current\n  alter VUP 0\n  alter VDOWN 0\n  dc VOUT 0 1.8 0.01\n  let i_leak = abs(i(VOUT))\n  meas dc i_leak_nom find i_leak at=0.9\n  \n  * 4. Mismatch\n  let mismatch = abs(dc1.i_up_nom - dc2.i_down_nom) / ((dc1.i_up_nom + dc2.i_down_nom)/2) * 100\n  print dc1.i_up_nom dc2.i_down_nom dc3.i_leak_nom mismatch dc1.v_comp_max dc2.v_comp_min\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Charge Pump\",\n    \"description\": \"A source-switched charge pump circuit for a Phase-Locked Loop (PLL). It uses current mirrors to source and sink current to the output node based on digital UP and DOWN control signals. Note: While the paper metadata refers to the overall VCO/Synthesizer, this specific extracted netlist is the Charge Pump sub-block.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"UP_BAR\",\n        \"DOWN_BAR\"\n      ],\n      \"output\": [\n        \"CP_OUTPUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N_BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 900-MHz 2.5-mA CMOS Frequency Synthesizer with an Automatic SC Tuning Loop\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"I_up\": {\n      \"description\": \"Pump-up current sourced to the output when UP_BAR is high.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 50uA reference current injected into N_BIAS. The current is mirrored via XM4/XM8 and XM3/XM1 with a 1:1 ratio (W/L=5u/0.5u for all).\",\n        \"range\": {\n          \"min\": \"45u\",\n          \"typical\": \"50u\",\n          \"max\": \"55u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"1:1 current mirror from a 50uA reference.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_down\": {\n      \"description\": \"Pump-down current sunk from the output when DOWN_BAR is high.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mirrored via XM4/XM2 with a 1:1 ratio.\",\n        \"range\": {\n          \"min\": \"45u\",\n          \"typical\": \"50u\",\n          \"max\": \"55u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"1:1 current mirror from a 50uA reference.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_mismatch\": {\n      \"description\": \"Percentage mismatch between I_up and I_down.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"abs(I_up - I_down) / average(I_up, I_down) * 100\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"1\",\n          \"max\": \"5\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Matched transistor sizes should yield low mismatch, limited primarily by channel length modulation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_comp_max\": {\n      \"description\": \"Maximum output voltage where I_up remains within 10% of its nominal value.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - Vdsat_XM1. Vdsat_XM1 = sqrt(2*Id / (upCox * W/L)) = sqrt(2*50u / (50u * 10)) = 0.45V. V_comp_max = 1.8 - 0.45 = 1.35V.\",\n        \"range\": {\n          \"min\": \"1.2\",\n          \"typical\": \"1.35\",\n          \"max\": \"1.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The PMOS current source requires sufficient Vds to stay in saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_comp_min\": {\n      \"description\": \"Minimum output voltage where I_down remains within 10% of its nominal value.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vdsat_XM2 + Vdrop_XM7. Vdsat_XM2 = sqrt(2*50u / (270u * 10)) = 0.19V. Vdrop_XM7 is small (~10mV). V_comp_min = 0.2V.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.2\",\n          \"max\": \"0.4\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The NMOS current sink requires sufficient Vds to stay in saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_leakage\": {\n      \"description\": \"Leakage current at the output when both UP and DOWN signals are low.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Subthreshold leakage of XM1 and XM2.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"100p\",\n          \"max\": \"1n\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Switches XM6 and XM7 are off, cutting off the current mirrors.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"DC sweeps to measure pump-up current, pump-down current, compliance voltages, mismatch, and leakage.\",\n    \"analyses\": [\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"I_up\",\n      \"I_down\",\n      \"I_mismatch\",\n      \"V_comp_max\",\n      \"V_comp_min\",\n      \"I_leakage\"\n    ],\n    \"spice\": \"* Charge Pump Testbench\\n.lib \\\"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\nVVDD VDD 0 1.8\\nIREF VDD N_BIAS 50u\\n\\nXM1 CP_OUTPUT N_PMIRROR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM3 N_PMIRROR N_PMIRROR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM2 CP_OUTPUT N_BIAS N_SW2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM4 N_BIAS N_BIAS N_SRC1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N_SRC1 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM8 N_PMIRROR N_BIAS N_SW1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM6 N_SW1 UP_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N_SW2 DOWN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\nVUP UP_BAR 0 0\\nVDOWN DOWN_BAR 0 0\\nVOUT CP_OUTPUT 0 0.9\\n\\n.control\\n  * 1. UP Current and Compliance\\n  alter VUP 1.8\\n  alter VDOWN 0\\n  dc VOUT 0 1.8 0.01\\n  let i_up = i(VOUT)\\n  meas dc i_up_nom find i_up at=0.9\\n  let target_up = i_up_nom * 0.9\\n  meas dc v_comp_max when i_up = $&target_up fall=1\\n  \\n  * 2. DOWN Current and Compliance\\n  alter VUP 0\\n  alter VDOWN 1.8\\n  dc VOUT 0 1.8 0.01\\n  let i_down = -i(VOUT)\\n  meas dc i_down_nom find i_down at=0.9\\n  let target_down = i_down_nom * 0.9\\n  meas dc v_comp_min when i_down = $&target_down rise=1\\n  \\n  * 3. Leakage Current\\n  alter VUP 0\\n  alter VDOWN 0\\n  dc VOUT 0 1.8 0.01\\n  let i_leak = abs(i(VOUT))\\n  meas dc i_leak_nom find i_leak at=0.9\\n  \\n  * 4. Mismatch\\n  let mismatch = abs(dc1.i_up_nom - dc2.i_down_nom) / ((dc1.i_up_nom + dc2.i_down_nom)/2) * 100\\n  print dc1.i_up_nom dc2.i_down_nom dc3.i_leak_nom mismatch dc1.v_comp_max dc2.v_comp_min\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "910481",
+  "_case": "910481_image_9_a"
+}

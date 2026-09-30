@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Class-AB Push-Pull Output Stage with Replica",
+    "description": "This circuit is a push-pull output stage (XMP, XMN) equipped with a scaled replica (XMPS, XMNS). It is used to drive the output load while the replica senses the output current for a buffered switching Class-AB bias scheme.",
+    "node_mapping": {
+      "input": [
+        "N1",
+        "N4"
+      ],
+      "output": [
+        "VO",
+        "VOS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 105dB-Gain 500MHz-Bandwidth 0.1\u03a9-OutputImpedance Amplifier for an Amplitude Modulator in 65nm CMOS",
+      "figure": "Not specified",
+      "year": 2010
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Open-loop low-frequency voltage gain of the main push-pull stage.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "105dB (for full multi-stage amplifier)",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Vbias_n=0.52V and Vbias_p=1.15V for balanced ~13uA current: Gm_n = 2*Id/Vov_n = 270uS, Gm_p = 115uS. Total Gm = 385uS. Rout = ro_n || ro_p = 740k || 757k = 374kOhm. Gain = Gm * Rout = 144 V/V = 43 dB.",
+        "range": {
+          "min": 35,
+          "typical": 43,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "The 105dB reported in the paper is for the entire multi-stage amplifier. This isolated output stage provides moderate open-loop gain."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the open-loop stage with a 1pF load.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "500MHz (closed-loop)",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rout * C_load) = 1 / (2 * pi * 374k * 1p) = 425 kHz.",
+        "range": {
+          "min": 200000,
+          "typical": 425000,
+          "max": 800000,
+          "unit": "Hz"
+        },
+        "reasoning": "Open-loop bandwidth is determined by the high output impedance and load capacitance. The 500MHz reported is the closed-loop bandwidth of the full amplifier."
+      },
+      "importance": "essential"
+    },
+    "rout": {
+      "description": "Open-loop output impedance.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0.1\u03a9 (closed-loop)",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Rout = ro_n || ro_p = 740k || 757k = 374 kOhm.",
+        "range": {
+          "min": 200000,
+          "typical": 374000,
+          "max": 600000,
+          "unit": "ohm"
+        },
+        "reasoning": "The 0.1 ohm reported is achieved via global negative feedback. The open-loop output impedance is simply the parallel combination of the transistors' output resistances."
+      },
+      "importance": "essential"
+    },
+    "quiescent_power": {
+      "description": "DC power consumption of the output stage and replica at zero AC input.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Id_n ~ 13.5uA, Id_p ~ 13.2uA. Total current for main and replica is ~27uA. Power = 1.8V * 27uA = 48.6 uW.",
+        "range": {
+          "min": 2e-05,
+          "typical": 5e-05,
+          "max": 0.0001,
+          "unit": "W"
+        },
+        "reasoning": "Based on the chosen bias voltages to keep both NMOS and PMOS in saturation (Class-AB) and SKY130 parameters."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure open-loop DC gain, -3dB bandwidth, output impedance, and quiescent power of the Class-AB output stage.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "bandwidth",
+      "rout",
+      "quiescent_power"
+    ],
+    "spice": "* Class-AB Output Stage Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmps=5u L_xmps=0.5u\n.param W_xmp=5u L_xmp=0.5u\n.param W_xmn=5u L_xmn=0.5u\n.param W_xmns=5u L_xmns=0.5u\n\nXMPS VOS N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmps} w={W_xmps}\nXMP VO N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp} w={W_xmp}\nXMN VO N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn} w={W_xmn}\nXMNS VOS N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmns} w={W_xmns}\n\nVVDD VDD 0 1.8\n\n* Biasing for Class-AB operation\nVbias_n N1_bias 0 0.52\nVbias_p N4_bias 0 1.15\n\n* AC Input\nVin in 0 dc 0 ac 1\nE_n N1 N1_bias in 0 1\nE_p N4 N4_bias in 0 1\n\n* DC operating point forcing (large inductor) and load capacitor\nV_VO_bias VO_bias 0 0.9\nL_bias VO_bias VO 1000H\nC_load VO 0 1p\n\nV_VOS_bias VOS_bias 0 0.9\nL_bias_s VOS_bias VOS 1000H\nC_load_s VOS 0 1p\n\n* AC Current source for Rout measurement (inactive initially)\nIout 0 VO dc 0 ac 0\n\n.control\n* 1. DC Operating Point\nop\nlet pwr = -i(VVDD)*1.8\nprint pwr\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 100 10 10G\nlet gain_db = vdb(VO)\nmeas ac dc_gain find gain_db at=100\nlet gain_3db = dc_gain - 3\nmeas ac bw when gain_db=gain_3db fall=1\n\nlet gain_vos_db = vdb(VOS)\nmeas ac dc_gain_vos find gain_vos_db at=100\n\n* 3. AC Analysis for Output Impedance\nalter Vin ac=0\nalter Iout ac=1\nac dec 10 10 10G\nlet vout_mag = mag(v(VO))\nmeas ac rout_val find vout_mag at=100\n\nprint dc_gain bw rout_val dc_gain_vos\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Class-AB Push-Pull Output Stage with Replica\",\n    \"description\": \"This circuit is a push-pull output stage (XMP, XMN) equipped with a scaled replica (XMPS, XMNS). It is used to drive the output load while the replica senses the output current for a buffered switching Class-AB bias scheme.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\",\n        \"N4\"\n      ],\n      \"output\": [\n        \"VO\",\n        \"VOS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 105dB-Gain 500MHz-Bandwidth 0.1\u03a9-OutputImpedance Amplifier for an Amplitude Modulator in 65nm CMOS\",\n      \"figure\": \"Not specified\",\n      \"year\": 2010\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Open-loop low-frequency voltage gain of the main push-pull stage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"105dB (for full multi-stage amplifier)\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Vbias_n=0.52V and Vbias_p=1.15V for balanced ~13uA current: Gm_n = 2*Id/Vov_n = 270uS, Gm_p = 115uS. Total Gm = 385uS. Rout = ro_n || ro_p = 740k || 757k = 374kOhm. Gain = Gm * Rout = 144 V/V = 43 dB.\",\n        \"range\": {\n          \"min\": 35,\n          \"typical\": 43,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The 105dB reported in the paper is for the entire multi-stage amplifier. This isolated output stage provides moderate open-loop gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the open-loop stage with a 1pF load.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"500MHz (closed-loop)\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rout * C_load) = 1 / (2 * pi * 374k * 1p) = 425 kHz.\",\n        \"range\": {\n          \"min\": 200000,\n          \"typical\": 425000,\n          \"max\": 800000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Open-loop bandwidth is determined by the high output impedance and load capacitance. The 500MHz reported is the closed-loop bandwidth of the full amplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rout\": {\n      \"description\": \"Open-loop output impedance.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0.1\u03a9 (closed-loop)\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = ro_n || ro_p = 740k || 757k = 374 kOhm.\",\n        \"range\": {\n          \"min\": 200000,\n          \"typical\": 374000,\n          \"max\": 600000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"The 0.1 ohm reported is achieved via global negative feedback. The open-loop output impedance is simply the parallel combination of the transistors' output resistances.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quiescent_power\": {\n      \"description\": \"DC power consumption of the output stage and replica at zero AC input.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id_n ~ 13.5uA, Id_p ~ 13.2uA. Total current for main and replica is ~27uA. Power = 1.8V * 27uA = 48.6 uW.\",\n        \"range\": {\n          \"min\": 20e-6,\n          \"typical\": 50e-6,\n          \"max\": 100e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the chosen bias voltages to keep both NMOS and PMOS in saturation (Class-AB) and SKY130 parameters.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure open-loop DC gain, -3dB bandwidth, output impedance, and quiescent power of the Class-AB output stage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"bandwidth\",\n      \"rout\",\n      \"quiescent_power\"\n    ],\n    \"spice\": \"* Class-AB Output Stage Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmps=5u L_xmps=0.5u\\n.param W_xmp=5u L_xmp=0.5u\\n.param W_xmn=5u L_xmn=0.5u\\n.param W_xmns=5u L_xmns=0.5u\\n\\nXMPS VOS N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmps} w={W_xmps}\\nXMP VO N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp} w={W_xmp}\\nXMN VO N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn} w={W_xmn}\\nXMNS VOS N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xmns} w={W_xmns}\\n\\nVVDD VDD 0 1.8\\n\\n* Biasing for Class-AB operation\\nVbias_n N1_bias 0 0.52\\nVbias_p N4_bias 0 1.15\\n\\n* AC Input\\nVin in 0 dc 0 ac 1\\nE_n N1 N1_bias in 0 1\\nE_p N4 N4_bias in 0 1\\n\\n* DC operating point forcing (large inductor) and load capacitor\\nV_VO_bias VO_bias 0 0.9\\nL_bias VO_bias VO 1000H\\nC_load VO 0 1p\\n\\nV_VOS_bias VOS_bias 0 0.9\\nL_bias_s VOS_bias VOS 1000H\\nC_load_s VOS 0 1p\\n\\n* AC Current source for Rout measurement (inactive initially)\\nIout 0 VO dc 0 ac 0\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet pwr = -i(VVDD)*1.8\\nprint pwr\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 100 10 10G\\nlet gain_db = vdb(VO)\\nmeas ac dc_gain find gain_db at=100\\nlet gain_3db = dc_gain - 3\\nmeas ac bw when gain_db=gain_3db fall=1\\n\\nlet gain_vos_db = vdb(VOS)\\nmeas ac dc_gain_vos find gain_vos_db at=100\\n\\n* 3. AC Analysis for Output Impedance\\nalter Vin ac=0\\nalter Iout ac=1\\nac dec 10 10 10G\\nlet vout_mag = mag(v(VO))\\nmeas ac rout_val find vout_mag at=100\\n\\nprint dc_gain bw rout_val dc_gain_vos\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "5434037",
+  "_case": "5434037_image_5"
+}

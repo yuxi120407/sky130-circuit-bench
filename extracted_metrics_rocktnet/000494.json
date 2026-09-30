@@ -1,0 +1,116 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Class-G Line Driver Output Stage",
+    "description": "A Class-G output buffer that dynamically switches between inner and outer supply rails to improve power efficiency. It uses commutating diodes and outer transistors to supply current for large output swings, reducing power dissipation compared to a standard Class-AB stage.",
+    "node_mapping": {
+      "input": [
+        "VIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "+15V",
+        "-15V",
+        "+5V",
+        "-5V"
+      ],
+      "bias": [
+        "N1",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8"
+      ],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 610-mW Zero-Overhead Class-G Full-Rate ADSL CO Line Driver",
+      "figure": "Schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Power Consumption": {
+      "description": "Total average power drawn from all voltage supplies.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "610 mW",
+        "technology": "silicon"
+      },
+      "sky130_expected": {
+        "calculation": "P = V_supply * I_avg. Scaled to 1.8V with a 50 ohm load and 1.5V peak sine wave.",
+        "range": {
+          "min": "20m",
+          "typical": "30m",
+          "max": "50m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down significantly from the original 15V operation to 1.8V operation for SKY130 compatibility."
+      },
+      "importance": "essential"
+    },
+    "Efficiency": {
+      "description": "Ratio of power delivered to the load versus total power consumed from the supplies.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "80%",
+        "technology": "silicon"
+      },
+      "sky130_expected": {
+        "calculation": "Efficiency = (P_load / P_supply) * 100",
+        "range": {
+          "min": "60",
+          "typical": "75",
+          "max": "85",
+          "unit": "%"
+        },
+        "reasoning": "Class-G stages typically achieve 60-80% efficiency depending on the signal amplitude and rail switching thresholds."
+      },
+      "importance": "essential"
+    },
+    "Voltage Gain": {
+      "description": "AC voltage gain of the output stage.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "16 dB",
+        "technology": "silicon"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(VOUT/VIN)",
+        "range": {
+          "min": "-2",
+          "typical": "0",
+          "max": "1",
+          "unit": "dB"
+        },
+        "reasoning": "The extracted circuit is a unity-gain buffer (emitter follower). The 16 dB reported in the paper likely includes a preceding voltage gain stage not present in this specific netlist."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power, efficiency, and gain of the Class-G line driver. Supplies are scaled to 1.8V and 0.9V, and generic BJT/Diode models are tuned with high IS to lower Vbe/Vd, allowing the 4-diode-drop bias network to function within the 1.8V headroom.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Efficiency",
+      "Voltage Gain"
+    ],
+    "spice": "* Class-G Line Driver Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param VDD=1.8\n.param VSS=-1.8\n.param VDD_IN=0.9\n.param VSS_IN=-0.9\n\nV1 +15V 0 DC {VDD}\nV2 -15V 0 DC {VSS}\nV3 +5V 0 DC {VDD_IN}\nV4 -5V 0 DC {VSS_IN}\n\nVVIN VIN 0 DC 0 AC 1 SIN(0 1.5 1k)\n\nRL VOUT 0 50\n\n* Generic models tuned for low Vbe/Vd to allow 1.8V operation\n.model npn npn(is=1e-6 bf=100)\n.model pnp pnp(is=1e-6 bf=100)\n.model D D(is=1e-6)\n\n* DUT (Values added to current sources and models to diodes for SPICE syntax)\nI1 +15V N1 1m\nD3 N1 N2 D\nD4 N2 N3 D\nQ6 -15V VIN N3 pnp\nQ3 +15V VIN N4 npn\nD1 N4 N5 D\nD2 N5 N6 D\nI2 N6 -15V 1m\nQ1 +15V N1 N7 npn\nQ2 N7 N3 VOUT npn\nQ5 N8 N4 VOUT pnp\nQ4 -15V N6 N8 pnp\nD5 N7 +5V D\nD6 -5V N8 D\n\n.control\n  * AC Analysis\n  ac dec 10 10 10Meg\n  let gain_db = vdb(VOUT)\n  meas ac midband_gain find gain_db at=1k\n  \n  * Transient Analysis\n  tran 10u 5m\n  \n  * Power and Efficiency Calculation\n  let p_vcc = -i(V1) * 1.8\n  let p_vee = i(V2) * 1.8\n  let p_vcc_in = -i(V3) * 0.9\n  let p_vee_in = i(V4) * 0.9\n  let p_total = p_vcc + p_vee + p_vcc_in + p_vee_in\n  meas tran p_avg avg p_total from=1m to=5m\n  \n  let p_load = (v(VOUT)^2) / 50\n  meas tran p_load_avg avg p_load from=1m to=5m\n  \n  let efficiency = (p_load_avg / p_avg) * 100\n  print p_avg\n  print efficiency\n  \n  * Output Swing\n  meas tran vout_max max v(VOUT) from=1m to=5m\n  meas tran vout_min min v(VOUT) from=1m to=5m\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Class-G Line Driver Output Stage\",\n    \"description\": \"A Class-G output buffer that dynamically switches between inner and outer supply rails to improve power efficiency. It uses commutating diodes and outer transistors to supply current for large output swings, reducing power dissipation compared to a standard Class-AB stage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"+15V\",\n        \"-15V\",\n        \"+5V\",\n        \"-5V\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"N2\",\n        \"N3\",\n        \"N4\",\n        \"N5\",\n        \"N6\",\n        \"N7\",\n        \"N8\"\n      ],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 610-mW Zero-Overhead Class-G Full-Rate ADSL CO Line Driver\",\n      \"figure\": \"Schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Power Consumption\": {\n      \"description\": \"Total average power drawn from all voltage supplies.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"610 mW\",\n        \"technology\": \"silicon\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = V_supply * I_avg. Scaled to 1.8V with a 50 ohm load and 1.5V peak sine wave.\",\n        \"range\": {\n          \"min\": \"20m\",\n          \"typical\": \"30m\",\n          \"max\": \"50m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down significantly from the original 15V operation to 1.8V operation for SKY130 compatibility.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Efficiency\": {\n      \"description\": \"Ratio of power delivered to the load versus total power consumed from the supplies.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"80%\",\n        \"technology\": \"silicon\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Efficiency = (P_load / P_supply) * 100\",\n        \"range\": {\n          \"min\": \"60\",\n          \"typical\": \"75\",\n          \"max\": \"85\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Class-G stages typically achieve 60-80% efficiency depending on the signal amplitude and rail switching thresholds.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Voltage Gain\": {\n      \"description\": \"AC voltage gain of the output stage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"16 dB\",\n        \"technology\": \"silicon\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(VOUT/VIN)\",\n        \"range\": {\n          \"min\": \"-2\",\n          \"typical\": \"0\",\n          \"max\": \"1\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The extracted circuit is a unity-gain buffer (emitter follower). The 16 dB reported in the paper likely includes a preceding voltage gain stage not present in this specific netlist.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power, efficiency, and gain of the Class-G line driver. Supplies are scaled to 1.8V and 0.9V, and generic BJT/Diode models are tuned with high IS to lower Vbe/Vd, allowing the 4-diode-drop bias network to function within the 1.8V headroom.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Efficiency\",\n      \"Voltage Gain\"\n    ],\n    \"spice\": \"* Class-G Line Driver Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param VDD=1.8\\n.param VSS=-1.8\\n.param VDD_IN=0.9\\n.param VSS_IN=-0.9\\n\\nV1 +15V 0 DC {VDD}\\nV2 -15V 0 DC {VSS}\\nV3 +5V 0 DC {VDD_IN}\\nV4 -5V 0 DC {VSS_IN}\\n\\nVVIN VIN 0 DC 0 AC 1 SIN(0 1.5 1k)\\n\\nRL VOUT 0 50\\n\\n* Generic models tuned for low Vbe/Vd to allow 1.8V operation\\n.model npn npn(is=1e-6 bf=100)\\n.model pnp pnp(is=1e-6 bf=100)\\n.model D D(is=1e-6)\\n\\n* DUT (Values added to current sources and models to diodes for SPICE syntax)\\nI1 +15V N1 1m\\nD3 N1 N2 D\\nD4 N2 N3 D\\nQ6 -15V VIN N3 pnp\\nQ3 +15V VIN N4 npn\\nD1 N4 N5 D\\nD2 N5 N6 D\\nI2 N6 -15V 1m\\nQ1 +15V N1 N7 npn\\nQ2 N7 N3 VOUT npn\\nQ5 N8 N4 VOUT pnp\\nQ4 -15V N6 N8 pnp\\nD5 N7 +5V D\\nD6 -5V N8 D\\n\\n.control\\n  * AC Analysis\\n  ac dec 10 10 10Meg\\n  let gain_db = vdb(VOUT)\\n  meas ac midband_gain find gain_db at=1k\\n  \\n  * Transient Analysis\\n  tran 10u 5m\\n  \\n  * Power and Efficiency Calculation\\n  let p_vcc = -i(V1) * 1.8\\n  let p_vee = i(V2) * 1.8\\n  let p_vcc_in = -i(V3) * 0.9\\n  let p_vee_in = i(V4) * 0.9\\n  let p_total = p_vcc + p_vee + p_vcc_in + p_vee_in\\n  meas tran p_avg avg p_total from=1m to=5m\\n  \\n  let p_load = (v(VOUT)^2) / 50\\n  meas tran p_load_avg avg p_load from=1m to=5m\\n  \\n  let efficiency = (p_load_avg / p_avg) * 100\\n  print p_avg\\n  print efficiency\\n  \\n  * Output Swing\\n  meas tran vout_max max v(VOUT) from=1m to=5m\\n  meas tran vout_min min v(VOUT) from=1m to=5m\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1253866",
+  "_case": "1253866_image_5"
+}

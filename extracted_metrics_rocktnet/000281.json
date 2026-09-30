@@ -1,0 +1,146 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single-Inductor Dual-Output (SIDO) Boost Converter",
+    "description": "A time-multiplexed switching converter that generates two independent output voltages from a single input voltage using one shared inductor. It operates in Discontinuous Conduction Mode (DCM) to minimize cross-regulation between the outputs.",
+    "node_mapping": {
+      "input": [
+        "Vg"
+      ],
+      "output": [
+        "Voa",
+        "Vob"
+      ],
+      "supply": [
+        "Vg"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Single-Inductor Multiple-Output Switching Converters With Time-Multiplexing Control in Discontinuous Conduction Mode",
+      "figure": "Generic Schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Efficiency": {
+      "description": "Ratio of total output power to input power",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "88.4%",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Pout / Pin. With ideal switches (Ron=0.05 ohm) and standard diodes (Vd=0.7V), diode losses dominate. Pout=205mW, Pdiode=43mW, Pin=248mW -> 82.6%",
+        "range": {
+          "min": 75,
+          "typical": 82,
+          "max": 90,
+          "unit": "%"
+        },
+        "reasoning": "Efficiency is primarily limited by the forward voltage drop of the rectifying diodes and the on-resistance of the switches."
+      },
+      "importance": "essential"
+    },
+    "Output_Voltage_A": {
+      "description": "Average DC voltage of the first output",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.0 V",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by duty cycle and load. Set to ~3.0V in testbench.",
+        "range": {
+          "min": 2.8,
+          "typical": 3.0,
+          "max": 3.2,
+          "unit": "V"
+        },
+        "reasoning": "The control signals (duty cycle) and load resistors are tuned to achieve approximately 3.0V."
+      },
+      "importance": "essential"
+    },
+    "Output_Voltage_B": {
+      "description": "Average DC voltage of the second output",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.6 V",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by duty cycle and load. Set to ~3.6V in testbench.",
+        "range": {
+          "min": 3.4,
+          "typical": 3.6,
+          "max": 3.8,
+          "unit": "V"
+        },
+        "reasoning": "The control signals (duty cycle) and load resistors are tuned to achieve approximately 3.6V."
+      },
+      "importance": "essential"
+    },
+    "Total_Output_Power": {
+      "description": "Sum of power delivered to both loads",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "350 mW",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Pout_a + Pout_b = (3.0^2 / 120) + (3.6^2 / 100) = 75mW + 130mW = 205mW",
+        "range": {
+          "min": 0.15,
+          "typical": 0.205,
+          "max": 0.35,
+          "unit": "W"
+        },
+        "reasoning": "Depends on the chosen load resistors. The testbench uses 120 ohm and 100 ohm to target ~205mW."
+      },
+      "importance": "essential"
+    },
+    "Output_Ripple": {
+      "description": "Peak-to-peak voltage ripple on the outputs",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly listed, but standard metric",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "dV = I_load * dt / C. For 10uF and 1us discharge time, ripple is very small.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.05,
+          "max": 0.1,
+          "unit": "V"
+        },
+        "reasoning": "10uF output capacitors provide strong filtering for the 1MHz switching frequency."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure steady-state output voltages, efficiency, output power, and ripple of the SIDO boost converter. Note: The original netlist syntax for switches was corrected to be ngspice-compatible.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Output_Voltage_A",
+      "Output_Voltage_B",
+      "Efficiency",
+      "Total_Output_Power",
+      "Output_Ripple"
+    ],
+    "spice": "* SIMO Boost Converter Testbench\n.param VDD=1.8\n\n* Models\n.model switch_ideal sw vt=0.5 vh=0.1 ron=0.05 roff=1meg\n.model DMOD D(Is=1e-14 Rs=0.1 N=1)\n\n* Corrected DUT (fixed switch syntax and added diode models)\nDa N5 Voa DMOD\nVg Vg GND dc {VDD}\nDb N4 Vob DMOD\nS1 N1 GND ctrl1 GND switch_ideal\nSb N1 N4 ctrlb GND switch_ideal\nC1 Voa GND 10u\nSa N1 N5 ctrla GND switch_ideal\nC2 Vob Voa 10u\nL N1 Vg 1u\n\n* Loads\nRload_a Voa GND 120\nRload_b Vob GND 100\n\n* Initial conditions to speed up steady state\n.ic v(Voa)=2.95 v(Vob)=3.6\n\n* Control Signals (1MHz base, 2us full cycle for 2 outputs)\nVctrl1a ctrl1a GND PULSE(0 1 0 1n 1n 0.3u 2u)\nVctrl1b ctrl1b GND PULSE(0 1 1.0u 1n 1n 0.4u 2u)\nBctrl1 ctrl1 GND V=V(ctrl1a)+V(ctrl1b)\n\nVctrla ctrla GND PULSE(0 1 0.3u 1n 1n 0.3u 2u)\nVctrlb ctrlb GND PULSE(0 1 1.4u 1n 1n 0.4u 2u)\n\n* Analysis\n.control\ntran 10n 50u uic\n\n* Measure steady state voltages\nmeas tran Voa_avg avg v(Voa) from=40u to=50u\nmeas tran Vob_avg avg v(Vob) from=40u to=50u\n\n* Measure input power\nmeas tran Iin_avg avg i(Vg) from=40u to=50u\nlet Pin = -Iin_avg * 1.8\n\n* Measure output power\nlet Pout_a = Voa_avg * Voa_avg / 120\nlet Pout_b = Vob_avg * Vob_avg / 100\nlet Pout_total = Pout_a + Pout_b\n\n* Efficiency\nlet eff = Pout_total / Pin * 100\n\n* Ripple\nmeas tran Voa_max max v(Voa) from=40u to=50u\nmeas tran Voa_min min v(Voa) from=40u to=50u\nlet Voa_ripple = Voa_max - Voa_min\n\nmeas tran Vob_max max v(Vob) from=40u to=50u\nmeas tran Vob_min min v(Vob) from=40u to=50u\nlet Vob_ripple = Vob_max - Vob_min\n\nprint Voa_avg Vob_avg Pin Pout_total eff Voa_ripple Vob_ripple\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single-Inductor Dual-Output (SIDO) Boost Converter\",\n    \"description\": \"A time-multiplexed switching converter that generates two independent output voltages from a single input voltage using one shared inductor. It operates in Discontinuous Conduction Mode (DCM) to minimize cross-regulation between the outputs.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vg\"\n      ],\n      \"output\": [\n        \"Voa\",\n        \"Vob\"\n      ],\n      \"supply\": [\n        \"Vg\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Single-Inductor Multiple-Output Switching Converters With Time-Multiplexing Control in Discontinuous Conduction Mode\",\n      \"figure\": \"Generic Schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Efficiency\": {\n      \"description\": \"Ratio of total output power to input power\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"88.4%\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout / Pin. With ideal switches (Ron=0.05 ohm) and standard diodes (Vd=0.7V), diode losses dominate. Pout=205mW, Pdiode=43mW, Pin=248mW -> 82.6%\",\n        \"range\": {\n          \"min\": 75,\n          \"typical\": 82,\n          \"max\": 90,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Efficiency is primarily limited by the forward voltage drop of the rectifying diodes and the on-resistance of the switches.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_Voltage_A\": {\n      \"description\": \"Average DC voltage of the first output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.0 V\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by duty cycle and load. Set to ~3.0V in testbench.\",\n        \"range\": {\n          \"min\": 2.8,\n          \"typical\": 3.0,\n          \"max\": 3.2,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The control signals (duty cycle) and load resistors are tuned to achieve approximately 3.0V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_Voltage_B\": {\n      \"description\": \"Average DC voltage of the second output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.6 V\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by duty cycle and load. Set to ~3.6V in testbench.\",\n        \"range\": {\n          \"min\": 3.4,\n          \"typical\": 3.6,\n          \"max\": 3.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The control signals (duty cycle) and load resistors are tuned to achieve approximately 3.6V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Total_Output_Power\": {\n      \"description\": \"Sum of power delivered to both loads\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"350 mW\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout_a + Pout_b = (3.0^2 / 120) + (3.6^2 / 100) = 75mW + 130mW = 205mW\",\n        \"range\": {\n          \"min\": 0.15,\n          \"typical\": 0.205,\n          \"max\": 0.35,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on the chosen load resistors. The testbench uses 120 ohm and 100 ohm to target ~205mW.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_Ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple on the outputs\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed, but standard metric\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dV = I_load * dt / C. For 10uF and 1us discharge time, ripple is very small.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.05,\n          \"max\": 0.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"10uF output capacitors provide strong filtering for the 1MHz switching frequency.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure steady-state output voltages, efficiency, output power, and ripple of the SIDO boost converter. Note: The original netlist syntax for switches was corrected to be ngspice-compatible.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Output_Voltage_A\",\n      \"Output_Voltage_B\",\n      \"Efficiency\",\n      \"Total_Output_Power\",\n      \"Output_Ripple\"\n    ],\n    \"spice\": \"* SIMO Boost Converter Testbench\\n.param VDD=1.8\\n\\n* Models\\n.model switch_ideal sw vt=0.5 vh=0.1 ron=0.05 roff=1meg\\n.model DMOD D(Is=1e-14 Rs=0.1 N=1)\\n\\n* Corrected DUT (fixed switch syntax and added diode models)\\nDa N5 Voa DMOD\\nVg Vg GND dc {VDD}\\nDb N4 Vob DMOD\\nS1 N1 GND ctrl1 GND switch_ideal\\nSb N1 N4 ctrlb GND switch_ideal\\nC1 Voa GND 10u\\nSa N1 N5 ctrla GND switch_ideal\\nC2 Vob Voa 10u\\nL N1 Vg 1u\\n\\n* Loads\\nRload_a Voa GND 120\\nRload_b Vob GND 100\\n\\n* Initial conditions to speed up steady state\\n.ic v(Voa)=2.95 v(Vob)=3.6\\n\\n* Control Signals (1MHz base, 2us full cycle for 2 outputs)\\nVctrl1a ctrl1a GND PULSE(0 1 0 1n 1n 0.3u 2u)\\nVctrl1b ctrl1b GND PULSE(0 1 1.0u 1n 1n 0.4u 2u)\\nBctrl1 ctrl1 GND V=V(ctrl1a)+V(ctrl1b)\\n\\nVctrla ctrla GND PULSE(0 1 0.3u 1n 1n 0.3u 2u)\\nVctrlb ctrlb GND PULSE(0 1 1.4u 1n 1n 0.4u 2u)\\n\\n* Analysis\\n.control\\ntran 10n 50u uic\\n\\n* Measure steady state voltages\\nmeas tran Voa_avg avg v(Voa) from=40u to=50u\\nmeas tran Vob_avg avg v(Vob) from=40u to=50u\\n\\n* Measure input power\\nmeas tran Iin_avg avg i(Vg) from=40u to=50u\\nlet Pin = -Iin_avg * 1.8\\n\\n* Measure output power\\nlet Pout_a = Voa_avg * Voa_avg / 120\\nlet Pout_b = Vob_avg * Vob_avg / 100\\nlet Pout_total = Pout_a + Pout_b\\n\\n* Efficiency\\nlet eff = Pout_total / Pin * 100\\n\\n* Ripple\\nmeas tran Voa_max max v(Voa) from=40u to=50u\\nmeas tran Voa_min min v(Voa) from=40u to=50u\\nlet Voa_ripple = Voa_max - Voa_min\\n\\nmeas tran Vob_max max v(Vob) from=40u to=50u\\nmeas tran Vob_min min v(Vob) from=40u to=50u\\nlet Vob_ripple = Vob_max - Vob_min\\n\\nprint Voa_avg Vob_avg Pin Pout_total eff Voa_ripple Vob_ripple\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1158785",
+  "_case": "1158785_image_5"
+}

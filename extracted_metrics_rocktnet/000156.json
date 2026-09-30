@@ -1,0 +1,174 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current-Mirror Operational Transconductance Amplifier (OTA)",
+    "description": "A symmetrical CMOS OTA using a PMOS differential pair and NMOS/PMOS current mirrors to provide a single-ended output. The architecture can achieve very small transconductances by operating in weak inversion and utilizing current division in the mirrors, as described in the paper.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_1",
+        "LABEL_NET_2"
+      ],
+      "output": [
+        "N5"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND",
+        "N4"
+      ]
+    },
+    "paper_reference": {
+      "title": "Transconductance Amplifier Structures With Very Small Transconductances: A Comparative Design Approach",
+      "figure": "Not specified",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low-frequency open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "25 dB",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = Gm * Rout. With Gm ~ 70uS and Rout ~ 1MOhm, Gain ~ 70 V/V.",
+        "range": {
+          "min": 20,
+          "typical": 37,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "Standard 5u/0.5u devices in sky130 have moderate intrinsic gain. The paper's 25dB was for a very specific weak-inversion current-division setup."
+      },
+      "importance": "essential"
+    },
+    "GBW": {
+      "description": "Unity gain bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0.17 Hz",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "GBW = Gm / (2*pi*CL). With Gm=70uS and CL=1pF -> 11 MHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 11000000.0,
+          "max": 50000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Adjusted for a standard 1pF load and 10uA bias in SKY130, compared to the paper's massive 10nF load and nano-amp bias."
+      },
+      "importance": "essential"
+    },
+    "Phase_Margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly listed",
+        "technology": ""
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole at output, non-dominant poles at mirror nodes (N1, N2, N3). With 1pF load, PM should be stable.",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard OTA behavior with a dominant capacitive load."
+      },
+      "importance": "essential"
+    },
+    "Transconductance_Gm": {
+      "description": "Effective transconductance of the OTA",
+      "unit": "A/V",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 nS",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gm = gm_diff_pair * mirror_ratio. gm ~ sqrt(2*up*Cox*W/L*Id) = sqrt(2*50u*10*5u) = 70uS.",
+        "range": {
+          "min": 1e-05,
+          "typical": 7e-05,
+          "max": 0.0002,
+          "unit": "A/V"
+        },
+        "reasoning": "Using a standard 10uA bias current and 1:1 mirror ratio, Gm is much higher than the paper's specialized nano-amp design."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total static power dissipation",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Implied very low",
+        "technology": ""
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. I_total = I_bias + I_tail + I_mirrors = 10u + 10u + 5u + 5u = 30uA. P = 1.8V * 30uA = 54uW.",
+        "range": {
+          "min": 1e-05,
+          "typical": 5.4e-05,
+          "max": 0.0001,
+          "unit": "W"
+        },
+        "reasoning": "Based on a 10uA reference bias and 1.8V supply."
+      },
+      "importance": "recommended"
+    },
+    "Output_Voltage_Swing": {
+      "description": "Maximum and minimum output voltage levels",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "0.35 V to 1.35 V (estimated from values)",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vout_max = VDD - Vdsat_pmos, Vout_min = Vdsat_nmos",
+        "range": {
+          "min": 0.1,
+          "typical": 1.6,
+          "max": 1.7,
+          "unit": "V"
+        },
+        "reasoning": "Standard saturation voltages for sky130 devices at 5uA."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Comprehensive testbench measuring OP power, AC gain/GBW/PM, DC output swing, and Transient slew rate.",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "DC_Gain",
+      "GBW",
+      "Phase_Margin",
+      "Transconductance_Gm",
+      "Output_Voltage_Swing",
+      "Slew_Rate"
+    ],
+    "spice": "* OTA Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 N2 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N5 N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 LABEL_NET_1 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N6 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 LABEL_NET_2 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N5 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\n\n* Fix floating N4 (NMOS sources)\nVN4 N4 0 0\n\n* Power supply and Bias\nVVDD VDD 0 1.8\nIBIAS N0 0 10u\n\n* Common mode and differential inputs\nVCM_SRC VCM_NODE 0 0.9\n* PWL source ensures AC/DC OP is at 0V, then steps for transient slew rate measurement\nVDIFF_SRC VDIFF_NODE 0 dc 0 ac 1 PWL(0 0 10n 0 11n -0.5 5u -0.5 5.001u 0.5 10u 0.5 10.001u -0.5 15u -0.5)\nE1 LABEL_NET_1 VCM_NODE VDIFF_NODE 0 0.5\nE2 LABEL_NET_2 VCM_NODE VDIFF_NODE 0 -0.5\n\n* Load capacitor\nCL N5 0 1p\n\n.control\n  * 1. Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis\n  ac dec 20 1 100Meg\n  let gain_db = vdb(N5)\n  let phase = 180/PI * cph(v(N5))\n  \n  meas ac dc_gain find gain_db at=10\n  meas ac gbw when gain_db=0 fall=1\n  meas ac phase_at_gbw find phase when gain_db=0 fall=1\n  let pm = phase_at_gbw + 180\n  print pm\n  \n  * Estimate Gm from GBW and CL (Gm = GBW * 2 * pi * C)\n  let gm_est = gbw * 2 * 3.14159 * 1e-12\n  print gm_est\n\n  * 3. DC Sweep for Output Swing\n  dc VDIFF_SRC -0.5 0.5 0.01\n  meas dc vout_max max v(N5)\n  meas dc vout_min min v(N5)\n\n  * 4. Transient Analysis for Slew Rate\n  tran 10n 15u\n  * Measure rise time (starts at 5u)\n  meas tran t_rise trig v(N5) val=0.5 td=4u rise=1 targ v(N5) val=1.3 td=4u rise=1\n  let sr_rise = (1.3 - 0.5) / t_rise\n  * Measure fall time (starts at 10u)\n  meas tran t_fall trig v(N5) val=1.3 td=9u fall=1 targ v(N5) val=0.5 td=9u fall=1\n  let sr_fall = (1.3 - 0.5) / t_fall\n  print sr_rise sr_fall\n\n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current-Mirror Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"A symmetrical CMOS OTA using a PMOS differential pair and NMOS/PMOS current mirrors to provide a single-ended output. The architecture can achieve very small transconductances by operating in weak inversion and utilizing current division in the mirrors, as described in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\"\n      ],\n      \"output\": [\n        \"N5\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N4\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Transconductance Amplifier Structures With Very Small Transconductances: A Comparative Design Approach\",\n      \"figure\": \"Not specified\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"25 dB\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = Gm * Rout. With Gm ~ 70uS and Rout ~ 1MOhm, Gain ~ 70 V/V.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 37,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard 5u/0.5u devices in sky130 have moderate intrinsic gain. The paper's 25dB was for a very specific weak-inversion current-division setup.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"GBW\": {\n      \"description\": \"Unity gain bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0.17 Hz\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"GBW = Gm / (2*pi*CL). With Gm=70uS and CL=1pF -> 11 MHz.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 11e6,\n          \"max\": 50e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Adjusted for a standard 1pF load and 10uA bias in SKY130, compared to the paper's massive 10nF load and nano-amp bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_Margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed\",\n        \"technology\": \"\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole at output, non-dominant poles at mirror nodes (N1, N2, N3). With 1pF load, PM should be stable.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard OTA behavior with a dominant capacitive load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transconductance_Gm\": {\n      \"description\": \"Effective transconductance of the OTA\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 nS\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm = gm_diff_pair * mirror_ratio. gm ~ sqrt(2*up*Cox*W/L*Id) = sqrt(2*50u*10*5u) = 70uS.\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 70e-6,\n          \"max\": 200e-6,\n          \"unit\": \"A/V\"\n        },\n        \"reasoning\": \"Using a standard 10uA bias current and 1:1 mirror ratio, Gm is much higher than the paper's specialized nano-amp design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total static power dissipation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Implied very low\",\n        \"technology\": \"\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. I_total = I_bias + I_tail + I_mirrors = 10u + 10u + 5u + 5u = 30uA. P = 1.8V * 30uA = 54uW.\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 54e-6,\n          \"max\": 100e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a 10uA reference bias and 1.8V supply.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Output_Voltage_Swing\": {\n      \"description\": \"Maximum and minimum output voltage levels\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"0.35 V to 1.35 V (estimated from values)\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vout_max = VDD - Vdsat_pmos, Vout_min = Vdsat_nmos\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 1.6,\n          \"max\": 1.7,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard saturation voltages for sky130 devices at 5uA.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Comprehensive testbench measuring OP power, AC gain/GBW/PM, DC output swing, and Transient slew rate.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"DC_Gain\",\n      \"GBW\",\n      \"Phase_Margin\",\n      \"Transconductance_Gm\",\n      \"Output_Voltage_Swing\",\n      \"Slew_Rate\"\n    ],\n    \"spice\": \"* OTA Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 N2 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N5 N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 LABEL_NET_1 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N6 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 LABEL_NET_2 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N5 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Fix floating N4 (NMOS sources)\\nVN4 N4 0 0\\n\\n* Power supply and Bias\\nVVDD VDD 0 1.8\\nIBIAS N0 0 10u\\n\\n* Common mode and differential inputs\\nVCM_SRC VCM_NODE 0 0.9\\n* PWL source ensures AC/DC OP is at 0V, then steps for transient slew rate measurement\\nVDIFF_SRC VDIFF_NODE 0 dc 0 ac 1 PWL(0 0 10n 0 11n -0.5 5u -0.5 5.001u 0.5 10u 0.5 10.001u -0.5 15u -0.5)\\nE1 LABEL_NET_1 VCM_NODE VDIFF_NODE 0 0.5\\nE2 LABEL_NET_2 VCM_NODE VDIFF_NODE 0 -0.5\\n\\n* Load capacitor\\nCL N5 0 1p\\n\\n.control\\n  * 1. Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis\\n  ac dec 20 1 100Meg\\n  let gain_db = vdb(N5)\\n  let phase = 180/PI * cph(v(N5))\\n  \\n  meas ac dc_gain find gain_db at=10\\n  meas ac gbw when gain_db=0 fall=1\\n  meas ac phase_at_gbw find phase when gain_db=0 fall=1\\n  let pm = phase_at_gbw + 180\\n  print pm\\n  \\n  * Estimate Gm from GBW and CL (Gm = GBW * 2 * pi * C)\\n  let gm_est = gbw * 2 * 3.14159 * 1e-12\\n  print gm_est\\n\\n  * 3. DC Sweep for Output Swing\\n  dc VDIFF_SRC -0.5 0.5 0.01\\n  meas dc vout_max max v(N5)\\n  meas dc vout_min min v(N5)\\n\\n  * 4. Transient Analysis for Slew Rate\\n  tran 10n 15u\\n  * Measure rise time (starts at 5u)\\n  meas tran t_rise trig v(N5) val=0.5 td=4u rise=1 targ v(N5) val=1.3 td=4u rise=1\\n  let sr_rise = (1.3 - 0.5) / t_rise\\n  * Measure fall time (starts at 10u)\\n  meas tran t_fall trig v(N5) val=1.3 td=9u fall=1 targ v(N5) val=0.5 td=9u fall=1\\n  let sr_fall = (1.3 - 0.5) / t_fall\\n  print sr_rise sr_fall\\n\\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1004582",
+  "_case": "1004582_image_1"
+}

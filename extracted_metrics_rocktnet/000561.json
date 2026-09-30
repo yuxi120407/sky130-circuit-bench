@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Write Reference Voltage Generator",
+    "description": "Generates a reference voltage (VWR_REF) by subtracting a gate-source voltage drop from VDD, controlled by a current mirror. This reference is likely used to limit bitline voltage swing during SRAM write operations to reduce dynamic power.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "VWR_REF"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "90% Write Power-Saving SRAM Using Sense-Amplifying Memory Cell",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "VWR_REF_DC": {
+      "description": "DC voltage level of the write reference output",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.2 V / 0.15 V (reduced swing)",
+        "technology": "unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 10uA bias current at N0. W/L = 10 for all NMOS. Vgs = Vth + sqrt(2*Id / (unCox * W/L)) = 0.42 + sqrt(20u / (270u * 10)) = 0.506V. VWR_REF = VDD - Vgs2 = 1.8 - 0.506 = 1.294V.",
+        "range": {
+          "min": 1.2,
+          "typical": 1.29,
+          "max": 1.4,
+          "unit": "V"
+        },
+        "reasoning": "The reference voltage tracks VDD with a Vgs offset. The exact value depends on the applied bias current."
+      },
+      "importance": "essential"
+    },
+    "Power_DC": {
+      "description": "Static power consumption of the reference generator",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "90% reduction in write power",
+        "technology": "unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Total current = Ibias + I_XM3 = 10uA + 10uA = 20uA. Power = 1.8V * 20uA = 36uW.",
+        "range": {
+          "min": 2e-05,
+          "typical": 3.6e-05,
+          "max": 5e-05,
+          "unit": "W"
+        },
+        "reasoning": "Power is dominated by the bias current and the mirrored current through XM2/XM3."
+      },
+      "importance": "essential"
+    },
+    "Line_Regulation": {
+      "description": "Sensitivity of the reference voltage to changes in the supply voltage",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Since VWR_REF = VDD - Vgs2, and Vgs2 is relatively constant for a fixed bias current, d(VWR_REF)/d(VDD) \u2248 1 V/V.",
+        "range": {
+          "min": 0.9,
+          "typical": 1.0,
+          "max": 1.1,
+          "unit": "V/V"
+        },
+        "reasoning": "The diode-connected NMOS XM2 shifts the supply voltage down by a fixed amount, so the output tracks the supply linearly."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC reference voltage, static power consumption, and line regulation of the write reference generator.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "VWR_REF_DC",
+      "Power_DC",
+      "Line_Regulation"
+    ],
+    "spice": "* Testbench for Write Reference Voltage Generator\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\nXM1 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VDD VDD VWR_REF GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VWR_REF N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\nVVDD VDD 0 1.8\nIbias VDD N0 10u\n\n.control\nop\nlet vref = v(VWR_REF)\nlet power = -i(VVDD)*1.8\nprint vref power\n\ndc VVDD 0 1.8 0.01\nmeas dc vref_1_8 find v(VWR_REF) at=1.8\nmeas dc vref_1_7 find v(VWR_REF) at=1.7\nlet line_reg = (vref_1_8 - vref_1_7)/0.1\nprint line_reg\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Write Reference Voltage Generator\",\n    \"description\": \"Generates a reference voltage (VWR_REF) by subtracting a gate-source voltage drop from VDD, controlled by a current mirror. This reference is likely used to limit bitline voltage swing during SRAM write operations to reduce dynamic power.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\"\n      ],\n      \"output\": [\n        \"VWR_REF\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"90% Write Power-Saving SRAM Using Sense-Amplifying Memory Cell\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"VWR_REF_DC\": {\n      \"description\": \"DC voltage level of the write reference output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.2 V / 0.15 V (reduced swing)\",\n        \"technology\": \"unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 10uA bias current at N0. W/L = 10 for all NMOS. Vgs = Vth + sqrt(2*Id / (unCox * W/L)) = 0.42 + sqrt(20u / (270u * 10)) = 0.506V. VWR_REF = VDD - Vgs2 = 1.8 - 0.506 = 1.294V.\",\n        \"range\": {\n          \"min\": 1.2,\n          \"typical\": 1.29,\n          \"max\": 1.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The reference voltage tracks VDD with a Vgs offset. The exact value depends on the applied bias current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_DC\": {\n      \"description\": \"Static power consumption of the reference generator\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"90% reduction in write power\",\n        \"technology\": \"unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current = Ibias + I_XM3 = 10uA + 10uA = 20uA. Power = 1.8V * 20uA = 36uW.\",\n        \"range\": {\n          \"min\": 20e-6,\n          \"typical\": 36e-6,\n          \"max\": 50e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Power is dominated by the bias current and the mirrored current through XM2/XM3.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Line_Regulation\": {\n      \"description\": \"Sensitivity of the reference voltage to changes in the supply voltage\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since VWR_REF = VDD - Vgs2, and Vgs2 is relatively constant for a fixed bias current, d(VWR_REF)/d(VDD) \u2248 1 V/V.\",\n        \"range\": {\n          \"min\": 0.9,\n          \"typical\": 1.0,\n          \"max\": 1.1,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"The diode-connected NMOS XM2 shifts the supply voltage down by a fixed amount, so the output tracks the supply linearly.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC reference voltage, static power consumption, and line regulation of the write reference generator.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"VWR_REF_DC\",\n      \"Power_DC\",\n      \"Line_Regulation\"\n    ],\n    \"spice\": \"* Testbench for Write Reference Voltage Generator\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\nXM1 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VDD VDD VWR_REF GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VWR_REF N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\nVVDD VDD 0 1.8\\nIbias VDD N0 10u\\n\\n.control\\nop\\nlet vref = v(VWR_REF)\\nlet power = -i(VVDD)*1.8\\nprint vref power\\n\\ndc VVDD 0 1.8 0.01\\nmeas dc vref_1_8 find v(VWR_REF) at=1.8\\nmeas dc vref_1_7 find v(VWR_REF) at=1.7\\nlet line_reg = (vref_1_8 - vref_1_7)/0.1\\nprint line_reg\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1302269",
+  "_case": "1302269_image_4_a"
+}

@@ -1,0 +1,112 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Low Noise Amplifier (LNA)",
+    "description": "A common-source (or common-emitter) RF amplifier with an inductive load for high-frequency operation, typically used in WLAN receivers. It features a complex active bias network to stabilize the operating point of the main amplifying transistor.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1",
+        "N3",
+        "N4",
+        "N5",
+        "N0",
+        "N6"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fully Integrated Multiband MIMO WLAN Transceiver RFIC",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Voltage_Gain": {
+      "description": "AC voltage gain (S21 equivalent) at the operating frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "15 dB",
+        "technology": "47-GHz SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is determined by gm * Z_load. At resonance, Z_load is limited by inductor Q and output resistance. Assuming gm ~ 20mA/V and R_p ~ 500 ohms, gain is ~10 V/V or 20 dB. Loaded with 50 ohms, it will be lower.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Adjusted for SKY130 NMOS driving a 50-ohm load; the paper's 15 dB is a reasonable target for a single-stage LNA."
+      },
+      "importance": "essential"
+    },
+    "Center_Frequency": {
+      "description": "Frequency at which the voltage gain peaks.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5.2 GHz",
+        "technology": "47-GHz SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). With L=2nH and C_tune=0.4pF + parasitics, f ~ 5.2 GHz.",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 5200000000.0,
+          "max": 5400000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The LC tank is tuned to match the paper's reported 5.2 GHz WLAN band."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumed by the amplifier and its bias circuit.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "195 mA (entire RX)",
+        "technology": "47-GHz SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Assuming 10mA for the main branch and 2mA for bias at 1.8V.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.02,
+          "max": 0.05,
+          "unit": "W"
+        },
+        "reasoning": "A single LNA stage typically consumes 5-15 mA. Scaled for 1.8V SKY130 supply."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, center frequency, and transient output swing of the LNA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Voltage_Gain",
+      "Center_Frequency",
+      "Power_Consumption"
+    ],
+    "spice": "* LNA Testbench\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n.param W_xm1=50u L_xm1=0.15u\n.param W_bias=5u L_bias=0.15u\n\n* DUT (npn converted to sky130 NMOS for compatibility)\nXM3 N5 N3 N6 GND sky130_fd_pr__nfet_01v8 W={W_bias} L={L_bias}\nR1 N1 N4 10k\nXM4 N3 N0 GND GND sky130_fd_pr__nfet_01v8 W={W_bias} L={L_bias}\nXM1 N2 N4 GND GND sky130_fd_pr__nfet_01v8 W={W_xm1} L={L_xm1}\nR3 VDD N5 1k\nC2 N1 GND 10p\nC1 N4 IN 1p\nR5 VDD N3 1k\nR2 N0 N1 10k\nC4_OUT N2 OUT 1p\nXM2 VDD N5 N1 GND sky130_fd_pr__nfet_01v8 W={W_bias} L={L_bias}\nC4 N3 GND 10p\nC3 N5 GND 10p\nR4 N6 GND 200\nL1 VDD N2 2n\n\n* Tuning capacitor to set resonance near 5.2 GHz\nC_tune N2 GND 0.4p\n\n* Sources\nVVDD VDD 0 1.8\nVIN IN 0 DC 0 AC 1 SIN(0 0.01 5.2G 0 0)\n\n* Load\nRL OUT 0 50\n\n.control\n* DC Analysis\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* AC Analysis\nac dec 50 1G 10G\nlet gain_db = vdb(OUT)\nmeas ac max_gain max gain_db\nmeas ac f_peak max_at gain_db\nmeas ac gain_5g2 find gain_db at=5.2G\n\n* Transient Analysis\ntran 10p 5n\nmeas tran vpp_out pp v(OUT)\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Low Noise Amplifier (LNA)\",\n    \"description\": \"A common-source (or common-emitter) RF amplifier with an inductive load for high-frequency operation, typically used in WLAN receivers. It features a complex active bias network to stabilize the operating point of the main amplifying transistor.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"N3\",\n        \"N4\",\n        \"N5\",\n        \"N0\",\n        \"N6\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fully Integrated Multiband MIMO WLAN Transceiver RFIC\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage_Gain\": {\n      \"description\": \"AC voltage gain (S21 equivalent) at the operating frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"15 dB\",\n        \"technology\": \"47-GHz SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is determined by gm * Z_load. At resonance, Z_load is limited by inductor Q and output resistance. Assuming gm ~ 20mA/V and R_p ~ 500 ohms, gain is ~10 V/V or 20 dB. Loaded with 50 ohms, it will be lower.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 NMOS driving a 50-ohm load; the paper's 15 dB is a reasonable target for a single-stage LNA.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Center_Frequency\": {\n      \"description\": \"Frequency at which the voltage gain peaks.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz\",\n        \"technology\": \"47-GHz SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). With L=2nH and C_tune=0.4pF + parasitics, f ~ 5.2 GHz.\",\n        \"range\": {\n          \"min\": 5.0e9,\n          \"typical\": 5.2e9,\n          \"max\": 5.4e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The LC tank is tuned to match the paper's reported 5.2 GHz WLAN band.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumed by the amplifier and its bias circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"195 mA (entire RX)\",\n        \"technology\": \"47-GHz SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Assuming 10mA for the main branch and 2mA for bias at 1.8V.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.02,\n          \"max\": 0.05,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"A single LNA stage typically consumes 5-15 mA. Scaled for 1.8V SKY130 supply.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, center frequency, and transient output swing of the LNA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Voltage_Gain\",\n      \"Center_Frequency\",\n      \"Power_Consumption\"\n    ],\n    \"spice\": \"* LNA Testbench\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=50u L_xm1=0.15u\\n.param W_bias=5u L_bias=0.15u\\n\\n* DUT (npn converted to sky130 NMOS for compatibility)\\nXM3 N5 N3 N6 GND sky130_fd_pr__nfet_01v8 W={W_bias} L={L_bias}\\nR1 N1 N4 10k\\nXM4 N3 N0 GND GND sky130_fd_pr__nfet_01v8 W={W_bias} L={L_bias}\\nXM1 N2 N4 GND GND sky130_fd_pr__nfet_01v8 W={W_xm1} L={L_xm1}\\nR3 VDD N5 1k\\nC2 N1 GND 10p\\nC1 N4 IN 1p\\nR5 VDD N3 1k\\nR2 N0 N1 10k\\nC4_OUT N2 OUT 1p\\nXM2 VDD N5 N1 GND sky130_fd_pr__nfet_01v8 W={W_bias} L={L_bias}\\nC4 N3 GND 10p\\nC3 N5 GND 10p\\nR4 N6 GND 200\\nL1 VDD N2 2n\\n\\n* Tuning capacitor to set resonance near 5.2 GHz\\nC_tune N2 GND 0.4p\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVIN IN 0 DC 0 AC 1 SIN(0 0.01 5.2G 0 0)\\n\\n* Load\\nRL OUT 0 50\\n\\n.control\\n* DC Analysis\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 50 1G 10G\\nlet gain_db = vdb(OUT)\\nmeas ac max_gain max gain_db\\nmeas ac f_peak max_at gain_db\\nmeas ac gain_5g2 find gain_db at=5.2G\\n\\n* Transient Analysis\\ntran 10p 5n\\nmeas tran vpp_out pp v(OUT)\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1487606",
+  "_case": "1487606_image_11"
+}

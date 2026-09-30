@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single NMOS Transistor (Sub-block)",
+    "description": "A single NMOS transistor, likely extracted as a sub-block (e.g., a buffer, amplifier, or single-ended multiplier stage) from the D-band frequency sixtupler described in the paper.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Compact D-Band CMOS Frequency Sixtupler Using a Mode Analysis of the Harmonics",
+      "figure": "N/A",
+      "year": 2023
+    }
+  },
+  "step2_metrics": {
+    "DC_Drain_Current": {
+      "description": "DC drain current of the NMOS transistor under 0.9V gate bias.",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.9 - 0.42)^2 = 311 uA",
+        "range": {
+          "min": "200u",
+          "typical": "311u",
+          "max": "450u",
+          "unit": "A"
+        },
+        "reasoning": "Based on the square-law model with typical sky130 parameters."
+      },
+      "importance": "essential"
+    },
+    "Voltage_Gain": {
+      "description": "Low frequency voltage gain with a 1 kOhm load.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "-0.7 dB",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2 * Id / Vov = 2 * 311u / 0.48 = 1.29 mA/V. Gain = gm * RL = 1.29 V/V = 2.2 dB",
+        "range": {
+          "min": "0",
+          "typical": "2.2",
+          "max": "5",
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using estimated gm and a 1k test load. The paper's -0.7 dB is for the full sixtupler conversion gain."
+      },
+      "importance": "essential"
+    },
+    "Output_Power": {
+      "description": "Output power at the fundamental frequency.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "-1.2 dBm",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = Vp^2 / (2*RL). For Vp = 0.258V and RL = 1k, Pout = 33 uW = -14.8 dBm",
+        "range": {
+          "min": "-20",
+          "typical": "-14.8",
+          "max": "-10",
+          "unit": "dBm"
+        },
+        "reasoning": "Estimated for the single transistor testbench. The paper's -1.2 dBm is for the full optimized sixtupler."
+      },
+      "importance": "recommended"
+    },
+    "Operating_Frequency": {
+      "description": "Target operating frequency of the circuit.",
+      "unit": "GHz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "148.2 GHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Testbench uses 100 MHz for basic characterization, as 148 GHz exceeds typical sky130 fmax for simple un-matched stages.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.1",
+          "max": "50",
+          "unit": "GHz"
+        },
+        "reasoning": "Sky130 fT is ~40-50 GHz. The full paper uses advanced harmonic extraction to reach D-band."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to characterize the single NMOS transistor, measuring DC operating point, AC voltage gain, and transient output swing/power.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Drain_Current",
+      "Voltage_Gain",
+      "Output_Power"
+    ],
+    "spice": "* Single NMOS Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n\nXM1 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\nVVDD VDD 0 1.8\nRL VDD N1 1k\nVIN N0 0 DC 0.9 AC 1 SIN(0.9 0.2 100Meg)\n\n.control\nop\nlet id = -i(VVDD)\nlet power = id * 1.8\nprint id power\n\nac dec 100 1Meg 10Gig\nlet gain_db = vdb(N1)\nmeas ac gain_1M find gain_db at=1Meg\nmeas ac gain_1G find gain_db at=1Gig\n\ntran 10p 50n\nmeas tran vout_max max v(N1)\nmeas tran vout_min min v(N1)\nlet vout_pp = vout_max - vout_min\nlet vout_p = vout_pp / 2\nlet pout_w = (vout_p * vout_p) / (2 * 1000)\nlet pout_dbm = 10 * log10(pout_w * 1000)\nprint vout_pp pout_dbm\nfour 100Meg v(N1)\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single NMOS Transistor (Sub-block)\",\n    \"description\": \"A single NMOS transistor, likely extracted as a sub-block (e.g., a buffer, amplifier, or single-ended multiplier stage) from the D-band frequency sixtupler described in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\"\n      ],\n      \"output\": [\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Compact D-Band CMOS Frequency Sixtupler Using a Mode Analysis of the Harmonics\",\n      \"figure\": \"N/A\",\n      \"year\": 2023\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Drain_Current\": {\n      \"description\": \"DC drain current of the NMOS transistor under 0.9V gate bias.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * (5/0.5) * (0.9 - 0.42)^2 = 311 uA\",\n        \"range\": {\n          \"min\": \"200u\",\n          \"typical\": \"311u\",\n          \"max\": \"450u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Based on the square-law model with typical sky130 parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Voltage_Gain\": {\n      \"description\": \"Low frequency voltage gain with a 1 kOhm load.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"-0.7 dB\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2 * Id / Vov = 2 * 311u / 0.48 = 1.29 mA/V. Gain = gm * RL = 1.29 V/V = 2.2 dB\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"2.2\",\n          \"max\": \"5\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using estimated gm and a 1k test load. The paper's -0.7 dB is for the full sixtupler conversion gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_Power\": {\n      \"description\": \"Output power at the fundamental frequency.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"-1.2 dBm\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = Vp^2 / (2*RL). For Vp = 0.258V and RL = 1k, Pout = 33 uW = -14.8 dBm\",\n        \"range\": {\n          \"min\": \"-20\",\n          \"typical\": \"-14.8\",\n          \"max\": \"-10\",\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Estimated for the single transistor testbench. The paper's -1.2 dBm is for the full optimized sixtupler.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Operating_Frequency\": {\n      \"description\": \"Target operating frequency of the circuit.\",\n      \"unit\": \"GHz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"148.2 GHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Testbench uses 100 MHz for basic characterization, as 148 GHz exceeds typical sky130 fmax for simple un-matched stages.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.1\",\n          \"max\": \"50\",\n          \"unit\": \"GHz\"\n        },\n        \"reasoning\": \"Sky130 fT is ~40-50 GHz. The full paper uses advanced harmonic extraction to reach D-band.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to characterize the single NMOS transistor, measuring DC operating point, AC voltage gain, and transient output swing/power.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Drain_Current\",\n      \"Voltage_Gain\",\n      \"Output_Power\"\n    ],\n    \"spice\": \"* Single NMOS Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM1 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVVDD VDD 0 1.8\\nRL VDD N1 1k\\nVIN N0 0 DC 0.9 AC 1 SIN(0.9 0.2 100Meg)\\n\\n.control\\nop\\nlet id = -i(VVDD)\\nlet power = id * 1.8\\nprint id power\\n\\nac dec 100 1Meg 10Gig\\nlet gain_db = vdb(N1)\\nmeas ac gain_1M find gain_db at=1Meg\\nmeas ac gain_1G find gain_db at=1Gig\\n\\ntran 10p 50n\\nmeas tran vout_max max v(N1)\\nmeas tran vout_min min v(N1)\\nlet vout_pp = vout_max - vout_min\\nlet vout_p = vout_pp / 2\\nlet pout_w = (vout_p * vout_p) / (2 * 1000)\\nlet pout_dbm = 10 * log10(pout_w * 1000)\\nprint vout_pp pout_dbm\\nfour 100Meg v(N1)\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "tmtt.2022.3223953",
+  "_case": "tmtt.2022.3223953_image_2"
+}

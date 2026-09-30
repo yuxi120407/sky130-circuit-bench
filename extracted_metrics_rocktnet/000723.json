@@ -1,0 +1,168 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Filtered Bias Circuit / Current Mirror Reference",
+    "description": "A diode-connected NMOS with a PMOS transistor acting as a large resistor in the feedback path. It generates a DC bias voltage while low-pass filtering high-frequency noise from the reference current, commonly used to bias VCO tail current sources without requiring passive inductors.",
+    "node_mapping": {
+      "input": [
+        "N3"
+      ],
+      "output": [
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N3"
+      ],
+      "ground": [
+        "N1",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "The Impact of Device Type and Sizing on Phase Noise Mechanisms",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "phase_noise_1mhz": {
+      "description": "Phase noise at 1 MHz offset (Full VCO metric)",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-124",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for subcircuit",
+        "range": {
+          "min": -130,
+          "typical": -124,
+          "max": -110,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Requires the full VCO circuit to measure. The filtered bias circuit helps achieve this low phase noise by suppressing AM-PM conversion."
+      },
+      "importance": "essential"
+    },
+    "phase_noise_100khz": {
+      "description": "Phase noise at 100 kHz offset (Full VCO metric)",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-100",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for subcircuit",
+        "range": {
+          "min": -110,
+          "typical": -100,
+          "max": -90,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Requires the full VCO circuit to measure."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power consumption",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "13.5m",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Iref * VDD = 100uA * 1.8V = 180uW (for bias circuit only)",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00018,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "The bias circuit consumes only a small fraction of the full VCO's 13.5 mW power."
+      },
+      "importance": "essential"
+    },
+    "oscillation_frequency": {
+      "description": "VCO operating frequency",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5.3G",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": 4000000000.0,
+          "typical": 5300000000.0,
+          "max": 6000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Full VCO metric."
+      },
+      "importance": "essential"
+    },
+    "bias_voltage": {
+      "description": "DC bias voltage generated at N2",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Vgs = Vth + sqrt(2*Iref / (un*Cox*W/L)) = 0.42 + sqrt(2*100u / (270u*10)) = 0.69V",
+        "range": {
+          "min": 0.6,
+          "typical": 0.69,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "Based on SKY130 NMOS parameters at 100uA reference current."
+      },
+      "importance": "essential"
+    },
+    "filter_cutoff_freq": {
+      "description": "-3dB cutoff frequency of the bias filter",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "R_p = 1/(up*Cox*W/L*(Vsg-|Vthp|)) = 7.4kOhm. f_3db = 1/(2*pi*R_p*Cload) = 21.5MHz (assuming 1pF load)",
+        "range": {
+          "min": 10000000.0,
+          "typical": 21500000.0,
+          "max": 50000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The PMOS acts as a large resistor. The cutoff frequency depends heavily on the load capacitance (C_gs of the tail transistor)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the DC bias voltage, power consumption, and AC low-pass filtering characteristics of the bias circuit.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "bias_voltage",
+      "power_consumption",
+      "filter_cutoff_freq"
+    ],
+    "spice": "* Filtered Bias Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N3 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N1 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\n\nVVDD VDD 0 1.8\nVGND N1 0 0\n\n* Reference current with AC component for filter analysis\nIref VDD N3 DC 100u AC 1u\n\n* Load capacitance representing the tail transistor gate\nCload N2 0 1p\n\n.control\n* DC Operating Point\nop\nlet bias_voltage = v(N2)\nlet power_consumption = 1.8 * 100u\nprint bias_voltage power_consumption\n\n* AC Analysis for Filter Cutoff\nac dec 100 1k 1G\nlet filter_gain = vdb(N2) - vdb(N3)\nmeas ac dc_gain find filter_gain at=1k\nlet target_gain = dc_gain - 3\nmeas ac filter_cutoff_freq when filter_gain=target_gain fall=1\n\n* Transient Analysis\ntran 1n 1u\nmeas tran v_n2_max max v(N2)\nmeas tran v_n2_min min v(N2)\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Filtered Bias Circuit / Current Mirror Reference\",\n    \"description\": \"A diode-connected NMOS with a PMOS transistor acting as a large resistor in the feedback path. It generates a DC bias voltage while low-pass filtering high-frequency noise from the reference current, commonly used to bias VCO tail current sources without requiring passive inductors.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N3\"\n      ],\n      \"output\": [\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N3\"\n      ],\n      \"ground\": [\n        \"N1\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"The Impact of Device Type and Sizing on Phase Noise Mechanisms\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"phase_noise_1mhz\": {\n      \"description\": \"Phase noise at 1 MHz offset (Full VCO metric)\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-124\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for subcircuit\",\n        \"range\": {\n          \"min\": -130,\n          \"typical\": -124,\n          \"max\": -110,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"Requires the full VCO circuit to measure. The filtered bias circuit helps achieve this low phase noise by suppressing AM-PM conversion.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise_100khz\": {\n      \"description\": \"Phase noise at 100 kHz offset (Full VCO metric)\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-100\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for subcircuit\",\n        \"range\": {\n          \"min\": -110,\n          \"typical\": -100,\n          \"max\": -90,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"Requires the full VCO circuit to measure.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"13.5m\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Iref * VDD = 100uA * 1.8V = 180uW (for bias circuit only)\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 180e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The bias circuit consumes only a small fraction of the full VCO's 13.5 mW power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"oscillation_frequency\": {\n      \"description\": \"VCO operating frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5.3G\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": 4e9,\n          \"typical\": 5.3e9,\n          \"max\": 6e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Full VCO metric.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bias_voltage\": {\n      \"description\": \"DC bias voltage generated at N2\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs = Vth + sqrt(2*Iref / (un*Cox*W/L)) = 0.42 + sqrt(2*100u / (270u*10)) = 0.69V\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.69,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on SKY130 NMOS parameters at 100uA reference current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"filter_cutoff_freq\": {\n      \"description\": \"-3dB cutoff frequency of the bias filter\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_p = 1/(up*Cox*W/L*(Vsg-|Vthp|)) = 7.4kOhm. f_3db = 1/(2*pi*R_p*Cload) = 21.5MHz (assuming 1pF load)\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 21.5e6,\n          \"max\": 50e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The PMOS acts as a large resistor. The cutoff frequency depends heavily on the load capacitance (C_gs of the tail transistor).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the DC bias voltage, power consumption, and AC low-pass filtering characteristics of the bias circuit.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"bias_voltage\",\n      \"power_consumption\",\n      \"filter_cutoff_freq\"\n    ],\n    \"spice\": \"* Filtered Bias Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N3 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N1 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVVDD VDD 0 1.8\\nVGND N1 0 0\\n\\n* Reference current with AC component for filter analysis\\nIref VDD N3 DC 100u AC 1u\\n\\n* Load capacitance representing the tail transistor gate\\nCload N2 0 1p\\n\\n.control\\n* DC Operating Point\\nop\\nlet bias_voltage = v(N2)\\nlet power_consumption = 1.8 * 100u\\nprint bias_voltage power_consumption\\n\\n* AC Analysis for Filter Cutoff\\nac dec 100 1k 1G\\nlet filter_gain = vdb(N2) - vdb(N3)\\nmeas ac dc_gain find filter_gain at=1k\\nlet target_gain = dc_gain - 3\\nmeas ac filter_cutoff_freq when filter_gain=target_gain fall=1\\n\\n* Transient Analysis\\ntran 1n 1u\\nmeas tran v_n2_max max v(N2)\\nmeas tran v_n2_min min v(N2)\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1388625",
+  "_case": "1388625_image_13_a"
+}

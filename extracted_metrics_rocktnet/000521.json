@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Highly linear CMOS transconductor (OTA)",
+    "description": "A highly linear transconductor that uses cross-coupled triode-region transistors (XM1-XM4) to degenerate and linearize the main transconductance devices (XM5-XM6). It converts a differential input voltage into a differential output current, providing wide dynamic range for continuous-time filters.",
+    "node_mapping": {
+      "input": [
+        "VIN_P",
+        "VIN_N"
+      ],
+      "output": [
+        "IM5",
+        "IM6"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VGM"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A \u201cDivide and Conquer\u201d Technique for Implementing Wide Dynamic Range Continuous-Time Filters",
+      "figure": "Not specified",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2 W (likely 2 mW in context of analog filters)",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I_tail = 1.8V * ~100uA = 180uW",
+        "range": {
+          "min": "50u",
+          "typical": "180u",
+          "max": "1m",
+          "unit": "W"
+        },
+        "reasoning": "Based on typical bias currents for 5um/0.5um devices in SKY130 to maintain proper overdrive voltages."
+      },
+      "importance": "essential"
+    },
+    "gm_lf": {
+      "description": "Low frequency transconductance",
+      "unit": "S",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Gain of 33-45 dB (system level)",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Gm ~ Id / (Vgs - Vth) ~ 50uA / 0.2V = 250uS",
+        "range": {
+          "min": "50u",
+          "typical": "250u",
+          "max": "1m",
+          "unit": "S"
+        },
+        "reasoning": "Estimated from device dimensions and typical overdrive voltages in the 1.8V SKY130 process."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "-3dB bandwidth of the transconductance",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "18 MHz / 2.36 GHz",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by internal node capacitances (N1, N2, X) and device ft.",
+        "range": {
+          "min": "100M",
+          "typical": "500M",
+          "max": "2G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 0.5um devices have ft in the GHz range, so the intrinsic transconductor bandwidth should be very high."
+      },
+      "importance": "essential"
+    },
+    "thd": {
+      "description": "Total Harmonic Distortion for 200mVpp differential input",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Highly linear for 200 mV",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Simulated via Fourier analysis of the output current.",
+        "range": {
+          "min": "0.01",
+          "typical": "0.5",
+          "max": "2",
+          "unit": "%"
+        },
+        "reasoning": "The circuit topology is specifically designed for high linearity, so THD should remain low even at 200mVpp."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, transconductance (Gm), bandwidth, and THD of the linear transconductor.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "gm_lf",
+      "bw_3db",
+      "thd"
+    ],
+    "spice": "* Highly Linear Transconductor Testbench\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\n* Power and Bias\nVDD VDD 0 DC 1.8\nVGM VGM 0 DC 0.7\n\n* Input signals (DC=0.9V, AC=1V diff, Tran=200mVpp diff at 1MHz)\nVVIN_P VIN_P 0 DC 0.9 AC 0.5 SIN(0.9 0.05 1MEG 0 0)\nVVIN_N VIN_N 0 DC 0.9 AC -0.5 SIN(0.9 -0.05 1MEG 0 0)\n\n* Load resistors to measure output current (1 ohm)\n* V(IM6) - V(IM5) will be exactly equal to I(IM5) - I(IM6)\nR_IM5 VDD IM5 1\nR_IM6 VDD IM6 1\n\n* VCVS to output differential current as a voltage (1V = 1A)\nE_diff out_diff 0 IM6 IM5 1\n\n* DUT\nXM1 N1 VIN_P X X sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 VIN_N X X sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N2 VIN_P X X sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 VIN_N X X sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 IM5 VIN_P N1 N1 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 IM6 VIN_N N2 N2 sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 X VGM GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VDD) * 1.8\n  print power\n\n  * 2. AC Analysis for Gm and Bandwidth\n  ac dec 20 1k 10G\n  let gm_mag = mag(v(out_diff))\n  meas ac gm_lf find gm_mag at=1k\n  let gm_3db = gm_lf / 1.41421356\n  meas ac bw_3db when gm_mag=gm_3db fall=1\n  \n  * 3. Transient Analysis for THD\n  tran 10n 5u\n  fourier 1MEG v(out_diff)\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Highly linear CMOS transconductor (OTA)\",\n    \"description\": \"A highly linear transconductor that uses cross-coupled triode-region transistors (XM1-XM4) to degenerate and linearize the main transconductance devices (XM5-XM6). It converts a differential input voltage into a differential output current, providing wide dynamic range for continuous-time filters.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_P\",\n        \"VIN_N\"\n      ],\n      \"output\": [\n        \"IM5\",\n        \"IM6\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VGM\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A \u201cDivide and Conquer\u201d Technique for Implementing Wide Dynamic Range Continuous-Time Filters\",\n      \"figure\": \"Not specified\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2 W (likely 2 mW in context of analog filters)\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I_tail = 1.8V * ~100uA = 180uW\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"180u\",\n          \"max\": \"1m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on typical bias currents for 5um/0.5um devices in SKY130 to maintain proper overdrive voltages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gm_lf\": {\n      \"description\": \"Low frequency transconductance\",\n      \"unit\": \"S\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Gain of 33-45 dB (system level)\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm ~ Id / (Vgs - Vth) ~ 50uA / 0.2V = 250uS\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"250u\",\n          \"max\": \"1m\",\n          \"unit\": \"S\"\n        },\n        \"reasoning\": \"Estimated from device dimensions and typical overdrive voltages in the 1.8V SKY130 process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"-3dB bandwidth of the transconductance\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"18 MHz / 2.36 GHz\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by internal node capacitances (N1, N2, X) and device ft.\",\n        \"range\": {\n          \"min\": \"100M\",\n          \"typical\": \"500M\",\n          \"max\": \"2G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 0.5um devices have ft in the GHz range, so the intrinsic transconductor bandwidth should be very high.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"thd\": {\n      \"description\": \"Total Harmonic Distortion for 200mVpp differential input\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Highly linear for 200 mV\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Simulated via Fourier analysis of the output current.\",\n        \"range\": {\n          \"min\": \"0.01\",\n          \"typical\": \"0.5\",\n          \"max\": \"2\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"The circuit topology is specifically designed for high linearity, so THD should remain low even at 200mVpp.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, transconductance (Gm), bandwidth, and THD of the linear transconductor.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"gm_lf\",\n      \"bw_3db\",\n      \"thd\"\n    ],\n    \"spice\": \"* Highly Linear Transconductor Testbench\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\n* Power and Bias\\nVDD VDD 0 DC 1.8\\nVGM VGM 0 DC 0.7\\n\\n* Input signals (DC=0.9V, AC=1V diff, Tran=200mVpp diff at 1MHz)\\nVVIN_P VIN_P 0 DC 0.9 AC 0.5 SIN(0.9 0.05 1MEG 0 0)\\nVVIN_N VIN_N 0 DC 0.9 AC -0.5 SIN(0.9 -0.05 1MEG 0 0)\\n\\n* Load resistors to measure output current (1 ohm)\\n* V(IM6) - V(IM5) will be exactly equal to I(IM5) - I(IM6)\\nR_IM5 VDD IM5 1\\nR_IM6 VDD IM6 1\\n\\n* VCVS to output differential current as a voltage (1V = 1A)\\nE_diff out_diff 0 IM6 IM5 1\\n\\n* DUT\\nXM1 N1 VIN_P X X sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 VIN_N X X sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N2 VIN_P X X sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 VIN_N X X sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 IM5 VIN_P N1 N1 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 IM6 VIN_N N2 N2 sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 X VGM GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis for Gm and Bandwidth\\n  ac dec 20 1k 10G\\n  let gm_mag = mag(v(out_diff))\\n  meas ac gm_lf find gm_mag at=1k\\n  let gm_3db = gm_lf / 1.41421356\\n  meas ac bw_3db when gm_mag=gm_3db fall=1\\n  \\n  * 3. Transient Analysis for THD\\n  tran 10n 5u\\n  fourier 1MEG v(out_diff)\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1263656",
+  "_case": "1263656_image_8"
+}

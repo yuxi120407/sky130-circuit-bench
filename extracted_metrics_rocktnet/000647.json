@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "PMOS Current Mirror (Bias Circuit)",
+    "description": "The extracted netlist contains two PMOS transistors configured as a basic current mirror. While the paper describes a 5-6 GHz VCO, this specific sub-circuit is a DC bias block used to mirror a reference current for the core oscillator or buffer.",
+    "node_mapping": {
+      "input": [
+        "N3"
+      ],
+      "output": [
+        "N5"
+      ],
+      "supply": [
+        "VDD",
+        "N8"
+      ],
+      "bias": [],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5\u20136-GHz Bipolar Quadrature-Phase Generator",
+      "figure": "2",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "current_ratio": {
+      "description": "Ratio of the mirrored output current to the reference input current.",
+      "unit": "A/A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Ratio = (W2/L2) / (W1/L1) = (5/0.5) / (5/0.5) = 1",
+        "range": {
+          "min": 0.95,
+          "typical": 1.0,
+          "max": 1.05,
+          "unit": "A/A"
+        },
+        "reasoning": "With identical W and L, the current ratio should be exactly 1, with minor deviations due to channel length modulation if Vds1 != Vds2."
+      },
+      "importance": "essential"
+    },
+    "output_resistance": {
+      "description": "Small-signal output resistance (Rout) of the current mirror.",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Rout = 1 / (lambda * Id) = 1 / (0.1 * 10uA) = 1M ohm",
+        "range": {
+          "min": 500000.0,
+          "typical": 1000000.0,
+          "max": 2000000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using the typical channel length modulation parameter (lambda=0.1/V) for L=0.5um at a 10uA reference current."
+      },
+      "importance": "essential"
+    },
+    "vmax_compliance": {
+      "description": "Maximum output voltage before the output transistor leaves saturation (enters triode).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Vmax = VDD - Vov = 1.8V - 0.2V = 1.6V",
+        "range": {
+          "min": 1.4,
+          "typical": 1.6,
+          "max": 1.7,
+          "unit": "V"
+        },
+        "reasoning": "The PMOS requires a minimum Vsd (overdrive voltage, Vov) to remain in saturation. With VDD=1.8V and Vov~0.2V, Vmax is approximately 1.6V."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the current mirror.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "23 mW",
+        "technology": "Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * (Iref + Iout) = 1.8V * (10uA + 10uA) = 36uW",
+        "range": {
+          "min": 3e-05,
+          "typical": 3.6e-05,
+          "max": 4e-05,
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 23mW for the entire VCO, but this isolated bias block consumes power based on the 10uA test current."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure current ratio, output resistance, compliance voltage, and power consumption of the PMOS current mirror.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "current_ratio",
+      "output_resistance",
+      "vmax_compliance",
+      "power_consumption"
+    ],
+    "spice": "* PMOS Current Mirror Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N3 N3 N8 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N5 N3 N8 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\n\nVVDD VDD 0 1.8\nVN8 N8 VDD 0\nIREF N3 0 10u\nVOUT N5 0 0.9\n\n.control\n  op\n  let iref = 10u\n  let iout = -i(VOUT)\n  let current_ratio = iout / iref\n  print current_ratio\n\n  let power = -i(VVDD) * 1.8\n  print power\n\n  dc VOUT 0 1.8 0.01\n  meas dc iout_900m find i(VOUT) at=0.9\n  meas dc iout_1000m find i(VOUT) at=1.0\n  let rout = 0.1 / (iout_1000m - iout_900m)\n  print rout\n  \n  let target_iout = iout_900m * 0.95\n  meas dc vmax_compliance when i(VOUT)=target_iout\n  print vmax_compliance\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"PMOS Current Mirror (Bias Circuit)\",\n    \"description\": \"The extracted netlist contains two PMOS transistors configured as a basic current mirror. While the paper describes a 5-6 GHz VCO, this specific sub-circuit is a DC bias block used to mirror a reference current for the core oscillator or buffer.\",\n    \"node_mapping\": {\n      \"input\": [\"N3\"],\n      \"output\": [\"N5\"],\n      \"supply\": [\"VDD\", \"N8\"],\n      \"bias\": [],\n      \"ground\": [\"0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5\u20136-GHz Bipolar Quadrature-Phase Generator\",\n      \"figure\": \"2\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"current_ratio\": {\n      \"description\": \"Ratio of the mirrored output current to the reference input current.\",\n      \"unit\": \"A/A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ratio = (W2/L2) / (W1/L1) = (5/0.5) / (5/0.5) = 1\",\n        \"range\": { \"min\": 0.95, \"typical\": 1.0, \"max\": 1.05, \"unit\": \"A/A\" },\n        \"reasoning\": \"With identical W and L, the current ratio should be exactly 1, with minor deviations due to channel length modulation if Vds1 != Vds2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal output resistance (Rout) of the current mirror.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = 1 / (lambda * Id) = 1 / (0.1 * 10uA) = 1M ohm\",\n        \"range\": { \"min\": 500e3, \"typical\": 1e6, \"max\": 2e6, \"unit\": \"ohm\" },\n        \"reasoning\": \"Calculated using the typical channel length modulation parameter (lambda=0.1/V) for L=0.5um at a 10uA reference current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vmax_compliance\": {\n      \"description\": \"Maximum output voltage before the output transistor leaves saturation (enters triode).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vmax = VDD - Vov = 1.8V - 0.2V = 1.6V\",\n        \"range\": { \"min\": 1.4, \"typical\": 1.6, \"max\": 1.7, \"unit\": \"V\" },\n        \"reasoning\": \"The PMOS requires a minimum Vsd (overdrive voltage, Vov) to remain in saturation. With VDD=1.8V and Vov~0.2V, Vmax is approximately 1.6V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the current mirror.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"23 mW\",\n        \"technology\": \"Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * (Iref + Iout) = 1.8V * (10uA + 10uA) = 36uW\",\n        \"range\": { \"min\": 30e-6, \"typical\": 36e-6, \"max\": 40e-6, \"unit\": \"W\" },\n        \"reasoning\": \"The paper reports 23mW for the entire VCO, but this isolated bias block consumes power based on the 10uA test current.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure current ratio, output resistance, compliance voltage, and power consumption of the PMOS current mirror.\",\n    \"analyses\": [\"OP\", \"DC\"],\n    \"metrics_measured\": [\"current_ratio\", \"output_resistance\", \"vmax_compliance\", \"power_consumption\"],\n    \"spice\": \"* PMOS Current Mirror Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N3 N3 N8 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N5 N3 N8 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVVDD VDD 0 1.8\\nVN8 N8 VDD 0\\nIREF N3 0 10u\\nVOUT N5 0 0.9\\n\\n.control\\n  op\\n  let iref = 10u\\n  let iout = -i(VOUT)\\n  let current_ratio = iout / iref\\n  print current_ratio\\n\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  dc VOUT 0 1.8 0.01\\n  meas dc iout_900m find i(VOUT) at=0.9\\n  meas dc iout_1000m find i(VOUT) at=1.0\\n  let rout = 0.1 / (iout_1000m - iout_900m)\\n  print rout\\n  \\n  let target_iout = iout_900m * 0.95\\n  meas dc vmax_compliance when i(VOUT)=target_iout\\n  print vmax_compliance\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1337005",
+  "_case": "1337005_image_2"
+}

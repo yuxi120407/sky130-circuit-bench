@@ -1,0 +1,115 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual Differential Pair / Mixer Quad",
+    "description": "Two NMOS differential pairs, likely forming the switching quad of a mixer, phase detector, or frequency discriminator in a GMSK modulator.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "IN_BAR",
+        "N5",
+        "N7"
+      ],
+      "output": [
+        "N1",
+        "N2",
+        "N8",
+        "N9"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N3",
+        "N10"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "A GMSK Modulator Using a Frequency Discriminator-Based Synthesizer",
+      "figure": "unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "Low-frequency differential voltage gain of the pairs",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "36 dB",
+        "technology": "0.8um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = sqrt(2 * unCox * W/L * Id) = sqrt(2 * 270u * 10 * 250u) = 36.7 mS. Gain = gm * Rload = 36.7m * 2k = 73.4 V/V = 37.3 dB",
+        "range": {
+          "min": 30,
+          "typical": 37,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Assuming 500uA tail current and 2kOhm load resistors, the gain matches the paper's reported 36 dB."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB bandwidth of the differential pairs",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.5 GHz",
+        "technology": "0.8um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * Rload * Cload). With Rload=2k and Cload~15fF (parasitics), f_3dB ~ 5.3 GHz",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is limited by the RC time constant at the output nodes. Sky130 130nm process is faster than 0.8um, so BW should easily exceed the 2.5 GHz operating frequency."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "DC power consumed by the differential pairs",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "75 mW",
+        "technology": "0.8um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total = 1.8V * (500uA + 500uA) = 1.8 mW",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0018,
+          "max": 0.003,
+          "unit": "W"
+        },
+        "reasoning": "The paper's 75mW is for the entire synthesizer chip. The isolated dual differential pair consumes a fraction of that, estimated at 1.8mW based on typical biasing."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC gain, bandwidth, transient response, and DC power of the dual differential pair.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "Voltage Gain",
+      "Bandwidth",
+      "Power Consumption",
+      "Transient Swing"
+    ],
+    "spice": "* Dual Differential Pair Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\nXM1 N1 IN N3 VEE sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 IN_BAR N3 VEE sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM4 N8 N5 N10 VEE sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM3 N9 N7 N10 VEE sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\nVDD VDD 0 1.8\nVEE VEE 0 0\n\n* Tail currents\nI1 N3 VEE 500u\nI2 N10 VEE 500u\n\n* Loads\nR1 VDD N1 2k\nR2 VDD N2 2k\nR3 VDD N8 2k\nR4 VDD N9 2k\n\n* Inputs\nVIN IN 0 DC 0.9 AC 1 SIN(0.9 0.001 10MEG 0 0)\nVIN_BAR IN_BAR 0 DC 0.9 AC -1 SIN(0.9 -0.001 10MEG 0 0)\nVN5 N5 0 DC 0.9 AC 1 SIN(0.9 0.001 10MEG 0 0)\nVN7 N7 0 DC 0.9 AC -1 SIN(0.9 -0.001 10MEG 0 0)\n\n.control\nop\nlet power = -i(VDD) * 1.8\nprint power\n\nac dec 100 1k 10G\nlet out_diff1 = v(N1) - v(N2)\nlet gain_db1 = 20 * log10(mag(out_diff1))\nmeas ac gain_1mhz find gain_db1 at=1MEG\nmeas ac bw1 when gain_db1 = 34 fall=1\n\ntran 1n 200n\nmeas tran vpp_out1 pp v(N1)\nmeas tran vpp_out2 pp v(N8)\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual Differential Pair / Mixer Quad\",\n    \"description\": \"Two NMOS differential pairs, likely forming the switching quad of a mixer, phase detector, or frequency discriminator in a GMSK modulator.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"IN_BAR\",\n        \"N5\",\n        \"N7\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N2\",\n        \"N8\",\n        \"N9\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N3\",\n        \"N10\"\n      ],\n      \"ground\": [\n        \"VEE\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A GMSK Modulator Using a Frequency Discriminator-Based Synthesizer\",\n      \"figure\": \"unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"Low-frequency differential voltage gain of the pairs\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"36 dB\",\n        \"technology\": \"0.8um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = sqrt(2 * unCox * W/L * Id) = sqrt(2 * 270u * 10 * 250u) = 36.7 mS. Gain = gm * Rload = 36.7m * 2k = 73.4 V/V = 37.3 dB\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 37,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Assuming 500uA tail current and 2kOhm load resistors, the gain matches the paper's reported 36 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB bandwidth of the differential pairs\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.5 GHz\",\n        \"technology\": \"0.8um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * Rload * Cload). With Rload=2k and Cload~15fF (parasitics), f_3dB ~ 5.3 GHz\",\n        \"range\": {\n          \"min\": 1E9,\n          \"typical\": 5E9,\n          \"max\": 10E9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is limited by the RC time constant at the output nodes. Sky130 130nm process is faster than 0.8um, so BW should easily exceed the 2.5 GHz operating frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"DC power consumed by the differential pairs\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"75 mW\",\n        \"technology\": \"0.8um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total = 1.8V * (500uA + 500uA) = 1.8 mW\",\n        \"range\": {\n          \"min\": 1E-3,\n          \"typical\": 1.8E-3,\n          \"max\": 3E-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 75mW is for the entire synthesizer chip. The isolated dual differential pair consumes a fraction of that, estimated at 1.8mW based on typical biasing.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC gain, bandwidth, transient response, and DC power of the dual differential pair.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"Voltage Gain\",\n      \"Bandwidth\",\n      \"Power Consumption\",\n      \"Transient Swing\"\n    ],\n    \"spice\": \"* Dual Differential Pair Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\nXM1 N1 IN N3 VEE sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 IN_BAR N3 VEE sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM4 N8 N5 N10 VEE sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM3 N9 N7 N10 VEE sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\nVDD VDD 0 1.8\\nVEE VEE 0 0\\n\\n* Tail currents\\nI1 N3 VEE 500u\\nI2 N10 VEE 500u\\n\\n* Loads\\nR1 VDD N1 2k\\nR2 VDD N2 2k\\nR3 VDD N8 2k\\nR4 VDD N9 2k\\n\\n* Inputs\\nVIN IN 0 DC 0.9 AC 1 SIN(0.9 0.001 10MEG 0 0)\\nVIN_BAR IN_BAR 0 DC 0.9 AC -1 SIN(0.9 -0.001 10MEG 0 0)\\nVN5 N5 0 DC 0.9 AC 1 SIN(0.9 0.001 10MEG 0 0)\\nVN7 N7 0 DC 0.9 AC -1 SIN(0.9 -0.001 10MEG 0 0)\\n\\n.control\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\nac dec 100 1k 10G\\nlet out_diff1 = v(N1) - v(N2)\\nlet gain_db1 = 20 * log10(mag(out_diff1))\\nmeas ac gain_1mhz find gain_db1 at=1MEG\\nmeas ac bw1 when gain_db1 = 34 fall=1\\n\\ntran 1n 200n\\nmeas tran vpp_out1 pp v(N1)\\nmeas tran vpp_out2 pp v(N8)\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "938372",
+  "_case": "938372_image_9"
+}

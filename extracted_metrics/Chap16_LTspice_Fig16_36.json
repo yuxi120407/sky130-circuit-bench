@@ -1,0 +1,148 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 16.35",
+    "page": "7",
+    "circuit_type": "Sense Amplifier with SR Latch",
+    "description": "A clocked sense amplifier that uses an SR latch (made of NAND gates) to hold the output state. This ensures the output only changes on the rising edge of the clock and eliminates dynamic nodes, reducing static power dissipation."
+  },
+  "step2_metrics": {
+    "sensitivity": {
+      "description": "Minimum input voltage difference required for the sense amplifier to correctly resolve the output.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "8",
+        "reference": "Text"
+      },
+      "equation": {
+        "formula": "|V_in+ - V_in-| < 10 mV",
+        "explanation": "The minimum differential voltage for correct sensing.",
+        "assumptions": "Assumes no significant device mismatch."
+      },
+      "sky130_expected": {
+        "calculation": "Based on the text, the sensitivity is better than 10 mV. For SKY130, with proper sizing and no mismatch models applied, it should easily resolve 10 mV.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.005,
+          "max": 0.01,
+          "unit": "V"
+        },
+        "reasoning": "Text specifies better than 10 mV."
+      },
+      "importance": "essential"
+    },
+    "kickback_noise": {
+      "description": "Voltage glitch injected into the inputs when the latch switches states.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "8",
+        "reference": "Fig 16.37"
+      },
+      "equation": {
+        "formula": "V_kickback = I_inject * R_source",
+        "explanation": "Noise voltage developed across the source resistance due to capacitive coupling from the switching latch.",
+        "assumptions": "Source resistance is 10k ohms."
+      },
+      "sky130_expected": {
+        "calculation": "Text states approximately 5 mV with a 10k source resistor. In SKY130, Cgd of the input pair will determine the exact value, but it should be in the same order of magnitude.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.005,
+          "max": 0.02,
+          "unit": "V"
+        },
+        "reasoning": "Depends on device sizing and Cgd, but 5 mV is the textbook example."
+      },
+      "importance": "essential"
+    },
+    "switching_current": {
+      "description": "Peak current drawn from the supply during the clock transition.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "7",
+        "reference": "Fig 16.36"
+      },
+      "equation": {
+        "formula": "I_peak",
+        "explanation": "Transient current when both PMOS and NMOS paths are briefly conducting.",
+        "assumptions": "Measured during clock rising edge."
+      },
+      "sky130_expected": {
+        "calculation": "Figure 16.36 shows peaks around 150-200 uA. In SKY130, this depends heavily on W/L of the tail and cross-coupled devices.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.00015,
+          "max": 0.0005,
+          "unit": "A"
+        },
+        "reasoning": "Matches the order of magnitude in the textbook figure."
+      },
+      "importance": "recommended"
+    },
+    "min_input_voltage": {
+      "description": "Minimum common-mode input voltage required to turn on the input transistors.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "4",
+        "reference": "Text"
+      },
+      "equation": {
+        "formula": "V_in > V_THN",
+        "explanation": "Input transistors must be in strong inversion to provide sufficient transconductance.",
+        "assumptions": "NMOS input pair."
+      },
+      "sky130_expected": {
+        "calculation": "V_THN for SKY130 is approximately 0.42 V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.42,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Directly tied to the threshold voltage of the NMOS devices."
+      },
+      "importance": "essential"
+    },
+    "max_drain_voltage_MB1": {
+      "description": "Maximum voltage on the drain of the input transistors (MB1/MB2).",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "4",
+        "reference": "Text"
+      },
+      "equation": {
+        "formula": "V_drain_max = VDD - V_THN",
+        "explanation": "The maximum voltage the source of the cross-coupled pair can reach before shutting off.",
+        "assumptions": "Clock is high."
+      },
+      "sky130_expected": {
+        "calculation": "1.8V - 0.42V = 1.38V",
+        "range": {
+          "min": 1.3,
+          "typical": 1.38,
+          "max": 1.45,
+          "unit": "V"
+        },
+        "reasoning": "Based on VDD=1.8V and VTHN=0.42V."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures sensitivity, kickback noise, and switching current of the sense amplifier.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "sensitivity",
+      "kickback_noise",
+      "switching_current"
+    ],
+    "spice": "* Sense Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters\n.param W_xm1=2 L_xm1=0.15\n.param W_xm2=4 L_xm2=0.15\n.param W_xm3=4 L_xm3=0.15\n.param W_xm4=2 L_xm4=0.15\n.param W_xm5=2 L_xm5=0.15\n.param W_xm6=2 L_xm6=0.15\n.param W_xm7=2 L_xm7=0.15\n.param W_xm8=2 L_xm8=0.15\n.param W_xm9=2 L_xm9=0.15\n.param W_xm10=2 L_xm10=0.15\n.param W_xm11=2 L_xm11=0.15\n.param W_xm12=2 L_xm12=0.15\n\n* DUT\nxm1 N003 Inp 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nVinm Inm 0 500m\nxm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N004 Inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\nX_X1 Outp Q Qi VDD 0 nand_2\nX_X2 Qi Outm Q VDD 0 nand_2\n\n.subckt nand_2 A B Out VDD GND\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends nand_2\n\n* Stimulus\nVclock clock 0 PULSE(0 1.8 5n 100p 100p 10n 20n)\n* 10mV differential input to test sensitivity\nVinp_src Inp_src 0 510m\n* 10k resistor to measure kickback noise as described in text\nRinp Inp_src Inp 10k\n\n.control\n  tran 10p 30n\n  \n  * Measure peak switching current\n  meas tran peak_idd min i(VDD)\n  let peak_current = -peak_idd\n  print peak_current\n  \n  * Measure kickback noise on Inp\n  meas tran max_inp max v(Inp)\n  meas tran min_inp min v(Inp)\n  let kickback_noise = max_inp - min_inp\n  print kickback_noise\n  \n  * Check if Q latched correctly (Inp > Inm, so Q should be high)\n  meas tran q_final find v(Q) at=25n\n  print q_final\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 16.35\",\n    \"page\": \"7\",\n    \"circuit_type\": \"Sense Amplifier with SR Latch\",\n    \"description\": \"A clocked sense amplifier that uses an SR latch (made of NAND gates) to hold the output state. This ensures the output only changes on the rising edge of the clock and eliminates dynamic nodes, reducing static power dissipation.\"\n  },\n  \"step2_metrics\": {\n    \"sensitivity\": {\n      \"description\": \"Minimum input voltage difference required for the sense amplifier to correctly resolve the output.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"8\",\n        \"reference\": \"Text\"\n      },\n      \"equation\": {\n        \"formula\": \"|V_in+ - V_in-| < 10 mV\",\n        \"explanation\": \"The minimum differential voltage for correct sensing.\",\n        \"assumptions\": \"Assumes no significant device mismatch.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Based on the text, the sensitivity is better than 10 mV. For SKY130, with proper sizing and no mismatch models applied, it should easily resolve 10 mV.\",\n        \"range\": {\n          \"min\": 0.001,\n          \"typical\": 0.005,\n          \"max\": 0.01,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Text specifies better than 10 mV.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"kickback_noise\": {\n      \"description\": \"Voltage glitch injected into the inputs when the latch switches states.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"8\",\n        \"reference\": \"Fig 16.37\"\n      },\n      \"equation\": {\n        \"formula\": \"V_kickback = I_inject * R_source\",\n        \"explanation\": \"Noise voltage developed across the source resistance due to capacitive coupling from the switching latch.\",\n        \"assumptions\": \"Source resistance is 10k ohms.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Text states approximately 5 mV with a 10k source resistor. In SKY130, Cgd of the input pair will determine the exact value, but it should be in the same order of magnitude.\",\n        \"range\": {\n          \"min\": 0.001,\n          \"typical\": 0.005,\n          \"max\": 0.02,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on device sizing and Cgd, but 5 mV is the textbook example.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"switching_current\": {\n      \"description\": \"Peak current drawn from the supply during the clock transition.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"7\",\n        \"reference\": \"Fig 16.36\"\n      },\n      \"equation\": {\n        \"formula\": \"I_peak\",\n        \"explanation\": \"Transient current when both PMOS and NMOS paths are briefly conducting.\",\n        \"assumptions\": \"Measured during clock rising edge.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Figure 16.36 shows peaks around 150-200 uA. In SKY130, this depends heavily on W/L of the tail and cross-coupled devices.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 150e-6,\n          \"max\": 500e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Matches the order of magnitude in the textbook figure.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"min_input_voltage\": {\n      \"description\": \"Minimum common-mode input voltage required to turn on the input transistors.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"4\",\n        \"reference\": \"Text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_in > V_THN\",\n        \"explanation\": \"Input transistors must be in strong inversion to provide sufficient transconductance.\",\n        \"assumptions\": \"NMOS input pair.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_THN for SKY130 is approximately 0.42 V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.42,\n          \"max\": 0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Directly tied to the threshold voltage of the NMOS devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"max_drain_voltage_MB1\": {\n      \"description\": \"Maximum voltage on the drain of the input transistors (MB1/MB2).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"4\",\n        \"reference\": \"Text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_drain_max = VDD - V_THN\",\n        \"explanation\": \"The maximum voltage the source of the cross-coupled pair can reach before shutting off.\",\n        \"assumptions\": \"Clock is high.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.8V - 0.42V = 1.38V\",\n        \"range\": {\n          \"min\": 1.3,\n          \"typical\": 1.38,\n          \"max\": 1.45,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on VDD=1.8V and VTHN=0.42V.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures sensitivity, kickback noise, and switching current of the sense amplifier.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"sensitivity\",\n      \"kickback_noise\",\n      \"switching_current\"\n    ],\n    \"spice\": \"* Sense Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters\\n.param W_xm1=2 L_xm1=0.15\\n.param W_xm2=4 L_xm2=0.15\\n.param W_xm3=4 L_xm3=0.15\\n.param W_xm4=2 L_xm4=0.15\\n.param W_xm5=2 L_xm5=0.15\\n.param W_xm6=2 L_xm6=0.15\\n.param W_xm7=2 L_xm7=0.15\\n.param W_xm8=2 L_xm8=0.15\\n.param W_xm9=2 L_xm9=0.15\\n.param W_xm10=2 L_xm10=0.15\\n.param W_xm11=2 L_xm11=0.15\\n.param W_xm12=2 L_xm12=0.15\\n\\n* DUT\\nxm1 N003 Inp 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nVinm Inm 0 500m\\nxm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N004 Inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\nX_X1 Outp Q Qi VDD 0 nand_2\\nX_X2 Qi Outm Q VDD 0 nand_2\\n\\n.subckt nand_2 A B Out VDD GND\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends nand_2\\n\\n* Stimulus\\nVclock clock 0 PULSE(0 1.8 5n 100p 100p 10n 20n)\\n* 10mV differential input to test sensitivity\\nVinp_src Inp_src 0 510m\\n* 10k resistor to measure kickback noise as described in text\\nRinp Inp_src Inp 10k\\n\\n.control\\n  tran 10p 30n\\n  \\n  * Measure peak switching current\\n  meas tran peak_idd min i(VDD)\\n  let peak_current = -peak_idd\\n  print peak_current\\n  \\n  * Measure kickback noise on Inp\\n  meas tran max_inp max v(Inp)\\n  meas tran min_inp min v(Inp)\\n  let kickback_noise = max_inp - min_inp\\n  print kickback_noise\\n  \\n  * Check if Q latched correctly (Inp > Inm, so Q should be high)\\n  meas tran q_final find v(Q) at=25n\\n  print q_final\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

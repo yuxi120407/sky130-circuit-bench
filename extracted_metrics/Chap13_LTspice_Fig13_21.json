@@ -1,0 +1,148 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 13.20",
+    "page": "386",
+    "circuit_type": "Level-sensitive latch",
+    "description": "A higher performance level-sensitive latch that uses a transmission gate (TG) at the input and another TG in the feedback loop. This prevents the input from fighting the feedback inverter, improving noise performance and reducing contention current."
+  },
+  "step2_metrics": {
+    "delay_d_to_q": {
+      "description": "Propagation delay from the D input to the Q output when the latch is transparent (clock is high).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "386",
+        "reference": "Fig 13.21 and Page 389/390 Equations"
+      },
+      "equation": {
+        "formula": "t_{PHL} + t_{PLH} = 0.7 \\cdot R_{eq} \\cdot C_{load}",
+        "explanation": "The delay is determined by the effective switching resistance of the transmission gate and inverters charging/discharging the node capacitances.",
+        "assumptions": "Linear RC approximation for gate delay."
+      },
+      "sky130_expected": {
+        "calculation": "For a minimum sized inverter in SKY130, R_eq ~ 3.6 kOhm. C_load ~ 2-5 fF. Delay per stage ~ 0.7 * 3.6k * 3fF ~ 7.5ps. With 3 stages (TG + 2 inverters) and parasitics, expect ~50-150ps.",
+        "range": {
+          "min": "50p",
+          "typical": "100p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Based on typical FO1 delays in 130nm CMOS (30-50ps per stage)."
+      },
+      "importance": "essential"
+    },
+    "setup_time": {
+      "description": "Minimum time the D input must be stable before the clock transitions low to correctly capture the data.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "388",
+        "reference": "Fig 13.25"
+      },
+      "equation": {
+        "formula": "t_s \\approx t_{pd, D \\to Q\\_bar}",
+        "explanation": "The data must propagate through the input transmission gate and the first inverter to settle on the internal node before the clock edge is applied.",
+        "assumptions": "Clock edge is instantaneous and TG turns off immediately."
+      },
+      "sky130_expected": {
+        "calculation": "Delay through TG and first inverter. ~2 stages * 30ps = 60ps.",
+        "range": {
+          "min": "30p",
+          "typical": "60p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Setup time is roughly the propagation delay to the internal storage node."
+      },
+      "importance": "essential"
+    },
+    "hold_time": {
+      "description": "Minimum time the D input must be held stable after the clock transitions low.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "388",
+        "reference": "Fig 13.26"
+      },
+      "equation": {
+        "formula": "t_h < 0",
+        "explanation": "Because of the propagation delay from D to the internal node, the input can be removed slightly before the clock pulse is applied, yielding a negative hold time.",
+        "assumptions": "Transmission gate turns off faster than the D signal propagates."
+      },
+      "sky130_expected": {
+        "calculation": "TG turn-off time minus D-to-internal delay. Typically negative.",
+        "range": {
+          "min": "-50p",
+          "typical": "-10p",
+          "max": "10p",
+          "unit": "s"
+        },
+        "reasoning": "Standard behavior for this latch topology in modern processes."
+      },
+      "importance": "essential"
+    },
+    "metastability_delay": {
+      "description": "Time required for the cross-coupled inverters to resolve to a valid logic level when starting from a metastable state (VDD/2).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "384",
+        "reference": "Fig 13.17"
+      },
+      "equation": {
+        "formula": "t_{meta} \\propto \\tau \\ln(\\frac{\\Delta V_{out}}{\\Delta V_{in}})",
+        "explanation": "Resolution time depends on the time constant of the cross-coupled inverters and the initial voltage offset from the switching point.",
+        "assumptions": "Small signal exponential growth."
+      },
+      "sky130_expected": {
+        "calculation": "Depends heavily on initial offset. For a 1mV offset, resolution takes a few time constants. Time constant ~ R_eq * C_node ~ 10ps. ln(1V/1mV) ~ 7. 7 * 10ps ~ 70ps.",
+        "range": {
+          "min": "50p",
+          "typical": "100p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "Simulations typically show 100-500ps depending on node capacitance and initial offset."
+      },
+      "importance": "recommended"
+    },
+    "input_capacitance": {
+      "description": "Capacitance seen at the D input.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "389",
+        "reference": "Example 13.3"
+      },
+      "equation": {
+        "formula": "C_{in} = \\frac{3}{2} (C_{oxn} + C_{oxp})",
+        "explanation": "Input capacitance is dominated by the gate capacitance of the transistors in the transmission gate and first inverter.",
+        "assumptions": "Miller effect is negligible during initial transition."
+      },
+      "sky130_expected": {
+        "calculation": "C_ox ~ 10fF/um^2. For W=1um, L=0.15um, C_in = 1.5 * (1*0.15*10 + 2*0.15*10) = 1.5 * (1.5 + 3) = 6.75fF.",
+        "range": {
+          "min": "2f",
+          "typical": "5f",
+          "max": "10f",
+          "unit": "F"
+        },
+        "reasoning": "Based on typical gate oxide capacitance for 130nm."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures propagation delay, setup time, and metastability resolution time for the level-sensitive latch.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_d_to_q",
+      "setup_time",
+      "metastability_delay"
+    ],
+    "spice": "* Level-Sensitive Latch Testbench\n.lib ${SKY130_PDK} tt\n\n* Parameters for the DUT\n.param W_xm1=1 L_xm1=0.15\n.param W_xm2=2 L_xm2=0.15\n.param W_xm5=1 L_xm5=0.15\n.param W_xm6=2 L_xm6=0.15\n.param W_xm7=1 L_xm7=0.15\n.param W_xm3=2 L_xm3=0.15\n.param W_xm4=1 L_xm4=0.15\n.param W_xm8=2 L_xm8=0.15\n\n* --- DUT Netlist ---\nxm1 Q_bar N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 Q_bar N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm5 Q Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 Q Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 D clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nxm3 N001 clock_b D VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N001 clock_b Q 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm8 Q clock N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nVclock1 clock_b 0 DC 0.9\n* -------------------\n\n* Additional Sources for Testbench\nVclock clock 0 DC 1.8\nVD D 0 PULSE(0 1.8 100p 10p 10p 1n 2n)\n\n.control\n* 1. Measure Propagation Delay and Setup Time\n* Make latch transparent (clock=1.8, clock_b=0)\nalter Vclock1 dc = 0\ntran 1p 3n\nmeas tran delay_d_to_q trig v(d) val=0.9 rise=1 targ v(q) val=0.9 rise=1\nmeas tran setup_time trig v(d) val=0.9 rise=1 targ v(q_bar) val=0.9 fall=1\n\n* 2. Measure Metastability Delay\n* Put latch in hold mode (clock=0, clock_b=1.8)\nalter Vclock dc = 0\nalter Vclock1 dc = 1.8\n* Force internal nodes to metastable state with 1mV offset\nic v(n001)=0.901 v(q_bar)=0.899 v(q)=0.901\ntran 1p 2n uic\nmeas tran metastability_delay trig time val=0 targ v(q) val=1.7 rise=1\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 13.20\",\n    \"page\": \"386\",\n    \"circuit_type\": \"Level-sensitive latch\",\n    \"description\": \"A higher performance level-sensitive latch that uses a transmission gate (TG) at the input and another TG in the feedback loop. This prevents the input from fighting the feedback inverter, improving noise performance and reducing contention current.\"\n  },\n  \"step2_metrics\": {\n    \"delay_d_to_q\": {\n      \"description\": \"Propagation delay from the D input to the Q output when the latch is transparent (clock is high).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"386\",\n        \"reference\": \"Fig 13.21 and Page 389/390 Equations\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{PHL} + t_{PLH} = 0.7 \\\\cdot R_{eq} \\\\cdot C_{load}\",\n        \"explanation\": \"The delay is determined by the effective switching resistance of the transmission gate and inverters charging/discharging the node capacitances.\",\n        \"assumptions\": \"Linear RC approximation for gate delay.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a minimum sized inverter in SKY130, R_eq ~ 3.6 kOhm. C_load ~ 2-5 fF. Delay per stage ~ 0.7 * 3.6k * 3fF ~ 7.5ps. With 3 stages (TG + 2 inverters) and parasitics, expect ~50-150ps.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"100p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on typical FO1 delays in 130nm CMOS (30-50ps per stage).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"setup_time\": {\n      \"description\": \"Minimum time the D input must be stable before the clock transitions low to correctly capture the data.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"388\",\n        \"reference\": \"Fig 13.25\"\n      },\n      \"equation\": {\n        \"formula\": \"t_s \\\\approx t_{pd, D \\\\to Q\\\\_bar}\",\n        \"explanation\": \"The data must propagate through the input transmission gate and the first inverter to settle on the internal node before the clock edge is applied.\",\n        \"assumptions\": \"Clock edge is instantaneous and TG turns off immediately.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay through TG and first inverter. ~2 stages * 30ps = 60ps.\",\n        \"range\": {\n          \"min\": \"30p\",\n          \"typical\": \"60p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Setup time is roughly the propagation delay to the internal storage node.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"hold_time\": {\n      \"description\": \"Minimum time the D input must be held stable after the clock transitions low.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"388\",\n        \"reference\": \"Fig 13.26\"\n      },\n      \"equation\": {\n        \"formula\": \"t_h < 0\",\n        \"explanation\": \"Because of the propagation delay from D to the internal node, the input can be removed slightly before the clock pulse is applied, yielding a negative hold time.\",\n        \"assumptions\": \"Transmission gate turns off faster than the D signal propagates.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"TG turn-off time minus D-to-internal delay. Typically negative.\",\n        \"range\": {\n          \"min\": \"-50p\",\n          \"typical\": \"-10p\",\n          \"max\": \"10p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard behavior for this latch topology in modern processes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"metastability_delay\": {\n      \"description\": \"Time required for the cross-coupled inverters to resolve to a valid logic level when starting from a metastable state (VDD/2).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Fig 13.17\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{meta} \\\\propto \\\\tau \\\\ln(\\\\frac{\\\\Delta V_{out}}{\\\\Delta V_{in}})\",\n        \"explanation\": \"Resolution time depends on the time constant of the cross-coupled inverters and the initial voltage offset from the switching point.\",\n        \"assumptions\": \"Small signal exponential growth.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends heavily on initial offset. For a 1mV offset, resolution takes a few time constants. Time constant ~ R_eq * C_node ~ 10ps. ln(1V/1mV) ~ 7. 7 * 10ps ~ 70ps.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"100p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Simulations typically show 100-500ps depending on node capacitance and initial offset.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"Capacitance seen at the D input.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"389\",\n        \"reference\": \"Example 13.3\"\n      },\n      \"equation\": {\n        \"formula\": \"C_{in} = \\\\frac{3}{2} (C_{oxn} + C_{oxp})\",\n        \"explanation\": \"Input capacitance is dominated by the gate capacitance of the transistors in the transmission gate and first inverter.\",\n        \"assumptions\": \"Miller effect is negligible during initial transition.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C_ox ~ 10fF/um^2. For W=1um, L=0.15um, C_in = 1.5 * (1*0.15*10 + 2*0.15*10) = 1.5 * (1.5 + 3) = 6.75fF.\",\n        \"range\": {\n          \"min\": \"2f\",\n          \"typical\": \"5f\",\n          \"max\": \"10f\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Based on typical gate oxide capacitance for 130nm.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures propagation delay, setup time, and metastability resolution time for the level-sensitive latch.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay_d_to_q\",\n      \"setup_time\",\n      \"metastability_delay\"\n    ],\n    \"spice\": \"* Level-Sensitive Latch Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Parameters for the DUT\\n.param W_xm1=1 L_xm1=0.15\\n.param W_xm2=2 L_xm2=0.15\\n.param W_xm5=1 L_xm5=0.15\\n.param W_xm6=2 L_xm6=0.15\\n.param W_xm7=1 L_xm7=0.15\\n.param W_xm3=2 L_xm3=0.15\\n.param W_xm4=1 L_xm4=0.15\\n.param W_xm8=2 L_xm8=0.15\\n\\n* --- DUT Netlist ---\\nxm1 Q_bar N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 Q_bar N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm5 Q Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 Q Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 D clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nxm3 N001 clock_b D VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N001 clock_b Q 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm8 Q clock N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nVclock1 clock_b 0 DC 0.9\\n* -------------------\\n\\n* Additional Sources for Testbench\\nVclock clock 0 DC 1.8\\nVD D 0 PULSE(0 1.8 100p 10p 10p 1n 2n)\\n\\n.control\\n* 1. Measure Propagation Delay and Setup Time\\n* Make latch transparent (clock=1.8, clock_b=0)\\nalter Vclock1 dc = 0\\ntran 1p 3n\\nmeas tran delay_d_to_q trig v(d) val=0.9 rise=1 targ v(q) val=0.9 rise=1\\nmeas tran setup_time trig v(d) val=0.9 rise=1 targ v(q_bar) val=0.9 fall=1\\n\\n* 2. Measure Metastability Delay\\n* Put latch in hold mode (clock=0, clock_b=1.8)\\nalter Vclock dc = 0\\nalter Vclock1 dc = 1.8\\n* Force internal nodes to metastable state with 1mV offset\\nic v(n001)=0.901 v(q_bar)=0.899 v(q)=0.901\\ntran 1p 2n uic\\nmeas tran metastability_delay trig time val=0 targ v(q) val=1.7 rise=1\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

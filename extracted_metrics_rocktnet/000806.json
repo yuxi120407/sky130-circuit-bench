@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Common-Gate Colpitts Oscillator Core",
+    "description": "A single NMOS transistor configured as the core of a common-gate Colpitts oscillator. The gate is AC grounded via the bias voltage, the drain connects to an LC tank, and the source connects to a capacitive feedback divider.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "VTANK"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Study of Phase Noise in Colpitts and LC-Tank CMOS Oscillators",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "phase_noise": {
+      "description": "Phase noise of the oscillator (proxy measured as output noise spectral density at resonance)",
+      "unit": "V/sqrt(Hz)",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "142 dBc/Hz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Thermal noise of tank and transistor peaking at resonance",
+        "range": {
+          "min": 1e-09,
+          "typical": 1e-07,
+          "max": 1e-05,
+          "unit": "V/sqrt(Hz)"
+        },
+        "reasoning": "Direct phase noise (dBc/Hz) requires PSS/PNOISE. In standard SPICE, we measure the noise spectral density peak at the tank's resonant frequency."
+      },
+      "importance": "essential"
+    },
+    "gain": {
+      "description": "Transimpedance gain of the LC tank at resonance",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 dB",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20*log10(R_tank)",
+        "range": {
+          "min": 60,
+          "typical": 86,
+          "max": 100,
+          "unit": "dB"
+        },
+        "reasoning": "With an effective parallel tank resistance of 20kOhm, the transimpedance gain (V/I) peaks at 86 dB ohms."
+      },
+      "importance": "essential"
+    },
+    "supply_voltage": {
+      "description": "DC supply voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "3 V",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Standard SKY130 VDD",
+        "range": {
+          "min": 1.7,
+          "typical": 1.8,
+          "max": 1.9,
+          "unit": "V"
+        },
+        "reasoning": "Adapted from the paper's 3V to the standard 1.8V for the SKY130 0.18um process."
+      },
+      "importance": "essential"
+    },
+    "efficiency": {
+      "description": "DC to RF power conversion efficiency",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "37 %",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "(V_amp^2 / (2*R_tank)) / (VDD * I_dc) * 100",
+        "range": {
+          "min": 10,
+          "typical": 30,
+          "max": 50,
+          "unit": "%"
+        },
+        "reasoning": "Class A oscillators typically achieve 20-40% efficiency depending on the bias point and tank Q."
+      },
+      "importance": "essential"
+    },
+    "oscillation_frequency": {
+      "description": "Fundamental oscillation frequency",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2*pi*sqrt(L * C_eq))",
+        "range": {
+          "min": 200000000.0,
+          "typical": 225000000.0,
+          "max": 250000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "With L=1uH and C_eq=0.5pF (two 1pF capacitors in series), the resonant frequency is approximately 225 MHz."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure oscillator gain, noise spectral density (phase noise proxy), oscillation frequency, and efficiency.",
+    "analyses": [
+      "AC",
+      "Noise",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "gain",
+      "phase_noise",
+      "oscillation_frequency",
+      "efficiency",
+      "supply_voltage"
+    ],
+    "spice": "* Colpitts Oscillator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\nXM1 VTANK VB N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\nVVDD VDD 0 1.8\nVVB VB 0 0.54\nI_tail N1 0 10u\n\n* LC Tank\nL1 VDD VTANK 1u\nR1 VDD VTANK 20k\n\n* Capacitive Feedback Divider\nC1 VTANK N1 1p\nC2 N1 0 1p\n\n* AC injection for Gain measurement\nI_ac 0 VTANK dc 0 ac 1\n\n* Initial condition to kickstart oscillation\n.ic v(VTANK)=0 v(N1)=0\n\n.control\n* 1. AC Analysis for Gain\nac dec 100 100Meg 1G\nlet gain_db = vdb(VTANK)\nmeas ac max_gain max gain_db\n\n* 2. Noise Analysis for Phase Noise proxy\nnoise v(VTANK) VVDD dec 10 100Meg 1G\nmeas noise max_noise max onoise_spectrum\n\n* 3. Transient Analysis for Oscillation and Efficiency\ntran 0.1n 200n\n* Measure frequency using zero-crossings around VDD (1.8V)\nmeas tran t1 trig v(VTANK) val=1.8 rise=10 targ v(VTANK) val=1.8 rise=11\nlet osc_freq = 1/t1\nprint osc_freq\n\n* Measure amplitude\nmeas tran vmax max v(VTANK) from=100n to=200n\nmeas tran vmin min v(VTANK) from=100n to=200n\nlet amp = vmax - vmin\nprint amp\n\n* Measure DC power\nmeas tran id_avg avg i(VVDD) from=100n to=200n\nlet dc_power = -id_avg * 1.8\nprint dc_power\n\n* Calculate Efficiency\nlet p_rf = (amp/2)*(amp/2) / (2 * 20000)\nlet efficiency = (p_rf / dc_power) * 100\nprint efficiency\n\n* Supply voltage\nlet supply_v = 1.8\nprint supply_v\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Common-Gate Colpitts Oscillator Core\",\n    \"description\": \"A single NMOS transistor configured as the core of a common-gate Colpitts oscillator. The gate is AC grounded via the bias voltage, the drain connects to an LC tank, and the source connects to a capacitive feedback divider.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\"\n      ],\n      \"output\": [\n        \"VTANK\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Study of Phase Noise in Colpitts and LC-Tank CMOS Oscillators\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"phase_noise\": {\n      \"description\": \"Phase noise of the oscillator (proxy measured as output noise spectral density at resonance)\",\n      \"unit\": \"V/sqrt(Hz)\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"142 dBc/Hz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Thermal noise of tank and transistor peaking at resonance\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 1e-7,\n          \"max\": 1e-5,\n          \"unit\": \"V/sqrt(Hz)\"\n        },\n        \"reasoning\": \"Direct phase noise (dBc/Hz) requires PSS/PNOISE. In standard SPICE, we measure the noise spectral density peak at the tank's resonant frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain\": {\n      \"description\": \"Transimpedance gain of the LC tank at resonance\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 dB\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20*log10(R_tank)\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 86,\n          \"max\": 100,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"With an effective parallel tank resistance of 20kOhm, the transimpedance gain (V/I) peaks at 86 dB ohms.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"supply_voltage\": {\n      \"description\": \"DC supply voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"3 V\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard SKY130 VDD\",\n        \"range\": {\n          \"min\": 1.7,\n          \"typical\": 1.8,\n          \"max\": 1.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Adapted from the paper's 3V to the standard 1.8V for the SKY130 0.18um process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"efficiency\": {\n      \"description\": \"DC to RF power conversion efficiency\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"37 %\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"(V_amp^2 / (2*R_tank)) / (VDD * I_dc) * 100\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 30,\n          \"max\": 50,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Class A oscillators typically achieve 20-40% efficiency depending on the bias point and tank Q.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"oscillation_frequency\": {\n      \"description\": \"Fundamental oscillation frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2*pi*sqrt(L * C_eq))\",\n        \"range\": {\n          \"min\": 200e6,\n          \"typical\": 225e6,\n          \"max\": 250e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"With L=1uH and C_eq=0.5pF (two 1pF capacitors in series), the resonant frequency is approximately 225 MHz.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure oscillator gain, noise spectral density (phase noise proxy), oscillation frequency, and efficiency.\",\n    \"analyses\": [\n      \"AC\",\n      \"Noise\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"gain\",\n      \"phase_noise\",\n      \"oscillation_frequency\",\n      \"efficiency\",\n      \"supply_voltage\"\n    ],\n    \"spice\": \"* Colpitts Oscillator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\nXM1 VTANK VB N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVVDD VDD 0 1.8\\nVVB VB 0 0.54\\nI_tail N1 0 10u\\n\\n* LC Tank\\nL1 VDD VTANK 1u\\nR1 VDD VTANK 20k\\n\\n* Capacitive Feedback Divider\\nC1 VTANK N1 1p\\nC2 N1 0 1p\\n\\n* AC injection for Gain measurement\\nI_ac 0 VTANK dc 0 ac 1\\n\\n* Initial condition to kickstart oscillation\\n.ic v(VTANK)=0 v(N1)=0\\n\\n.control\\n* 1. AC Analysis for Gain\\nac dec 100 100Meg 1G\\nlet gain_db = vdb(VTANK)\\nmeas ac max_gain max gain_db\\n\\n* 2. Noise Analysis for Phase Noise proxy\\nnoise v(VTANK) VVDD dec 10 100Meg 1G\\nmeas noise max_noise max onoise_spectrum\\n\\n* 3. Transient Analysis for Oscillation and Efficiency\\ntran 0.1n 200n\\n* Measure frequency using zero-crossings around VDD (1.8V)\\nmeas tran t1 trig v(VTANK) val=1.8 rise=10 targ v(VTANK) val=1.8 rise=11\\nlet osc_freq = 1/t1\\nprint osc_freq\\n\\n* Measure amplitude\\nmeas tran vmax max v(VTANK) from=100n to=200n\\nmeas tran vmin min v(VTANK) from=100n to=200n\\nlet amp = vmax - vmin\\nprint amp\\n\\n* Measure DC power\\nmeas tran id_avg avg i(VVDD) from=100n to=200n\\nlet dc_power = -id_avg * 1.8\\nprint dc_power\\n\\n* Calculate Efficiency\\nlet p_rf = (amp/2)*(amp/2) / (2 * 20000)\\nlet efficiency = (p_rf / dc_power) * 100\\nprint efficiency\\n\\n* Supply voltage\\nlet supply_v = 1.8\\nprint supply_v\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1425718",
+  "_case": "1425718_image_1_a"
+}

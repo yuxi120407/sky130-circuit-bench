@@ -1,0 +1,147 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Bias Generator / Voltage Reference",
+    "description": "This subcircuit consists of three diode-connected transistors (two PMOS, one NMOS) acting as a voltage divider or bias generator. It establishes a reference voltage at node N0 based on the voltages provided at LABEL_NET_0 and LABEL_NET_1, likely used for biasing the match-line driver or sense amplifier in the CAM macro.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Design for High-Speed Low-Power CMOS Fully Parallel Content-Addressable Memory Macros",
+      "figure": "Unknown (extracted subcircuit)",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Energy_per_operation": {
+      "description": "Energy consumed per search operation (applies to full CAM macro)",
+      "unit": "fJ",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "131",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Not directly measurable on this isolated DC subcircuit. For the full macro, scaling from 0.35um/3.3V to 0.13um/1.8V yields approx 131fJ * (0.13/0.35) * (1.8/3.3)^2.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 25,
+          "unit": "fJ"
+        },
+        "reasoning": "Capacitance scales with feature size, and energy scales with VDD^2."
+      },
+      "importance": "optional"
+    },
+    "Search_Delay": {
+      "description": "Search access time (applies to full CAM macro)",
+      "unit": "ns",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "7.5 to 10",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Not applicable to this DC bias subcircuit.",
+        "range": {
+          "min": 1,
+          "typical": 2.5,
+          "max": 5,
+          "unit": "ns"
+        },
+        "reasoning": "130nm process is significantly faster than 350nm, reducing gate delays."
+      },
+      "importance": "optional"
+    },
+    "V_N0_DC": {
+      "description": "DC bias voltage established at node N0",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "With inputs at 0.9V, the PMOS (S=0.9V) and NMOS (S=0V) are diode-connected. To balance currents, they operate in subthreshold. V_N0 will settle near V_input / 2.",
+        "range": {
+          "min": 0.35,
+          "typical": 0.45,
+          "max": 0.55,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact subthreshold leakage balance between the SKY130 PMOS and NMOS devices."
+      },
+      "importance": "essential"
+    },
+    "Static_Power": {
+      "description": "Static power consumption of the bias circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "P = V * I_subthreshold. Since Vgs < Vth for all devices when inputs are 0.9V, current is in the nA range.",
+        "range": {
+          "min": 1e-09,
+          "typical": 1e-08,
+          "max": 1e-07,
+          "unit": "W"
+        },
+        "reasoning": "Diode-connected devices with low source voltages draw minimal subthreshold leakage."
+      },
+      "importance": "essential"
+    },
+    "Sensitivity": {
+      "description": "Change in output voltage N0 per 1V change in input LABEL_NET_0",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Small signal voltage divider between the transconductances of XM1, XM2, and XM3.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.3,
+          "max": 0.5,
+          "unit": "V/V"
+        },
+        "reasoning": "XM1 and XM3 are in parallel opposing XM2. The exact ratio depends on their relative gm in subthreshold."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC operating point (bias voltage and static power) and performs a DC sweep to determine the sensitivity of the bias node to input variations.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "V_N0_DC",
+      "Static_Power",
+      "Sensitivity"
+    ],
+    "spice": "* CAM Bias Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\nXM1 N0 N0 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N0 LABEL_NET_1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\n\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\n\n.control\n* 1. DC Operating Point for Bias Voltage and Power\nop\nprint v(N0)\nlet static_power = -i(VVDD)*1.8 - i(VLABEL_NET_0)*0.9 - i(VLABEL_NET_1)*0.9\nprint static_power\n\n* 2. DC Sweep for Sensitivity Analysis\ndc VLABEL_NET_0 0 1.8 0.01\nmeas dc v_n0_at_0_9 find v(N0) at=0.9\nmeas dc v_n0_at_1_0 find v(N0) at=1.0\nlet sensitivity = (v_n0_at_1_0 - v_n0_at_0_9) / 0.1\nprint sensitivity\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Bias Generator / Voltage Reference\",\n    \"description\": \"This subcircuit consists of three diode-connected transistors (two PMOS, one NMOS) acting as a voltage divider or bias generator. It establishes a reference voltage at node N0 based on the voltages provided at LABEL_NET_0 and LABEL_NET_1, likely used for biasing the match-line driver or sense amplifier in the CAM macro.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Design for High-Speed Low-Power CMOS Fully Parallel Content-Addressable Memory Macros\",\n      \"figure\": \"Unknown (extracted subcircuit)\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Energy_per_operation\": {\n      \"description\": \"Energy consumed per search operation (applies to full CAM macro)\",\n      \"unit\": \"fJ\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"131\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Not directly measurable on this isolated DC subcircuit. For the full macro, scaling from 0.35um/3.3V to 0.13um/1.8V yields approx 131fJ * (0.13/0.35) * (1.8/3.3)^2.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 25,\n          \"unit\": \"fJ\"\n        },\n        \"reasoning\": \"Capacitance scales with feature size, and energy scales with VDD^2.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Search_Delay\": {\n      \"description\": \"Search access time (applies to full CAM macro)\",\n      \"unit\": \"ns\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"7.5 to 10\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Not applicable to this DC bias subcircuit.\",\n        \"range\": {\n          \"min\": 1,\n          \"typical\": 2.5,\n          \"max\": 5,\n          \"unit\": \"ns\"\n        },\n        \"reasoning\": \"130nm process is significantly faster than 350nm, reducing gate delays.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"V_N0_DC\": {\n      \"description\": \"DC bias voltage established at node N0\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With inputs at 0.9V, the PMOS (S=0.9V) and NMOS (S=0V) are diode-connected. To balance currents, they operate in subthreshold. V_N0 will settle near V_input / 2.\",\n        \"range\": {\n          \"min\": 0.35,\n          \"typical\": 0.45,\n          \"max\": 0.55,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact subthreshold leakage balance between the SKY130 PMOS and NMOS devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Static_Power\": {\n      \"description\": \"Static power consumption of the bias circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = V * I_subthreshold. Since Vgs < Vth for all devices when inputs are 0.9V, current is in the nA range.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 10e-9,\n          \"max\": 100e-9,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Diode-connected devices with low source voltages draw minimal subthreshold leakage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Sensitivity\": {\n      \"description\": \"Change in output voltage N0 per 1V change in input LABEL_NET_0\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Small signal voltage divider between the transconductances of XM1, XM2, and XM3.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.3,\n          \"max\": 0.5,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"XM1 and XM3 are in parallel opposing XM2. The exact ratio depends on their relative gm in subthreshold.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC operating point (bias voltage and static power) and performs a DC sweep to determine the sensitivity of the bias node to input variations.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"V_N0_DC\",\n      \"Static_Power\",\n      \"Sensitivity\"\n    ],\n    \"spice\": \"* CAM Bias Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\nXM1 N0 N0 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N0 LABEL_NET_1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\n\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\n\\n.control\\n* 1. DC Operating Point for Bias Voltage and Power\\nop\\nprint v(N0)\\nlet static_power = -i(VVDD)*1.8 - i(VLABEL_NET_0)*0.9 - i(VLABEL_NET_1)*0.9\\nprint static_power\\n\\n* 2. DC Sweep for Sensitivity Analysis\\ndc VLABEL_NET_0 0 1.8 0.01\\nmeas dc v_n0_at_0_9 find v(N0) at=0.9\\nmeas dc v_n0_at_1_0 find v(N0) at=1.0\\nlet sensitivity = (v_n0_at_1_0 - v_n0_at_0_9) / 0.1\\nprint sensitivity\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "924858",
+  "_case": "924858_image_7"
+}

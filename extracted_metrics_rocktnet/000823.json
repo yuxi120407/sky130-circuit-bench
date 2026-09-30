@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Frequency Doubler",
+    "description": "A 5-GHz band CMOS frequency doubler utilizing a current-reuse topology. It takes a 2.5 GHz input signal and generates a 5 GHz output signal, stacking two transistor stages to share the same DC bias current and reduce overall power consumption.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "Vg1",
+        "Vg2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.8-V Operation 5-GHz-Band CMOS Frequency Doubler Using Current-Reuse Circuit Design Technique",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed from the 1.8V supply",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_VDD. Assuming ~5-10mA bias current for the stacked RF transistors, P = 1.8V * 10mA = 18mW.",
+        "range": {
+          "min": "5m",
+          "typical": "15m",
+          "max": "30m",
+          "unit": "W"
+        },
+        "reasoning": "Current reuse halves the current compared to two separate stages, keeping power low while operating at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "output_frequency": {
+      "description": "Frequency of the output signal",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_out = 2 * f_in. With f_in = 2.5 GHz, f_out = 5.0 GHz.",
+        "range": {
+          "min": "4.9G",
+          "typical": "5.0G",
+          "max": "5.1G",
+          "unit": "Hz"
+        },
+        "reasoning": "The circuit is a frequency doubler, so the output frequency is exactly twice the fundamental input frequency."
+      },
+      "importance": "essential"
+    },
+    "output_power": {
+      "description": "Power of the output signal at the doubled frequency (5 GHz)",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5 dBm",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on input power and conversion gain. For a 0 dBm input and 0 dB gain, output is 0 dBm.",
+        "range": {
+          "min": "-5",
+          "typical": "0",
+          "max": "5",
+          "unit": "dBm"
+        },
+        "reasoning": "SKY130 0.15um devices have similar fT to 0.18um, so output power should be comparable under similar drive conditions."
+      },
+      "importance": "essential"
+    },
+    "conversion_gain": {
+      "description": "Ratio of output power at 2*f_in to input power at f_in",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0 dB",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = P_out(dBm) - P_in(dBm).",
+        "range": {
+          "min": "-5",
+          "typical": "0",
+          "max": "5",
+          "unit": "dB"
+        },
+        "reasoning": "Reported gain is 0 dB. SKY130 should achieve similar conversion gain with proper biasing and matching."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the current-reuse frequency doubler measuring DC power, output frequency, output power, and conversion gain.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "output_frequency",
+      "output_power",
+      "conversion_gain"
+    ],
+    "spice": "* Frequency Doubler Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param L_val=1.1n\n.param C_val=1p\n.param R_val=1k\n\n* Connect GND to 0\nVGND GND 0 DC 0\n\n* Original Netlist\nCd3 Vg2 GND {C_val}\nC1 N0 GND {C_val}\nL4 N1 VDD {L_val}\nCd4 VDD GND {C_val}\nL1 N2 IN {L_val}\nRg N2 Vg1 {R_val}\nC2 N5 N7 {C_val}\nCd1 Vg1 GND {C_val}\nL3 N5 Vg2 {L_val}\nRs2 N0 GND {R_val}\nL2 N0 N7 {L_val}\nC3 N1 OUT {C_val}\n\n* Added Transistors (DUT core, missing from extraction)\nXM1 N7 N2 GND GND sky130_fd_pr__nfet_01v8 W=50u L=0.15u\nXM2 N1 N5 N0 GND sky130_fd_pr__nfet_01v8 W=50u L=0.15u\n\n* Sources and Biasing\nVVDD VDD 0 DC 1.8\nVVg1 Vg1 0 DC 0.7\nVVg2 Vg2 0 DC 1.6\n\n* Input Signal (2.5 GHz, 1V peak-to-peak -> 0.5V peak)\nVIN IN_AC 0 DC 0 SIN(0 0.5 2.5G 0 0)\nCin IN_AC IN 10p\n\n* Output Load\nRout OUT 0 50\n\n.control\n* DC Analysis\nop\nlet p_dc = -i(VVDD) * 1.8\nprint p_dc\n\n* Transient Analysis\ntran 1p 10n\n* Measure output frequency\nmeas tran t1 trig v(OUT) val=0 rise=10 targ v(OUT) val=0 rise=11\nlet freq_out = 1/t1\nprint freq_out\n\n* Measure output power and conversion gain\nmeas tran vout_max max v(OUT) from=5n to=10n\nmeas tran vout_min min v(OUT) from=5n to=10n\nlet vout_pp = vout_max - vout_min\nlet p_out_w = (vout_pp/2)*(vout_pp/2) / 100\nlet p_out_dbm = 10 * log10(p_out_w * 1000 + 1e-20)\nprint p_out_dbm\n\nlet vin_pp = 1.0\nlet p_in_w = (vin_pp/2)*(vin_pp/2) / 100\nlet p_in_dbm = 10 * log10(p_in_w * 1000)\nlet conversion_gain = p_out_dbm - p_in_dbm\nprint conversion_gain\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Frequency Doubler\",\n    \"description\": \"A 5-GHz band CMOS frequency doubler utilizing a current-reuse topology. It takes a 2.5 GHz input signal and generates a 5 GHz output signal, stacking two transistor stages to share the same DC bias current and reduce overall power consumption.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"OUT\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"Vg1\", \"Vg2\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.8-V Operation 5-GHz-Band CMOS Frequency Doubler Using Current-Reuse Circuit Design Technique\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed from the 1.8V supply\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_VDD. Assuming ~5-10mA bias current for the stacked RF transistors, P = 1.8V * 10mA = 18mW.\",\n        \"range\": { \"min\": \"5m\", \"typical\": \"15m\", \"max\": \"30m\", \"unit\": \"W\" },\n        \"reasoning\": \"Current reuse halves the current compared to two separate stages, keeping power low while operating at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_frequency\": {\n      \"description\": \"Frequency of the output signal\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_out = 2 * f_in. With f_in = 2.5 GHz, f_out = 5.0 GHz.\",\n        \"range\": { \"min\": \"4.9G\", \"typical\": \"5.0G\", \"max\": \"5.1G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"The circuit is a frequency doubler, so the output frequency is exactly twice the fundamental input frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_power\": {\n      \"description\": \"Power of the output signal at the doubled frequency (5 GHz)\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5 dBm\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on input power and conversion gain. For a 0 dBm input and 0 dB gain, output is 0 dBm.\",\n        \"range\": { \"min\": \"-5\", \"typical\": \"0\", \"max\": \"5\", \"unit\": \"dBm\" },\n        \"reasoning\": \"SKY130 0.15um devices have similar fT to 0.18um, so output power should be comparable under similar drive conditions.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"conversion_gain\": {\n      \"description\": \"Ratio of output power at 2*f_in to input power at f_in\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0 dB\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = P_out(dBm) - P_in(dBm).\",\n        \"range\": { \"min\": \"-5\", \"typical\": \"0\", \"max\": \"5\", \"unit\": \"dB\" },\n        \"reasoning\": \"Reported gain is 0 dB. SKY130 should achieve similar conversion gain with proper biasing and matching.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the current-reuse frequency doubler measuring DC power, output frequency, output power, and conversion gain.\",\n    \"analyses\": [\"OP\", \"Tran\"],\n    \"metrics_measured\": [\"power_consumption\", \"output_frequency\", \"output_power\", \"conversion_gain\"],\n    \"spice\": \"* Frequency Doubler Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param L_val=1.1n\\n.param C_val=1p\\n.param R_val=1k\\n\\n* Connect GND to 0\\nVGND GND 0 DC 0\\n\\n* Original Netlist\\nCd3 Vg2 GND {C_val}\\nC1 N0 GND {C_val}\\nL4 N1 VDD {L_val}\\nCd4 VDD GND {C_val}\\nL1 N2 IN {L_val}\\nRg N2 Vg1 {R_val}\\nC2 N5 N7 {C_val}\\nCd1 Vg1 GND {C_val}\\nL3 N5 Vg2 {L_val}\\nRs2 N0 GND {R_val}\\nL2 N0 N7 {L_val}\\nC3 N1 OUT {C_val}\\n\\n* Added Transistors (DUT core, missing from extraction)\\nXM1 N7 N2 GND GND sky130_fd_pr__nfet_01v8 W=50u L=0.15u\\nXM2 N1 N5 N0 GND sky130_fd_pr__nfet_01v8 W=50u L=0.15u\\n\\n* Sources and Biasing\\nVVDD VDD 0 DC 1.8\\nVVg1 Vg1 0 DC 0.7\\nVVg2 Vg2 0 DC 1.6\\n\\n* Input Signal (2.5 GHz, 1V peak-to-peak -> 0.5V peak)\\nVIN IN_AC 0 DC 0 SIN(0 0.5 2.5G 0 0)\\nCin IN_AC IN 10p\\n\\n* Output Load\\nRout OUT 0 50\\n\\n.control\\n* DC Analysis\\nop\\nlet p_dc = -i(VVDD) * 1.8\\nprint p_dc\\n\\n* Transient Analysis\\ntran 1p 10n\\n* Measure output frequency\\nmeas tran t1 trig v(OUT) val=0 rise=10 targ v(OUT) val=0 rise=11\\nlet freq_out = 1/t1\\nprint freq_out\\n\\n* Measure output power and conversion gain\\nmeas tran vout_max max v(OUT) from=5n to=10n\\nmeas tran vout_min min v(OUT) from=5n to=10n\\nlet vout_pp = vout_max - vout_min\\nlet p_out_w = (vout_pp/2)*(vout_pp/2) / 100\\nlet p_out_dbm = 10 * log10(p_out_w * 1000 + 1e-20)\\nprint p_out_dbm\\n\\nlet vin_pp = 1.0\\nlet p_in_w = (vin_pp/2)*(vin_pp/2) / 100\\nlet p_in_dbm = 10 * log10(p_in_w * 1000)\\nlet conversion_gain = p_out_dbm - p_in_dbm\\nprint conversion_gain\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1435606",
+  "_case": "1435606_image_2"
+}

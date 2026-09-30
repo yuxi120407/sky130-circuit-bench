@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Amplifier / CML Buffer",
+    "description": "A high-speed differential amplifier (Current Mode Logic buffer) with an active tail current source. The tail current is precisely controlled by an operational amplifier in a negative feedback loop that forces the voltage across the source degeneration resistor to match a reference voltage derived from a resistor divider.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "IP"
+      ],
+      "output": [
+        "N4",
+        "N9"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2",
+        "N6",
+        "N10"
+      ],
+      "ground": [
+        "VCC"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 40\u201343-Gb/s Clock and Data Recovery IC With Integrated SFI-5 1:16 Demultiplexer in SiGe Technology",
+      "figure": "Unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the amplifier stage.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "7.5 W (entire IC)",
+        "technology": "120-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * (I_tail + I_bias_divider) = 1.8V * (2mA + 0.12mA) = 3.8 mW",
+        "range": {
+          "min": "2m",
+          "typical": "3.8m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down to a single stage in 1.8V SKY130 CMOS. The paper's 7.5W is for the entire high-speed IC."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Low-frequency differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "gm * Rload. gm \u2248 10mS at 1mA branch current. Gain = 10mS * 300 ohm = 3 V/V = 9.5 dB.",
+        "range": {
+          "min": "5",
+          "typical": "9.5",
+          "max": "15",
+          "unit": "dB"
+        },
+        "reasoning": "Typical gain for a single-stage high-speed CML buffer designed for wide bandwidth."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3db": {
+      "description": "-3dB bandwidth of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40-43 Gb/s (data rate)",
+        "technology": "120-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW \u2248 1 / (2 * pi * Rload * Cload). With Rload=300 and Cload=10fF + parasitics (~20fF), BW \u2248 26 GHz.",
+        "range": {
+          "min": "5G",
+          "typical": "15G",
+          "max": "30G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 NMOS fT is around 40 GHz, so a single stage can achieve 10-20 GHz bandwidth with low load capacitance, lower than the 120-GHz SiGe process."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak differential output voltage swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "I_tail * Rload = 2mA * 300 ohm = 0.6V single-ended, or 1.2V differential peak-to-peak (max). For 0.2V diff input, output is ~0.6V diff.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.6",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "Depends on input swing and gain, limited by I_tail * Rload to keep transistors in saturation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, -3dB bandwidth, and transient output swing of the CML amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth_3db",
+      "output_swing"
+    ],
+    "spice": "* CML Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_diff=20u L_diff=0.15u\n.param W_tail=40u L_tail=0.15u\n.param R_load=300 R_tail=300\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* AC Coupled Inputs (Differential 1V AC, 0.2V peak transient)\nVIN_AC IN_AC 0 DC 0 AC -0.5 SIN(0 0.1 100MEG 180 0)\nVIP_AC IP_AC 0 DC 0 AC 0.5 SIN(0 0.1 100MEG 0 0)\nCIN IN_AC IN 1u\nCIP IP_AC IP 1u\n\n* Circuit Netlist (NPNs mapped to NMOS)\nR1 N2 VDD 1\nR2 IN N2 50\nR3 N4 VDD {R_load}\nR4 IP N2 50\nR5 VDD N6 10k\nR6 N6 0 5k\nR7 VDD N9 {R_load}\nXM1 N4 IP N8 0 sky130_fd_pr__nfet_01v8 W={W_diff} L={L_diff}\nR8 N3 0 {R_tail}\nXM3 N8 N10 N3 0 sky130_fd_pr__nfet_01v8 W={W_tail} L={L_tail}\nXM2 N9 IN N8 0 sky130_fd_pr__nfet_01v8 W={W_diff} L={L_diff}\nE1 N10 0 N6 N3 1000\n\n* Load Capacitors\nCL1 N4 0 10f\nCL2 N9 0 10f\n\n* Differential Output and Input for Measurement\nE_out_diff OUT_DIFF 0 N4 N9 1\nE_in_diff IN_DIFF 0 IP IN 1\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 50 1MEG 100G\n  let gain_db = vdb(OUT_DIFF)\n  meas ac dc_gain find gain_db at=10MEG\n  let gain_3db = dc_gain - 3\n  meas ac bw_3db when gain_db=gain_3db fall=1\n\n  * Transient Analysis\n  tran 10p 30n\n  meas tran vout_max max v(OUT_DIFF)\n  meas tran vout_min min v(OUT_DIFF)\n  let swing = vout_max - vout_min\n  print swing\n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Amplifier / CML Buffer\",\n    \"description\": \"A high-speed differential amplifier (Current Mode Logic buffer) with an active tail current source. The tail current is precisely controlled by an operational amplifier in a negative feedback loop that forces the voltage across the source degeneration resistor to match a reference voltage derived from a resistor divider.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"IP\"\n      ],\n      \"output\": [\n        \"N4\",\n        \"N9\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N2\",\n        \"N6\",\n        \"N10\"\n      ],\n      \"ground\": [\n        \"VCC\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 40\u201343-Gb/s Clock and Data Recovery IC With Integrated SFI-5 1:16 Demultiplexer in SiGe Technology\",\n      \"figure\": \"Unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"7.5 W (entire IC)\",\n        \"technology\": \"120-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * (I_tail + I_bias_divider) = 1.8V * (2mA + 0.12mA) = 3.8 mW\",\n        \"range\": {\n          \"min\": \"2m\",\n          \"typical\": \"3.8m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down to a single stage in 1.8V SKY130 CMOS. The paper's 7.5W is for the entire high-speed IC.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm * Rload. gm \u2248 10mS at 1mA branch current. Gain = 10mS * 300 ohm = 3 V/V = 9.5 dB.\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"9.5\",\n          \"max\": \"15\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical gain for a single-stage high-speed CML buffer designed for wide bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3db\": {\n      \"description\": \"-3dB bandwidth of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40-43 Gb/s (data rate)\",\n        \"technology\": \"120-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW \u2248 1 / (2 * pi * Rload * Cload). With Rload=300 and Cload=10fF + parasitics (~20fF), BW \u2248 26 GHz.\",\n        \"range\": {\n          \"min\": \"5G\",\n          \"typical\": \"15G\",\n          \"max\": \"30G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 NMOS fT is around 40 GHz, so a single stage can achieve 10-20 GHz bandwidth with low load capacitance, lower than the 120-GHz SiGe process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail * Rload = 2mA * 300 ohm = 0.6V single-ended, or 1.2V differential peak-to-peak (max). For 0.2V diff input, output is ~0.6V diff.\",\n        \"range\": {\n          \"min\": \"0.2\",\n          \"typical\": \"0.6\",\n          \"max\": \"1.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on input swing and gain, limited by I_tail * Rload to keep transistors in saturation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, -3dB bandwidth, and transient output swing of the CML amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth_3db\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* CML Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_diff=20u L_diff=0.15u\\n.param W_tail=40u L_tail=0.15u\\n.param R_load=300 R_tail=300\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* AC Coupled Inputs (Differential 1V AC, 0.2V peak transient)\\nVIN_AC IN_AC 0 DC 0 AC -0.5 SIN(0 0.1 100MEG 180 0)\\nVIP_AC IP_AC 0 DC 0 AC 0.5 SIN(0 0.1 100MEG 0 0)\\nCIN IN_AC IN 1u\\nCIP IP_AC IP 1u\\n\\n* Circuit Netlist (NPNs mapped to NMOS)\\nR1 N2 VDD 1\\nR2 IN N2 50\\nR3 N4 VDD {R_load}\\nR4 IP N2 50\\nR5 VDD N6 10k\\nR6 N6 0 5k\\nR7 VDD N9 {R_load}\\nXM1 N4 IP N8 0 sky130_fd_pr__nfet_01v8 W={W_diff} L={L_diff}\\nR8 N3 0 {R_tail}\\nXM3 N8 N10 N3 0 sky130_fd_pr__nfet_01v8 W={W_tail} L={L_tail}\\nXM2 N9 IN N8 0 sky130_fd_pr__nfet_01v8 W={W_diff} L={L_diff}\\nE1 N10 0 N6 N3 1000\\n\\n* Load Capacitors\\nCL1 N4 0 10f\\nCL2 N9 0 10f\\n\\n* Differential Output and Input for Measurement\\nE_out_diff OUT_DIFF 0 N4 N9 1\\nE_in_diff IN_DIFF 0 IP IN 1\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 50 1MEG 100G\\n  let gain_db = vdb(OUT_DIFF)\\n  meas ac dc_gain find gain_db at=10MEG\\n  let gain_3db = dc_gain - 3\\n  meas ac bw_3db when gain_db=gain_3db fall=1\\n\\n  * Transient Analysis\\n  tran 10p 30n\\n  meas tran vout_max max v(OUT_DIFF)\\n  meas tran vout_min min v(OUT_DIFF)\\n  let swing = vout_max - vout_min\\n  print swing\\n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1253863",
+  "_case": "1253863_image_11"
+}

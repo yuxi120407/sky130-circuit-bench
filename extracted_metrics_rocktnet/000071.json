@@ -1,0 +1,181 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Parallel LC Tank Model",
+    "description": "A steady-state parallel LC circuit modeling the resonator of a voltage-controlled oscillator (VCO). It includes the inductor, capacitor, and equivalent parallel resistances representing tank losses and active negative resistance.",
+    "node_mapping": {
+      "input": [
+        "n0"
+      ],
+      "output": [
+        "n0"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "n1"
+      ]
+    },
+    "paper_reference": {
+      "title": "Concepts and Methods in Optimization of Integrated LC VCOs",
+      "figure": "1",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Resonant Frequency": {
+      "description": "The frequency at which the LC tank resonates (impedance phase is zero).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.4 GHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f0 = 1 / (2 * pi * sqrt(L * C))",
+        "range": {
+          "min": "2.0G",
+          "typical": "2.4G",
+          "max": "2.8G",
+          "unit": "Hz"
+        },
+        "reasoning": "Targeting the 2.4 GHz ISM band as reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "Inductance": {
+      "description": "The inductance value of the spiral inductor in the tank.",
+      "unit": "H",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.7 nH",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Direct parameter value",
+        "range": {
+          "min": "2.0n",
+          "typical": "2.7n",
+          "max": "3.5n",
+          "unit": "H"
+        },
+        "reasoning": "Using the paper's optimized inductance value of 2.7 nH."
+      },
+      "importance": "essential"
+    },
+    "Quality Factor (Q)": {
+      "description": "The quality factor of the LC tank, determining phase noise and power dissipation.",
+      "unit": "dimensionless",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Q = f0 / BW",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 15,
+          "unit": ""
+        },
+        "reasoning": "Typical integrated spiral inductors in SKY130 have a Q of 5 to 15 at 2.4 GHz."
+      },
+      "importance": "essential"
+    },
+    "Phase Noise": {
+      "description": "The phase noise of the full VCO at a specific offset frequency.",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-115 dBc/Hz @ 600kHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Leeson's equation",
+        "range": {
+          "min": "-125",
+          "typical": "-115",
+          "max": "-105",
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Phase noise depends on tank Q and active device noise. SKY130 can achieve similar or better performance than 0.35um."
+      },
+      "importance": "essential"
+    },
+    "Tuning Range": {
+      "description": "The percentage variation in oscillation frequency achievable by tuning the varactor.",
+      "unit": "%",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "26%",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "(f_max - f_min) / f_center * 100",
+        "range": {
+          "min": 15,
+          "typical": 25,
+          "max": 30,
+          "unit": "%"
+        },
+        "reasoning": "Using accumulation-mode MOS varactors in SKY130 can yield >20% tuning range."
+      },
+      "importance": "essential"
+    },
+    "Supply Voltage": {
+      "description": "The DC supply voltage for the VCO.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "2 V",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Standard VDD for nominal devices",
+        "range": {
+          "min": "1.62",
+          "typical": "1.8",
+          "max": "1.98",
+          "unit": "V"
+        },
+        "reasoning": "SKY130 nominal core voltage is 1.8V."
+      },
+      "importance": "essential"
+    },
+    "Gain": {
+      "description": "Small-signal loop gain of the oscillator.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0.5 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm * Rp",
+        "range": {
+          "min": "0",
+          "typical": "0.5",
+          "max": "2",
+          "unit": "dB"
+        },
+        "reasoning": "Small signal loop gain must be > 0 dB for reliable startup."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure the resonant frequency, peak impedance, and quality factor of the passive LC tank model. (Note: Phase noise and tuning range require the full active VCO circuit).",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "Resonant Frequency",
+      "Quality Factor (Q)",
+      "Peak Impedance"
+    ],
+    "spice": "* LC Tank Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param L_val=2.7n\n.param C_val=1.63p\n.param R1_val=500\n.param R2_val=500\n\n* DUT\nL1 n0 n1 {L_val}\nR1 n0 n1 {R1_val}\nR2 n0 n1 {R2_val}\nC1 n0 n1 {C_val}\n\n* Ground connection\nVgnd n1 0 DC 0\n\n* AC Current source for impedance measurement\nI1 0 n0 DC 0 AC 1\n\n.control\nac dec 1000 1G 5G\nlet vmag = mag(v(n0))\nlet vphase = 180/PI * cph(v(n0))\n\nmeas ac max_z max vmag\nmeas ac f0 when vphase=0 fall=1\n\n* Calculate -3dB bandwidth to find Q\nlet z_3db = max_z / 1.41421356\nmeas ac f_low when vmag=z_3db rise=1\nmeas ac f_high when vmag=z_3db fall=1\nlet bw = f_high - f_low\nlet Q = f0 / bw\n\nprint max_z f0 Q\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Parallel LC Tank Model\",\n    \"description\": \"A steady-state parallel LC circuit modeling the resonator of a voltage-controlled oscillator (VCO). It includes the inductor, capacitor, and equivalent parallel resistances representing tank losses and active negative resistance.\",\n    \"node_mapping\": {\n      \"input\": [\"n0\"],\n      \"output\": [\"n0\"],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\"n1\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Concepts and Methods in Optimization of Integrated LC VCOs\",\n      \"figure\": \"1\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Resonant Frequency\": {\n      \"description\": \"The frequency at which the LC tank resonates (impedance phase is zero).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.4 GHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f0 = 1 / (2 * pi * sqrt(L * C))\",\n        \"range\": { \"min\": \"2.0G\", \"typical\": \"2.4G\", \"max\": \"2.8G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Targeting the 2.4 GHz ISM band as reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Inductance\": {\n      \"description\": \"The inductance value of the spiral inductor in the tank.\",\n      \"unit\": \"H\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.7 nH\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Direct parameter value\",\n        \"range\": { \"min\": \"2.0n\", \"typical\": \"2.7n\", \"max\": \"3.5n\", \"unit\": \"H\" },\n        \"reasoning\": \"Using the paper's optimized inductance value of 2.7 nH.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Quality Factor (Q)\": {\n      \"description\": \"The quality factor of the LC tank, determining phase noise and power dissipation.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q = f0 / BW\",\n        \"range\": { \"min\": 5, \"typical\": 10, \"max\": 15, \"unit\": \"\" },\n        \"reasoning\": \"Typical integrated spiral inductors in SKY130 have a Q of 5 to 15 at 2.4 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase Noise\": {\n      \"description\": \"The phase noise of the full VCO at a specific offset frequency.\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-115 dBc/Hz @ 600kHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Leeson's equation\",\n        \"range\": { \"min\": \"-125\", \"typical\": \"-115\", \"max\": \"-105\", \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"Phase noise depends on tank Q and active device noise. SKY130 can achieve similar or better performance than 0.35um.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Tuning Range\": {\n      \"description\": \"The percentage variation in oscillation frequency achievable by tuning the varactor.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"26%\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"(f_max - f_min) / f_center * 100\",\n        \"range\": { \"min\": 15, \"typical\": 25, \"max\": 30, \"unit\": \"%\" },\n        \"reasoning\": \"Using accumulation-mode MOS varactors in SKY130 can yield >20% tuning range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Supply Voltage\": {\n      \"description\": \"The DC supply voltage for the VCO.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"2 V\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard VDD for nominal devices\",\n        \"range\": { \"min\": \"1.62\", \"typical\": \"1.8\", \"max\": \"1.98\", \"unit\": \"V\" },\n        \"reasoning\": \"SKY130 nominal core voltage is 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Gain\": {\n      \"description\": \"Small-signal loop gain of the oscillator.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0.5 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm * Rp\",\n        \"range\": { \"min\": \"0\", \"typical\": \"0.5\", \"max\": \"2\", \"unit\": \"dB\" },\n        \"reasoning\": \"Small signal loop gain must be > 0 dB for reliable startup.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure the resonant frequency, peak impedance, and quality factor of the passive LC tank model. (Note: Phase noise and tuning range require the full active VCO circuit).\",\n    \"analyses\": [\"AC\"],\n    \"metrics_measured\": [\"Resonant Frequency\", \"Quality Factor (Q)\", \"Peak Impedance\"],\n    \"spice\": \"* LC Tank Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param L_val=2.7n\\n.param C_val=1.63p\\n.param R1_val=500\\n.param R2_val=500\\n\\n* DUT\\nL1 n0 n1 {L_val}\\nR1 n0 n1 {R1_val}\\nR2 n0 n1 {R2_val}\\nC1 n0 n1 {C_val}\\n\\n* Ground connection\\nVgnd n1 0 DC 0\\n\\n* AC Current source for impedance measurement\\nI1 0 n0 DC 0 AC 1\\n\\n.control\\nac dec 1000 1G 5G\\nlet vmag = mag(v(n0))\\nlet vphase = 180/PI * cph(v(n0))\\n\\nmeas ac max_z max vmag\\nmeas ac f0 when vphase=0 fall=1\\n\\n* Calculate -3dB bandwidth to find Q\\nlet z_3db = max_z / 1.41421356\\nmeas ac f_low when vmag=z_3db rise=1\\nmeas ac f_high when vmag=z_3db fall=1\\nlet bw = f_high - f_low\\nlet Q = f0 / bw\\n\\nprint max_z f0 Q\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "924852",
+  "_case": "924852_image_1"
+}

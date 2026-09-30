@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive RC network (BJT small-signal parasitic model)",
+    "description": "A passive RC network representing the parasitic capacitances and resistances of a bipolar junction transistor. It is used in the paper for open-circuit time constant (OCTC) delay analysis of high-speed CML latches and frequency dividers.",
+    "node_mapping": {
+      "input": [
+        "Base"
+      ],
+      "output": [
+        "Collector",
+        "Emitter"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Design Analysis and Circuit Enhancements for High-Speed Bipolar Flip-Flops",
+      "figure": "Not specified",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Operating_Frequency_Support": {
+      "description": "Maximum frequency supported by the RC time constant of the parasitic network.",
+      "unit": "GHz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "96 GHz",
+        "technology": "Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Bandwidth ~ 1 / (2 * pi * sum(R_i * C_i)). With typical values, tau ~ 1.1ps, yielding ~144 GHz.",
+        "range": {
+          "min": 75,
+          "typical": 144,
+          "max": 200,
+          "unit": "GHz"
+        },
+        "reasoning": "The passive network's time constant must be small enough to not bottleneck the 96 GHz operation reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "DC_Power": {
+      "description": "DC power dissipated by the biasing and parasitic resistors.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "VDD^2 / (RCC + rC + rEX + REE) = 1.8^2 / 125",
+        "range": {
+          "min": 0.01,
+          "typical": 0.026,
+          "max": 0.05,
+          "unit": "W"
+        },
+        "reasoning": "Based on assumed typical parasitic and load resistor values for a high-speed CML stage."
+      },
+      "importance": "recommended"
+    },
+    "High_Freq_Gain": {
+      "description": "AC coupling gain from Base to Collector at high frequencies.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(RCC / (RCC + rC)) = 20 * log10(100/110)",
+        "range": {
+          "min": -2,
+          "typical": -0.8,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "At high frequencies, capacitors act as shorts, and the gain is determined by the resistor divider."
+      },
+      "importance": "optional"
+    },
+    "Peak_Transient_Voltage": {
+      "description": "Peak voltage at the Collector during a step input at the Base.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "V_DC + V_step * Gain_HF = 0.36 + 1 * 0.909",
+        "range": {
+          "min": 1.0,
+          "typical": 1.27,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "The step input couples through the capacitors, adding to the DC bias voltage."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, high-frequency AC gain, and transient step response of the BJT parasitic RC network.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Power",
+      "High_Freq_Gain",
+      "Peak_Transient_Voltage"
+    ],
+    "spice": "* Testbench for BJT Parasitic RC Network\n.lib \"${SKY130_PDK}\" tt\n\n.param c_diff=10f c_je=5f c_cbi=2f c_cbx=2f\n.param r_bb=50 r_ex=5 r_c=10 r_cc=100 r_ee=10\n\n* DUT\nCDIFF N0 N1 {c_diff}\nCJE N0 N1 {c_je}\nCCBI N0 N1 {c_cbi}\nCCBX N0 Base {c_cbx}\nrBB N1 Base {r_bb}\nrEX N0 Emitter {r_ex}\nrC N0 Collector {r_c}\nRCC VDD Collector {r_cc}\nREE Emitter GND {r_ee}\n\n* Sources\nVVDD VDD 0 DC 1.8\nVBase Base 0 DC 0 AC 1 PULSE(0 1 10p 1p 1p 100p 200p)\n\n.control\n* DC Analysis\nop\nlet dc_power = -i(VVDD) * 1.8\nprint dc_power\n\n* AC Analysis\nac dec 100 1G 1000G\nlet gain_db = vdb(Collector)\nmeas ac gain_100g find gain_db at=100G\n\n* Transient Analysis\ntran 0.1p 50p\nmeas tran v_col_peak max v(Collector)\nmeas tran t_peak max_at v(Collector)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive RC network (BJT small-signal parasitic model)\",\n    \"description\": \"A passive RC network representing the parasitic capacitances and resistances of a bipolar junction transistor. It is used in the paper for open-circuit time constant (OCTC) delay analysis of high-speed CML latches and frequency dividers.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Base\"\n      ],\n      \"output\": [\n        \"Collector\",\n        \"Emitter\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Design Analysis and Circuit Enhancements for High-Speed Bipolar Flip-Flops\",\n      \"figure\": \"Not specified\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Operating_Frequency_Support\": {\n      \"description\": \"Maximum frequency supported by the RC time constant of the parasitic network.\",\n      \"unit\": \"GHz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"96 GHz\",\n        \"technology\": \"Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bandwidth ~ 1 / (2 * pi * sum(R_i * C_i)). With typical values, tau ~ 1.1ps, yielding ~144 GHz.\",\n        \"range\": {\n          \"min\": 75,\n          \"typical\": 144,\n          \"max\": 200,\n          \"unit\": \"GHz\"\n        },\n        \"reasoning\": \"The passive network's time constant must be small enough to not bottleneck the 96 GHz operation reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"DC_Power\": {\n      \"description\": \"DC power dissipated by the biasing and parasitic resistors.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD^2 / (RCC + rC + rEX + REE) = 1.8^2 / 125\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.026,\n          \"max\": 0.05,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on assumed typical parasitic and load resistor values for a high-speed CML stage.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"High_Freq_Gain\": {\n      \"description\": \"AC coupling gain from Base to Collector at high frequencies.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(RCC / (RCC + rC)) = 20 * log10(100/110)\",\n        \"range\": {\n          \"min\": -2,\n          \"typical\": -0.8,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"At high frequencies, capacitors act as shorts, and the gain is determined by the resistor divider.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Peak_Transient_Voltage\": {\n      \"description\": \"Peak voltage at the Collector during a step input at the Base.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_DC + V_step * Gain_HF = 0.36 + 1 * 0.909\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.27,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The step input couples through the capacitors, adding to the DC bias voltage.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, high-frequency AC gain, and transient step response of the BJT parasitic RC network.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Power\",\n      \"High_Freq_Gain\",\n      \"Peak_Transient_Voltage\"\n    ],\n    \"spice\": \"* Testbench for BJT Parasitic RC Network\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param c_diff=10f c_je=5f c_cbi=2f c_cbx=2f\\n.param r_bb=50 r_ex=5 r_c=10 r_cc=100 r_ee=10\\n\\n* DUT\\nCDIFF N0 N1 {c_diff}\\nCJE N0 N1 {c_je}\\nCCBI N0 N1 {c_cbi}\\nCCBX N0 Base {c_cbx}\\nrBB N1 Base {r_bb}\\nrEX N0 Emitter {r_ex}\\nrC N0 Collector {r_c}\\nRCC VDD Collector {r_cc}\\nREE Emitter GND {r_ee}\\n\\n* Sources\\nVVDD VDD 0 DC 1.8\\nVBase Base 0 DC 0 AC 1 PULSE(0 1 10p 1p 1p 100p 200p)\\n\\n.control\\n* DC Analysis\\nop\\nlet dc_power = -i(VVDD) * 1.8\\nprint dc_power\\n\\n* AC Analysis\\nac dec 100 1G 1000G\\nlet gain_db = vdb(Collector)\\nmeas ac gain_100g find gain_db at=100G\\n\\n* Transient Analysis\\ntran 0.1p 50p\\nmeas tran v_col_peak max v(Collector)\\nmeas tran t_peak max_at v(Collector)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1425724",
+  "_case": "1425724_image_6"
+}

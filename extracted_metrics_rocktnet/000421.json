@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Double-balanced active mixer (Gilbert cell)",
+    "description": "Downconverts an RF signal to an IF or baseband frequency using a local oscillator (LO). It consists of a differential transconductance stage for the RF input, a switching quad for the LO, and a passive RC load.",
+    "node_mapping": {
+      "input": [
+        "Vin",
+        "Vinb",
+        "LO",
+        "LOb"
+      ],
+      "output": [
+        "Vo",
+        "Vob"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Single-Chip Tuner for DVB-T",
+      "figure": "unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Voltage conversion gain from the RF input to the IF output.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "14 dB",
+        "technology": "unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Gm = gm / (1 + gm*RE) \u2248 11.7 mS. Gain = (2/\u03c0) * Gm * RL = 0.636 * 11.7m * 500 = 3.72 V/V = 11.4 dB.",
+        "range": {
+          "min": 8,
+          "typical": 11.4,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on the tail current, degeneration resistor (RE), and load resistor (RL). Adjusted for 1.8V headroom in SKY130."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the mixer core.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly isolated",
+        "technology": "unknown"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 2mA, VDD = 1.8V. Power = 2mA * 1.8V = 3.6mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0036,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Typical power budget for a single mixer stage in a receiver front-end."
+      },
+      "importance": "essential"
+    },
+    "if_bandwidth": {
+      "description": "3dB bandwidth of the IF output port.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3DB",
+        "technology": "unknown"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * \u03c0 * RL * CL) = 1 / (2 * \u03c0 * 500 * 2pF) = 159 MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 159000000.0,
+          "max": 500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the RC time constant of the load. 159 MHz is more than sufficient for DVB-T baseband/IF."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures conversion gain and power consumption using a transient analysis with a 10 MHz IF, and measures IF bandwidth using an AC analysis by unbalancing the LO quad.",
+    "analyses": [
+      "Tran",
+      "AC"
+    ],
+    "metrics_measured": [
+      "conversion_gain",
+      "power_consumption",
+      "if_bandwidth"
+    ],
+    "spice": "* Gilbert Cell Mixer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_rf=50 L_rf=0.15\n.param W_lo=20 L_lo=0.15\n.param RL=500 RE=10 CL=2p I_tail=2m\n\n* DUT\nX1 N1 Vin N3 0 sky130_fd_pr__nfet_01v8 w={W_rf} l={L_rf}\nX2 N2 Vinb N4 0 sky130_fd_pr__nfet_01v8 w={W_rf} l={L_rf}\nX3 Vob LO N1 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\nX4 Vo LOb N1 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\nX5 Vob LOb N2 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\nX6 Vo LO N2 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\n\nR1 VCC Vob {RL}\nR2 VCC Vo {RL}\nR3 N4 N5 {RE}\nR4 N3 N5 {RE}\nC1 Vo VCC {CL}\nC2 Vob VCC {CL}\nI1 N5 VEE {I_tail}\n\n* Supplies\nVVCC VCC 0 DC 1.8\nVVEE VEE 0 DC 0\n\n* RF Inputs (930 MHz, 10mV peak per side)\nVRF Vin 0 DC 0.9 AC 1 SIN(0.9 0.01 930MEG 0 0 0)\nVRFB Vinb 0 DC 0.9 AC 1 180 SIN(0.9 0.01 930MEG 0 0 180)\n\n* LO Inputs (920 MHz, 300mV peak per side)\nVLO LO 0 DC 1.3 SIN(1.3 0.3 920MEG 0 0 0)\nVLOB LOb 0 DC 1.3 SIN(1.3 0.3 920MEG 0 0 180)\n\n* Differential Output Calculation\nB1 Vdiff 0 V=v(Vo)-v(Vob)\n\n.control\n* 1. Transient Analysis for Conversion Gain and Power\n* IF is 10 MHz (Period = 100ns). Run for 300ns, measure last 100ns.\ntran 10p 300n\nmeas tran vout_max max v(Vdiff) from=200n to=300n\nmeas tran vout_min min v(Vdiff) from=200n to=300n\nlet vout_pp = vout_max - vout_min\n* Input RF is 20mV peak-to-peak differential\nlet conv_gain = vout_pp / 0.02\nlet conv_gain_db = 20 * log10(conv_gain)\nprint conv_gain_db\n\nmeas tran pwr_avg avg i(VVCC) from=200n to=300n\nlet power = -pwr_avg * 1.8\nprint power\n\n* 2. AC Analysis for IF Bandwidth\n* Unbalance the LO to make the mixer act as a cascode amplifier\nalter VLO dc = 1.8\nalter VLOB dc = 0\nac dec 10 1Meg 10Gig\nlet gain_ac = vdb(Vdiff)\nmeas ac max_gain max gain_ac\nlet gain_3db = max_gain - 3\nmeas ac bw_3db when gain_ac=gain_3db fall=1\nprint bw_3db\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Double-balanced active mixer (Gilbert cell)\",\n    \"description\": \"Downconverts an RF signal to an IF or baseband frequency using a local oscillator (LO). It consists of a differential transconductance stage for the RF input, a switching quad for the LO, and a passive RC load.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vin\",\n        \"Vinb\",\n        \"LO\",\n        \"LOb\"\n      ],\n      \"output\": [\n        \"Vo\",\n        \"Vob\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"VEE\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Single-Chip Tuner for DVB-T\",\n      \"figure\": \"unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Voltage conversion gain from the RF input to the IF output.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"14 dB\",\n        \"technology\": \"unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm = gm / (1 + gm*RE) \u2248 11.7 mS. Gain = (2/\u03c0) * Gm * RL = 0.636 * 11.7m * 500 = 3.72 V/V = 11.4 dB.\",\n        \"range\": {\n          \"min\": 8,\n          \"typical\": 11.4,\n          \"max\": 15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on the tail current, degeneration resistor (RE), and load resistor (RL). Adjusted for 1.8V headroom in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the mixer core.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly isolated\",\n        \"technology\": \"unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 2mA, VDD = 1.8V. Power = 2mA * 1.8V = 3.6mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 3.6e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Typical power budget for a single mixer stage in a receiver front-end.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"if_bandwidth\": {\n      \"description\": \"3dB bandwidth of the IF output port.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3DB\",\n        \"technology\": \"unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * \u03c0 * RL * CL) = 1 / (2 * \u03c0 * 500 * 2pF) = 159 MHz.\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 159e6,\n          \"max\": 500e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the RC time constant of the load. 159 MHz is more than sufficient for DVB-T baseband/IF.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures conversion gain and power consumption using a transient analysis with a 10 MHz IF, and measures IF bandwidth using an AC analysis by unbalancing the LO quad.\",\n    \"analyses\": [\n      \"Tran\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"conversion_gain\",\n      \"power_consumption\",\n      \"if_bandwidth\"\n    ],\n    \"spice\": \"* Gilbert Cell Mixer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_rf=50 L_rf=0.15\\n.param W_lo=20 L_lo=0.15\\n.param RL=500 RE=10 CL=2p I_tail=2m\\n\\n* DUT\\nX1 N1 Vin N3 0 sky130_fd_pr__nfet_01v8 w={W_rf} l={L_rf}\\nX2 N2 Vinb N4 0 sky130_fd_pr__nfet_01v8 w={W_rf} l={L_rf}\\nX3 Vob LO N1 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\\nX4 Vo LOb N1 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\\nX5 Vob LOb N2 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\\nX6 Vo LO N2 0 sky130_fd_pr__nfet_01v8 w={W_lo} l={L_lo}\\n\\nR1 VCC Vob {RL}\\nR2 VCC Vo {RL}\\nR3 N4 N5 {RE}\\nR4 N3 N5 {RE}\\nC1 Vo VCC {CL}\\nC2 Vob VCC {CL}\\nI1 N5 VEE {I_tail}\\n\\n* Supplies\\nVVCC VCC 0 DC 1.8\\nVVEE VEE 0 DC 0\\n\\n* RF Inputs (930 MHz, 10mV peak per side)\\nVRF Vin 0 DC 0.9 AC 1 SIN(0.9 0.01 930MEG 0 0 0)\\nVRFB Vinb 0 DC 0.9 AC 1 180 SIN(0.9 0.01 930MEG 0 0 180)\\n\\n* LO Inputs (920 MHz, 300mV peak per side)\\nVLO LO 0 DC 1.3 SIN(1.3 0.3 920MEG 0 0 0)\\nVLOB LOb 0 DC 1.3 SIN(1.3 0.3 920MEG 0 0 180)\\n\\n* Differential Output Calculation\\nB1 Vdiff 0 V=v(Vo)-v(Vob)\\n\\n.control\\n* 1. Transient Analysis for Conversion Gain and Power\\n* IF is 10 MHz (Period = 100ns). Run for 300ns, measure last 100ns.\\ntran 10p 300n\\nmeas tran vout_max max v(Vdiff) from=200n to=300n\\nmeas tran vout_min min v(Vdiff) from=200n to=300n\\nlet vout_pp = vout_max - vout_min\\n* Input RF is 20mV peak-to-peak differential\\nlet conv_gain = vout_pp / 0.02\\nlet conv_gain_db = 20 * log10(conv_gain)\\nprint conv_gain_db\\n\\nmeas tran pwr_avg avg i(VVCC) from=200n to=300n\\nlet power = -pwr_avg * 1.8\\nprint power\\n\\n* 2. AC Analysis for IF Bandwidth\\n* Unbalance the LO to make the mixer act as a cascode amplifier\\nalter VLO dc = 1.8\\nalter VLOB dc = 0\\nac dec 10 1Meg 10Gig\\nlet gain_ac = vdb(Vdiff)\\nmeas ac max_gain max gain_ac\\nlet gain_3db = max_gain - 3\\nmeas ac bw_3db when gain_ac=gain_3db fall=1\\nprint bw_3db\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1214723",
+  "_case": "1214723_image_7"
+}

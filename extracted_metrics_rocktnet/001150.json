@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Preamplifier / Clocked Comparator Stage",
+    "description": "A clocked differential preamplifier used in the flash ADC of the receiver. It precharges the output nodes to VDD when the clock is low, and integrates the differential input voltage onto the output nodes when the clock is high, providing voltage gain before a subsequent regenerative latch stage.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "VREF",
+        "CLK",
+        "CLK_B"
+      ],
+      "output": [
+        "OUTP",
+        "OUTM"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Serial-Link Transceiver Based on 8-GSamples/s A/D and D/A Converters in 0.25-m CMOS",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Differential voltage gain at the end of the evaluation phase.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10 dB",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * t_int / C_load. With I_tail=100uA, gm~1mA/V, t_int=300ps, C_load=20fF, Gain ~ 15 V/V = 23 dB. With higher parasitics or shorter integration, expect ~10-15 dB.",
+        "range": {
+          "min": 8,
+          "typical": 12,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the integration time and load capacitance. Adjusted for Sky130 1.8V process."
+      },
+      "importance": "essential"
+    },
+    "evaluation_delay": {
+      "description": "Time from clock rising edge to the output dropping by 0.3V (to 1.5V).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10 ps (likely clock skew/resolution)",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "dt = C * dV / I = 20fF * 0.3V / 75uA = 80ps.",
+        "range": {
+          "min": 5e-11,
+          "typical": 8e-11,
+          "max": 1.5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Calculated based on tail current discharging the load capacitance."
+      },
+      "importance": "essential"
+    },
+    "precharge_time": {
+      "description": "Time required to precharge the outputs back to VDD after the clock falls.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "dt = C * dV / I_PMOS = 20fF * 0.7V / 470uA = 30ps.",
+        "range": {
+          "min": 2e-11,
+          "typical": 4e-11,
+          "max": 8e-11,
+          "unit": "s"
+        },
+        "reasoning": "Limited by the PMOS pull-up strength and load capacitance."
+      },
+      "importance": "recommended"
+    },
+    "average_power": {
+      "description": "Average power consumption at 1 GHz clock frequency.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Static power (100uA * 50% duty cycle) + Dynamic power (2 * 20fF * 1V * 1GHz) = 50uA + 40uA = 90uA. Power = 1.8V * 90uA = 162uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00016,
+          "max": 0.00025,
+          "unit": "W"
+        },
+        "reasoning": "Based on 1GHz operation and estimated tail current."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure voltage gain, evaluation delay, precharge time, and average power of the dynamic preamplifier.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "evaluation_delay",
+      "precharge_time",
+      "average_power"
+    ],
+    "spice": "* Dynamic Preamplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\nVVDD VDD 0 1.8\nVBIAS BIAS 0 0.7\nVVREF VREF 0 0.9\nVINP INP 0 0.95\nVCLK CLK 0 PULSE(0 1.8 0.1n 20p 20p 0.4n 1n)\nVCLKB CLK_B 0 PULSE(0 1.8 0.1n 20p 20p 0.4n 1n)\n\nC1 OUTP 0 20f\nC2 OUTM 0 20f\n\nXM5 OUTP CLK_B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUTM CLK_B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM3 TAIL CLK N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM1 TAIL CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUTP OUTM CLK_B VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM7 OUTP VREF TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 OUTM INP TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\n.control\ntran 1p 3n\n\n* Measure evaluation delay (time for OUTM to drop to 1.5V)\nmeas tran delay_eval trig v(clk) val=0.9 rise=1 targ v(outm) val=1.5 fall=1\n\n* Measure voltages at 0.4ns (300ps after CLK rises)\nmeas tran v_outm_eval find v(outm) at=0.4n\nmeas tran v_outp_eval find v(outp) at=0.4n\n\n* Calculate gain\nlet vdiff_out = v_outp_eval - v_outm_eval\nlet gain = vdiff_out / 0.05\nlet gain_db = 20 * log10(abs(gain))\nprint gain gain_db\n\n* Measure precharge time\nmeas tran t_precharge trig v(clk) val=0.9 fall=1 targ v(outm) val=1.7 rise=1\n\n* Measure average power\nlet power = -i(VVDD) * 1.8\nmeas tran avg_power avg power from=0 to=2n\nprint avg_power\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Preamplifier / Clocked Comparator Stage\",\n    \"description\": \"A clocked differential preamplifier used in the flash ADC of the receiver. It precharges the output nodes to VDD when the clock is low, and integrates the differential input voltage onto the output nodes when the clock is high, providing voltage gain before a subsequent regenerative latch stage.\",\n    \"node_mapping\": {\n      \"input\": [\"INP\", \"VREF\", \"CLK\", \"CLK_B\"],\n      \"output\": [\"OUTP\", \"OUTM\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"BIAS\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Serial-Link Transceiver Based on 8-GSamples/s A/D and D/A Converters in 0.25-m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Differential voltage gain at the end of the evaluation phase.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10 dB\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * t_int / C_load. With I_tail=100uA, gm~1mA/V, t_int=300ps, C_load=20fF, Gain ~ 15 V/V = 23 dB. With higher parasitics or shorter integration, expect ~10-15 dB.\",\n        \"range\": { \"min\": 8, \"typical\": 12, \"max\": 20, \"unit\": \"dB\" },\n        \"reasoning\": \"Depends heavily on the integration time and load capacitance. Adjusted for Sky130 1.8V process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"evaluation_delay\": {\n      \"description\": \"Time from clock rising edge to the output dropping by 0.3V (to 1.5V).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10 ps (likely clock skew/resolution)\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dt = C * dV / I = 20fF * 0.3V / 75uA = 80ps.\",\n        \"range\": { \"min\": 50e-12, \"typical\": 80e-12, \"max\": 150e-12, \"unit\": \"s\" },\n        \"reasoning\": \"Calculated based on tail current discharging the load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"precharge_time\": {\n      \"description\": \"Time required to precharge the outputs back to VDD after the clock falls.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dt = C * dV / I_PMOS = 20fF * 0.7V / 470uA = 30ps.\",\n        \"range\": { \"min\": 20e-12, \"typical\": 40e-12, \"max\": 80e-12, \"unit\": \"s\" },\n        \"reasoning\": \"Limited by the PMOS pull-up strength and load capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"average_power\": {\n      \"description\": \"Average power consumption at 1 GHz clock frequency.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static power (100uA * 50% duty cycle) + Dynamic power (2 * 20fF * 1V * 1GHz) = 50uA + 40uA = 90uA. Power = 1.8V * 90uA = 162uW.\",\n        \"range\": { \"min\": 100e-6, \"typical\": 160e-6, \"max\": 250e-6, \"unit\": \"W\" },\n        \"reasoning\": \"Based on 1GHz operation and estimated tail current.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure voltage gain, evaluation delay, precharge time, and average power of the dynamic preamplifier.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"voltage_gain\", \"evaluation_delay\", \"precharge_time\", \"average_power\"],\n    \"spice\": \"* Dynamic Preamplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\nVVDD VDD 0 1.8\\nVBIAS BIAS 0 0.7\\nVVREF VREF 0 0.9\\nVINP INP 0 0.95\\nVCLK CLK 0 PULSE(0 1.8 0.1n 20p 20p 0.4n 1n)\\nVCLKB CLK_B 0 PULSE(0 1.8 0.1n 20p 20p 0.4n 1n)\\n\\nC1 OUTP 0 20f\\nC2 OUTM 0 20f\\n\\nXM5 OUTP CLK_B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUTM CLK_B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM3 TAIL CLK N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM1 TAIL CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUTP OUTM CLK_B VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM7 OUTP VREF TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 OUTM INP TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\n.control\\ntran 1p 3n\\n\\n* Measure evaluation delay (time for OUTM to drop to 1.5V)\\nmeas tran delay_eval trig v(clk) val=0.9 rise=1 targ v(outm) val=1.5 fall=1\\n\\n* Measure voltages at 0.4ns (300ps after CLK rises)\\nmeas tran v_outm_eval find v(outm) at=0.4n\\nmeas tran v_outp_eval find v(outp) at=0.4n\\n\\n* Calculate gain\\nlet vdiff_out = v_outp_eval - v_outm_eval\\nlet gain = vdiff_out / 0.05\\nlet gain_db = 20 * log10(abs(gain))\\nprint gain gain_db\\n\\n* Measure precharge time\\nmeas tran t_precharge trig v(clk) val=0.9 fall=1 targ v(outm) val=1.7 rise=1\\n\\n* Measure average power\\nlet power = -i(VVDD) * 1.8\\nmeas tran avg_power avg power from=0 to=2n\\nprint avg_power\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "962288",
+  "_case": "962288_image_4"
+}

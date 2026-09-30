@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Edge Detector / Frequency Doubler",
+    "description": "The circuit uses an inverter (XM2, XM4) and two NMOS pull-down transistors (XM3, XM5) to drive a diode-connected PMOS load (XM1, XM6). It generates a voltage pulse at the output whenever the input transitions across the inverter's threshold, effectively acting as an edge detector or frequency doubler.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ],
+      "internal": [
+        "N1"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Pseudo-CCM/DCM SIMO Switching Converter With Freewheel Switching",
+      "figure": "Unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "VOUT_peak": {
+      "description": "Peak voltage of the output pulse during input transition",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "At VIN = Vinv (~0.71V), both NMOS are in saturation. I_total = 2 * 0.5 * 2.7m * (0.71 - 0.42)^2 = 226uA. PMOS load Vsg = sqrt(226uA / 0.5m) + 0.42 = 1.09V. VOUT = 1.8 - 1.09 = 0.71V.",
+        "range": {
+          "min": 0.6,
+          "typical": 0.71,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "Depends on exact threshold and mobility in SKY130."
+      },
+      "importance": "essential"
+    },
+    "VOUT_low": {
+      "description": "Baseline output voltage when input is static (0 or VDD)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "When IN=1.8V, XM3 is ON with Vgs=1.8V. It enters linear region. Equating linear NMOS current with saturated PMOS load current gives VOUT ~ 0.2V.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.2,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the strength ratio of the NMOS pull-down vs PMOS diode load."
+      },
+      "importance": "essential"
+    },
+    "Pulse_Width": {
+      "description": "Full width at half maximum (FWHM) of the output pulse",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With a 10ns input rise time, the input stays in the transition region (where both NMOS are weakly ON) for about 4ns.",
+        "range": {
+          "min": 2e-09,
+          "typical": 4e-09,
+          "max": 6e-09,
+          "unit": "s"
+        },
+        "reasoning": "Directly proportional to the input slew rate."
+      },
+      "importance": "recommended"
+    },
+    "Power_avg": {
+      "description": "Average power consumption of the circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "320 mW (whole system)",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Static current is ~0.6mA when output is low. 0.6mA * 1.8V = 1.08mW.",
+        "range": {
+          "min": 0.0008,
+          "typical": 0.0011,
+          "max": 0.0015,
+          "unit": "W"
+        },
+        "reasoning": "Dominated by the static current drawn by the ON NMOS and PMOS load."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the edge detector's pulse characteristics and power consumption.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "VOUT_peak",
+      "VOUT_low",
+      "Pulse_Width",
+      "Power_avg"
+    ],
+    "spice": "* Edge Detector Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 OUT OUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 OUT IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N1 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUT N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUT OUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\nVVDD VDD 0 1.8\n* 1MHz clock with 10ns rise/fall times\nVIN IN 0 PULSE(0 1.8 100n 10n 10n 390n 1u)\n\n.control\n* DC Sweep to find static transfer characteristics\ndc VIN 0 1.8 0.01\nmeas dc vout_dc_peak max v(out)\nmeas dc vout_dc_low find v(out) at=1.8\n\n* Transient analysis for pulse characteristics\ntran 0.1n 2u\nmeas tran vout_peak max v(out) from=90n to=130n\nmeas tran vout_low min v(out) from=0 to=90n\n\n* Measure pulse width at ~0.45V (approximate half maximum)\nmeas tran pulse_width trig v(out) val=0.45 rise=1 targ v(out) val=0.45 fall=1\n\n* Measure average power\nmeas tran pwr_avg avg i(VVDD)\nlet power_mw = -pwr_avg * 1.8 * 1000\nprint power_mw\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Edge Detector / Frequency Doubler\",\n    \"description\": \"The circuit uses an inverter (XM2, XM4) and two NMOS pull-down transistors (XM3, XM5) to drive a diode-connected PMOS load (XM1, XM6). It generates a voltage pulse at the output whenever the input transitions across the inverter's threshold, effectively acting as an edge detector or frequency doubler.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"internal\": [\n        \"N1\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Pseudo-CCM/DCM SIMO Switching Converter With Freewheel Switching\",\n      \"figure\": \"Unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"VOUT_peak\": {\n      \"description\": \"Peak voltage of the output pulse during input transition\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At VIN = Vinv (~0.71V), both NMOS are in saturation. I_total = 2 * 0.5 * 2.7m * (0.71 - 0.42)^2 = 226uA. PMOS load Vsg = sqrt(226uA / 0.5m) + 0.42 = 1.09V. VOUT = 1.8 - 1.09 = 0.71V.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.71,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on exact threshold and mobility in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"VOUT_low\": {\n      \"description\": \"Baseline output voltage when input is static (0 or VDD)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When IN=1.8V, XM3 is ON with Vgs=1.8V. It enters linear region. Equating linear NMOS current with saturated PMOS load current gives VOUT ~ 0.2V.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.2,\n          \"max\": 0.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the strength ratio of the NMOS pull-down vs PMOS diode load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Pulse_Width\": {\n      \"description\": \"Full width at half maximum (FWHM) of the output pulse\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 10ns input rise time, the input stays in the transition region (where both NMOS are weakly ON) for about 4ns.\",\n        \"range\": {\n          \"min\": 2e-9,\n          \"typical\": 4e-9,\n          \"max\": 6e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Directly proportional to the input slew rate.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Power_avg\": {\n      \"description\": \"Average power consumption of the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"320 mW (whole system)\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static current is ~0.6mA when output is low. 0.6mA * 1.8V = 1.08mW.\",\n        \"range\": {\n          \"min\": 0.8e-3,\n          \"typical\": 1.1e-3,\n          \"max\": 1.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dominated by the static current drawn by the ON NMOS and PMOS load.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the edge detector's pulse characteristics and power consumption.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"VOUT_peak\",\n      \"VOUT_low\",\n      \"Pulse_Width\",\n      \"Power_avg\"\n    ],\n    \"spice\": \"* Edge Detector Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 OUT OUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 OUT IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N1 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUT N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUT OUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVVDD VDD 0 1.8\\n* 1MHz clock with 10ns rise/fall times\\nVIN IN 0 PULSE(0 1.8 100n 10n 10n 390n 1u)\\n\\n.control\\n* DC Sweep to find static transfer characteristics\\ndc VIN 0 1.8 0.01\\nmeas dc vout_dc_peak max v(out)\\nmeas dc vout_dc_low find v(out) at=1.8\\n\\n* Transient analysis for pulse characteristics\\ntran 0.1n 2u\\nmeas tran vout_peak max v(out) from=90n to=130n\\nmeas tran vout_low min v(out) from=0 to=90n\\n\\n* Measure pulse width at ~0.45V (approximate half maximum)\\nmeas tran pulse_width trig v(out) val=0.45 rise=1 targ v(out) val=0.45 fall=1\\n\\n* Measure average power\\nmeas tran pwr_avg avg i(VVDD)\\nlet power_mw = -pwr_avg * 1.8 * 1000\\nprint power_mw\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1202003",
+  "_case": "1202003_image_9"
+}

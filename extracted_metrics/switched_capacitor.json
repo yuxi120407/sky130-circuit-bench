@@ -1,0 +1,125 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig. 25.18 (Standard Switched-Capacitor Integrator)",
+    "page": "800",
+    "circuit_type": "Switched Capacitor Integrator with Two-Stage OTA",
+    "description": "A discrete-time integrator circuit using a two-stage operational transconductance amplifier (OTA), transmission gate switches, and sampling/holding capacitors to transfer and integrate charge over non-overlapping clock phases."
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "The DC open-loop voltage gain of the two-stage OTA.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "750",
+        "reference": "Eq. 24.15"
+      },
+      "equation": {
+        "formula": "A_OL = g_{m1} (r_{o2} || r_{o4}) * g_{m5} (r_{o5} || r_{o6})",
+        "explanation": "Product of the intrinsic gains of the first differential stage and the second common-source stage.",
+        "assumptions": "Assumes the OTA is biased in the saturation region and switches are open."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming typical bias current Itail \u2248 300uA (from 18k bias resistor and 1:4 mirror). ID1 = 150uA. gm1 \u2248 1mA/V. ro2 \u2248 1/(lambda*ID) = 1/(0.1*150uA) = 66kOhm. Stage 1 gain \u2248 1m * 33k = 33 V/V. Stage 2 ID5 \u2248 500uA, gm5 \u2248 2mA/V, ro5 \u2248 20kOhm. Stage 2 gain \u2248 2m * 10k = 20 V/V. Total gain = 33 * 20 = 660 V/V = 56 dB.",
+        "range": {
+          "min": 40,
+          "typical": 56,
+          "max": 70,
+          "unit": "dB"
+        },
+        "reasoning": "Gain is heavily dependent on the exact parameterized W/L ratios and resulting channel lengths, but typical two-stage OTAs in 130nm achieve 40-70 dB."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "The maximum rate of change of the output voltage during the charge transfer phase.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "755",
+        "reference": "Eq. 24.22"
+      },
+      "equation": {
+        "formula": "SR = I_{tail} / C_c",
+        "explanation": "The slew rate is limited by the tail current charging the Miller compensation capacitor.",
+        "assumptions": "Assumes the load capacitor CLOAD is small enough that the internal slew rate dominates."
+      },
+      "sky130_expected": {
+        "calculation": "I_tail \u2248 300uA. C_c = 2pF. SR = 300uA / 2pF = 150 V/us.",
+        "range": {
+          "min": 50,
+          "typical": 150,
+          "max": 250,
+          "unit": "V/us"
+        },
+        "reasoning": "Depends on the exact bias current set by the parameterized W/L of the bias mirror, but 150 V/us is typical for a 2pF compensation cap with ~300uA tail current."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total static power dissipation of the OTA and bias circuitry.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "760",
+        "reference": "Eq. 24.30"
+      },
+      "equation": {
+        "formula": "P = V_{DD} * (I_{bias} + I_{tail} + I_{stage2})",
+        "explanation": "Sum of all DC currents drawn from the VDD supply multiplied by VDD.",
+        "assumptions": "Dynamic power from switching is negligible compared to static OTA power."
+      },
+      "sky130_expected": {
+        "calculation": "I_bias \u2248 (1.8V - 0.42V) / 18kOhm \u2248 76uA. I_tail = 4 * 76uA = 304uA. I_stage2 \u2248 500uA. Total current \u2248 880uA. Power = 1.8V * 880uA = 1.58 mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.00158,
+          "max": 0.003,
+          "unit": "W"
+        },
+        "reasoning": "Static power is dominated by the Class-A second stage and the differential pair tail current."
+      },
+      "importance": "essential"
+    },
+    "voltage_step": {
+      "description": "The discrete change in output voltage per clock cycle during integration.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "802",
+        "reference": "Eq. 25.12"
+      },
+      "equation": {
+        "formula": "\\Delta V_{out} = \\frac{C_{samp}}{C_{hold}} (V_{in} - V_{ref})",
+        "explanation": "Charge sampled on Csamp is transferred to Chold, causing a proportional step in the output voltage.",
+        "assumptions": "Assumes ideal charge transfer, infinite OTA gain, and complete settling."
+      },
+      "sky130_expected": {
+        "calculation": "C_samp = 2pF, C_hold = 2pF. Ratio = 1. If V_in is set to 1.0V and V_ref is 0.9V, the step is 1 * (1.0 - 0.9) = 0.1V.",
+        "range": {
+          "min": 0.09,
+          "typical": 0.1,
+          "max": 0.11,
+          "unit": "V"
+        },
+        "reasoning": "Determined strictly by the capacitor ratio and input voltages, with minor errors from charge injection and finite OTA gain."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC power dissipation, transient voltage swing, and slew rate of the switched capacitor integrator. Missing parameters and clock sources are injected to make the parameterized netlist runnable.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "v_max",
+      "v_min",
+      "slew_rate"
+    ],
+    "spice": "* Switched Capacitor Integrator Testbench\n.lib ${SKY130_PDK} tt\n\n* --- DUT Netlist ---\n* Switched Capacitor Integrator Circuit\n.global VDD GND\n.temp 27\n\n* Transmission gate switch subcircuit\n.subckt SWMOD in out ctrl\nXN in ctrl out GND sky130_fd_pr__nfet_01v8 l={L_XN} w={W_XN} m=2\nXP in ctrl out VDD sky130_fd_pr__pfet_01v8 l={L_XP} w={W_XP} m=2\n.ends\n\n* Two-stage OTA for switched capacitor circuit\nXM1 VD1 VIN_P VTAIL GND sky130_fd_pr__nfet_01v8 l={L_XM1} w={W_XM1} m=4\nXM2 VD2 VIN_N VTAIL GND sky130_fd_pr__nfet_01v8 l={L_XM2} w={W_XM2} m=4\nXMTAIL VTAIL VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*2} w={W_XMTAIL} m=4\nXM3 VD1 VD1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM3} w={W_XM3} m=4\nXM4 VD2 VD1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM4} w={W_XM4} m=4\nXM5 VOUT VD2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM5} w={15*4} m=4\nXM6 VOUT VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*2} w={15*2} m={4/2}\nCC VD2 VOUT 2p\nXMBIAS VBIAS VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*4} w={W_XMBIAS} m=1\nRBIAS VDD VBIAS {1.8/10e-6/10}\n\n* Switched capacitor network\nXSW1 VIN VSAMP CLK1 SWMOD\nXSW2 VSAMP VIN_N CLK2 SWMOD\nXSW3 VIN_P VOUT CLK2 SWMOD\nCSAMP VSAMP GND 2e-12\nCHOLD VIN_N VOUT 2e-12\nCLOAD VOUT GND 2e-12\n\n* Sources\nVIN VIN GND DC 0.9\nVREF VIN_P GND DC {1.8/2}\nVDD VDD GND DC 1.8\n\n* --- Testbench Additions ---\n* Define missing parameters for the DUT\n.param L_XN=0.15 W_XN=2\n.param L_XP=0.15 W_XP=4\n.param L_XM1=0.5 W_XM1=10\n.param L_XM2=0.5 W_XM2=10\n.param W_XMTAIL=10\n.param L_XM3=0.5 W_XM3=20\n.param L_XM4=0.5 W_XM4=20\n.param L_XM5=0.5\n.param W_XMBIAS=2\n\n* Clock signals (1 MHz, non-overlapping)\nVCLK1 CLK1 GND PULSE(0 1.8 0 1n 1n 400n 1u)\nVCLK2 CLK2 GND PULSE(0 1.8 500n 1n 1n 400n 1u)\n\n.control\n* Alter VIN to 1.0V to force an integration step (VREF is 0.9V)\nalter v.vin dc=1.0\n\n* 1. DC Operating Point for Power\nop\nlet power = -i(v.vdd) * 1.8\nprint power\n\n* 2. Transient Analysis for Integration Steps and Slew Rate\ntran 5n 5u\n\n* Measure max and min output voltage swing\nmeas tran v_max max v(vout)\nmeas tran v_min min v(vout)\n\n* Measure Slew Rate (approximate by finding max derivative during clock transition)\nlet dvout = deriv(v(vout))\nmeas tran slew_rate max dvout\n\n* Measure Voltage Step (difference between two hold phases)\nmeas tran vout_t1 find v(vout) at=1.9u\nmeas tran vout_t2 find v(vout) at=2.9u\nlet v_step = vout_t2 - vout_t1\nprint v_step\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig. 25.18 (Standard Switched-Capacitor Integrator)\",\n    \"page\": \"800\",\n    \"circuit_type\": \"Switched Capacitor Integrator with Two-Stage OTA\",\n    \"description\": \"A discrete-time integrator circuit using a two-stage operational transconductance amplifier (OTA), transmission gate switches, and sampling/holding capacitors to transfer and integrate charge over non-overlapping clock phases.\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"The DC open-loop voltage gain of the two-stage OTA.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"750\",\n        \"reference\": \"Eq. 24.15\"\n      },\n      \"equation\": {\n        \"formula\": \"A_OL = g_{m1} (r_{o2} || r_{o4}) * g_{m5} (r_{o5} || r_{o6})\",\n        \"explanation\": \"Product of the intrinsic gains of the first differential stage and the second common-source stage.\",\n        \"assumptions\": \"Assumes the OTA is biased in the saturation region and switches are open.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming typical bias current Itail \u2248 300uA (from 18k bias resistor and 1:4 mirror). ID1 = 150uA. gm1 \u2248 1mA/V. ro2 \u2248 1/(lambda*ID) = 1/(0.1*150uA) = 66kOhm. Stage 1 gain \u2248 1m * 33k = 33 V/V. Stage 2 ID5 \u2248 500uA, gm5 \u2248 2mA/V, ro5 \u2248 20kOhm. Stage 2 gain \u2248 2m * 10k = 20 V/V. Total gain = 33 * 20 = 660 V/V = 56 dB.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 56,\n          \"max\": 70,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain is heavily dependent on the exact parameterized W/L ratios and resulting channel lengths, but typical two-stage OTAs in 130nm achieve 40-70 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"The maximum rate of change of the output voltage during the charge transfer phase.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"755\",\n        \"reference\": \"Eq. 24.22\"\n      },\n      \"equation\": {\n        \"formula\": \"SR = I_{tail} / C_c\",\n        \"explanation\": \"The slew rate is limited by the tail current charging the Miller compensation capacitor.\",\n        \"assumptions\": \"Assumes the load capacitor CLOAD is small enough that the internal slew rate dominates.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail \u2248 300uA. C_c = 2pF. SR = 300uA / 2pF = 150 V/us.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 150,\n          \"max\": 250,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Depends on the exact bias current set by the parameterized W/L of the bias mirror, but 150 V/us is typical for a 2pF compensation cap with ~300uA tail current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total static power dissipation of the OTA and bias circuitry.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"760\",\n        \"reference\": \"Eq. 24.30\"\n      },\n      \"equation\": {\n        \"formula\": \"P = V_{DD} * (I_{bias} + I_{tail} + I_{stage2})\",\n        \"explanation\": \"Sum of all DC currents drawn from the VDD supply multiplied by VDD.\",\n        \"assumptions\": \"Dynamic power from switching is negligible compared to static OTA power.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_bias \u2248 (1.8V - 0.42V) / 18kOhm \u2248 76uA. I_tail = 4 * 76uA = 304uA. I_stage2 \u2248 500uA. Total current \u2248 880uA. Power = 1.8V * 880uA = 1.58 mW.\",\n        \"range\": {\n          \"min\": 1.0e-3,\n          \"typical\": 1.58e-3,\n          \"max\": 3.0e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Static power is dominated by the Class-A second stage and the differential pair tail current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_step\": {\n      \"description\": \"The discrete change in output voltage per clock cycle during integration.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"802\",\n        \"reference\": \"Eq. 25.12\"\n      },\n      \"equation\": {\n        \"formula\": \"\\\\Delta V_{out} = \\\\frac{C_{samp}}{C_{hold}} (V_{in} - V_{ref})\",\n        \"explanation\": \"Charge sampled on Csamp is transferred to Chold, causing a proportional step in the output voltage.\",\n        \"assumptions\": \"Assumes ideal charge transfer, infinite OTA gain, and complete settling.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C_samp = 2pF, C_hold = 2pF. Ratio = 1. If V_in is set to 1.0V and V_ref is 0.9V, the step is 1 * (1.0 - 0.9) = 0.1V.\",\n        \"range\": {\n          \"min\": 0.09,\n          \"typical\": 0.1,\n          \"max\": 0.11,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined strictly by the capacitor ratio and input voltages, with minor errors from charge injection and finite OTA gain.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC power dissipation, transient voltage swing, and slew rate of the switched capacitor integrator. Missing parameters and clock sources are injected to make the parameterized netlist runnable.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"v_max\",\n      \"v_min\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Switched Capacitor Integrator Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* --- DUT Netlist ---\\n* Switched Capacitor Integrator Circuit\\n.global VDD GND\\n.temp 27\\n\\n* Transmission gate switch subcircuit\\n.subckt SWMOD in out ctrl\\nXN in ctrl out GND sky130_fd_pr__nfet_01v8 l={L_XN} w={W_XN} m=2\\nXP in ctrl out VDD sky130_fd_pr__pfet_01v8 l={L_XP} w={W_XP} m=2\\n.ends\\n\\n* Two-stage OTA for switched capacitor circuit\\nXM1 VD1 VIN_P VTAIL GND sky130_fd_pr__nfet_01v8 l={L_XM1} w={W_XM1} m=4\\nXM2 VD2 VIN_N VTAIL GND sky130_fd_pr__nfet_01v8 l={L_XM2} w={W_XM2} m=4\\nXMTAIL VTAIL VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*2} w={W_XMTAIL} m=4\\nXM3 VD1 VD1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM3} w={W_XM3} m=4\\nXM4 VD2 VD1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM4} w={W_XM4} m=4\\nXM5 VOUT VD2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XM5} w={15*4} m=4\\nXM6 VOUT VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*2} w={15*2} m={4/2}\\nCC VD2 VOUT 2p\\nXMBIAS VBIAS VBIAS GND GND sky130_fd_pr__nfet_01v8 l={0.4*4} w={W_XMBIAS} m=1\\nRBIAS VDD VBIAS {1.8/10e-6/10}\\n\\n* Switched capacitor network\\nXSW1 VIN VSAMP CLK1 SWMOD\\nXSW2 VSAMP VIN_N CLK2 SWMOD\\nXSW3 VIN_P VOUT CLK2 SWMOD\\nCSAMP VSAMP GND 2e-12\\nCHOLD VIN_N VOUT 2e-12\\nCLOAD VOUT GND 2e-12\\n\\n* Sources\\nVIN VIN GND DC 0.9\\nVREF VIN_P GND DC {1.8/2}\\nVDD VDD GND DC 1.8\\n\\n* --- Testbench Additions ---\\n* Define missing parameters for the DUT\\n.param L_XN=0.15 W_XN=2\\n.param L_XP=0.15 W_XP=4\\n.param L_XM1=0.5 W_XM1=10\\n.param L_XM2=0.5 W_XM2=10\\n.param W_XMTAIL=10\\n.param L_XM3=0.5 W_XM3=20\\n.param L_XM4=0.5 W_XM4=20\\n.param L_XM5=0.5\\n.param W_XMBIAS=2\\n\\n* Clock signals (1 MHz, non-overlapping)\\nVCLK1 CLK1 GND PULSE(0 1.8 0 1n 1n 400n 1u)\\nVCLK2 CLK2 GND PULSE(0 1.8 500n 1n 1n 400n 1u)\\n\\n.control\\n* Alter VIN to 1.0V to force an integration step (VREF is 0.9V)\\nalter v.vin dc=1.0\\n\\n* 1. DC Operating Point for Power\\nop\\nlet power = -i(v.vdd) * 1.8\\nprint power\\n\\n* 2. Transient Analysis for Integration Steps and Slew Rate\\ntran 5n 5u\\n\\n* Measure max and min output voltage swing\\nmeas tran v_max max v(vout)\\nmeas tran v_min min v(vout)\\n\\n* Measure Slew Rate (approximate by finding max derivative during clock transition)\\nlet dvout = deriv(v(vout))\\nmeas tran slew_rate max dvout\\n\\n* Measure Voltage Step (difference between two hold phases)\\nmeas tran vout_t1 find v(vout) at=1.9u\\nmeas tran vout_t2 find v(vout) at=2.9u\\nlet v_step = vout_t2 - vout_t1\\nprint v_step\\n\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

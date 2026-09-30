@@ -1,0 +1,123 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cross-coupled NMOS pair (LC VCO core)",
+    "description": "A cross-coupled NMOS transistor pair that provides negative resistance. When connected to an external LC tank, it forms a cross-coupled LC voltage-controlled oscillator (VCO) commonly used in RF transceivers.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "RF CMOS Comes of Age",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "The fundamental frequency of the autonomous oscillation.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2 GHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). With added testbench components L=5nH and C=1.2pF, f = 1 / (2 * pi * sqrt(5e-9 * 1.2e-12)) = 2.05 GHz.",
+        "range": {
+          "min": 1900000000.0,
+          "typical": 2050000000.0,
+          "max": 2200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the external LC tank components chosen to match the paper's 2 GHz target."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the oscillator from the 1.8V supply.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * un*Cox * (W/L) * (VGS - Vth)^2 = 0.5 * 270u * 10 * (1.8 - 0.42)^2 = 2.57 mA per branch. Total current = 5.14 mA. Power = 5.14 mA * 1.8 V = 9.25 mW.",
+        "range": {
+          "min": 0.008,
+          "typical": 0.00925,
+          "max": 0.012,
+          "unit": "W"
+        },
+        "reasoning": "Based on the DC bias point where the inductors short the drains to VDD (1.8V)."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing_pkpk": {
+      "description": "Peak-to-peak voltage swing at the output nodes (N1 or N2).",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "The swing is limited by the transistors entering the triode region and the supply voltage. With a 1.8V supply and inductive load, the node can swing above VDD.",
+        "range": {
+          "min": 1.5,
+          "typical": 2.5,
+          "max": 3.5,
+          "unit": "V"
+        },
+        "reasoning": "Inductive loads allow the voltage to swing above VDD, typically reaching ~2x VDD minus saturation voltages."
+      },
+      "importance": "recommended"
+    },
+    "dc_to_rf_efficiency": {
+      "description": "Ratio of RF power delivered to the tank resistors over the total DC power consumed.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "20%",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P_RF = V_rms^2 / R = (Vpp/2 / sqrt(2))^2 / 1000. For Vpp=2.5V, P_RF = 0.78 mW per side. Total P_RF = 1.56 mW. Efficiency = 1.56 / 9.25 = 16.8%.",
+        "range": {
+          "min": 10,
+          "typical": 17,
+          "max": 25,
+          "unit": "%"
+        },
+        "reasoning": "Typical oscillator efficiencies are in the 10-30% range, aligning with the paper's reported 20%."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure oscillation frequency, voltage swing, power consumption, and efficiency of the LC VCO.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "voltage_swing_pkpk",
+      "power_consumption",
+      "dc_to_rf_efficiency"
+    ],
+    "spice": "* Cross-coupled NMOS LC VCO Testbench\n\n.lib \"${SKY130_PDK}\" tt\n\n* DUT (Cross-coupled pair)\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N1 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Testbench Components (Supply and LC Tank)\nVDD VDD 0 1.8\nL1 VDD N1 5n\nL2 VDD N2 5n\nC1 N1 0 1.2p\nC2 N2 0 1.2p\nR1 N1 VDD 1k\nR2 N2 VDD 1k\n\n* Kickstart current pulse to induce oscillation\nIkick N1 N2 PWL(0 0 1n 1m 2n 0)\n\n.control\n  * Run transient analysis for 20ns\n  tran 10p 20n\n  \n  * Measure oscillation frequency (period between 15th and 16th rising edge)\n  meas tran t1 trig v(N1) val=1.8 rise=15 targ v(N1) val=1.8 rise=16\n  let osc_freq = 1 / t1\n  print osc_freq\n  \n  * Measure peak-to-peak voltage swing\n  meas tran vmax max v(N1) from=10n to=20n\n  meas tran vmin min v(N1) from=10n to=20n\n  let vpp = vmax - vmin\n  print vpp\n  \n  * Measure DC power consumption\n  meas tran ivdd avg i(VDD) from=10n to=20n\n  let power = -ivdd * 1.8\n  print power\n  \n  * Measure DC-to-RF efficiency\n  * P_RF = 2 * (V_rms^2 / R) = 2 * ((vpp/2/sqrt(2))^2 / 1000) = vpp^2 / 4000\n  let p_rf = (vpp * vpp) / 4000\n  let efficiency = (p_rf / power) * 100\n  print efficiency\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cross-coupled NMOS pair (LC VCO core)\",\n    \"description\": \"A cross-coupled NMOS transistor pair that provides negative resistance. When connected to an external LC tank, it forms a cross-coupled LC voltage-controlled oscillator (VCO) commonly used in RF transceivers.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"N1\", \"N2\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"RF CMOS Comes of Age\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"The fundamental frequency of the autonomous oscillation.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2 GHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). With added testbench components L=5nH and C=1.2pF, f = 1 / (2 * pi * sqrt(5e-9 * 1.2e-12)) = 2.05 GHz.\",\n        \"range\": {\n          \"min\": 1.9e9,\n          \"typical\": 2.05e9,\n          \"max\": 2.2e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the external LC tank components chosen to match the paper's 2 GHz target.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the oscillator from the 1.8V supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * un*Cox * (W/L) * (VGS - Vth)^2 = 0.5 * 270u * 10 * (1.8 - 0.42)^2 = 2.57 mA per branch. Total current = 5.14 mA. Power = 5.14 mA * 1.8 V = 9.25 mW.\",\n        \"range\": {\n          \"min\": 8e-3,\n          \"typical\": 9.25e-3,\n          \"max\": 12e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the DC bias point where the inductors short the drains to VDD (1.8V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing_pkpk\": {\n      \"description\": \"Peak-to-peak voltage swing at the output nodes (N1 or N2).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The swing is limited by the transistors entering the triode region and the supply voltage. With a 1.8V supply and inductive load, the node can swing above VDD.\",\n        \"range\": {\n          \"min\": 1.5,\n          \"typical\": 2.5,\n          \"max\": 3.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Inductive loads allow the voltage to swing above VDD, typically reaching ~2x VDD minus saturation voltages.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dc_to_rf_efficiency\": {\n      \"description\": \"Ratio of RF power delivered to the tank resistors over the total DC power consumed.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"20%\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_RF = V_rms^2 / R = (Vpp/2 / sqrt(2))^2 / 1000. For Vpp=2.5V, P_RF = 0.78 mW per side. Total P_RF = 1.56 mW. Efficiency = 1.56 / 9.25 = 16.8%.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 17,\n          \"max\": 25,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Typical oscillator efficiencies are in the 10-30% range, aligning with the paper's reported 20%.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure oscillation frequency, voltage swing, power consumption, and efficiency of the LC VCO.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"oscillation_frequency\",\n      \"voltage_swing_pkpk\",\n      \"power_consumption\",\n      \"dc_to_rf_efficiency\"\n    ],\n    \"spice\": \"* Cross-coupled NMOS LC VCO Testbench\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT (Cross-coupled pair)\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N1 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Testbench Components (Supply and LC Tank)\\nVDD VDD 0 1.8\\nL1 VDD N1 5n\\nL2 VDD N2 5n\\nC1 N1 0 1.2p\\nC2 N2 0 1.2p\\nR1 N1 VDD 1k\\nR2 N2 VDD 1k\\n\\n* Kickstart current pulse to induce oscillation\\nIkick N1 N2 PWL(0 0 1n 1m 2n 0)\\n\\n.control\\n  * Run transient analysis for 20ns\\n  tran 10p 20n\\n  \\n  * Measure oscillation frequency (period between 15th and 16th rising edge)\\n  meas tran t1 trig v(N1) val=1.8 rise=15 targ v(N1) val=1.8 rise=16\\n  let osc_freq = 1 / t1\\n  print osc_freq\\n  \\n  * Measure peak-to-peak voltage swing\\n  meas tran vmax max v(N1) from=10n to=20n\\n  meas tran vmin min v(N1) from=10n to=20n\\n  let vpp = vmax - vmin\\n  print vpp\\n  \\n  * Measure DC power consumption\\n  meas tran ivdd avg i(VDD) from=10n to=20n\\n  let power = -ivdd * 1.8\\n  print power\\n  \\n  * Measure DC-to-RF efficiency\\n  * P_RF = 2 * (V_rms^2 / R) = 2 * ((vpp/2/sqrt(2))^2 / 1000) = vpp^2 / 4000\\n  let p_rf = (vpp * vpp) / 4000\\n  let efficiency = (p_rf / power) * 100\\n  print efficiency\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1278572",
+  "_case": "1278572_image_4_b"
+}

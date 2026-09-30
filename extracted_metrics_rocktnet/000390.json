@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Operational Transconductance Amplifier (OTA)",
+    "description": "A 5-transistor PMOS-input differential amplifier with an active NMOS current mirror load, plus a diode-connected bias transistor. While the paper describes a class-AB error amplifier for a video line driver, this extracted netlist represents a standard class-A OTA, which is likely the input stage of the full error amplifier.",
+    "node_mapping": {
+      "input": [
+        "VIN_PLUS",
+        "VIN_MINUS"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 3.3-V CMOS Adaptive Analog Video Line Driver With Low Distortion Performance",
+      "figure": "Not specified",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "35 dB",
+        "technology": "AMI 0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm1 = sqrt(2 * up*Cox * W/L * Id) = sqrt(2 * 50u * 10 * 5u) = 70.7 uS. Rout = ro_p || ro_n = 1/(0.1*5u) || 1/(0.1*5u) = 1 MOhm. Av = gm1 * Rout = 70.7 V/V = 37 dB.",
+        "range": {
+          "min": 30,
+          "typical": 37,
+          "max": 45,
+          "unit": "dB"
+        },
+        "reasoning": "Matches the paper's reported 35 dB gain closely. The exact value depends on the channel length modulation (lambda) of the sky130 devices at the chosen operating point."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity Gain Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "300 MHz (likely for the full driver)",
+        "technology": "AMI 0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm1 / (2 * pi * CL). With CL = 1pF, UGBW = 70.7u / (2 * pi * 1p) = 11.2 MHz.",
+        "range": {
+          "min": 5000000.0,
+          "typical": 11200000.0,
+          "max": 20000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The 300 MHz in the paper likely refers to the full driver bandwidth. For this specific OTA sub-block with a 10uA tail current and 1pF load, ~11 MHz is expected."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Non-dominant pole at N2: fp2 = gm3 / (2 * pi * C_N2) = 164uS / (2 * pi * 20fF) = 1.3 GHz. Since fp2 >> UGBW, PM is nearly 90 degrees.",
+        "range": {
+          "min": 75,
+          "typical": 85,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard single-stage OTA behavior with a small load capacitance ensures a highly stable dominant-pole response."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the OTA",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "26.4 mW (entire driver at 75-ohm load)",
+        "technology": "AMI 0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * (I_bias + I_tail) = 1.8V * (10uA + 10uA) = 36 uW.",
+        "range": {
+          "min": 2e-05,
+          "typical": 3.6e-05,
+          "max": 5e-05,
+          "unit": "W"
+        },
+        "reasoning": "The extracted netlist is only the input error amplifier, not the full 75-ohm line driver, so its power is orders of magnitude lower than the 26.4 mW reported for the whole chip."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_tail / CL = 10uA / 1pF = 10 V/us.",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 15,
+          "unit": "V/us"
+        },
+        "reasoning": "Determined by the tail current charging and discharging the load capacitor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, UGBW, Phase Margin, Power, and Slew Rate of the OTA. It uses a large inductor/capacitor feedback network to close the loop at DC (preventing saturation) while keeping it open for AC analysis. The `alter` command is then used to switch to a unity-gain configuration for the transient slew rate measurement.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "power_consumption",
+      "slew_rate"
+    ],
+    "spice": "* OTA Testbench\n.lib \"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_xm4n=5u L_xm4n=0.5u\n.param W_xm1p=5u L_xm1p=0.5u\n.param W_xm2p=5u L_xm2p=0.5u\n.param W_xm6p=5u L_xm6p=0.5u\n.param W_xm5p=5u L_xm5p=0.5u\n.param W_xm3n=5u L_xm3n=0.5u\n\nXM4N VOUT N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4n} w={W_xm4n}\nXM1P N2 VIN_PLUS N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm1p} w={W_xm1p}\nXM2P VOUT VIN_MINUS N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm2p} w={W_xm2p}\nXM6P N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6p} w={W_xm6p}\nXM5P N0 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5p} w={W_xm5p}\nXM3N N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3n} w={W_xm3n}\n\nVVDD VDD 0 1.8\nIBIAS N3 0 10u\n\n* Input source: DC 0.9V, AC 1V, Pulse for Slew Rate\nVIN VIN_PLUS 0 DC 0.9 AC 1 PULSE(0.4 1.0 10n 1n 1n 1u 2u)\n\n* Feedback network for DC biasing and AC open-loop\n* L1 is a short at DC, open at AC. C1 is open at DC, short at AC.\nL1 VOUT VIN_MINUS 1T\nC1 VIN_MINUS 0 1T\n\n* Load capacitor\nCLOAD VOUT 0 1p\n\n.control\n  * 1. Operating Point for Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis for Gain, UGBW, Phase Margin\n  ac dec 100 1 1G\n  let gain_db = vdb(VOUT)\n  let phase = 180/PI * cph(v(VOUT))\n  let pm_deg = 180 + phase\n  meas ac dc_gain find gain_db at=10\n  meas ac ugbw when gain_db=0 fall=1\n  meas ac pm find pm_deg when gain_db=0 fall=1\n  print dc_gain ugbw pm\n\n  * 3. Transient Analysis for Slew Rate\n  * Alter L1 and C1 to create a unity-gain configuration for transient\n  alter L1 1p\n  alter C1 1f\n  \n  tran 1n 2u\n  meas tran t_rise trig v(VOUT) val=0.5 rise=1 targ v(VOUT) val=0.9 rise=1\n  meas tran t_fall trig v(VOUT) val=0.9 fall=1 targ v(VOUT) val=0.5 fall=1\n  let sr_rise_vus = 0.4 / (t_rise * 1e6)\n  let sr_fall_vus = 0.4 / (t_fall * 1e6)\n  print sr_rise_vus sr_fall_vus\n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"A 5-transistor PMOS-input differential amplifier with an active NMOS current mirror load, plus a diode-connected bias transistor. While the paper describes a class-AB error amplifier for a video line driver, this extracted netlist represents a standard class-A OTA, which is likely the input stage of the full error amplifier.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_PLUS\",\n        \"VIN_MINUS\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 3.3-V CMOS Adaptive Analog Video Line Driver With Low Distortion Performance\",\n      \"figure\": \"Not specified\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"35 dB\",\n        \"technology\": \"AMI 0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm1 = sqrt(2 * up*Cox * W/L * Id) = sqrt(2 * 50u * 10 * 5u) = 70.7 uS. Rout = ro_p || ro_n = 1/(0.1*5u) || 1/(0.1*5u) = 1 MOhm. Av = gm1 * Rout = 70.7 V/V = 37 dB.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 37,\n          \"max\": 45,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Matches the paper's reported 35 dB gain closely. The exact value depends on the channel length modulation (lambda) of the sky130 devices at the chosen operating point.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity Gain Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"300 MHz (likely for the full driver)\",\n        \"technology\": \"AMI 0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm1 / (2 * pi * CL). With CL = 1pF, UGBW = 70.7u / (2 * pi * 1p) = 11.2 MHz.\",\n        \"range\": {\n          \"min\": 5e6,\n          \"typical\": 11.2e6,\n          \"max\": 20e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The 300 MHz in the paper likely refers to the full driver bandwidth. For this specific OTA sub-block with a 10uA tail current and 1pF load, ~11 MHz is expected.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Non-dominant pole at N2: fp2 = gm3 / (2 * pi * C_N2) = 164uS / (2 * pi * 20fF) = 1.3 GHz. Since fp2 >> UGBW, PM is nearly 90 degrees.\",\n        \"range\": {\n          \"min\": 75,\n          \"typical\": 85,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard single-stage OTA behavior with a small load capacitance ensures a highly stable dominant-pole response.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the OTA\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"26.4 mW (entire driver at 75-ohm load)\",\n        \"technology\": \"AMI 0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * (I_bias + I_tail) = 1.8V * (10uA + 10uA) = 36 uW.\",\n        \"range\": {\n          \"min\": 20e-6,\n          \"typical\": 36e-6,\n          \"max\": 50e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The extracted netlist is only the input error amplifier, not the full 75-ohm line driver, so its power is orders of magnitude lower than the 26.4 mW reported for the whole chip.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_tail / CL = 10uA / 1pF = 10 V/us.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 10,\n          \"max\": 15,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Determined by the tail current charging and discharging the load capacitor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, UGBW, Phase Margin, Power, and Slew Rate of the OTA. It uses a large inductor/capacitor feedback network to close the loop at DC (preventing saturation) while keeping it open for AC analysis. The `alter` command is then used to switch to a unity-gain configuration for the transient slew rate measurement.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"power_consumption\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* OTA Testbench\\n.lib \\\"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_xm4n=5u L_xm4n=0.5u\\n.param W_xm1p=5u L_xm1p=0.5u\\n.param W_xm2p=5u L_xm2p=0.5u\\n.param W_xm6p=5u L_xm6p=0.5u\\n.param W_xm5p=5u L_xm5p=0.5u\\n.param W_xm3n=5u L_xm3n=0.5u\\n\\nXM4N VOUT N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4n} w={W_xm4n}\\nXM1P N2 VIN_PLUS N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm1p} w={W_xm1p}\\nXM2P VOUT VIN_MINUS N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm2p} w={W_xm2p}\\nXM6P N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6p} w={W_xm6p}\\nXM5P N0 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5p} w={W_xm5p}\\nXM3N N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3n} w={W_xm3n}\\n\\nVVDD VDD 0 1.8\\nIBIAS N3 0 10u\\n\\n* Input source: DC 0.9V, AC 1V, Pulse for Slew Rate\\nVIN VIN_PLUS 0 DC 0.9 AC 1 PULSE(0.4 1.0 10n 1n 1n 1u 2u)\\n\\n* Feedback network for DC biasing and AC open-loop\\n* L1 is a short at DC, open at AC. C1 is open at DC, short at AC.\\nL1 VOUT VIN_MINUS 1T\\nC1 VIN_MINUS 0 1T\\n\\n* Load capacitor\\nCLOAD VOUT 0 1p\\n\\n.control\\n  * 1. Operating Point for Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis for Gain, UGBW, Phase Margin\\n  ac dec 100 1 1G\\n  let gain_db = vdb(VOUT)\\n  let phase = 180/PI * cph(v(VOUT))\\n  let pm_deg = 180 + phase\\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugbw when gain_db=0 fall=1\\n  meas ac pm find pm_deg when gain_db=0 fall=1\\n  print dc_gain ugbw pm\\n\\n  * 3. Transient Analysis for Slew Rate\\n  * Alter L1 and C1 to create a unity-gain configuration for transient\\n  alter L1 1p\\n  alter C1 1f\\n  \\n  tran 1n 2u\\n  meas tran t_rise trig v(VOUT) val=0.5 rise=1 targ v(VOUT) val=0.9 rise=1\\n  meas tran t_fall trig v(VOUT) val=0.9 fall=1 targ v(VOUT) val=0.5 fall=1\\n  let sr_rise_vus = 0.4 / (t_rise * 1e6)\\n  let sr_fall_vus = 0.4 / (t_fall * 1e6)\\n  print sr_rise_vus sr_fall_vus\\n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1202009",
+  "_case": "1202009_image_4"
+}

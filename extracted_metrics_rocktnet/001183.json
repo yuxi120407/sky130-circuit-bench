@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Double-Balanced Active Mixer (Gilbert Cell)",
+    "description": "A double-balanced active mixer (Gilbert cell) used for frequency downconversion. It multiplies the differential RF input (bottom tail transistors) with the differential LO input (top switching quad) to produce a downconverted IF output.",
+    "node_mapping": {
+      "input": [
+        "N5",
+        "N1",
+        "N7",
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N3",
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 900-MHz Dual-Conversion Low-IF GSM Receiver in 0.35-m CMOS",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Mixer voltage conversion gain (IF amplitude / RF amplitude)",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 dB (total receiver)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm_rf = 6.6mS, RL = 1k, CG = 2/pi * gm_rf * RL = 4.2 V/V = 12.5 dB",
+        "range": {
+          "min": 10,
+          "typical": 12.5,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated based on 1.2mA tail current and 1k load in SKY130."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "DC power consumption of the mixer core",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "55 mW (total receiver, 22mA @ 2.5V)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "1.2 mA * 1.8 V = 2.16 mW",
+        "range": {
+          "min": 0.0015,
+          "typical": 0.00216,
+          "max": 0.003,
+          "unit": "W"
+        },
+        "reasoning": "Based on VGS=0.6V bias and W/L=20u/0.15u for tail transistors."
+      },
+      "importance": "essential"
+    },
+    "iip3": {
+      "description": "Input Third-Order Intercept Point",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "16 dBm",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Active mixers typically have IIP3 around 0 to 10 dBm. Assuming 5 dBm for this design.",
+        "range": {
+          "min": 0,
+          "typical": 5,
+          "max": 10,
+          "unit": "dBm"
+        },
+        "reasoning": "Active Gilbert cell linearity is limited by the RF transconductor overdrive voltage."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Noise Figure (Baseband approximation in standard SPICE)",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "5 dB (total receiver)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mixer NF is typically 10-15 dB due to switching noise and transconductor noise.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Standard active mixer NF. Note: Standard SPICE .noise only captures baseband noise, not folded RF noise."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for Double-Balanced Mixer measuring Conversion Gain, Power, IIP3 (via two-tone FFT), and Baseband Noise.",
+    "analyses": [
+      "Tran",
+      "Noise"
+    ],
+    "metrics_measured": [
+      "conversion_gain",
+      "power_consumption",
+      "iip3",
+      "noise_figure"
+    ],
+    "spice": "* Double-Balanced Mixer Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=10u L_xm1=0.15u\n.param W_xm2=10u L_xm2=0.15u\n.param W_xm3=10u L_xm3=0.15u\n.param W_xm4=20u L_xm4=0.15u\n.param W_xm5=20u L_xm5=0.15u\n.param W_xm6=10u L_xm6=0.15u\n\n* DUT\nXM1 N4 LABEL_NET_0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 N7 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 N5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N7 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* Power Supply and Loads\nVDD VDD 0 1.8\nRL1 N3 VDD 1k\nRL2 N4 VDD 1k\n\n* LO connections\nR_LO1 LABEL_NET_0 LO_minus 0\nR_LO2 LABEL_NET_1 LO_minus 0\n\n* Biasing and Signals\n* RF: Two-tone at 900 MHz and 901 MHz, 10mV peak each single-ended\nV_RF_bias_plus N5_bias 0 0.6\nV_RF1_plus N5_1 N5_bias sin(0 10m 900Meg)\nV_RF2_plus N5 N5_1 sin(0 10m 901Meg)\n\nV_RF_bias_minus N1_bias 0 0.6\nV_RF1_minus N1_1 N1_bias sin(0 10m 900Meg 0 0 180)\nV_RF2_minus N1 N1_1 sin(0 10m 901Meg 0 0 180)\n\n* LO: 890 MHz, 300mV peak single-ended\nV_LO_bias_plus N7_bias 0 1.0\nV_LO_bias_minus LO_minus_bias 0 1.0\nV_LO_ac_plus N7 N7_bias sin(0 300m 890Meg)\nV_LO_ac_minus LO_minus LO_minus_bias sin(0 300m 890Meg 0 0 180)\n\n* IF Filter (fc = 10.6 MHz)\nR_f1 N3 N3_f 10k\nC_f1 N3_f 0 1.5p\nR_f2 N4 N4_f 10k\nC_f2 N4_f 0 1.5p\n\n* Dependent source for differential IF (useful for noise analysis)\nB_IF_diff IF_diff 0 V='v(N3_f) - v(N4_f)'\n\n.control\n  * 1. Transient Analysis for Power, Gain, and IIP3\n  * tstep=0.1n ensures Nyquist > 900MHz to avoid aliasing\n  tran 0.1n 4u\n  \n  * Power\n  let power = -i(VDD) * 1.8\n  meas tran avg_power avg power from=2u to=4u\n  \n  * FFT for Gain and IIP3\n  let v_if = v(N3_f) - v(N4_f)\n  linearize v_if\n  set specwindow = blackman\n  fft v_if\n  let mag_v_if = mag(v_if)\n  \n  * IF1 is at 10 MHz (900 - 890)\n  meas sp val_IF1 max mag_v_if from=9.5Meg to=10.5Meg\n  * IM3 is at 9 MHz (2*900 - 901 - 890)\n  meas sp val_IM3 max mag_v_if from=8.5Meg to=9.5Meg\n  \n  * Calculate Conversion Gain (using IF1 and RF1 amplitude)\n  * RF1 diff amplitude is 20mV\n  let rf_amp = 20m\n  let conv_gain = val_IF1 / rf_amp\n  let conv_gain_db = 20 * log10(conv_gain)\n  \n  * Calculate IIP3\n  let IF1_dB = 20 * log10(val_IF1)\n  let IM3_dB = 20 * log10(val_IM3)\n  let IM3_diff = IF1_dB - IM3_dB\n  * IIP3 in dBm (assuming 50 ohm reference: 0 dBV peak = +10 dBm)\n  let iip3_dbm = 20 * log10(rf_amp) + IM3_diff / 2 + 10\n  \n  print avg_power\n  print conv_gain_db\n  print iip3_dbm\n  \n  * 2. Noise Analysis (Baseband approximation)\n  * Note: Standard SPICE noise analysis does not fold RF noise.\n  * This only measures the baseband noise of the mixer.\n  noise v(IF_diff) V_RF1_plus dec 10 1Meg 100Meg\n  setplot noise1\n  print inoise_total\n  print onoise_total\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Double-Balanced Active Mixer (Gilbert Cell)\",\n    \"description\": \"A double-balanced active mixer (Gilbert cell) used for frequency downconversion. It multiplies the differential RF input (bottom tail transistors) with the differential LO input (top switching quad) to produce a downconverted IF output.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N5\",\n        \"N1\",\n        \"N7\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 900-MHz Dual-Conversion Low-IF GSM Receiver in 0.35-m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Mixer voltage conversion gain (IF amplitude / RF amplitude)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 dB (total receiver)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm_rf = 6.6mS, RL = 1k, CG = 2/pi * gm_rf * RL = 4.2 V/V = 12.5 dB\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 12.5,\n          \"max\": 15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated based on 1.2mA tail current and 1k load in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"DC power consumption of the mixer core\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"55 mW (total receiver, 22mA @ 2.5V)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.2 mA * 1.8 V = 2.16 mW\",\n        \"range\": {\n          \"min\": 1.5e-3,\n          \"typical\": 2.16e-3,\n          \"max\": 3.0e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on VGS=0.6V bias and W/L=20u/0.15u for tail transistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"iip3\": {\n      \"description\": \"Input Third-Order Intercept Point\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"16 dBm\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Active mixers typically have IIP3 around 0 to 10 dBm. Assuming 5 dBm for this design.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 5,\n          \"max\": 10,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Active Gilbert cell linearity is limited by the RF transconductor overdrive voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Noise Figure (Baseband approximation in standard SPICE)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"5 dB (total receiver)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mixer NF is typically 10-15 dB due to switching noise and transconductor noise.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard active mixer NF. Note: Standard SPICE .noise only captures baseband noise, not folded RF noise.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for Double-Balanced Mixer measuring Conversion Gain, Power, IIP3 (via two-tone FFT), and Baseband Noise.\",\n    \"analyses\": [\n      \"Tran\",\n      \"Noise\"\n    ],\n    \"metrics_measured\": [\n      \"conversion_gain\",\n      \"power_consumption\",\n      \"iip3\",\n      \"noise_figure\"\n    ],\n    \"spice\": \"* Double-Balanced Mixer Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=10u L_xm1=0.15u\\n.param W_xm2=10u L_xm2=0.15u\\n.param W_xm3=10u L_xm3=0.15u\\n.param W_xm4=20u L_xm4=0.15u\\n.param W_xm5=20u L_xm5=0.15u\\n.param W_xm6=10u L_xm6=0.15u\\n\\n* DUT\\nXM1 N4 LABEL_NET_0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 N7 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 N5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N7 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Power Supply and Loads\\nVDD VDD 0 1.8\\nRL1 N3 VDD 1k\\nRL2 N4 VDD 1k\\n\\n* LO connections\\nR_LO1 LABEL_NET_0 LO_minus 0\\nR_LO2 LABEL_NET_1 LO_minus 0\\n\\n* Biasing and Signals\\n* RF: Two-tone at 900 MHz and 901 MHz, 10mV peak each single-ended\\nV_RF_bias_plus N5_bias 0 0.6\\nV_RF1_plus N5_1 N5_bias sin(0 10m 900Meg)\\nV_RF2_plus N5 N5_1 sin(0 10m 901Meg)\\n\\nV_RF_bias_minus N1_bias 0 0.6\\nV_RF1_minus N1_1 N1_bias sin(0 10m 900Meg 0 0 180)\\nV_RF2_minus N1 N1_1 sin(0 10m 901Meg 0 0 180)\\n\\n* LO: 890 MHz, 300mV peak single-ended\\nV_LO_bias_plus N7_bias 0 1.0\\nV_LO_bias_minus LO_minus_bias 0 1.0\\nV_LO_ac_plus N7 N7_bias sin(0 300m 890Meg)\\nV_LO_ac_minus LO_minus LO_minus_bias sin(0 300m 890Meg 0 0 180)\\n\\n* IF Filter (fc = 10.6 MHz)\\nR_f1 N3 N3_f 10k\\nC_f1 N3_f 0 1.5p\\nR_f2 N4 N4_f 10k\\nC_f2 N4_f 0 1.5p\\n\\n* Dependent source for differential IF (useful for noise analysis)\\nB_IF_diff IF_diff 0 V='v(N3_f) - v(N4_f)'\\n\\n.control\\n  * 1. Transient Analysis for Power, Gain, and IIP3\\n  * tstep=0.1n ensures Nyquist > 900MHz to avoid aliasing\\n  tran 0.1n 4u\\n  \\n  * Power\\n  let power = -i(VDD) * 1.8\\n  meas tran avg_power avg power from=2u to=4u\\n  \\n  * FFT for Gain and IIP3\\n  let v_if = v(N3_f) - v(N4_f)\\n  linearize v_if\\n  set specwindow = blackman\\n  fft v_if\\n  let mag_v_if = mag(v_if)\\n  \\n  * IF1 is at 10 MHz (900 - 890)\\n  meas sp val_IF1 max mag_v_if from=9.5Meg to=10.5Meg\\n  * IM3 is at 9 MHz (2*900 - 901 - 890)\\n  meas sp val_IM3 max mag_v_if from=8.5Meg to=9.5Meg\\n  \\n  * Calculate Conversion Gain (using IF1 and RF1 amplitude)\\n  * RF1 diff amplitude is 20mV\\n  let rf_amp = 20m\\n  let conv_gain = val_IF1 / rf_amp\\n  let conv_gain_db = 20 * log10(conv_gain)\\n  \\n  * Calculate IIP3\\n  let IF1_dB = 20 * log10(val_IF1)\\n  let IM3_dB = 20 * log10(val_IM3)\\n  let IM3_diff = IF1_dB - IM3_dB\\n  * IIP3 in dBm (assuming 50 ohm reference: 0 dBV peak = +10 dBm)\\n  let iip3_dbm = 20 * log10(rf_amp) + IM3_diff / 2 + 10\\n  \\n  print avg_power\\n  print conv_gain_db\\n  print iip3_dbm\\n  \\n  * 2. Noise Analysis (Baseband approximation)\\n  * Note: Standard SPICE noise analysis does not fold RF noise.\\n  * This only measures the baseband noise of the mixer.\\n  noise v(IF_diff) V_RF1_plus dec 10 1Meg 100Meg\\n  setplot noise1\\n  print inoise_total\\n  print onoise_total\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "972150",
+  "_case": "972150_image_9"
+}

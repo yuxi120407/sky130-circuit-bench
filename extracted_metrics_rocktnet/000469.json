@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Charge Pump",
+    "description": "A 4x cross-coupled charge pump circuit designed to step up a DC input voltage. It uses intermediate x2 outputs alternately to reduce the number of required capacitors and power devices, improving area efficiency.",
+    "node_mapping": {
+      "input": [
+        "n4"
+      ],
+      "output": [
+        "n12",
+        "n10",
+        "n11"
+      ],
+      "supply": [
+        "n4"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Brief Papers",
+      "figure": "unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Ratio of the steady-state output DC voltage to the input DC voltage.",
+      "unit": "V/V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "4x (implied by 4x charge pump)",
+        "technology": "0.8\u00b5m AMS high-voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ideal 4x multiplier with 1.8V input gives 7.2V. Accounting for diode/switch threshold drops (Vth ~ 0.42V per stage), Vout = 4*VDD - 4*Vth = 4(1.8) - 4(0.42) = 5.52V.",
+        "range": {
+          "min": 5.0,
+          "typical": 5.5,
+          "max": 7.2,
+          "unit": "V"
+        },
+        "reasoning": "Actual gain depends on the load current, switching frequency, and the on-resistance of the switches."
+      },
+      "importance": "essential"
+    },
+    "efficiency": {
+      "description": "Power conversion efficiency (Pout / Pin).",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15%",
+        "technology": "0.8\u00b5m AMS"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = Vout^2 / Rload. Pin = VDD * I_in_avg. Efficiency = (Pout / Pin) * 100.",
+        "range": {
+          "min": 10,
+          "typical": 40,
+          "max": 80,
+          "unit": "%"
+        },
+        "reasoning": "Charge pumps typically achieve 40-80% efficiency depending on the load and parasitic bottom-plate capacitances."
+      },
+      "importance": "essential"
+    },
+    "output_ripple": {
+      "description": "Peak-to-peak voltage ripple at the output node during steady-state.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "9.42 mV",
+        "technology": "0.8\u00b5m AMS"
+      },
+      "sky130_expected": {
+        "calculation": "Ripple \u2248 Iload / (f_clk * Cout). With Cout = 20pF, f_clk = 1MHz, and Iload = 50\u00b5A, Ripple \u2248 50\u00b5A / (1MHz * 20pF) = 2.5V (requires larger Cout or higher freq for mV ripple).",
+        "range": {
+          "min": 0.005,
+          "typical": 0.05,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Scales directly with load current and inversely with output capacitance and switching frequency."
+      },
+      "importance": "recommended"
+    },
+    "rise_time": {
+      "description": "Time required for the output voltage to reach 90% of its steady-state value from startup.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the equivalent output resistance (Rout) of the pump and the load capacitance. Rout \u2248 1 / (f_clk * C_fly).",
+        "range": {
+          "min": 1e-06,
+          "typical": 2e-05,
+          "max": 0.0001,
+          "unit": "s"
+        },
+        "reasoning": "With 20pF flying capacitors, the pump will take several clock cycles to fully charge the output node."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the charge pump's output voltage, ripple, and power efficiency. The ideal switches (S) from the extracted netlist are mapped to subcircuits (X) acting as diodes to allow self-starting pumping in ngspice without complex multi-phase clock generation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "efficiency",
+      "output_ripple",
+      "rise_time"
+    ],
+    "spice": "* Charge Pump Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Input Supply\nV1 n4 GND DC 1.8\n\n* Clocks (Added to stimulate the circuit if it relies on external pumping)\nVclk1 clk GND PULSE(0 1.8 0 1n 1n 500n 1u)\nVclk2 clkb GND PULSE(1.8 0 0 1n 1n 500n 1u)\n\n* DUT (Modified 'S' to 'X' for ngspice compatibility, as 'S' requires 4 nodes)\nC1 n0 n5 20p\nC2 n3 n6 20p\nC3 n1 n2 20p\nC4 n7 n9 20p\nR1 n1 n8 1k\nX1 n4 n5 switch_ideal\nX2 n6 n8 switch_ideal\nX3 n3 n12 switch_ideal\nX4 n3 n7 switch_ideal\nX5 n0 n10 switch_ideal\nX6 n0 n4 switch_ideal\nX7 n9 n11 switch_ideal\nX8 n4 n9 switch_ideal\nX9 n5 n6 switch_ideal\nX10 n4 n7 switch_ideal\nC5 n11 GND 20p\nC6 n10 GND 20p\nC7 n2 n1 20p\nC8 n12 GND 20p\n\n* Load Resistor to draw current and measure efficiency\nRload n12 GND 100k\n\n* Ideal Switch Subcircuit (Modeled as a Diode for self-starting pumping)\n.subckt switch_ideal n1 n2\nD1 n1 n2 D_ideal\n.ends\n.model D_ideal D(Is=1e-12 Rs=10)\n\n.control\n  * Run transient analysis for 100us to reach steady state\n  tran 10n 100u\n  \n  * Output Voltage and Ripple Metrics\n  meas tran vout_max max v(n12) from=80u to=100u\n  meas tran vout_min min v(n12) from=80u to=100u\n  meas tran vout_avg avg v(n12) from=80u to=100u\n  let v_ripple = vout_max - vout_min\n  print v_ripple\n  \n  * Voltage Gain\n  let v_gain = vout_avg / 1.8\n  print v_gain\n  \n  * Power and Efficiency\n  meas tran i_in_avg avg i(V1) from=80u to=100u\n  let p_in = -i_in_avg * 1.8\n  let p_out = (vout_avg * vout_avg) / 100000\n  let efficiency = (p_out / p_in) * 100\n  print p_in p_out efficiency\n  \n  * Rise Time (Time to reach 3V)\n  meas tran t_rise trig v(n12) val=0.5 rise=1 targ v(n12) val=3.0 rise=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Charge Pump\",\n    \"description\": \"A 4x cross-coupled charge pump circuit designed to step up a DC input voltage. It uses intermediate x2 outputs alternately to reduce the number of required capacitors and power devices, improving area efficiency.\",\n    \"node_mapping\": {\n      \"input\": [\"n4\"],\n      \"output\": [\"n12\", \"n10\", \"n11\"],\n      \"supply\": [\"n4\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Brief Papers\",\n      \"figure\": \"unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Ratio of the steady-state output DC voltage to the input DC voltage.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"4x (implied by 4x charge pump)\",\n        \"technology\": \"0.8\u00b5m AMS high-voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal 4x multiplier with 1.8V input gives 7.2V. Accounting for diode/switch threshold drops (Vth ~ 0.42V per stage), Vout = 4*VDD - 4*Vth = 4(1.8) - 4(0.42) = 5.52V.\",\n        \"range\": { \"min\": 5.0, \"typical\": 5.5, \"max\": 7.2, \"unit\": \"V\" },\n        \"reasoning\": \"Actual gain depends on the load current, switching frequency, and the on-resistance of the switches.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"efficiency\": {\n      \"description\": \"Power conversion efficiency (Pout / Pin).\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15%\",\n        \"technology\": \"0.8\u00b5m AMS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = Vout^2 / Rload. Pin = VDD * I_in_avg. Efficiency = (Pout / Pin) * 100.\",\n        \"range\": { \"min\": 10, \"typical\": 40, \"max\": 80, \"unit\": \"%\" },\n        \"reasoning\": \"Charge pumps typically achieve 40-80% efficiency depending on the load and parasitic bottom-plate capacitances.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple at the output node during steady-state.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"9.42 mV\",\n        \"technology\": \"0.8\u00b5m AMS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ripple \u2248 Iload / (f_clk * Cout). With Cout = 20pF, f_clk = 1MHz, and Iload = 50\u00b5A, Ripple \u2248 50\u00b5A / (1MHz * 20pF) = 2.5V (requires larger Cout or higher freq for mV ripple).\",\n        \"range\": { \"min\": 0.005, \"typical\": 0.05, \"max\": 0.5, \"unit\": \"V\" },\n        \"reasoning\": \"Scales directly with load current and inversely with output capacitance and switching frequency.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"rise_time\": {\n      \"description\": \"Time required for the output voltage to reach 90% of its steady-state value from startup.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the equivalent output resistance (Rout) of the pump and the load capacitance. Rout \u2248 1 / (f_clk * C_fly).\",\n        \"range\": { \"min\": 1e-6, \"typical\": 20e-6, \"max\": 100e-6, \"unit\": \"s\" },\n        \"reasoning\": \"With 20pF flying capacitors, the pump will take several clock cycles to fully charge the output node.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the charge pump's output voltage, ripple, and power efficiency. The ideal switches (S) from the extracted netlist are mapped to subcircuits (X) acting as diodes to allow self-starting pumping in ngspice without complex multi-phase clock generation.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"voltage_gain\", \"efficiency\", \"output_ripple\", \"rise_time\"],\n    \"spice\": \"* Charge Pump Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Input Supply\\nV1 n4 GND DC 1.8\\n\\n* Clocks (Added to stimulate the circuit if it relies on external pumping)\\nVclk1 clk GND PULSE(0 1.8 0 1n 1n 500n 1u)\\nVclk2 clkb GND PULSE(1.8 0 0 1n 1n 500n 1u)\\n\\n* DUT (Modified 'S' to 'X' for ngspice compatibility, as 'S' requires 4 nodes)\\nC1 n0 n5 20p\\nC2 n3 n6 20p\\nC3 n1 n2 20p\\nC4 n7 n9 20p\\nR1 n1 n8 1k\\nX1 n4 n5 switch_ideal\\nX2 n6 n8 switch_ideal\\nX3 n3 n12 switch_ideal\\nX4 n3 n7 switch_ideal\\nX5 n0 n10 switch_ideal\\nX6 n0 n4 switch_ideal\\nX7 n9 n11 switch_ideal\\nX8 n4 n9 switch_ideal\\nX9 n5 n6 switch_ideal\\nX10 n4 n7 switch_ideal\\nC5 n11 GND 20p\\nC6 n10 GND 20p\\nC7 n2 n1 20p\\nC8 n12 GND 20p\\n\\n* Load Resistor to draw current and measure efficiency\\nRload n12 GND 100k\\n\\n* Ideal Switch Subcircuit (Modeled as a Diode for self-starting pumping)\\n.subckt switch_ideal n1 n2\\nD1 n1 n2 D_ideal\\n.ends\\n.model D_ideal D(Is=1e-12 Rs=10)\\n\\n.control\\n  * Run transient analysis for 100us to reach steady state\\n  tran 10n 100u\\n  \\n  * Output Voltage and Ripple Metrics\\n  meas tran vout_max max v(n12) from=80u to=100u\\n  meas tran vout_min min v(n12) from=80u to=100u\\n  meas tran vout_avg avg v(n12) from=80u to=100u\\n  let v_ripple = vout_max - vout_min\\n  print v_ripple\\n  \\n  * Voltage Gain\\n  let v_gain = vout_avg / 1.8\\n  print v_gain\\n  \\n  * Power and Efficiency\\n  meas tran i_in_avg avg i(V1) from=80u to=100u\\n  let p_in = -i_in_avg * 1.8\\n  let p_out = (vout_avg * vout_avg) / 100000\\n  let efficiency = (p_out / p_in) * 100\\n  print p_in p_out efficiency\\n  \\n  * Rise Time (Time to reach 3V)\\n  meas tran t_rise trig v(n12) val=0.5 rise=1 targ v(n12) val=3.0 rise=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1233778",
+  "_case": "1233778_image_3"
+}

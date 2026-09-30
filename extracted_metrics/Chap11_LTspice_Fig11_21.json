@@ -1,0 +1,172 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 11.21",
+    "page": "347",
+    "circuit_type": "5-stage CMOS buffer for driving large capacitive loads",
+    "description": "A cascade of five inverters with progressively increasing widths (scaled by a factor of 8) designed to drive a large 20 pF load capacitance with minimized delay, balancing area and speed."
+  },
+  "step2_metrics": {
+    "power_delay_product": {
+      "description": "Characterizes the speed and energy efficiency of a digital process or circuit.",
+      "unit": "Joules",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "340",
+        "reference": "Eq 11.16"
+      },
+      "equation": {
+        "formula": "PDP = Pavg * (tPHL + tPLH)",
+        "explanation": "Product of the average power dissipation and the sum of the high-to-low and low-to-high propagation delays.",
+        "assumptions": "Assumes a specific clock frequency for Pavg calculation."
+      },
+      "sky130_expected": {
+        "calculation": "Ctot \u2248 Cload + internal_caps \u2248 20pF + 3pF = 23pF. Energy per cycle = Ctot * VDD^2 = 23e-12 * 1.8^2 = 74.5 pJ. If operating at 100 MHz, Pavg = 7.45 mW. Assuming (tPHL+tPLH) \u2248 60 ps, PDP = 7.45 mW * 60 ps = 0.447 pJ.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.5",
+          "max": "5.0",
+          "unit": "pJ"
+        },
+        "reasoning": "Depends heavily on the operating frequency used to define Pavg, but the energy per transition is fixed by the massive 20pF load."
+      },
+      "importance": "essential"
+    },
+    "stage_scaling_factor": {
+      "description": "The optimal width multiplier (A) between consecutive inverter stages to minimize delay.",
+      "unit": "unitless",
+      "analysis_type": "DC",
+      "source": {
+        "page": "344",
+        "reference": "Eq 11.20"
+      },
+      "equation": {
+        "formula": "A = (Cload / Cin1)^(1/N)",
+        "explanation": "Calculates the scaling factor A given a fixed number of stages N, load capacitance, and first-stage input capacitance.",
+        "assumptions": "Assumes equal delay contribution from each stage."
+      },
+      "sky130_expected": {
+        "calculation": "For Wn1=10um, Wp1=20um, L=0.15um: Cin1 \u2248 Cox*W*L \u2248 5fF/um\u00b2 * 30um * 0.15um = 22.5 fF. Cload = 20 pF. N = 5. A = (20000 / 22.5)^(1/5) = (888.8)^0.2 = 3.89. (Note: The circuit uses A=8 to save area).",
+        "range": {
+          "min": "2.7",
+          "typical": "3.9",
+          "max": "8.0",
+          "unit": "unitless"
+        },
+        "reasoning": "Ideal is e (2.718), but practical designs often use 4 to 8 to reduce the total number of stages and area."
+      },
+      "importance": "recommended"
+    },
+    "total_propagation_delay": {
+      "description": "The total time required for a signal to propagate through the entire buffer chain.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "345",
+        "reference": "Eq 11.23"
+      },
+      "equation": {
+        "formula": "(tPHL + tPLH)total = 0.7 * N * (Rn1 + Rp1) * Cin1 * (Cout1/Cin1 + (Cload/Cin1)^(1/N))",
+        "explanation": "Sums the intrinsic and load-dependent delays of all N stages.",
+        "assumptions": "Assumes step input and linear scaling of resistance and capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "Rn1 \u2248 1/(270e-6 * (10/0.15) * 1.38) \u2248 40 \u03a9. Rp1 \u2248 1/(50e-6 * (20/0.15) * 1.38) \u2248 108 \u03a9. Cin1 \u2248 22.5 fF. Cout1/Cin1 \u2248 1. A = 8 (from netlist sizing). (tPHL+tPLH) = 0.7 * 5 * (40+108) * 22.5e-15 * (1 + 8) = 3.5 * 148 * 22.5e-15 * 9 \u2248 105 ps.",
+        "range": {
+          "min": "50",
+          "typical": "105",
+          "max": "200",
+          "unit": "ps"
+        },
+        "reasoning": "Calculated using first-order RC approximations for the SKY130 process parameters."
+      },
+      "importance": "essential"
+    },
+    "optimal_number_of_stages": {
+      "description": "The ideal number of inverter stages to achieve the absolute minimum delay.",
+      "unit": "stages",
+      "analysis_type": "DC",
+      "source": {
+        "page": "345",
+        "reference": "Eq 11.25"
+      },
+      "equation": {
+        "formula": "N = ln(Cload / Cin1)",
+        "explanation": "Derived by setting the derivative of the total delay equation to zero (implies A = e).",
+        "assumptions": "Assumes area is not a constraint and continuous stage numbers are possible."
+      },
+      "sky130_expected": {
+        "calculation": "N = ln(20000 fF / 22.5 fF) = ln(888.8) \u2248 6.78 stages.",
+        "range": {
+          "min": "6",
+          "typical": "7",
+          "max": "8",
+          "unit": "stages"
+        },
+        "reasoning": "Rounding to the nearest integer. To maintain logic inversion, 7 stages would be used (as in Fig 11.20)."
+      },
+      "importance": "optional"
+    },
+    "distributed_driver_delay": {
+      "description": "Delay of a distributed driver network (fanout tree).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "348",
+        "reference": "Eq 11.27"
+      },
+      "equation": {
+        "formula": "tPHL + tPLH = 0.7 * (Rn + Rp) * [2Cout + 7Cin]",
+        "explanation": "Calculates delay when a signal is distributed into different paths to reduce overall propagation delay.",
+        "assumptions": "Assumes equal sizing of all distributed inverters."
+      },
+      "sky130_expected": {
+        "calculation": "Not directly applicable to the linear cascade DUT, but for a single stage driving 7 identical stages: 0.7 * (40+108) * (2*22.5fF + 7*22.5fF) = 103.6 * 202.5fF \u2248 21 ps.",
+        "range": {
+          "min": "15",
+          "typical": "21",
+          "max": "30",
+          "unit": "ps"
+        },
+        "reasoning": "Based on the RC time constant of a single stage driving a fanout of 7."
+      },
+      "importance": "optional"
+    },
+    "rc_line_delay": {
+      "description": "Delay of an inverter driving a long resistive-capacitive transmission line.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "348",
+        "reference": "Eq 11.28"
+      },
+      "equation": {
+        "formula": "tPHL + tPLH = 0.7 * [(Rn + Rp)(Cout + c*l + Cload) + 2*(r*l)(Cload)] + 2 * 0.35 * r*c*l^2",
+        "explanation": "Combines the gate delay, the delay of driving the load through the line resistance, and the distributed RC delay of the line itself.",
+        "assumptions": "Assumes a lumped pi or distributed RC model for the interconnect."
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this specific netlist as no RC line (r, c, l) is included between the buffer and Cload.",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "s"
+        },
+        "reasoning": "Requires interconnect parasitic parameters not present in the DUT."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the total propagation delay (tPHL + tPLH), rise/fall times, average power, and Power Delay Product (PDP) of the 5-stage buffer driving a 20pF load.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "total_propagation_delay",
+      "power_delay_product"
+    ],
+    "spice": "* 5-stage CMOS Buffer Testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameters for the 5 stages (scaled by 8x per stage)\n.param L_xm1=0.15 L_xm2=0.15 L_xm3=0.15 L_xm4=0.15 L_xm5=0.15 L_xm6=0.15 L_xm7=0.15 L_xm8=0.15 L_xm9=0.15 L_xm10=0.15\n.param W_xm1=10 W_xm2=20\n.param W_xm3=80 W_xm4=160\n.param W_xm5=640 W_xm6=1280\n.param W_xm7=5120 W_xm8=10240\n.param W_xm9=40960 W_xm10=81920\n\n* DUT\nxm1 N001 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 N001 Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 N003 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N003 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 N004 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nxm8 N004 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 Vout N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 Vout N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nCload Vout 0 2e-11\n\n* Stimulus: 100 MHz pulse\nVin Vin 0 PULSE(0 1.8 1n 0.1n 0.1n 4n 10n)\n\n.control\n* Transient analysis for 2 clock cycles\ntran 10p 20n\n\n* Measure delays (tPHL and tPLH)\nmeas tran t_delay_hl trig v(vin) val=0.9 rise=1 targ v(vout) val=0.9 fall=1\nmeas tran t_delay_lh trig v(vin) val=0.9 fall=1 targ v(vout) val=0.9 rise=1\nlet t_delay_total = t_delay_hl + t_delay_lh\nprint t_delay_total\n\n* Measure rise and fall times at the output\nmeas tran t_rise trig v(vout) val=0.36 rise=1 targ v(vout) val=1.44 rise=1\nmeas tran t_fall trig v(vout) val=1.44 fall=1 targ v(vout) val=0.36 fall=1\n\n* Measure average power and PDP\nmeas tran pwr_avg avg i(VDD) from=0 to=10n\nlet power_watts = -pwr_avg * 1.8\nprint power_watts\n\nlet pdp = power_watts * t_delay_total\nprint pdp\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 11.21\",\n    \"page\": \"347\",\n    \"circuit_type\": \"5-stage CMOS buffer for driving large capacitive loads\",\n    \"description\": \"A cascade of five inverters with progressively increasing widths (scaled by a factor of 8) designed to drive a large 20 pF load capacitance with minimized delay, balancing area and speed.\"\n  },\n  \"step2_metrics\": {\n    \"power_delay_product\": {\n      \"description\": \"Characterizes the speed and energy efficiency of a digital process or circuit.\",\n      \"unit\": \"Joules\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"340\",\n        \"reference\": \"Eq 11.16\"\n      },\n      \"equation\": {\n        \"formula\": \"PDP = Pavg * (tPHL + tPLH)\",\n        \"explanation\": \"Product of the average power dissipation and the sum of the high-to-low and low-to-high propagation delays.\",\n        \"assumptions\": \"Assumes a specific clock frequency for Pavg calculation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ctot \u2248 Cload + internal_caps \u2248 20pF + 3pF = 23pF. Energy per cycle = Ctot * VDD^2 = 23e-12 * 1.8^2 = 74.5 pJ. If operating at 100 MHz, Pavg = 7.45 mW. Assuming (tPHL+tPLH) \u2248 60 ps, PDP = 7.45 mW * 60 ps = 0.447 pJ.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.5\",\n          \"max\": \"5.0\",\n          \"unit\": \"pJ\"\n        },\n        \"reasoning\": \"Depends heavily on the operating frequency used to define Pavg, but the energy per transition is fixed by the massive 20pF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"stage_scaling_factor\": {\n      \"description\": \"The optimal width multiplier (A) between consecutive inverter stages to minimize delay.\",\n      \"unit\": \"unitless\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"344\",\n        \"reference\": \"Eq 11.20\"\n      },\n      \"equation\": {\n        \"formula\": \"A = (Cload / Cin1)^(1/N)\",\n        \"explanation\": \"Calculates the scaling factor A given a fixed number of stages N, load capacitance, and first-stage input capacitance.\",\n        \"assumptions\": \"Assumes equal delay contribution from each stage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For Wn1=10um, Wp1=20um, L=0.15um: Cin1 \u2248 Cox*W*L \u2248 5fF/um\u00b2 * 30um * 0.15um = 22.5 fF. Cload = 20 pF. N = 5. A = (20000 / 22.5)^(1/5) = (888.8)^0.2 = 3.89. (Note: The circuit uses A=8 to save area).\",\n        \"range\": {\n          \"min\": \"2.7\",\n          \"typical\": \"3.9\",\n          \"max\": \"8.0\",\n          \"unit\": \"unitless\"\n        },\n        \"reasoning\": \"Ideal is e (2.718), but practical designs often use 4 to 8 to reduce the total number of stages and area.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"total_propagation_delay\": {\n      \"description\": \"The total time required for a signal to propagate through the entire buffer chain.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"345\",\n        \"reference\": \"Eq 11.23\"\n      },\n      \"equation\": {\n        \"formula\": \"(tPHL + tPLH)total = 0.7 * N * (Rn1 + Rp1) * Cin1 * (Cout1/Cin1 + (Cload/Cin1)^(1/N))\",\n        \"explanation\": \"Sums the intrinsic and load-dependent delays of all N stages.\",\n        \"assumptions\": \"Assumes step input and linear scaling of resistance and capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rn1 \u2248 1/(270e-6 * (10/0.15) * 1.38) \u2248 40 \u03a9. Rp1 \u2248 1/(50e-6 * (20/0.15) * 1.38) \u2248 108 \u03a9. Cin1 \u2248 22.5 fF. Cout1/Cin1 \u2248 1. A = 8 (from netlist sizing). (tPHL+tPLH) = 0.7 * 5 * (40+108) * 22.5e-15 * (1 + 8) = 3.5 * 148 * 22.5e-15 * 9 \u2248 105 ps.\",\n        \"range\": {\n          \"min\": \"50\",\n          \"typical\": \"105\",\n          \"max\": \"200\",\n          \"unit\": \"ps\"\n        },\n        \"reasoning\": \"Calculated using first-order RC approximations for the SKY130 process parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"optimal_number_of_stages\": {\n      \"description\": \"The ideal number of inverter stages to achieve the absolute minimum delay.\",\n      \"unit\": \"stages\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"345\",\n        \"reference\": \"Eq 11.25\"\n      },\n      \"equation\": {\n        \"formula\": \"N = ln(Cload / Cin1)\",\n        \"explanation\": \"Derived by setting the derivative of the total delay equation to zero (implies A = e).\",\n        \"assumptions\": \"Assumes area is not a constraint and continuous stage numbers are possible.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N = ln(20000 fF / 22.5 fF) = ln(888.8) \u2248 6.78 stages.\",\n        \"range\": {\n          \"min\": \"6\",\n          \"typical\": \"7\",\n          \"max\": \"8\",\n          \"unit\": \"stages\"\n        },\n        \"reasoning\": \"Rounding to the nearest integer. To maintain logic inversion, 7 stages would be used (as in Fig 11.20).\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"distributed_driver_delay\": {\n      \"description\": \"Delay of a distributed driver network (fanout tree).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"348\",\n        \"reference\": \"Eq 11.27\"\n      },\n      \"equation\": {\n        \"formula\": \"tPHL + tPLH = 0.7 * (Rn + Rp) * [2Cout + 7Cin]\",\n        \"explanation\": \"Calculates delay when a signal is distributed into different paths to reduce overall propagation delay.\",\n        \"assumptions\": \"Assumes equal sizing of all distributed inverters.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Not directly applicable to the linear cascade DUT, but for a single stage driving 7 identical stages: 0.7 * (40+108) * (2*22.5fF + 7*22.5fF) = 103.6 * 202.5fF \u2248 21 ps.\",\n        \"range\": {\n          \"min\": \"15\",\n          \"typical\": \"21\",\n          \"max\": \"30\",\n          \"unit\": \"ps\"\n        },\n        \"reasoning\": \"Based on the RC time constant of a single stage driving a fanout of 7.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"rc_line_delay\": {\n      \"description\": \"Delay of an inverter driving a long resistive-capacitive transmission line.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"348\",\n        \"reference\": \"Eq 11.28\"\n      },\n      \"equation\": {\n        \"formula\": \"tPHL + tPLH = 0.7 * [(Rn + Rp)(Cout + c*l + Cload) + 2*(r*l)(Cload)] + 2 * 0.35 * r*c*l^2\",\n        \"explanation\": \"Combines the gate delay, the delay of driving the load through the line resistance, and the distributed RC delay of the line itself.\",\n        \"assumptions\": \"Assumes a lumped pi or distributed RC model for the interconnect.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this specific netlist as no RC line (r, c, l) is included between the buffer and Cload.\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Requires interconnect parasitic parameters not present in the DUT.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the total propagation delay (tPHL + tPLH), rise/fall times, average power, and Power Delay Product (PDP) of the 5-stage buffer driving a 20pF load.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"total_propagation_delay\",\n      \"power_delay_product\"\n    ],\n    \"spice\": \"* 5-stage CMOS Buffer Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters for the 5 stages (scaled by 8x per stage)\\n.param L_xm1=0.15 L_xm2=0.15 L_xm3=0.15 L_xm4=0.15 L_xm5=0.15 L_xm6=0.15 L_xm7=0.15 L_xm8=0.15 L_xm9=0.15 L_xm10=0.15\\n.param W_xm1=10 W_xm2=20\\n.param W_xm3=80 W_xm4=160\\n.param W_xm5=640 W_xm6=1280\\n.param W_xm7=5120 W_xm8=10240\\n.param W_xm9=40960 W_xm10=81920\\n\\n* DUT\\nxm1 N001 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 N001 Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 N003 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N003 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 N004 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 N004 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 Vout N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 Vout N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nCload Vout 0 2e-11\\n\\n* Stimulus: 100 MHz pulse\\nVin Vin 0 PULSE(0 1.8 1n 0.1n 0.1n 4n 10n)\\n\\n.control\\n* Transient analysis for 2 clock cycles\\ntran 10p 20n\\n\\n* Measure delays (tPHL and tPLH)\\nmeas tran t_delay_hl trig v(vin) val=0.9 rise=1 targ v(vout) val=0.9 fall=1\\nmeas tran t_delay_lh trig v(vin) val=0.9 fall=1 targ v(vout) val=0.9 rise=1\\nlet t_delay_total = t_delay_hl + t_delay_lh\\nprint t_delay_total\\n\\n* Measure rise and fall times at the output\\nmeas tran t_rise trig v(vout) val=0.36 rise=1 targ v(vout) val=1.44 rise=1\\nmeas tran t_fall trig v(vout) val=1.44 fall=1 targ v(vout) val=0.36 fall=1\\n\\n* Measure average power and PDP\\nmeas tran pwr_avg avg i(VDD) from=0 to=10n\\nlet power_watts = -pwr_avg * 1.8\\nprint power_watts\\n\\nlet pdp = power_watts * t_delay_total\\nprint pdp\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

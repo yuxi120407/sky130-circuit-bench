@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor Comparator",
+    "description": "A fully differential switched-capacitor comparator typically used in the sub-ADC (flash ADC) of a pipelined analog-to-digital converter. It samples differential input and reference voltages during phase 1, and performs passive charge redistribution during phase 2 to evaluate the difference between the input and the reference.",
+    "node_mapping": {
+      "input": [
+        "label_net_2",
+        "label_net_3",
+        "label_net_1",
+        "label_net_4"
+      ],
+      "output": [
+        "label_net_0"
+      ],
+      "supply": [
+        "vdd"
+      ],
+      "bias": [
+        "label_net_5",
+        "label_net_6"
+      ],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 12-Bit 20-Msample/s Pipelined Analog-to-Digital Converter With Nested Digital Background Calibration",
+      "figure": "Generic SC Comparator",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Power_Consumption": {
+      "description": "Total power dissipation of the comparator circuit.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "254 mW",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_avg. The reported 254 mW is for the entire 12-bit ADC. A single sub-ADC comparator in 1.8V SKY130 will consume significantly less power.",
+        "range": {
+          "min": "0.1m",
+          "typical": "1m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down from full ADC power; a single dynamic or low-power continuous-time comparator at 20MHz typically consumes ~1mW."
+      },
+      "importance": "essential"
+    },
+    "Operating_Frequency": {
+      "description": "Sampling rate of the switched-capacitor network.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "20 MHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the clock period (1 / T_period).",
+        "range": {
+          "min": "10M",
+          "typical": "20M",
+          "max": "50M",
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the target sampling rate of the pipelined ADC reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "Unit_Capacitance": {
+      "description": "Value of the sampling capacitors used in the SC network.",
+      "unit": "F",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "80 fF",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Directly adopted from the paper's reported value.",
+        "range": {
+          "min": "40f",
+          "typical": "80f",
+          "max": "160f",
+          "unit": "F"
+        },
+        "reasoning": "80 fF is a reasonable unit capacitor size to balance thermal noise (kT/C) requirements and area/power in a 12-bit ADC."
+      },
+      "importance": "essential"
+    },
+    "SNDR": {
+      "description": "Signal-to-Noise-and-Distortion Ratio (System level metric for the full ADC).",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "70.8 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "System level metric, depends on full ADC architecture and calibration.",
+        "range": {
+          "min": "65",
+          "typical": "70.8",
+          "max": "74",
+          "unit": "dB"
+        },
+        "reasoning": "Targeting ~11.5 ENOB for a 12-bit ADC as reported."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify the charge redistribution and comparator toggling at 20 MHz. The netlist is adapted to include capacitor values and switch control nodes which are required for standard SPICE simulation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "Operating_Frequency"
+    ],
+    "spice": "* Switched-Capacitor Comparator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param VDD=1.8\n.param VCM=0.9\n.param Cval=80f\n\n* Clocks (20 MHz, non-overlapping)\nVphi1 phi1 0 PULSE(0 1.8 0 100p 100p 24n 50n)\nVphi2 phi2 0 PULSE(0 1.8 25n 100p 100p 24n 50n)\n\n* DC Bias and References\nV_label_net_5 label_net_5 0 DC {VCM}\nV_label_net_6 label_net_6 0 DC {VCM}\nV_label_net_4 label_net_4 0 DC 1.0\nV_label_net_1 label_net_1 0 DC 0.8\n\n* Differential Input Signal (1 MHz sine wave)\nV_label_net_3 label_net_3 0 SINE(0.9 0.3 1Meg)\nV_label_net_2 label_net_2 0 SINE(0.9 -0.3 1Meg)\n\n* Power supply for measurement\nVdd_amp vdd 0 DC {VDD}\nR_dummy vdd 0 10k\n\n* Switch model\n.model switch_ideal SW(Ron=100 Roff=1G vt=0.9)\n\n* Amplifier subcircuit (Idealized Comparator)\n.subckt amplifier out in_minus in_plus\nB1 out 0 V='v(in_plus) - v(in_minus) > 0 ? 1.8 : 0'\n.ends\n\n* DUT (Modified to include capacitor values and switch control nodes)\nC1 n0 n3 {Cval}\nC2 n1 n2 {Cval}\nX1 label_net_0 n1 n0 amplifier\nC3 n0 n5 {Cval}\nS1 n5 label_net_1 phi1 0 switch_ideal\nC4 n1 n4 {Cval}\nS2 n4 n5 phi2 0 switch_ideal\nS3 n2 n3 phi2 0 switch_ideal\nS4 n0 n1 phi1 0 switch_ideal\nS5 n2 label_net_2 phi1 0 switch_ideal\nS6 n3 label_net_3 phi1 0 switch_ideal\nS7 n4 label_net_4 phi1 0 switch_ideal\nS8 n0 label_net_5 phi1 0 switch_ideal\nS9 n1 label_net_6 phi1 0 switch_ideal\n\n.control\ntran 1n 2u\nlet power = -i(Vdd_amp) * 1.8\nmeas tran avg_power avg power\nmeas tran v_max max v(label_net_0)\nmeas tran v_min min v(label_net_0)\nprint avg_power v_max v_min\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor Comparator\",\n    \"description\": \"A fully differential switched-capacitor comparator typically used in the sub-ADC (flash ADC) of a pipelined analog-to-digital converter. It samples differential input and reference voltages during phase 1, and performs passive charge redistribution during phase 2 to evaluate the difference between the input and the reference.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"label_net_2\",\n        \"label_net_3\",\n        \"label_net_1\",\n        \"label_net_4\"\n      ],\n      \"output\": [\n        \"label_net_0\"\n      ],\n      \"supply\": [\n        \"vdd\"\n      ],\n      \"bias\": [\n        \"label_net_5\",\n        \"label_net_6\"\n      ],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 12-Bit 20-Msample/s Pipelined Analog-to-Digital Converter With Nested Digital Background Calibration\",\n      \"figure\": \"Generic SC Comparator\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Power_Consumption\": {\n      \"description\": \"Total power dissipation of the comparator circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"254 mW\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_avg. The reported 254 mW is for the entire 12-bit ADC. A single sub-ADC comparator in 1.8V SKY130 will consume significantly less power.\",\n        \"range\": {\n          \"min\": \"0.1m\",\n          \"typical\": \"1m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down from full ADC power; a single dynamic or low-power continuous-time comparator at 20MHz typically consumes ~1mW.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Operating_Frequency\": {\n      \"description\": \"Sampling rate of the switched-capacitor network.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"20 MHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the clock period (1 / T_period).\",\n        \"range\": {\n          \"min\": \"10M\",\n          \"typical\": \"20M\",\n          \"max\": \"50M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the target sampling rate of the pipelined ADC reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unit_Capacitance\": {\n      \"description\": \"Value of the sampling capacitors used in the SC network.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"80 fF\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Directly adopted from the paper's reported value.\",\n        \"range\": {\n          \"min\": \"40f\",\n          \"typical\": \"80f\",\n          \"max\": \"160f\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"80 fF is a reasonable unit capacitor size to balance thermal noise (kT/C) requirements and area/power in a 12-bit ADC.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"SNDR\": {\n      \"description\": \"Signal-to-Noise-and-Distortion Ratio (System level metric for the full ADC).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"70.8 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"System level metric, depends on full ADC architecture and calibration.\",\n        \"range\": {\n          \"min\": \"65\",\n          \"typical\": \"70.8\",\n          \"max\": \"74\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Targeting ~11.5 ENOB for a 12-bit ADC as reported.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify the charge redistribution and comparator toggling at 20 MHz. The netlist is adapted to include capacitor values and switch control nodes which are required for standard SPICE simulation.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"Operating_Frequency\"\n    ],\n    \"spice\": \"* Switched-Capacitor Comparator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param VDD=1.8\\n.param VCM=0.9\\n.param Cval=80f\\n\\n* Clocks (20 MHz, non-overlapping)\\nVphi1 phi1 0 PULSE(0 1.8 0 100p 100p 24n 50n)\\nVphi2 phi2 0 PULSE(0 1.8 25n 100p 100p 24n 50n)\\n\\n* DC Bias and References\\nV_label_net_5 label_net_5 0 DC {VCM}\\nV_label_net_6 label_net_6 0 DC {VCM}\\nV_label_net_4 label_net_4 0 DC 1.0\\nV_label_net_1 label_net_1 0 DC 0.8\\n\\n* Differential Input Signal (1 MHz sine wave)\\nV_label_net_3 label_net_3 0 SINE(0.9 0.3 1Meg)\\nV_label_net_2 label_net_2 0 SINE(0.9 -0.3 1Meg)\\n\\n* Power supply for measurement\\nVdd_amp vdd 0 DC {VDD}\\nR_dummy vdd 0 10k\\n\\n* Switch model\\n.model switch_ideal SW(Ron=100 Roff=1G vt=0.9)\\n\\n* Amplifier subcircuit (Idealized Comparator)\\n.subckt amplifier out in_minus in_plus\\nB1 out 0 V='v(in_plus) - v(in_minus) > 0 ? 1.8 : 0'\\n.ends\\n\\n* DUT (Modified to include capacitor values and switch control nodes)\\nC1 n0 n3 {Cval}\\nC2 n1 n2 {Cval}\\nX1 label_net_0 n1 n0 amplifier\\nC3 n0 n5 {Cval}\\nS1 n5 label_net_1 phi1 0 switch_ideal\\nC4 n1 n4 {Cval}\\nS2 n4 n5 phi2 0 switch_ideal\\nS3 n2 n3 phi2 0 switch_ideal\\nS4 n0 n1 phi1 0 switch_ideal\\nS5 n2 label_net_2 phi1 0 switch_ideal\\nS6 n3 label_net_3 phi1 0 switch_ideal\\nS7 n4 label_net_4 phi1 0 switch_ideal\\nS8 n0 label_net_5 phi1 0 switch_ideal\\nS9 n1 label_net_6 phi1 0 switch_ideal\\n\\n.control\\ntran 1n 2u\\nlet power = -i(Vdd_amp) * 1.8\\nmeas tran avg_power avg power\\nmeas tran v_max max v(label_net_0)\\nmeas tran v_min min v(label_net_0)\\nprint avg_power v_max v_min\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1347311",
+  "_case": "1347311_image_11"
+}

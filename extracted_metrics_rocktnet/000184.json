@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Transimpedance / Voltage Amplifier with Nonlinear Feedback",
+    "description": "A BiCMOS wideband amplifier stage featuring an emitter-follower input, a common-emitter gain stage with emitter degeneration, and an emitter-follower output. It includes a nonlinear feedback path (diode-connected BJT and resistor) to dynamically compress gain at large signal swings, handling a wide dynamic range without saturating.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N_BIAS",
+        "INDUMMY"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A SiGe BiCMOS Burst-Mode 155-Mb/s Receiver for PON",
+      "figure": "Generic",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipation of the amplifier stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "500 mW",
+        "technology": "0.8um 35-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With VDD=1.8V and estimated bias currents of ~1-2mA total for this single stage.",
+        "range": {
+          "min": "1m",
+          "typical": "3m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 500mW for the entire receiver chip at 5V. A single gain stage at 1.8V will consume significantly less power."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Midband AC voltage gain from IN to OUT.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "67 dB",
+        "technology": "0.8um 35-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain ~ gm * R_load. For a single stage with R2=1k and gm~40mS, gain is ~32dB.",
+        "range": {
+          "min": "20",
+          "typical": "30",
+          "max": "40",
+          "unit": "dB"
+        },
+        "reasoning": "The 67dB value is for the full receiver chain. A single stage will provide a fraction of this total gain."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB cutoff frequency of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "155 Mb/s (implies ~100-150 MHz BW)",
+        "technology": "0.8um 35-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2*pi*R2*C_total). With R2=1k and C~100fF, BW is ~1.5GHz.",
+        "range": {
+          "min": "100M",
+          "typical": "1G",
+          "max": "2G",
+          "unit": "Hz"
+        },
+        "reasoning": "Modern processes (even using generic BJT models) can easily exceed the 155MHz requirement of the original 2002 paper."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak voltage swing at the output.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.8um 35-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by VDD (1.8V) and VCE(sat) of the BJTs.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.5",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "The nonlinear feedback compresses the gain at large swings to prevent saturation, limiting the maximum linear swing."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, -3dB bandwidth, and transient output swing.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth",
+      "output_swing"
+    ],
+    "spice": "* SiGe BiCMOS Burst-Mode Receiver Gain Stage\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Generic NPN model (used as SKY130 NPNs require specific subcircuit wrappers)\n.model npn npn (is=1e-16 bf=100 vaf=50 cjc=100f cje=100f)\n\n.param R1_val=100\n.param R2_val=1k\n.param CC_val=100f\n.param RNLB_val=500\n.param RFMB_val=2k\n.param IB_val=100u\n\n* DUT\nIB VDD N_BIAS {IB_val}\nQB0 N_BIAS N_BIAS GND npn\nQ1 VDD IN N_Q2B npn\nQB1 N_Q2B N_BIAS GND npn\nQ2 N_Q2C N_Q2B N_Q2E npn\nR1 N_Q2E INDUMMY {R1_val}\nR2 VDD N_Q2C {R2_val}\nCC VDD N_Q2C {CC_val}\nQ3 VDD N_Q2C OUT npn\nQB2 OUT N_BIAS GND npn\nQNLB N_QNLB N_QNLB N_Q2B npn\nRNLB N_QNLB OUT {RNLB_val}\nRFMB N_Q2B OUT {RFMB_val}\n\n* Sources\nVGND GND 0 0\nVVDD VDD GND 1.8\n* DC bias adjusted to 1.4V to ensure Q2 turns on properly\nVIN IN GND DC 1.4 AC 1 SIN(1.4 0.05 10MEG 0 0)\n* INDUMMY set to 0V to provide proper Vbe for Q2\nVINDUMMY INDUMMY GND DC 0\n\n.control\n* DC Analysis\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* AC Analysis\nac dec 100 1MEG 10G\nlet gain_db = vdb(OUT)\nmeas ac midband_gain find gain_db at=10MEG\nlet gain_db_3db = midband_gain - 3\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\n\n* Transient Analysis\ntran 100p 200n\nmeas tran vout_pp pp v(OUT)\nmeas tran vout_max max v(OUT)\nmeas tran vout_min min v(OUT)\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Transimpedance / Voltage Amplifier with Nonlinear Feedback\",\n    \"description\": \"A BiCMOS wideband amplifier stage featuring an emitter-follower input, a common-emitter gain stage with emitter degeneration, and an emitter-follower output. It includes a nonlinear feedback path (diode-connected BJT and resistor) to dynamically compress gain at large signal swings, handling a wide dynamic range without saturating.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"OUT\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N_BIAS\", \"INDUMMY\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A SiGe BiCMOS Burst-Mode 155-Mb/s Receiver for PON\",\n      \"figure\": \"Generic\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation of the amplifier stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"500 mW\",\n        \"technology\": \"0.8um 35-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With VDD=1.8V and estimated bias currents of ~1-2mA total for this single stage.\",\n        \"range\": { \"min\": \"1m\", \"typical\": \"3m\", \"max\": \"10m\", \"unit\": \"W\" },\n        \"reasoning\": \"The paper reports 500mW for the entire receiver chip at 5V. A single gain stage at 1.8V will consume significantly less power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Midband AC voltage gain from IN to OUT.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"67 dB\",\n        \"technology\": \"0.8um 35-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain ~ gm * R_load. For a single stage with R2=1k and gm~40mS, gain is ~32dB.\",\n        \"range\": { \"min\": \"20\", \"typical\": \"30\", \"max\": \"40\", \"unit\": \"dB\" },\n        \"reasoning\": \"The 67dB value is for the full receiver chain. A single stage will provide a fraction of this total gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"155 Mb/s (implies ~100-150 MHz BW)\",\n        \"technology\": \"0.8um 35-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2*pi*R2*C_total). With R2=1k and C~100fF, BW is ~1.5GHz.\",\n        \"range\": { \"min\": \"100M\", \"typical\": \"1G\", \"max\": \"2G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Modern processes (even using generic BJT models) can easily exceed the 155MHz requirement of the original 2002 paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.8um 35-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by VDD (1.8V) and VCE(sat) of the BJTs.\",\n        \"range\": { \"min\": \"0.2\", \"typical\": \"0.5\", \"max\": \"1.0\", \"unit\": \"V\" },\n        \"reasoning\": \"The nonlinear feedback compresses the gain at large swings to prevent saturation, limiting the maximum linear swing.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, -3dB bandwidth, and transient output swing.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"power_consumption\", \"voltage_gain\", \"bandwidth\", \"output_swing\"],\n    \"spice\": \"* SiGe BiCMOS Burst-Mode Receiver Gain Stage\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Generic NPN model (used as SKY130 NPNs require specific subcircuit wrappers)\\n.model npn npn (is=1e-16 bf=100 vaf=50 cjc=100f cje=100f)\\n\\n.param R1_val=100\\n.param R2_val=1k\\n.param CC_val=100f\\n.param RNLB_val=500\\n.param RFMB_val=2k\\n.param IB_val=100u\\n\\n* DUT\\nIB VDD N_BIAS {IB_val}\\nQB0 N_BIAS N_BIAS GND npn\\nQ1 VDD IN N_Q2B npn\\nQB1 N_Q2B N_BIAS GND npn\\nQ2 N_Q2C N_Q2B N_Q2E npn\\nR1 N_Q2E INDUMMY {R1_val}\\nR2 VDD N_Q2C {R2_val}\\nCC VDD N_Q2C {CC_val}\\nQ3 VDD N_Q2C OUT npn\\nQB2 OUT N_BIAS GND npn\\nQNLB N_QNLB N_QNLB N_Q2B npn\\nRNLB N_QNLB OUT {RNLB_val}\\nRFMB N_Q2B OUT {RFMB_val}\\n\\n* Sources\\nVGND GND 0 0\\nVVDD VDD GND 1.8\\n* DC bias adjusted to 1.4V to ensure Q2 turns on properly\\nVIN IN GND DC 1.4 AC 1 SIN(1.4 0.05 10MEG 0 0)\\n* INDUMMY set to 0V to provide proper Vbe for Q2\\nVINDUMMY INDUMMY GND DC 0\\n\\n.control\\n* DC Analysis\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1MEG 10G\\nlet gain_db = vdb(OUT)\\nmeas ac midband_gain find gain_db at=10MEG\\nlet gain_db_3db = midband_gain - 3\\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\\n\\n* Transient Analysis\\ntran 100p 200n\\nmeas tran vout_pp pp v(OUT)\\nmeas tran vout_max max v(OUT)\\nmeas tran vout_min min v(OUT)\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1015687",
+  "_case": "1015687_image_5"
+}

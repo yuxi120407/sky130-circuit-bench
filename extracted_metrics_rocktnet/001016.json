@@ -1,0 +1,101 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Peak Detector / Simplified Track-and-Hold",
+    "description": "A highly simplified track-and-hold or peak detector circuit consisting of a single diode and a hold capacitor. The capacitor charges to the peak of the input signal minus the diode's forward voltage drop and holds the value.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Broadband 10-GHz Track-and-Hold in Si/SiGe HBT Technology",
+      "figure": "Generic",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "v_peak": {
+      "description": "Maximum steady-state output voltage (peak detected voltage)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "600 mV (max input)",
+        "technology": "45-GHz BiCMOS Si/SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Input peak is 0.9V DC + 0.1V AC = 1.0V. Diode forward drop is approx 0.6V. V_peak = 1.0V - 0.6V = 0.4V.",
+        "range": {
+          "min": 0.3,
+          "typical": 0.4,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact saturation current (IS) of the diode model used. A standard silicon diode drops around 0.6V to 0.7V."
+      },
+      "importance": "essential"
+    },
+    "ripple": {
+      "description": "Peak-to-peak voltage variation on the hold capacitor during steady state",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Without a discharge resistor, the capacitor only discharges through the diode's reverse leakage current, which is extremely small (e.g., 1e-14 A).",
+        "range": {
+          "min": 0.0,
+          "typical": 0.001,
+          "max": 0.01,
+          "unit": "V"
+        },
+        "reasoning": "Ripple should be near zero in this idealized passive peak detector without a load."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power drawn from the input source",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "550 mW",
+        "technology": "45-GHz BiCMOS Si/SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Passive circuit with no DC path to ground. Power is only consumed during the initial charging of the 325fF capacitor.",
+        "range": {
+          "min": 0.0,
+          "typical": 1e-09,
+          "max": 1e-06,
+          "unit": "W"
+        },
+        "reasoning": "The paper's 550mW refers to the full active track-and-hold amplifier with buffers and current sources. This simplified passive netlist consumes negligible power."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the peak detected voltage, steady-state ripple, and power consumption of the simplified track-and-hold circuit.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_peak",
+      "ripple",
+      "power_consumption"
+    ],
+    "spice": "* Peak Detector / Track-and-Hold Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters\n.param C_hold = 325f\n\n* DUT (Corrected syntax for standard SPICE diode)\nD1 IN OUT DMOD\nCh OUT 0 {C_hold}\n\n* Generic Diode Model (since specific SKY130 diode isn't instantiated by name)\n.model DMOD D(IS=1e-14 RS=10 N=1)\n\n* Sources\nVIN IN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\n\n* Analyses\n.control\n  * Run transient analysis for 5 cycles of 1MHz\n  tran 10n 5u\n  \n  * Measure peak voltage in steady state (last 3 cycles)\n  meas tran v_peak max v(OUT) from=2u to=5u\n  \n  * Measure minimum voltage in steady state to calculate ripple\n  meas tran v_min min v(OUT) from=2u to=5u\n  let ripple = v_peak - v_min\n  print ripple\n  \n  * Measure RMS current to estimate power drawn from VIN\n  meas tran i_rms rms i(VIN) from=2u to=5u\n  let power_consumption = i_rms * 0.9\n  print power_consumption\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Peak Detector / Simplified Track-and-Hold\",\n    \"description\": \"A highly simplified track-and-hold or peak detector circuit consisting of a single diode and a hold capacitor. The capacitor charges to the peak of the input signal minus the diode's forward voltage drop and holds the value.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Broadband 10-GHz Track-and-Hold in Si/SiGe HBT Technology\",\n      \"figure\": \"Generic\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"v_peak\": {\n      \"description\": \"Maximum steady-state output voltage (peak detected voltage)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"600 mV (max input)\",\n        \"technology\": \"45-GHz BiCMOS Si/SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input peak is 0.9V DC + 0.1V AC = 1.0V. Diode forward drop is approx 0.6V. V_peak = 1.0V - 0.6V = 0.4V.\",\n        \"range\": {\n          \"min\": 0.3,\n          \"typical\": 0.4,\n          \"max\": 0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact saturation current (IS) of the diode model used. A standard silicon diode drops around 0.6V to 0.7V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ripple\": {\n      \"description\": \"Peak-to-peak voltage variation on the hold capacitor during steady state\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Without a discharge resistor, the capacitor only discharges through the diode's reverse leakage current, which is extremely small (e.g., 1e-14 A).\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 0.001,\n          \"max\": 0.01,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ripple should be near zero in this idealized passive peak detector without a load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power drawn from the input source\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"550 mW\",\n        \"technology\": \"45-GHz BiCMOS Si/SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Passive circuit with no DC path to ground. Power is only consumed during the initial charging of the 325fF capacitor.\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 1e-9,\n          \"max\": 1e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 550mW refers to the full active track-and-hold amplifier with buffers and current sources. This simplified passive netlist consumes negligible power.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the peak detected voltage, steady-state ripple, and power consumption of the simplified track-and-hold circuit.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_peak\",\n      \"ripple\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Peak Detector / Track-and-Hold Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters\\n.param C_hold = 325f\\n\\n* DUT (Corrected syntax for standard SPICE diode)\\nD1 IN OUT DMOD\\nCh OUT 0 {C_hold}\\n\\n* Generic Diode Model (since specific SKY130 diode isn't instantiated by name)\\n.model DMOD D(IS=1e-14 RS=10 N=1)\\n\\n* Sources\\nVIN IN 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\n\\n* Analyses\\n.control\\n  * Run transient analysis for 5 cycles of 1MHz\\n  tran 10n 5u\\n  \\n  * Measure peak voltage in steady state (last 3 cycles)\\n  meas tran v_peak max v(OUT) from=2u to=5u\\n  \\n  * Measure minimum voltage in steady state to calculate ripple\\n  meas tran v_min min v(OUT) from=2u to=5u\\n  let ripple = v_peak - v_min\\n  print ripple\\n  \\n  * Measure RMS current to estimate power drawn from VIN\\n  meas tran i_rms rms i(VIN) from=2u to=5u\\n  let power_consumption = i_rms * 0.9\\n  print power_consumption\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "910470",
+  "_case": "910470_image_6_a"
+}

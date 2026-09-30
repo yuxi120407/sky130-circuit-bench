@@ -1,0 +1,149 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 18.17",
+    "page": "534",
+    "circuit_type": "Self-biased differential amplifier input buffer",
+    "description": "A high-speed input buffer that uses a self-biased differential amplifier to compare an input signal against a reference voltage, followed by an inverter to regenerate a clean digital output."
+  },
+  "step2_metrics": {
+    "logic_high_threshold": {
+      "description": "The condition where the input voltage exceeds the reference voltage, causing the output to go high.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "534",
+        "reference": "Eq 18.22"
+      },
+      "equation": {
+        "formula": "Vinp > Vinm -> out = '1'",
+        "explanation": "When the positive input is greater than the negative input (reference), the output transitions to VDD.",
+        "assumptions": "Ideal matching and infinite gain."
+      },
+      "sky130_expected": {
+        "calculation": "In reality, due to the finite gain and systematic offset of the self-biased topology, Vinp must exceed Vinm by the offset voltage to switch the inverter. If Vinm = 0.4V, Vinp needs to be > 0.4V + V_offset.",
+        "range": {
+          "min": 0.405,
+          "typical": 0.415,
+          "max": 0.45,
+          "unit": "V"
+        },
+        "reasoning": "Based on the text's example where a 400mV reference requires approximately 415mV to transition."
+      },
+      "importance": "essential"
+    },
+    "logic_low_threshold": {
+      "description": "The condition where the input voltage falls below the reference voltage, causing the output to go low.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "534",
+        "reference": "Eq 18.23"
+      },
+      "equation": {
+        "formula": "Vinp < Vinm -> out = '0'",
+        "explanation": "When the positive input is less than the negative input (reference), the output transitions to ground.",
+        "assumptions": "Ideal matching and infinite gain."
+      },
+      "sky130_expected": {
+        "calculation": "Similar to the logic high threshold, Vinp must fall below Vinm + V_offset to switch the output low.",
+        "range": {
+          "min": 0.35,
+          "typical": 0.385,
+          "max": 0.395,
+          "unit": "V"
+        },
+        "reasoning": "Symmetric behavior around the offset point."
+      },
+      "importance": "essential"
+    },
+    "input_offset_voltage": {
+      "description": "The difference between Vinp and Vinm required to switch the output state, caused by systematic asymmetries in the circuit.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "534",
+        "reference": "Fig 18.18 and text"
+      },
+      "equation": {
+        "formula": "V_offset = Vinp_switch - Vinm",
+        "explanation": "The excess voltage required at Vinp to overcome the V_DS mismatch between the diode-connected load (M3) and the active load (M4) when the output node (Vom) is at the inverter's switching threshold.",
+        "assumptions": "Vinm is held constant."
+      },
+      "sky130_expected": {
+        "calculation": "When balanced, V(N001) ~ VDD - |Vthp| - sqrt(2*I/beta_p). The inverter switches at ~VDD/2 (0.9V). If V(N001) != 0.9V, V_DS3 != V_DS4, causing a current mismatch in the mirror. To compensate, I(M2) must differ from I(M1), requiring Vinp != Vinm. The text notes a ~15mV offset for a 400mV input.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.015,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Systematic offset inherent to the 5-transistor OTA topology driving an inverter."
+      },
+      "importance": "essential"
+    },
+    "tPLH": {
+      "description": "Low-to-high propagation delay from the input crossing the reference to the output crossing VDD/2.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "535",
+        "reference": "Fig 18.19"
+      },
+      "equation": {
+        "formula": "tPLH = t(Vout=VDD/2, rise) - t(Vinp=Vinm, rise)",
+        "explanation": "Measures the time it takes for the buffer to drive a load capacitance high after the input condition is met.",
+        "assumptions": "50 fF load capacitance as specified in Fig 18.19."
+      },
+      "sky130_expected": {
+        "calculation": "With a 50fF load and an inverter PMOS (W=3u, L=0.15u), I_pmos ~ 50u/2 * (3/0.15) * (1.8-0.42)^2 ~ 950uA. dt = C*dV/I = 50f * 0.9 / 950u ~ 47ps. Adding the diff-amp delay (~50-100ps), total delay is in the 100-200ps range.",
+        "range": {
+          "min": 5e-11,
+          "typical": 1.5e-10,
+          "max": 5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Calculated using SKY130 parameters and the 50fF load from the text's simulation setup."
+      },
+      "importance": "essential"
+    },
+    "tPHL": {
+      "description": "High-to-low propagation delay from the input crossing the reference to the output crossing VDD/2.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "535",
+        "reference": "Fig 18.19"
+      },
+      "equation": {
+        "formula": "tPHL = t(Vout=VDD/2, fall) - t(Vinp=Vinm, fall)",
+        "explanation": "Measures the time it takes for the buffer to discharge a load capacitance low after the input condition is met.",
+        "assumptions": "50 fF load capacitance as specified in Fig 18.19."
+      },
+      "sky130_expected": {
+        "calculation": "With a 50fF load and an inverter NMOS (W=1.5u, L=0.15u), I_nmos ~ 270u/2 * (1.5/0.15) * (1.8-0.42)^2 ~ 2.5mA. dt = C*dV/I = 50f * 0.9 / 2.5m ~ 18ps. Adding diff-amp delay, total delay is very fast, likely < 150ps.",
+        "range": {
+          "min": 5e-11,
+          "typical": 1.2e-10,
+          "max": 5e-10,
+          "unit": "s"
+        },
+        "reasoning": "NMOS is stronger than PMOS in SKY130, so tPHL is typically slightly faster than tPLH for this sizing."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC input offset voltage and the transient propagation delays (tPLH, tPHL) of the self-biased differential input buffer.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "input_offset_voltage",
+      "tPLH",
+      "tPHL"
+    ],
+    "spice": "* Self-biased diff-amp input buffer testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterize W/L based on text (NMOS 10/1, PMOS 20/1, scaled to 150nm min length)\n.param L_xm1=0.15u W_xm1=1.5u\n.param L_xm2=0.15u W_xm2=1.5u\n.param L_xm3=0.15u W_xm3=3.0u\n.param L_xm4=0.15u W_xm4=3.0u\n.param L_xm5=0.15u W_xm5=3.0u\n.param L_xm6=0.15u W_xm6=1.5u\n.param L_xm7=0.15u W_xm7=1.5u\n\n* DUT Netlist\nxm1 N001 Vinm N003 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVinp Vinp 0 500m\nVDD VDD 0 1.8\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm2 N002 Vinp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nVinm Vinm 0 500m\nxm6 N003 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm5 Vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm7 Vout N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\n\n* Load capacitance (50fF from Fig 18.19)\nCload Vout 0 50f\n\n.control\n* 1. DC Analysis for Offset (Fig 18.18)\nalter Vinm dc = 0.4\ndc Vinp 0 1.0 0.001\nmeas dc v_switch find v(Vinp) when v(Vout)=0.9\nlet input_offset_voltage = v_switch - 0.4\nprint input_offset_voltage\n\n* 2. Transient Analysis for Delays (Fig 18.19)\nalter Vinm dc = 0.5\n* Pulse: initial, pulse_val, delay, rise, fall, width, period\nalter Vinp pulse(0 1 1n 0.1n 0.1n 4n 10n)\ntran 10p 10n\nmeas tran tPLH trig v(Vinp) val=0.5 rise=1 targ v(Vout) val=0.9 rise=1\nmeas tran tPHL trig v(Vinp) val=0.5 fall=1 targ v(Vout) val=0.9 fall=1\nprint tPLH tPHL\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 18.17\",\n    \"page\": \"534\",\n    \"circuit_type\": \"Self-biased differential amplifier input buffer\",\n    \"description\": \"A high-speed input buffer that uses a self-biased differential amplifier to compare an input signal against a reference voltage, followed by an inverter to regenerate a clean digital output.\"\n  },\n  \"step2_metrics\": {\n    \"logic_high_threshold\": {\n      \"description\": \"The condition where the input voltage exceeds the reference voltage, causing the output to go high.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"534\",\n        \"reference\": \"Eq 18.22\"\n      },\n      \"equation\": {\n        \"formula\": \"Vinp > Vinm -> out = '1'\",\n        \"explanation\": \"When the positive input is greater than the negative input (reference), the output transitions to VDD.\",\n        \"assumptions\": \"Ideal matching and infinite gain.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"In reality, due to the finite gain and systematic offset of the self-biased topology, Vinp must exceed Vinm by the offset voltage to switch the inverter. If Vinm = 0.4V, Vinp needs to be > 0.4V + V_offset.\",\n        \"range\": {\n          \"min\": 0.405,\n          \"typical\": 0.415,\n          \"max\": 0.450,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on the text's example where a 400mV reference requires approximately 415mV to transition.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"logic_low_threshold\": {\n      \"description\": \"The condition where the input voltage falls below the reference voltage, causing the output to go low.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"534\",\n        \"reference\": \"Eq 18.23\"\n      },\n      \"equation\": {\n        \"formula\": \"Vinp < Vinm -> out = '0'\",\n        \"explanation\": \"When the positive input is less than the negative input (reference), the output transitions to ground.\",\n        \"assumptions\": \"Ideal matching and infinite gain.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to the logic high threshold, Vinp must fall below Vinm + V_offset to switch the output low.\",\n        \"range\": {\n          \"min\": 0.350,\n          \"typical\": 0.385,\n          \"max\": 0.395,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Symmetric behavior around the offset point.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_offset_voltage\": {\n      \"description\": \"The difference between Vinp and Vinm required to switch the output state, caused by systematic asymmetries in the circuit.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"534\",\n        \"reference\": \"Fig 18.18 and text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_offset = Vinp_switch - Vinm\",\n        \"explanation\": \"The excess voltage required at Vinp to overcome the V_DS mismatch between the diode-connected load (M3) and the active load (M4) when the output node (Vom) is at the inverter's switching threshold.\",\n        \"assumptions\": \"Vinm is held constant.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When balanced, V(N001) ~ VDD - |Vthp| - sqrt(2*I/beta_p). The inverter switches at ~VDD/2 (0.9V). If V(N001) != 0.9V, V_DS3 != V_DS4, causing a current mismatch in the mirror. To compensate, I(M2) must differ from I(M1), requiring Vinp != Vinm. The text notes a ~15mV offset for a 400mV input.\",\n        \"range\": {\n          \"min\": 0.005,\n          \"typical\": 0.015,\n          \"max\": 0.050,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Systematic offset inherent to the 5-transistor OTA topology driving an inverter.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tPLH\": {\n      \"description\": \"Low-to-high propagation delay from the input crossing the reference to the output crossing VDD/2.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"535\",\n        \"reference\": \"Fig 18.19\"\n      },\n      \"equation\": {\n        \"formula\": \"tPLH = t(Vout=VDD/2, rise) - t(Vinp=Vinm, rise)\",\n        \"explanation\": \"Measures the time it takes for the buffer to drive a load capacitance high after the input condition is met.\",\n        \"assumptions\": \"50 fF load capacitance as specified in Fig 18.19.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 50fF load and an inverter PMOS (W=3u, L=0.15u), I_pmos ~ 50u/2 * (3/0.15) * (1.8-0.42)^2 ~ 950uA. dt = C*dV/I = 50f * 0.9 / 950u ~ 47ps. Adding the diff-amp delay (~50-100ps), total delay is in the 100-200ps range.\",\n        \"range\": {\n          \"min\": 5e-11,\n          \"typical\": 1.5e-10,\n          \"max\": 5e-10,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated using SKY130 parameters and the 50fF load from the text's simulation setup.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tPHL\": {\n      \"description\": \"High-to-low propagation delay from the input crossing the reference to the output crossing VDD/2.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"535\",\n        \"reference\": \"Fig 18.19\"\n      },\n      \"equation\": {\n        \"formula\": \"tPHL = t(Vout=VDD/2, fall) - t(Vinp=Vinm, fall)\",\n        \"explanation\": \"Measures the time it takes for the buffer to discharge a load capacitance low after the input condition is met.\",\n        \"assumptions\": \"50 fF load capacitance as specified in Fig 18.19.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 50fF load and an inverter NMOS (W=1.5u, L=0.15u), I_nmos ~ 270u/2 * (1.5/0.15) * (1.8-0.42)^2 ~ 2.5mA. dt = C*dV/I = 50f * 0.9 / 2.5m ~ 18ps. Adding diff-amp delay, total delay is very fast, likely < 150ps.\",\n        \"range\": {\n          \"min\": 5e-11,\n          \"typical\": 1.2e-10,\n          \"max\": 5e-10,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"NMOS is stronger than PMOS in SKY130, so tPHL is typically slightly faster than tPLH for this sizing.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC input offset voltage and the transient propagation delays (tPLH, tPHL) of the self-biased differential input buffer.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"input_offset_voltage\",\n      \"tPLH\",\n      \"tPHL\"\n    ],\n    \"spice\": \"* Self-biased diff-amp input buffer testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterize W/L based on text (NMOS 10/1, PMOS 20/1, scaled to 150nm min length)\\n.param L_xm1=0.15u W_xm1=1.5u\\n.param L_xm2=0.15u W_xm2=1.5u\\n.param L_xm3=0.15u W_xm3=3.0u\\n.param L_xm4=0.15u W_xm4=3.0u\\n.param L_xm5=0.15u W_xm5=3.0u\\n.param L_xm6=0.15u W_xm6=1.5u\\n.param L_xm7=0.15u W_xm7=1.5u\\n\\n* DUT Netlist\\nxm1 N001 Vinm N003 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVinp Vinp 0 500m\\nVDD VDD 0 1.8\\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm2 N002 Vinp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nVinm Vinm 0 500m\\nxm6 N003 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm5 Vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm7 Vout N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\n\\n* Load capacitance (50fF from Fig 18.19)\\nCload Vout 0 50f\\n\\n.control\\n* 1. DC Analysis for Offset (Fig 18.18)\\nalter Vinm dc = 0.4\\ndc Vinp 0 1.0 0.001\\nmeas dc v_switch find v(Vinp) when v(Vout)=0.9\\nlet input_offset_voltage = v_switch - 0.4\\nprint input_offset_voltage\\n\\n* 2. Transient Analysis for Delays (Fig 18.19)\\nalter Vinm dc = 0.5\\n* Pulse: initial, pulse_val, delay, rise, fall, width, period\\nalter Vinp pulse(0 1 1n 0.1n 0.1n 4n 10n)\\ntran 10p 10n\\nmeas tran tPLH trig v(Vinp) val=0.5 rise=1 targ v(Vout) val=0.9 rise=1\\nmeas tran tPHL trig v(Vinp) val=0.5 fall=1 targ v(Vout) val=0.9 fall=1\\nprint tPLH tPHL\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

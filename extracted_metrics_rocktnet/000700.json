@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Cascode Low-Noise Amplifier (LNA)",
+    "description": "A 24-GHz differential cascode LNA featuring inductive emitter degeneration and base matching. It serves as the first block in the phased-array receiver, providing initial gain and noise figure setting.",
+    "node_mapping": {
+      "input": [
+        "n4",
+        "n2"
+      ],
+      "output": [
+        "n6",
+        "n1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "label_net_0",
+        "label_net_1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fully Integrated 24-GHz Eight-Element Phased-Array Receiver in Silicon",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "Differential AC voltage gain at the 24 GHz operating frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "43 dB (entire receiver chain)",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 gm * Z_load. With Ic \u2248 2mA, gm \u2248 80mA/V. At 24GHz, a 1nH load inductor gives Z_load \u2248 150 ohms. Gain \u2248 12 V/V or ~21 dB, but parasitic capacitances will lower this to ~12-15 dB.",
+        "range": {
+          "min": 10,
+          "typical": 14,
+          "max": 18,
+          "unit": "dB"
+        },
+        "reasoning": "While the paper reports 43 dB for the full receiver, a single cascode LNA stage at 24 GHz typically provides 10-15 dB of gain."
+      },
+      "importance": "essential"
+    },
+    "Center Frequency": {
+      "description": "Frequency at which the LNA achieves maximum gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "24 GHz",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L_load * C_parasitic)). Tuned by L2/L3 and output node capacitance.",
+        "range": {
+          "min": 22000000000.0,
+          "typical": 24000000000.0,
+          "max": 26000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The circuit is designed for the 24 GHz ISM/radar band."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power consumed by the LNA from the 1.8V supply.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "Not explicitly isolated",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With 0.9V bias and 10k base resistor, Ib \u2248 20uA. For \u03b2=100, Ic \u2248 2mA per branch. Total current \u2248 4mA. P = 1.8V * 4mA = 7.2 mW.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.0075,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the provided 0.9V bias and 10k bias resistors with a generic NPN model."
+      },
+      "importance": "essential"
+    },
+    "Noise Figure": {
+      "description": "Signal-to-noise ratio degradation through the LNA.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "7.4 dB (entire receiver)",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "NF = 10 * log10(F). LNA NF dominates the receiver NF.",
+        "range": {
+          "min": 3,
+          "typical": 4.5,
+          "max": 6,
+          "unit": "dB"
+        },
+        "reasoning": "A single SiGe LNA can achieve <3dB NF, but in standard CMOS/generic models at 24 GHz, 4-5 dB is expected."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain at 24 GHz, and transient response of the differential LNA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Voltage Gain",
+      "Center Frequency"
+    ],
+    "spice": "* 24GHz Differential Cascode LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param L_load=1n L_deg=100p L_base=500p C_val=100f R_bias=10k\n\n* DUT\nL1 n5 GND {L_deg}\nL2 VDD n6 {L_load}\nL3 VDD n1 {L_load}\nL4 n3 GND {L_deg}\nL5 n4 n9 {L_base}\nL6 n2 n10 {L_base}\nR1 n2 label_net_0 {R_bias}\nR2 n4 label_net_1 {R_bias}\nC1 n8 GND {C_val}\nQ1 n7 n9 n5 npn\nQ2 n1 VDD n0 npn\nC2 n4 GND {C_val}\nC3 VDD GND 1p\nQ3 n6 VDD n7 npn\nQ4 n0 n10 n3 npn\nC4 n1 n4 {C_val}\nC5 n6 n8 {C_val}\n\n* Generic NPN model since SKY130 doesn't have a default 'npn'\n.model npn npn (bf=100 is=1e-15 cjc=10f cje=10f)\n\n* Biasing and Supply\nVVDD VDD 0 1.8\nVLABEL_NET_0 label_net_0 0 0.9\nVLABEL_NET_1 label_net_1 0 0.9\n\n* AC and Transient Inputs\nCin_p in_p n4 1p\nCin_n in_n n2 1p\nVin_p in_p 0 dc 0 ac 1 sin(0 10m 24G)\nVin_n in_n 0 dc 0 ac -1 sin(0 -10m 24G)\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 100 1G 100G\n  let vout_diff = v(n6) - v(n1)\n  let gain_db = 20*log10(mag(vout_diff)/2)\n  meas ac gain_24G find gain_db at=24G\n  meas ac max_gain max gain_db\n\n  * Transient Analysis\n  tran 1p 200p\n  meas tran vout_max max v(n6)\n  meas tran vout_min min v(n6)\n  let vpp = vout_max - vout_min\n  print vpp\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Cascode Low-Noise Amplifier (LNA)\",\n    \"description\": \"A 24-GHz differential cascode LNA featuring inductive emitter degeneration and base matching. It serves as the first block in the phased-array receiver, providing initial gain and noise figure setting.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n4\",\n        \"n2\"\n      ],\n      \"output\": [\n        \"n6\",\n        \"n1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"label_net_0\",\n        \"label_net_1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fully Integrated 24-GHz Eight-Element Phased-Array Receiver in Silicon\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"Differential AC voltage gain at the 24 GHz operating frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"43 dB (entire receiver chain)\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 gm * Z_load. With Ic \u2248 2mA, gm \u2248 80mA/V. At 24GHz, a 1nH load inductor gives Z_load \u2248 150 ohms. Gain \u2248 12 V/V or ~21 dB, but parasitic capacitances will lower this to ~12-15 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 14,\n          \"max\": 18,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"While the paper reports 43 dB for the full receiver, a single cascode LNA stage at 24 GHz typically provides 10-15 dB of gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Center Frequency\": {\n      \"description\": \"Frequency at which the LNA achieves maximum gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"24 GHz\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L_load * C_parasitic)). Tuned by L2/L3 and output node capacitance.\",\n        \"range\": {\n          \"min\": 22e9,\n          \"typical\": 24e9,\n          \"max\": 26e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The circuit is designed for the 24 GHz ISM/radar band.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power consumed by the LNA from the 1.8V supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly isolated\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With 0.9V bias and 10k base resistor, Ib \u2248 20uA. For \u03b2=100, Ic \u2248 2mA per branch. Total current \u2248 4mA. P = 1.8V * 4mA = 7.2 mW.\",\n        \"range\": {\n          \"min\": 5e-3,\n          \"typical\": 7.5e-3,\n          \"max\": 15e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the provided 0.9V bias and 10k bias resistors with a generic NPN model.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Noise Figure\": {\n      \"description\": \"Signal-to-noise ratio degradation through the LNA.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"7.4 dB (entire receiver)\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NF = 10 * log10(F). LNA NF dominates the receiver NF.\",\n        \"range\": {\n          \"min\": 3,\n          \"typical\": 4.5,\n          \"max\": 6,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A single SiGe LNA can achieve <3dB NF, but in standard CMOS/generic models at 24 GHz, 4-5 dB is expected.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain at 24 GHz, and transient response of the differential LNA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Voltage Gain\",\n      \"Center Frequency\"\n    ],\n    \"spice\": \"* 24GHz Differential Cascode LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param L_load=1n L_deg=100p L_base=500p C_val=100f R_bias=10k\\n\\n* DUT\\nL1 n5 GND {L_deg}\\nL2 VDD n6 {L_load}\\nL3 VDD n1 {L_load}\\nL4 n3 GND {L_deg}\\nL5 n4 n9 {L_base}\\nL6 n2 n10 {L_base}\\nR1 n2 label_net_0 {R_bias}\\nR2 n4 label_net_1 {R_bias}\\nC1 n8 GND {C_val}\\nQ1 n7 n9 n5 npn\\nQ2 n1 VDD n0 npn\\nC2 n4 GND {C_val}\\nC3 VDD GND 1p\\nQ3 n6 VDD n7 npn\\nQ4 n0 n10 n3 npn\\nC4 n1 n4 {C_val}\\nC5 n6 n8 {C_val}\\n\\n* Generic NPN model since SKY130 doesn't have a default 'npn'\\n.model npn npn (bf=100 is=1e-15 cjc=10f cje=10f)\\n\\n* Biasing and Supply\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 label_net_0 0 0.9\\nVLABEL_NET_1 label_net_1 0 0.9\\n\\n* AC and Transient Inputs\\nCin_p in_p n4 1p\\nCin_n in_n n2 1p\\nVin_p in_p 0 dc 0 ac 1 sin(0 10m 24G)\\nVin_n in_n 0 dc 0 ac -1 sin(0 -10m 24G)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 100 1G 100G\\n  let vout_diff = v(n6) - v(n1)\\n  let gain_db = 20*log10(mag(vout_diff)/2)\\n  meas ac gain_24G find gain_db at=24G\\n  meas ac max_gain max gain_db\\n\\n  * Transient Analysis\\n  tran 1p 200p\\n  meas tran vout_max max v(n6)\\n  meas tran vout_min min v(n6)\\n  let vpp = vout_max - vout_min\\n  print vpp\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362839",
+  "_case": "1362839_image_6"
+}

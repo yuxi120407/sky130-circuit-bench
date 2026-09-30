@@ -1,0 +1,111 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential RF Amplifier with Adaptive Bias",
+    "description": "A differential cascode amplifier with source/emitter degeneration and an adaptive bias circuit. The adaptive bias transistors (M4, M5) inject current into the cascode nodes to boost performance during high-power demands, minimizing quiescent power.",
+    "node_mapping": {
+      "input": [
+        "vip",
+        "vin"
+      ],
+      "output": [
+        "N2",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "Vbias",
+        "Vctrl"
+      ],
+      "ground": [
+        "GND",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "Digital-IF WCDMA Handset Transmitter IC in 0.25-m SiGe BiCMOS",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the amplifier stage",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "180 mW (max), 120 mW (backoff)",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total = 1.8V * 2mA = 3.6mW",
+        "range": {
+          "min": "2mW",
+          "typical": "3.6mW",
+          "max": "10mW",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for a single stage in 1.8V CMOS compared to the full TxIC power reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Differential AC voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "74 dB (Total TxIC)",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * RL = 10mS * 500 = 5 V/V = 14 dB",
+        "range": {
+          "min": "10",
+          "typical": "14",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "Typical gain for a single cascode RF stage with 500 ohm load."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Unity gain bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1980 MHz - 2170 MHz (Operating Frequency)",
+        "technology": "0.25-um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * RL * CL) = 1 / (2 * pi * 500 * 100fF) = 3.18 GHz. UGBW will be higher depending on low-frequency gain.",
+        "range": {
+          "min": "2G",
+          "typical": "5G",
+          "max": "10G",
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the output RC time constant and stage gain."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for measuring DC power, AC gain, unity gain bandwidth, and transient output swing of the RF amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth"
+    ],
+    "spice": "* Digital-IF WCDMA Transmitter RF Amplifier\n.lib \"/home/ubuntu/sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* DUT (npn replaced with sky130 nfet for CMOS compatibility)\nI1 N4 0 1m\nI2 N5 0 1m\nXM1 N2 Vbias N1 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\nXM2 N0 Vbias N6 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\nRE N4 N5 100\nXM3 N1 vip N5 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\nXM4 VDD Vctrl N1 0 sky130_fd_pr__nfet_01v8 w=5 l=0.15\nCL N0 N2 100f\nXM5 VDD Vctrl N6 0 sky130_fd_pr__nfet_01v8 w=5 l=0.15\nRL2 N0 VDD 500\nXM6 N6 vin N4 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\nRL1 N2 VDD 500\n\n* Sources\nVVDD VDD 0 1.8\nVVBIAS Vbias 0 1.2\nVVCTRL Vctrl 0 0.5\nVVIP vip 0 DC 0.9 AC 0.5 SIN(0.9 0.05 1G 0 0)\nVVIN vin 0 DC 0.9 AC -0.5 SIN(0.9 -0.05 1G 0 0)\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1Meg 10G\nlet vout_diff = v(N2) - v(N0)\nlet gain_db = vdb(vout_diff)\nmeas ac max_gain max gain_db\nmeas ac ugbw when gain_db=0 fall=1\n\ntran 10p 5n\nmeas tran vout_max max v(N2)\nmeas tran vout_min min v(N2)\nlet vpp = vout_max - vout_min\nprint vpp\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential RF Amplifier with Adaptive Bias\",\n    \"description\": \"A differential cascode amplifier with source/emitter degeneration and an adaptive bias circuit. The adaptive bias transistors (M4, M5) inject current into the cascode nodes to boost performance during high-power demands, minimizing quiescent power.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"vip\",\n        \"vin\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"Vbias\",\n        \"Vctrl\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Digital-IF WCDMA Handset Transmitter IC in 0.25-m SiGe BiCMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"180 mW (max), 120 mW (backoff)\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total = 1.8V * 2mA = 3.6mW\",\n        \"range\": {\n          \"min\": \"2mW\",\n          \"typical\": \"3.6mW\",\n          \"max\": \"10mW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down for a single stage in 1.8V CMOS compared to the full TxIC power reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Differential AC voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"74 dB (Total TxIC)\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * RL = 10mS * 500 = 5 V/V = 14 dB\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"14\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical gain for a single cascode RF stage with 500 ohm load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Unity gain bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1980 MHz - 2170 MHz (Operating Frequency)\",\n        \"technology\": \"0.25-um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * RL * CL) = 1 / (2 * pi * 500 * 100fF) = 3.18 GHz. UGBW will be higher depending on low-frequency gain.\",\n        \"range\": {\n          \"min\": \"2G\",\n          \"typical\": \"5G\",\n          \"max\": \"10G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the output RC time constant and stage gain.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for measuring DC power, AC gain, unity gain bandwidth, and transient output swing of the RF amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth\"\n    ],\n    \"spice\": \"* Digital-IF WCDMA Transmitter RF Amplifier\\n.lib \\\"/home/ubuntu/sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* DUT (npn replaced with sky130 nfet for CMOS compatibility)\\nI1 N4 0 1m\\nI2 N5 0 1m\\nXM1 N2 Vbias N1 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\\nXM2 N0 Vbias N6 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\\nRE N4 N5 100\\nXM3 N1 vip N5 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\\nXM4 VDD Vctrl N1 0 sky130_fd_pr__nfet_01v8 w=5 l=0.15\\nCL N0 N2 100f\\nXM5 VDD Vctrl N6 0 sky130_fd_pr__nfet_01v8 w=5 l=0.15\\nRL2 N0 VDD 500\\nXM6 N6 vin N4 0 sky130_fd_pr__nfet_01v8 w=10 l=0.15\\nRL1 N2 VDD 500\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVVBIAS Vbias 0 1.2\\nVVCTRL Vctrl 0 0.5\\nVVIP vip 0 DC 0.9 AC 0.5 SIN(0.9 0.05 1G 0 0)\\nVVIN vin 0 DC 0.9 AC -0.5 SIN(0.9 -0.05 1G 0 0)\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1Meg 10G\\nlet vout_diff = v(N2) - v(N0)\\nlet gain_db = vdb(vout_diff)\\nmeas ac max_gain max gain_db\\nmeas ac ugbw when gain_db=0 fall=1\\n\\ntran 10p 5n\\nmeas tran vout_max max v(N2)\\nmeas tran vout_min min v(N2)\\nlet vpp = vout_max - vout_min\\nprint vpp\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362830",
+  "_case": "1362830_image_10"
+}

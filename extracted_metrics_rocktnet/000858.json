@@ -1,0 +1,123 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Q-Enhanced LC Bandpass Filter (Behavioral Model)",
+    "description": "A behavioral model of a Q-enhanced LC bandpass filter. It uses an input transconductance (gmi) to inject current into an RLC tank, and a negative transconductance (gmn, typically implemented as a cross-coupled pair) to compensate for the tank's parasitic losses, thereby enhancing the quality factor (Q) and narrowing the bandwidth.",
+    "node_mapping": {
+      "input": [
+        "Vi",
+        "Vs"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.5-GHz Low-Power, High Dynamic Range, Self-Tuned Q-Enhanced LC Filter in SOI",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "center_frequency": {
+      "description": "The resonant frequency of the LC tank where the filter exhibits maximum gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.5 GHz",
+        "technology": "SOI CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by L and C values: f0 = 1 / (2 * pi * sqrt(L * C)). For L=1nH and C=4.053pF, f0 = 2.5 GHz.",
+        "range": {
+          "min": "2.4G",
+          "typical": "2.5G",
+          "max": "2.6G",
+          "unit": "Hz"
+        },
+        "reasoning": "The center frequency is set by the passive components and is independent of the technology node in this behavioral model."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "The peak voltage gain at the center frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "23 dB",
+        "technology": "SOI CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gmi * Reff, where Reff is the effective parallel resistance of the tank after Q-enhancement. With gmi=25.17mS and Reff=562 ohms, Gain = 14.14 V/V = 23 dB.",
+        "range": {
+          "min": "20",
+          "typical": "23",
+          "max": "26",
+          "unit": "dB"
+        },
+        "reasoning": "Targeting the paper's specification by setting the behavioral transconductance parameters appropriately."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "The 3-dB bandwidth of the filter.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "70 MHz",
+        "technology": "SOI CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = f0 / Qeff, where Qeff = Reff / (w0 * L).",
+        "range": {
+          "min": "60M",
+          "typical": "70M",
+          "max": "80M",
+          "unit": "Hz"
+        },
+        "reasoning": "Targeting the paper's specification by tuning the negative transconductance (gmn) to achieve the desired Qeff."
+      },
+      "importance": "essential"
+    },
+    "q_factor": {
+      "description": "The effective quality factor of the filter.",
+      "unit": "dimensionless",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "35.7 (calculated from 2.5GHz / 70MHz)",
+        "technology": "SOI CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Q = f0 / BW",
+        "range": {
+          "min": "30",
+          "typical": "35.7",
+          "max": "40",
+          "unit": ""
+        },
+        "reasoning": "Derived directly from the center frequency and bandwidth requirements."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure the center frequency, peak voltage gain, 3-dB bandwidth, and Q-factor of the behavioral Q-enhanced LC filter.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "center_frequency",
+      "voltage_gain",
+      "bandwidth",
+      "q_factor"
+    ],
+    "spice": "* Q-Enhanced LC Filter Testbench\n\n* Behavioral parameters to match paper specs (2.5GHz, 70MHz BW, 23dB Gain)\n.param Rs_val=50\n.param Rp_val=157\n.param C_val=4.053p\n.param L_val=1n\n.param gmi_val=25.17m\n.param gmn_val=-4.59m\n\n* Original pseudo-SPICE netlist from paper:\n* V1 Vs GND AC\n* Rs Vs Vi Rs\n* gmi (Vi GND N1 GND) amplifier\n* Rp N1 GND Rp\n* C N1 GND\n* L N1 GND\n* gmn (N1 GND N1 GND) amplifier\n\n* Adapted valid ngspice netlist:\nV1 Vs GND dc 0 ac 1\nRs Vs Vi {Rs_val}\nGmi N1 GND Vi GND {gmi_val}\nRp N1 GND {Rp_val}\nC N1 GND {C_val}\nL N1 GND {L_val}\nGmn N1 GND N1 GND {gmn_val}\n\n.control\n* High resolution AC sweep around the 2.5 GHz center frequency\nac lin 2000 2G 3G\n\n* Calculate voltage gain in dB (from filter input Vi to output N1)\nlet gain_db = vdb(N1) - vdb(Vi)\n\n* Measure peak gain\nmeas ac max_gain max gain_db\n\n* Calculate 3-dB drop level\nlet gain_3db = max_gain - 3\n\n* Measure lower and upper 3-dB frequencies\nmeas ac f_low when gain_db=gain_3db rise=1\nmeas ac f_high when gain_db=gain_3db fall=1\n\n* Calculate Bandwidth, Center Frequency, and Q-factor\nlet bw = f_high - f_low\nlet f_center = (f_low + f_high) / 2\nlet q_factor = f_center / bw\n\n* Print results\nprint max_gain f_center bw q_factor\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Q-Enhanced LC Bandpass Filter (Behavioral Model)\",\n    \"description\": \"A behavioral model of a Q-enhanced LC bandpass filter. It uses an input transconductance (gmi) to inject current into an RLC tank, and a negative transconductance (gmn, typically implemented as a cross-coupled pair) to compensate for the tank's parasitic losses, thereby enhancing the quality factor (Q) and narrowing the bandwidth.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vi\",\n        \"Vs\"\n      ],\n      \"output\": [\n        \"N1\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.5-GHz Low-Power, High Dynamic Range, Self-Tuned Q-Enhanced LC Filter in SOI\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"center_frequency\": {\n      \"description\": \"The resonant frequency of the LC tank where the filter exhibits maximum gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.5 GHz\",\n        \"technology\": \"SOI CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by L and C values: f0 = 1 / (2 * pi * sqrt(L * C)). For L=1nH and C=4.053pF, f0 = 2.5 GHz.\",\n        \"range\": {\n          \"min\": \"2.4G\",\n          \"typical\": \"2.5G\",\n          \"max\": \"2.6G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The center frequency is set by the passive components and is independent of the technology node in this behavioral model.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"The peak voltage gain at the center frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"23 dB\",\n        \"technology\": \"SOI CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gmi * Reff, where Reff is the effective parallel resistance of the tank after Q-enhancement. With gmi=25.17mS and Reff=562 ohms, Gain = 14.14 V/V = 23 dB.\",\n        \"range\": {\n          \"min\": \"20\",\n          \"typical\": \"23\",\n          \"max\": \"26\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Targeting the paper's specification by setting the behavioral transconductance parameters appropriately.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"The 3-dB bandwidth of the filter.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"70 MHz\",\n        \"technology\": \"SOI CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = f0 / Qeff, where Qeff = Reff / (w0 * L).\",\n        \"range\": {\n          \"min\": \"60M\",\n          \"typical\": \"70M\",\n          \"max\": \"80M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Targeting the paper's specification by tuning the negative transconductance (gmn) to achieve the desired Qeff.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"q_factor\": {\n      \"description\": \"The effective quality factor of the filter.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"35.7 (calculated from 2.5GHz / 70MHz)\",\n        \"technology\": \"SOI CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q = f0 / BW\",\n        \"range\": {\n          \"min\": \"30\",\n          \"typical\": \"35.7\",\n          \"max\": \"40\",\n          \"unit\": \"\"\n        },\n        \"reasoning\": \"Derived directly from the center frequency and bandwidth requirements.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure the center frequency, peak voltage gain, 3-dB bandwidth, and Q-factor of the behavioral Q-enhanced LC filter.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"center_frequency\",\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"q_factor\"\n    ],\n    \"spice\": \"* Q-Enhanced LC Filter Testbench\\n\\n* Behavioral parameters to match paper specs (2.5GHz, 70MHz BW, 23dB Gain)\\n.param Rs_val=50\\n.param Rp_val=157\\n.param C_val=4.053p\\n.param L_val=1n\\n.param gmi_val=25.17m\\n.param gmn_val=-4.59m\\n\\n* Original pseudo-SPICE netlist from paper:\\n* V1 Vs GND AC\\n* Rs Vs Vi Rs\\n* gmi (Vi GND N1 GND) amplifier\\n* Rp N1 GND Rp\\n* C N1 GND\\n* L N1 GND\\n* gmn (N1 GND N1 GND) amplifier\\n\\n* Adapted valid ngspice netlist:\\nV1 Vs GND dc 0 ac 1\\nRs Vs Vi {Rs_val}\\nGmi N1 GND Vi GND {gmi_val}\\nRp N1 GND {Rp_val}\\nC N1 GND {C_val}\\nL N1 GND {L_val}\\nGmn N1 GND N1 GND {gmn_val}\\n\\n.control\\n* High resolution AC sweep around the 2.5 GHz center frequency\\nac lin 2000 2G 3G\\n\\n* Calculate voltage gain in dB (from filter input Vi to output N1)\\nlet gain_db = vdb(N1) - vdb(Vi)\\n\\n* Measure peak gain\\nmeas ac max_gain max gain_db\\n\\n* Calculate 3-dB drop level\\nlet gain_3db = max_gain - 3\\n\\n* Measure lower and upper 3-dB frequencies\\nmeas ac f_low when gain_db=gain_3db rise=1\\nmeas ac f_high when gain_db=gain_3db fall=1\\n\\n* Calculate Bandwidth, Center Frequency, and Q-factor\\nlet bw = f_high - f_low\\nlet f_center = (f_low + f_high) / 2\\nlet q_factor = f_center / bw\\n\\n* Print results\\nprint max_gain f_center bw q_factor\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1487605",
+  "_case": "1487605_image_2"
+}

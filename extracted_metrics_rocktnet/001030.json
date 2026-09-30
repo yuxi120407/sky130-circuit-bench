@@ -1,0 +1,141 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive RC Filter",
+    "description": "A simple passive network consisting of two capacitors and a resistor. Given the topology, if NET1 is the input and NET2 is the output, C2 and R2 form a high-pass filter, while C1 acts as a shunt capacitor at the input. This is likely a fragment of a larger circuit, such as an AC coupling network or part of a loop filter in the PLL.",
+    "node_mapping": {
+      "input": [
+        "NET1"
+      ],
+      "output": [
+        "NET2"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 900-MHz 2.5-mA CMOS Frequency Synthesizer with an Automatic SC Tuning Loop",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "VCO_Frequency": {
+      "description": "Operating frequency of the VCO",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "900 MHz",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "Hz"
+        },
+        "reasoning": "This metric applies to the full VCO circuit described in the paper. The extracted netlist is only a passive RC filter, so it cannot generate a frequency."
+      },
+      "importance": "optional"
+    },
+    "Phase_Noise": {
+      "description": "Phase noise of the synthesizer at a specific offset",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-102 dBc/Hz @ 100 kHz",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Applies to the full PLL/VCO. Cannot be measured on a passive RC sub-circuit."
+      },
+      "importance": "optional"
+    },
+    "AC_Gain": {
+      "description": "Maximum AC voltage gain of the filter passband",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "For a passive high-pass filter (C2, R2), the maximum gain at high frequencies approaches 1 V/V (0 dB).",
+        "range": {
+          "min": -0.1,
+          "typical": 0,
+          "max": 0.1,
+          "unit": "dB"
+        },
+        "reasoning": "Passive RC filters have a maximum theoretical gain of 0 dB."
+      },
+      "importance": "essential"
+    },
+    "Cutoff_Frequency": {
+      "description": "-3dB cutoff frequency of the high-pass filter",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "fc = 1 / (2 * pi * R2 * C2). Assuming R2=1kOhm and C2=1pF, fc = 159 MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 159000000.0,
+          "max": 200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends entirely on the chosen passive component values. Estimated using typical RF coupling values (1pF, 1kOhm)."
+      },
+      "importance": "essential"
+    },
+    "Phase_at_Cutoff": {
+      "description": "Phase shift at the -3dB cutoff frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "A first-order high-pass filter has a +45 degree phase shift at its -3dB cutoff frequency.",
+        "range": {
+          "min": 44,
+          "typical": 45,
+          "max": 46,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard theoretical value for a first-order RC high-pass filter."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure the transfer function, maximum gain, -3dB cutoff frequency, and phase shift of the passive RC filter.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "AC_Gain",
+      "Cutoff_Frequency",
+      "Phase_at_Cutoff"
+    ],
+    "spice": "* Passive RC Filter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized component values\n.param C1_val=1p\n.param C2_val=1p\n.param R2_val=1k\n\n* Input Voltage Source\nVin NET1 GND DC 0 AC 1\n\n* DUT (Device Under Test)\nC1 NET1 GND {C1_val}\nC2 NET1 NET2 {C2_val}\nR2 NET2 GND {R2_val}\n\n.control\n* AC Analysis from 1 MHz to 10 GHz\nac dec 100 1Meg 10G\n\n* Calculate Gain in dB and Phase in degrees\nlet gain_db = vdb(NET2)\nlet phase_deg = 180/PI * cph(v(NET2))\n\n* Measure Maximum Gain\nmeas ac max_gain max gain_db\n\n* Measure -3dB Cutoff Frequency\nlet cutoff_target = max_gain - 3\nmeas ac f3db when gain_db=cutoff_target\n\n* Measure Phase at Cutoff Frequency\nmeas ac phase_at_f3db find phase_deg when gain_db=cutoff_target\n\n* Print results\nprint max_gain f3db phase_at_f3db\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive RC Filter\",\n    \"description\": \"A simple passive network consisting of two capacitors and a resistor. Given the topology, if NET1 is the input and NET2 is the output, C2 and R2 form a high-pass filter, while C1 acts as a shunt capacitor at the input. This is likely a fragment of a larger circuit, such as an AC coupling network or part of a loop filter in the PLL.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"NET1\"\n      ],\n      \"output\": [\n        \"NET2\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 900-MHz 2.5-mA CMOS Frequency Synthesizer with an Automatic SC Tuning Loop\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"VCO_Frequency\": {\n      \"description\": \"Operating frequency of the VCO\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"900 MHz\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"This metric applies to the full VCO circuit described in the paper. The extracted netlist is only a passive RC filter, so it cannot generate a frequency.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Phase_Noise\": {\n      \"description\": \"Phase noise of the synthesizer at a specific offset\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-102 dBc/Hz @ 100 kHz\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"Applies to the full PLL/VCO. Cannot be measured on a passive RC sub-circuit.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"AC_Gain\": {\n      \"description\": \"Maximum AC voltage gain of the filter passband\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a passive high-pass filter (C2, R2), the maximum gain at high frequencies approaches 1 V/V (0 dB).\",\n        \"range\": {\n          \"min\": -0.1,\n          \"typical\": 0,\n          \"max\": 0.1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Passive RC filters have a maximum theoretical gain of 0 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Cutoff_Frequency\": {\n      \"description\": \"-3dB cutoff frequency of the high-pass filter\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"fc = 1 / (2 * pi * R2 * C2). Assuming R2=1kOhm and C2=1pF, fc = 159 MHz.\",\n        \"range\": {\n          \"min\": 100000000.0,\n          \"typical\": 159000000.0,\n          \"max\": 200000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends entirely on the chosen passive component values. Estimated using typical RF coupling values (1pF, 1kOhm).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_at_Cutoff\": {\n      \"description\": \"Phase shift at the -3dB cutoff frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A first-order high-pass filter has a +45 degree phase shift at its -3dB cutoff frequency.\",\n        \"range\": {\n          \"min\": 44,\n          \"typical\": 45,\n          \"max\": 46,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard theoretical value for a first-order RC high-pass filter.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure the transfer function, maximum gain, -3dB cutoff frequency, and phase shift of the passive RC filter.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"AC_Gain\",\n      \"Cutoff_Frequency\",\n      \"Phase_at_Cutoff\"\n    ],\n    \"spice\": \"* Passive RC Filter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized component values\\n.param C1_val=1p\\n.param C2_val=1p\\n.param R2_val=1k\\n\\n* Input Voltage Source\\nVin NET1 GND DC 0 AC 1\\n\\n* DUT (Device Under Test)\\nC1 NET1 GND {C1_val}\\nC2 NET1 NET2 {C2_val}\\nR2 NET2 GND {R2_val}\\n\\n.control\\n* AC Analysis from 1 MHz to 10 GHz\\nac dec 100 1Meg 10G\\n\\n* Calculate Gain in dB and Phase in degrees\\nlet gain_db = vdb(NET2)\\nlet phase_deg = 180/PI * cph(v(NET2))\\n\\n* Measure Maximum Gain\\nmeas ac max_gain max gain_db\\n\\n* Measure -3dB Cutoff Frequency\\nlet cutoff_target = max_gain - 3\\nmeas ac f3db when gain_db=cutoff_target\\n\\n* Measure Phase at Cutoff Frequency\\nmeas ac phase_at_f3db find phase_deg when gain_db=cutoff_target\\n\\n* Print results\\nprint max_gain f3db phase_at_f3db\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "910481",
+  "_case": "910481_image_9_b"
+}

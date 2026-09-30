@@ -1,0 +1,98 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 19.2",
+    "page": "585",
+    "circuit_type": "3-Stage Ring Oscillator",
+    "description": "A three-stage CMOS ring oscillator with an explicit 10fF load capacitance on one of the nodes. It generates a continuous periodic waveform whose frequency is determined by the sum of the propagation delays of the three inverter stages."
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "The fundamental frequency at which the ring oscillator toggles.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "585",
+        "reference": "Eq 19.1"
+      },
+      "equation": {
+        "formula": "f_osc = 1 / (2 * N * t_d)",
+        "explanation": "N is the number of stages (3), and t_d is the average propagation delay per stage.",
+        "assumptions": "Assumes identical stages or uses the average delay. Here, one stage has an explicit 10fF load, making its delay dominant."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Wn=1um, Wp=2um, L=0.15um. I_dsat,n = 0.5 * 270uA/V^2 * (1/0.15) * (1.8 - 0.42)^2 = 1.71 mA. I_dsat,p = 0.5 * 50uA/V^2 * (2/0.15) * (1.8 - 0.42)^2 = 0.63 mA. Average I_avg = 1.17 mA. Delay t_d ~ (C * VDD) / (2 * I_avg). C_N0 ~ 10fF (load) + 5fF (parasitic) = 15fF. t_d0 = (15fF * 1.8V) / (2 * 1.17mA) = 11.5 ps. C_N1,N2 ~ 5fF. t_d1,2 = (5fF * 1.8V) / (2 * 1.17mA) = 3.8 ps. Total period T = 2 * (11.5ps + 3.8ps + 3.8ps) = 38.2 ps. f_osc = 1 / 38.2ps = 26.1 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 10000000000.0,
+          "max": 30000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Frequency is highly dependent on the chosen W/L parameters and extracted parasitic capacitances. The 10fF load significantly lowers the frequency compared to an unloaded ring."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average dynamic power dissipated by the oscillator.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "586",
+        "reference": "Eq 19.5"
+      },
+      "equation": {
+        "formula": "P_avg = N * C_avg * VDD^2 * f_osc + P_short_circuit",
+        "explanation": "Power is dominated by the dynamic charging and discharging of the node capacitances at the oscillation frequency.",
+        "assumptions": "Short-circuit power is negligible compared to dynamic power."
+      },
+      "sky130_expected": {
+        "calculation": "Total capacitance switching per cycle C_tot = C_N0 + C_N1 + C_N2 = 15fF + 5fF + 5fF = 25fF. P_avg = 25fF * (1.8V)^2 * 26.1GHz = 2.11 mW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.002,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Scales linearly with the oscillation frequency and total node capacitance."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak voltage swing of the oscillating nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "585",
+        "reference": "Fig 19.3"
+      },
+      "equation": {
+        "formula": "V_swing = V_OH - V_OL",
+        "explanation": "The difference between the maximum high voltage and minimum low voltage reached during oscillation.",
+        "assumptions": "The frequency is low enough relative to the stage bandwidth to allow full rail-to-rail swing."
+      },
+      "sky130_expected": {
+        "calculation": "CMOS inverters pull fully to VDD and GND. V_OH = 1.8V, V_OL = 0V. V_swing = 1.8V - 0V = 1.8V.",
+        "range": {
+          "min": 1.5,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "At very high frequencies, the swing might attenuate slightly before reaching the rails, but typically it achieves near 1.8V."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure oscillation frequency, average power consumption, and output voltage swing of the 3-stage ring oscillator.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "power_consumption",
+      "output_swing"
+    ],
+    "spice": "* 3-Stage Ring Oscillator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the parameterized netlist\n.param L_XMP0=0.15 W_XMP0=2.0\n.param L_XMN0=0.15 W_XMN0=1.0\n.param L_XMP1=0.15 W_XMP1=2.0\n.param L_XMN1=0.15 W_XMN1=1.0\n.param L_XMP2=0.15 W_XMP2=2.0\n.param L_XMN2=0.15 W_XMN2=1.0\n\n* DUT Netlist\nXMP0 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XMP0} w={W_XMP0}\nXMN0 N1 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_XMN0} w={W_XMN0}\n\nXMP1 N2 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XMP1} w={W_XMP1}\nXMN1 N2 N1 0 0 sky130_fd_pr__nfet_01v8 l={L_XMN1} w={W_XMN1}\n\nXMP2 N0 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XMP2} w={W_XMP2}\nXMN2 N0 N2 0 0 sky130_fd_pr__nfet_01v8 l={L_XMN2} w={W_XMN2}\n\nCL N0 0 10f\nVDD VDD 0 DC 1.8\n\n* Initial conditions to kickstart oscillation\n.ic v(N0)=0 v(N1)=1.8 v(N2)=0\n\n.options savecurrents\n\n.control\n* Run transient analysis for 20ns to allow settling\ntran 10p 20n\n\n* Measure Oscillation Frequency\nmeas tran t_period trig v(N0) val=0.9 rise=10 targ v(N0) val=0.9 rise=11\nlet f_osc = 1 / t_period\nprint f_osc\n\n* Measure Average Power Consumption (integrate current from 10ns to 20ns)\nmeas tran pwr_integ integ i(VDD) from=10n to=20n\nlet pwr_avg = - (pwr_integ / 10n) * 1.8\nprint pwr_avg\n\n* Measure Output Swing\nmeas tran vmax max v(N0) from=10n to=20n\nmeas tran vmin min v(N0) from=10n to=20n\nlet vswing = vmax - vmin\nprint vswing\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 19.2\",\n    \"page\": \"585\",\n    \"circuit_type\": \"3-Stage Ring Oscillator\",\n    \"description\": \"A three-stage CMOS ring oscillator with an explicit 10fF load capacitance on one of the nodes. It generates a continuous periodic waveform whose frequency is determined by the sum of the propagation delays of the three inverter stages.\"\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"The fundamental frequency at which the ring oscillator toggles.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"585\",\n        \"reference\": \"Eq 19.1\"\n      },\n      \"equation\": {\n        \"formula\": \"f_osc = 1 / (2 * N * t_d)\",\n        \"explanation\": \"N is the number of stages (3), and t_d is the average propagation delay per stage.\",\n        \"assumptions\": \"Assumes identical stages or uses the average delay. Here, one stage has an explicit 10fF load, making its delay dominant.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Wn=1um, Wp=2um, L=0.15um. I_dsat,n = 0.5 * 270uA/V^2 * (1/0.15) * (1.8 - 0.42)^2 = 1.71 mA. I_dsat,p = 0.5 * 50uA/V^2 * (2/0.15) * (1.8 - 0.42)^2 = 0.63 mA. Average I_avg = 1.17 mA. Delay t_d ~ (C * VDD) / (2 * I_avg). C_N0 ~ 10fF (load) + 5fF (parasitic) = 15fF. t_d0 = (15fF * 1.8V) / (2 * 1.17mA) = 11.5 ps. C_N1,N2 ~ 5fF. t_d1,2 = (5fF * 1.8V) / (2 * 1.17mA) = 3.8 ps. Total period T = 2 * (11.5ps + 3.8ps + 3.8ps) = 38.2 ps. f_osc = 1 / 38.2ps = 26.1 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 10e9,\n          \"max\": 30e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Frequency is highly dependent on the chosen W/L parameters and extracted parasitic capacitances. The 10fF load significantly lowers the frequency compared to an unloaded ring.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average dynamic power dissipated by the oscillator.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"586\",\n        \"reference\": \"Eq 19.5\"\n      },\n      \"equation\": {\n        \"formula\": \"P_avg = N * C_avg * VDD^2 * f_osc + P_short_circuit\",\n        \"explanation\": \"Power is dominated by the dynamic charging and discharging of the node capacitances at the oscillation frequency.\",\n        \"assumptions\": \"Short-circuit power is negligible compared to dynamic power.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total capacitance switching per cycle C_tot = C_N0 + C_N1 + C_N2 = 15fF + 5fF + 5fF = 25fF. P_avg = 25fF * (1.8V)^2 * 26.1GHz = 2.11 mW.\",\n        \"range\": {\n          \"min\": 1e-4,\n          \"typical\": 2e-3,\n          \"max\": 1e-2,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scales linearly with the oscillation frequency and total node capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the oscillating nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"585\",\n        \"reference\": \"Fig 19.3\"\n      },\n      \"equation\": {\n        \"formula\": \"V_swing = V_OH - V_OL\",\n        \"explanation\": \"The difference between the maximum high voltage and minimum low voltage reached during oscillation.\",\n        \"assumptions\": \"The frequency is low enough relative to the stage bandwidth to allow full rail-to-rail swing.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"CMOS inverters pull fully to VDD and GND. V_OH = 1.8V, V_OL = 0V. V_swing = 1.8V - 0V = 1.8V.\",\n        \"range\": {\n          \"min\": 1.5,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"At very high frequencies, the swing might attenuate slightly before reaching the rails, but typically it achieves near 1.8V.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure oscillation frequency, average power consumption, and output voltage swing of the 3-stage ring oscillator.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"oscillation_frequency\",\n      \"power_consumption\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* 3-Stage Ring Oscillator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the parameterized netlist\\n.param L_XMP0=0.15 W_XMP0=2.0\\n.param L_XMN0=0.15 W_XMN0=1.0\\n.param L_XMP1=0.15 W_XMP1=2.0\\n.param L_XMN1=0.15 W_XMN1=1.0\\n.param L_XMP2=0.15 W_XMP2=2.0\\n.param L_XMN2=0.15 W_XMN2=1.0\\n\\n* DUT Netlist\\nXMP0 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XMP0} w={W_XMP0}\\nXMN0 N1 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_XMN0} w={W_XMN0}\\n\\nXMP1 N2 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XMP1} w={W_XMP1}\\nXMN1 N2 N1 0 0 sky130_fd_pr__nfet_01v8 l={L_XMN1} w={W_XMN1}\\n\\nXMP2 N0 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_XMP2} w={W_XMP2}\\nXMN2 N0 N2 0 0 sky130_fd_pr__nfet_01v8 l={L_XMN2} w={W_XMN2}\\n\\nCL N0 0 10f\\nVDD VDD 0 DC 1.8\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(N0)=0 v(N1)=1.8 v(N2)=0\\n\\n.options savecurrents\\n\\n.control\\n* Run transient analysis for 20ns to allow settling\\ntran 10p 20n\\n\\n* Measure Oscillation Frequency\\nmeas tran t_period trig v(N0) val=0.9 rise=10 targ v(N0) val=0.9 rise=11\\nlet f_osc = 1 / t_period\\nprint f_osc\\n\\n* Measure Average Power Consumption (integrate current from 10ns to 20ns)\\nmeas tran pwr_integ integ i(VDD) from=10n to=20n\\nlet pwr_avg = - (pwr_integ / 10n) * 1.8\\nprint pwr_avg\\n\\n* Measure Output Swing\\nmeas tran vmax max v(N0) from=10n to=20n\\nmeas tran vmin min v(N0) from=10n to=20n\\nlet vswing = vmax - vmin\\nprint vswing\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

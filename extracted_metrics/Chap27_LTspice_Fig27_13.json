@@ -1,0 +1,175 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 27.9",
+    "page": "915",
+    "circuit_type": "Rail-to-rail input comparator with decision circuit and output buffer",
+    "description": "A general-purpose comparator consisting of complementary PMOS and NMOS differential input pairs for rail-to-rail common-mode range feeding a cross-coupled NMOS decision circuit with level-shifting, followed by a PMOS differential buffer and CMOS inverter output stage."
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "Small-signal voltage gain of the comparator around the switching threshold",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "916",
+        "reference": "Fig. 27.11 and text"
+      },
+      "equation": {
+        "formula": "A_v = d(v_out)/d(v_p - v_m) = A_preamp * A_decision * A_buffer",
+        "explanation": "Calculated as the maximum slope of the DC transfer curve around the trip point. In the text, the gain is reported as approximately 175,000 (105 dB) for a 5V process.",
+        "assumptions": "Quasi-static DC sweep with fine voltage resolution around threshold"
+      },
+      "sky130_expected": {
+        "calculation": "In SKY130 at VDD=1.8V: Pre-amp gain ~ gm_n*(ro_n || ro_p) ~ 15-20 V/V; Decision circuit gain ~ 10-25 V/V; Output buffer diff-pair + inverter gain ~ 100-200 V/V. Total open-loop voltage gain Av = 15 * 15 * 150 = 33,750 V/V (~90.5 dB).",
+        "range": {
+          "min": 10000.0,
+          "typical": 40000.0,
+          "max": 150000.0,
+          "unit": "V/V"
+        },
+        "reasoning": "Channel length modulation in SKY130 (0.18um/1um) reduces individual stage output resistances compared to older long-channel technologies."
+      },
+      "importance": "essential"
+    },
+    "systematic_offset": {
+      "description": "Systematic input-referred DC offset voltage of the comparator",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "916",
+        "reference": "Fig. 27.11"
+      },
+      "equation": {
+        "formula": "V_OS = V_in(at V_out = VDD/2) - V_ref",
+        "explanation": "Difference between the input voltage at which the output crosses VDD/2 and the reference voltage vm.",
+        "assumptions": "vm = VDD/2 = 0.9V, nominal process without random mismatch"
+      },
+      "sky130_expected": {
+        "calculation": "Due to single-ended conversion in the PMOS output buffer diff-amp and finite gain of preceding stages, systematic offset is typically 0.5 mV to 3 mV.",
+        "range": {
+          "min": -0.005,
+          "typical": 0.001,
+          "max": 0.005,
+          "unit": "V"
+        },
+        "reasoning": "Asymmetric loading in the output buffer current mirror causes a small systematic offset referred to the input."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Propagation delay from differential input zero-crossing to digital output transition (50% to 50%)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "918",
+        "reference": "Section 'Propagation Delay' and Fig. 27.12"
+      },
+      "equation": {
+        "formula": "t_p = (t_pHL + t_pLH) / 2",
+        "explanation": "Time difference between the input crossing the reference voltage and the output switching to logic threshold.",
+        "assumptions": "50 mV input overdrive, 10 ns input pulse, load capacitance < 50 fF"
+      },
+      "sky130_expected": {
+        "calculation": "In Baker text, delay is ~9 ns in a 1-um CMOS process. For SKY130 with fT higher by a factor of 4-5x and parasitic capacitances lower (~10-20 fF per node), the expected delay under 50 mV overdrive is ~1.5 ns to 4 ns.",
+        "range": {
+          "min": 8e-10,
+          "typical": 2.5e-09,
+          "max": 6e-09,
+          "unit": "s"
+        },
+        "reasoning": "Scaled node capacitance and higher transconductance at 130nm significantly speed up node charging."
+      },
+      "importance": "essential"
+    },
+    "hysteresis_voltage": {
+      "description": "Switching point hysteresis window (VSPH - VSPL)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "912",
+        "reference": "Eq. (27.6), Eq. (27.7)"
+      },
+      "equation": {
+        "formula": "V_SPH - V_SPL = 2 * (I_SS / g_m) * ((beta_B / beta_A - 1) / (beta_B / beta_A + 1))",
+        "explanation": "Hysteresis width determined by the ratio of cross-coupled to diode load transistors in the decision circuit. When beta_B = beta_A (W5=W6=W7=W8), hysteresis is zero.",
+        "assumptions": "beta_A = beta_B in Fig. 27.9 (no intentional hysteresis designed)"
+      },
+      "sky130_expected": {
+        "calculation": "Since W5=W6=W7=W8=10, beta_B/beta_A = 1.0, yielding theoretical VSPH = 0V and hysteresis = 0V.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.0,
+          "max": 0.002,
+          "unit": "V"
+        },
+        "reasoning": "Designed symmetrically without positive feedback width boosting; slight difference arises only from numerical simulation step."
+      },
+      "importance": "recommended"
+    },
+    "power_supply_current": {
+      "description": "Total quiescent current drawn from VDD including bias circuit and comparator stages",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "915",
+        "reference": "Fig. 27.10"
+      },
+      "equation": {
+        "formula": "I_DD = I_bias + I_diff_nmos + I_diff_pmos + I_decision + I_buffer + I_inv",
+        "explanation": "Total current supplied by VDD during normal quiescent operation.",
+        "assumptions": "V_in = VDD/2 = 0.9V"
+      },
+      "sky130_expected": {
+        "calculation": "Bias generator branch: ~15 uA. NMOS input pair: Iss=20 uA. PMOS input pair: Iss=20 uA. Decision circuit: 20 uA. Buffer stage: 15 uA. Inverter leakage: < 1 uA. Total IDD ~ 80 uA - 120 uA.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.0001,
+          "max": 0.0002,
+          "unit": "A"
+        },
+        "reasoning": "Supply scaled from 5V down to 1.8V, tail currents scaled to ~20 uA per stage for reasonable power/speed trade-off."
+      },
+      "importance": "recommended"
+    },
+    "input_common_mode_range": {
+      "description": "Allowable input common-mode voltage range over which the comparator operates correctly",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "915",
+        "reference": "Section 27.1.1 and Fig. 27.10"
+      },
+      "equation": {
+        "formula": "V_ICMR = [0, VDD]",
+        "explanation": "Rail-to-rail input range achieved through complementary parallel NMOS and PMOS differential pairs.",
+        "assumptions": "Complementary input pairs active across entire 0 to VDD range"
+      },
+      "sky130_expected": {
+        "calculation": "At VDD = 1.8V, PMOS pair operates down to 0V; NMOS pair operates up to 1.8V. Linear range spans full 0V to 1.8V.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.9,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "Complementary inputs ensure at least one pair is in saturation from rail to rail."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Comprehensive ngspice testbench for Baker Fig. 27.9 rail-to-rail comparator measuring open-loop gain, systematic offset, quiescent supply current, and propagation delay under 50 mV overdrive.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "open_loop_gain",
+      "systematic_offset",
+      "power_supply_current",
+      "propagation_delay"
+    ],
+    "spice": "* Testbench for Baker Fig. 27.9 Rail-to-Rail Comparator\n.lib \"/home/designer/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice\" tt\n\n* Parameter definitions for transistors\n.param W_xmsu3=20u L_xmsu3=2u\n.param W_xm31=20u  L_xm31=1u\n.param W_xm41=20u  L_xm41=1u\n.param W_xm1=10u   L_xm1=1u\n.param W_xm2=10u   L_xm2=1u\n.param W_xm3=20u   L_xm3=1u\n.param W_xm4=20u   L_xm4=1u\n.param W_xm5=10u   L_xm5=1u\n.param W_xm6=10u   L_xm6=1u\n.param W_xm7=10u   L_xm7=1u\n.param W_xm8=10u   L_xm8=1u\n.param W_xmsu1=10u L_xmsu1=10u\n.param W_xm9=20u   L_xm9=1u\n.param W_xm10=20u  L_xm10=1u\n.param W_xm11=20u  L_xm11=1u\n.param W_xm12=10u  L_xm12=1u\n.param W_xm13=10u  L_xm13=1u\n.param W_xm14=20u  L_xm14=1u\n.param W_xm15=10u  L_xm15=1u\n.param W_xm16=10u  L_xm16=1u\n.param W_xm17=10u  L_xm17=1u\n.param W_xm18=10u  L_xm18=1u\n.param W_xm19=10u  L_xm19=1u\n.param W_xm20=20u  L_xm20=2u\n.param W_xm21=20u  L_xm21=1u\n.param W_xm22=20u  L_xm22=1u\n\n* Bias subcircuit parameters\n.param W_xmsu2=5u  L_xmsu2=2u\n\n* Power Supplies and Inputs\nVDD VDD 0 DC 1.8\nVm  vm  0 DC 0.9\nVp  vp  0 DC 0.9 PULSE(0.85 0.95 125n 0.1n 0.1n 10n 50n)\n\n* Load capacitance at output\nCload Out 0 20f\n\n* DUT Netlist\nxmsu3 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\nxm31 n1 n1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\nxm41 n2 n2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm41} l={L_xm41}\nxm2 n2 vm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 n1 vp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\nxm3 vop n1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 vom n2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 vop vop N006 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 vop vom N006 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm7 vom vop N006 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nxm8 vom vom N006 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxmsu1 N006 N006 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\nxm9 N002 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N005 vom N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N003 vop N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm12 N005 N005 0 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\nxm13 N003 N005 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\nxm14 Out N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\nxm15 Out N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\nxm16 N008 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\nxm17 n2 N007 0 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\nxm18 N007 N007 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\nxm19 n1 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\nxm20 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\nxm21 N007 vp N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\nxm22 N008 vm N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\n\n* Bias circuit (Fig. 20.15)\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xmsu3 VDD N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\n  xm4 Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Vbiasp Vbiasn N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N002 GND 6.5k\n.ends SUB_1\n\n* Simulation control\n.control\n* 1. Operating point and DC current\nop\nlet idd_bias = -i(vdd)\nprint idd_bias\n\n* 2. DC transfer characteristics and gain\ndc Vp 0.895 0.905 0.00001\nlet gain = deriv(v(out))\nmeas dc max_gain max gain\nmeas dc v_switch when v(out)=0.9 rise=1\nlet vos = v_switch - 0.9\nprint max_gain vos\n\n* 3. Transient simulation for propagation delay (50 mV overdrive)\ntran 0.05n 150n 100n uic\nmeas tran t_pLH trig v(vp) val=0.9 rise=1 targ v(Out) val=0.9 rise=1\nmeas tran t_pHL trig v(vp) val=0.9 fall=1 targ v(Out) val=0.9 fall=1\nlet t_delay = (t_pLH + t_pHL) / 2\nprint t_pLH t_pHL t_delay\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 27.9\",\n    \"page\": \"915\",\n    \"circuit_type\": \"Rail-to-rail input comparator with decision circuit and output buffer\",\n    \"description\": \"A general-purpose comparator consisting of complementary PMOS and NMOS differential input pairs for rail-to-rail common-mode range feeding a cross-coupled NMOS decision circuit with level-shifting, followed by a PMOS differential buffer and CMOS inverter output stage.\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"Small-signal voltage gain of the comparator around the switching threshold\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"916\", \"reference\": \"Fig. 27.11 and text\" },\n      \"equation\": {\n        \"formula\": \"A_v = d(v_out)/d(v_p - v_m) = A_preamp * A_decision * A_buffer\",\n        \"explanation\": \"Calculated as the maximum slope of the DC transfer curve around the trip point. In the text, the gain is reported as approximately 175,000 (105 dB) for a 5V process.\",\n        \"assumptions\": \"Quasi-static DC sweep with fine voltage resolution around threshold\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"In SKY130 at VDD=1.8V: Pre-amp gain ~ gm_n*(ro_n || ro_p) ~ 15-20 V/V; Decision circuit gain ~ 10-25 V/V; Output buffer diff-pair + inverter gain ~ 100-200 V/V. Total open-loop voltage gain Av = 15 * 15 * 150 = 33,750 V/V (~90.5 dB).\",\n        \"range\": { \"min\": 10000.0, \"typical\": 40000.0, \"max\": 150000.0, \"unit\": \"V/V\" },\n        \"reasoning\": \"Channel length modulation in SKY130 (0.18um/1um) reduces individual stage output resistances compared to older long-channel technologies.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"systematic_offset\": {\n      \"description\": \"Systematic input-referred DC offset voltage of the comparator\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"916\", \"reference\": \"Fig. 27.11\" },\n      \"equation\": {\n        \"formula\": \"V_OS = V_in(at V_out = VDD/2) - V_ref\",\n        \"explanation\": \"Difference between the input voltage at which the output crosses VDD/2 and the reference voltage vm.\",\n        \"assumptions\": \"vm = VDD/2 = 0.9V, nominal process without random mismatch\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Due to single-ended conversion in the PMOS output buffer diff-amp and finite gain of preceding stages, systematic offset is typically 0.5 mV to 3 mV.\",\n        \"range\": { \"min\": -0.005, \"typical\": 0.001, \"max\": 0.005, \"unit\": \"V\" },\n        \"reasoning\": \"Asymmetric loading in the output buffer current mirror causes a small systematic offset referred to the input.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Propagation delay from differential input zero-crossing to digital output transition (50% to 50%)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"918\", \"reference\": \"Section 'Propagation Delay' and Fig. 27.12\" },\n      \"equation\": {\n        \"formula\": \"t_p = (t_pHL + t_pLH) / 2\",\n        \"explanation\": \"Time difference between the input crossing the reference voltage and the output switching to logic threshold.\",\n        \"assumptions\": \"50 mV input overdrive, 10 ns input pulse, load capacitance < 50 fF\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"In Baker text, delay is ~9 ns in a 1-um CMOS process. For SKY130 with fT higher by a factor of 4-5x and parasitic capacitances lower (~10-20 fF per node), the expected delay under 50 mV overdrive is ~1.5 ns to 4 ns.\",\n        \"range\": { \"min\": 8.0e-10, \"typical\": 2.5e-9, \"max\": 6.0e-9, \"unit\": \"s\" },\n        \"reasoning\": \"Scaled node capacitance and higher transconductance at 130nm significantly speed up node charging.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"hysteresis_voltage\": {\n      \"description\": \"Switching point hysteresis window (VSPH - VSPL)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"912\", \"reference\": \"Eq. (27.6), Eq. (27.7)\" },\n      \"equation\": {\n        \"formula\": \"V_SPH - V_SPL = 2 * (I_SS / g_m) * ((beta_B / beta_A - 1) / (beta_B / beta_A + 1))\",\n        \"explanation\": \"Hysteresis width determined by the ratio of cross-coupled to diode load transistors in the decision circuit. When beta_B = beta_A (W5=W6=W7=W8), hysteresis is zero.\",\n        \"assumptions\": \"beta_A = beta_B in Fig. 27.9 (no intentional hysteresis designed)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since W5=W6=W7=W8=10, beta_B/beta_A = 1.0, yielding theoretical VSPH = 0V and hysteresis = 0V.\",\n        \"range\": { \"min\": 0.0, \"typical\": 0.0, \"max\": 0.002, \"unit\": \"V\" },\n        \"reasoning\": \"Designed symmetrically without positive feedback width boosting; slight difference arises only from numerical simulation step.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_supply_current\": {\n      \"description\": \"Total quiescent current drawn from VDD including bias circuit and comparator stages\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"915\", \"reference\": \"Fig. 27.10\" },\n      \"equation\": {\n        \"formula\": \"I_DD = I_bias + I_diff_nmos + I_diff_pmos + I_decision + I_buffer + I_inv\",\n        \"explanation\": \"Total current supplied by VDD during normal quiescent operation.\",\n        \"assumptions\": \"V_in = VDD/2 = 0.9V\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bias generator branch: ~15 uA. NMOS input pair: Iss=20 uA. PMOS input pair: Iss=20 uA. Decision circuit: 20 uA. Buffer stage: 15 uA. Inverter leakage: < 1 uA. Total IDD ~ 80 uA - 120 uA.\",\n        \"range\": { \"min\": 5.0e-5, \"typical\": 1.0e-4, \"max\": 2.0e-4, \"unit\": \"A\" },\n        \"reasoning\": \"Supply scaled from 5V down to 1.8V, tail currents scaled to ~20 uA per stage for reasonable power/speed trade-off.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"input_common_mode_range\": {\n      \"description\": \"Allowable input common-mode voltage range over which the comparator operates correctly\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"915\", \"reference\": \"Section 27.1.1 and Fig. 27.10\" },\n      \"equation\": {\n        \"formula\": \"V_ICMR = [0, VDD]\",\n        \"explanation\": \"Rail-to-rail input range achieved through complementary parallel NMOS and PMOS differential pairs.\",\n        \"assumptions\": \"Complementary input pairs active across entire 0 to VDD range\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At VDD = 1.8V, PMOS pair operates down to 0V; NMOS pair operates up to 1.8V. Linear range spans full 0V to 1.8V.\",\n        \"range\": { \"min\": 0.0, \"typical\": 0.9, \"max\": 1.8, \"unit\": \"V\" },\n        \"reasoning\": \"Complementary inputs ensure at least one pair is in saturation from rail to rail.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Comprehensive ngspice testbench for Baker Fig. 27.9 rail-to-rail comparator measuring open-loop gain, systematic offset, quiescent supply current, and propagation delay under 50 mV overdrive.\",\n    \"analyses\": [\"DC\", \"Tran\"],\n    \"metrics_measured\": [\n      \"open_loop_gain\",\n      \"systematic_offset\",\n      \"power_supply_current\",\n      \"propagation_delay\"\n    ],\n    \"spice\": \"* Testbench for Baker Fig. 27.9 Rail-to-Rail Comparator\\n.lib \\\"/home/designer/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n* Parameter definitions for transistors\\n.param W_xmsu3=20u L_xmsu3=2u\\n.param W_xm31=20u  L_xm31=1u\\n.param W_xm41=20u  L_xm41=1u\\n.param W_xm1=10u   L_xm1=1u\\n.param W_xm2=10u   L_xm2=1u\\n.param W_xm3=20u   L_xm3=1u\\n.param W_xm4=20u   L_xm4=1u\\n.param W_xm5=10u   L_xm5=1u\\n.param W_xm6=10u   L_xm6=1u\\n.param W_xm7=10u   L_xm7=1u\\n.param W_xm8=10u   L_xm8=1u\\n.param W_xmsu1=10u L_xmsu1=10u\\n.param W_xm9=20u   L_xm9=1u\\n.param W_xm10=20u  L_xm10=1u\\n.param W_xm11=20u  L_xm11=1u\\n.param W_xm12=10u  L_xm12=1u\\n.param W_xm13=10u  L_xm13=1u\\n.param W_xm14=20u  L_xm14=1u\\n.param W_xm15=10u  L_xm15=1u\\n.param W_xm16=10u  L_xm16=1u\\n.param W_xm17=10u  L_xm17=1u\\n.param W_xm18=10u  L_xm18=1u\\n.param W_xm19=10u  L_xm19=1u\\n.param W_xm20=20u  L_xm20=2u\\n.param W_xm21=20u  L_xm21=1u\\n.param W_xm22=20u  L_xm22=1u\\n\\n* Bias subcircuit parameters\\n.param W_xmsu2=5u  L_xmsu2=2u\\n\\n* Power Supplies and Inputs\\nVDD VDD 0 DC 1.8\\nVm  vm  0 DC 0.9\\nVp  vp  0 DC 0.9 PULSE(0.85 0.95 125n 0.1n 0.1n 10n 50n)\\n\\n* Load capacitance at output\\nCload Out 0 20f\\n\\n* DUT Netlist\\nxmsu3 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\nxm31 n1 n1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\\nxm41 n2 n2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm41} l={L_xm41}\\nxm2 n2 vm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 n1 vp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\\nxm3 vop n1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 vom n2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 vop vop N006 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 vop vom N006 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 vom vop N006 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 vom vom N006 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxmsu1 N006 N006 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\nxm9 N002 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N005 vom N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N003 vop N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 N005 N005 0 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 N003 N005 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 Out N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 Out N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 N008 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\nxm17 n2 N007 0 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\nxm18 N007 N007 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\nxm19 n1 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\\nxm20 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\\nxm21 N007 vp N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\\nxm22 N008 vm N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\\n\\n* Bias circuit (Fig. 20.15)\\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xmsu3 VDD N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\\n  xm4 Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Vbiasp Vbiasn N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N002 GND 6.5k\\n.ends SUB_1\\n\\n* Simulation control\\n.control\\n* 1. Operating point and DC current\\nop\\nlet idd_bias = -i(vdd)\\nprint idd_bias\\n\\n* 2. DC transfer characteristics and gain\\ndc Vp 0.895 0.905 0.00001\\nlet gain = deriv(v(out))\\nmeas dc max_gain max gain\\nmeas dc v_switch when v(out)=0.9 rise=1\\nlet vos = v_switch - 0.9\\nprint max_gain vos\\n\\n* 3. Transient simulation for propagation delay (50 mV overdrive)\\ntran 0.05n 150n 100n uic\\nmeas tran t_pLH trig v(vp) val=0.9 rise=1 targ v(Out) val=0.9 rise=1\\nmeas tran t_pHL trig v(vp) val=0.9 fall=1 targ v(Out) val=0.9 fall=1\\nlet t_delay = (t_pLH + t_pHL) / 2\\nprint t_pLH t_pHL t_delay\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

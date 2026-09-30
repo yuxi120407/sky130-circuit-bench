@@ -1,0 +1,323 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 20.36",
+    "page": "643",
+    "circuit_type": "Wide-swing cascode bias circuit and current source",
+    "description": "The netlist contains a Beta-multiplier reference and a wide-swing cascode bias generator (SUB_1), which biases a cascode current mirror and a floating current source output stage. Figure 20.36 shows the core wide-swing cascode current source topology used in the short-channel process, which matches the biasing strategy in SUB_1."
+  },
+  "step2_metrics": {
+    "eq_20_32_33_mosfet_only_iref": {
+      "description": "Reference current for the MOSFET-only bias circuit.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "633",
+        "reference": "Eq 20.32 and 20.33"
+      },
+      "equation": {
+        "formula": "IREF = [VDD^2 - 2VDD(VTHN+VTHP) + (VTHN+VTHP)^2] / [sqrt(2L3/KPpW3) + sqrt(2L1/KPnW1)]^2",
+        "explanation": "Calculates the output current based on VDD and threshold voltages.",
+        "assumptions": "Long-channel square-law model applies."
+      },
+      "sky130_expected": {
+        "calculation": "VDD=1.8V, VTHN=0.42V, VTHP=0.42V, KPn=270u, KPp=50u. Assume W/L=1. Numerator = 1.8^2 - 2(1.8)(0.84) + 0.84^2 = 0.9216. Denominator = (sqrt(2/50u) + sqrt(2/270u))^2 = (200 + 86)^2 = 81796. IREF = 0.9216 / 81796 = 11.26 uA.",
+        "range": {
+          "min": "10u",
+          "typical": "11.26u",
+          "max": "15u",
+          "unit": "A"
+        },
+        "reasoning": "Depends heavily on exact W/L sizing and VDD."
+      },
+      "importance": "optional"
+    },
+    "eq_20_34_35_mosfet_only_tc": {
+      "description": "Temperature coefficient of the MOSFET-only reference current.",
+      "unit": "1/C",
+      "analysis_type": "DC",
+      "source": {
+        "page": "633",
+        "reference": "Eq 20.34 and 20.35"
+      },
+      "equation": {
+        "formula": "TC = (1/KPn)(dKPn/dT) + [2(dVTHN/dT + dVTHP/dT)(VTHN+VTHP-VDD)] / Numerator",
+        "explanation": "Fractional change in current per degree C.",
+        "assumptions": "Linear temperature dependence of VTH."
+      },
+      "sky130_expected": {
+        "calculation": "Assume mobility TC = -0.005/C, dVTH/dT = -1mV/C. Term 2 = 2(-0.002)(0.84-1.8) / 0.9216 = 0.00416. Total TC = -0.005 + 0.00416 = -0.00084 = -840 ppm/C.",
+        "range": {
+          "min": "-1500",
+          "typical": "-840",
+          "max": "0",
+          "unit": "ppm/C"
+        },
+        "reasoning": "Mobility degradation dominates over threshold voltage reduction."
+      },
+      "importance": "optional"
+    },
+    "eq_20_36_37_beta_mult_tc": {
+      "description": "Temperature coefficient of the Beta-multiplier reference current.",
+      "unit": "1/C",
+      "analysis_type": "DC",
+      "source": {
+        "page": "634",
+        "reference": "Eq 20.36 and 20.37"
+      },
+      "equation": {
+        "formula": "TC_IREF = -2(1/R * dR/dT) - (1/KPn * dKPn/dT)",
+        "explanation": "Shows how resistor TC and mobility TC counteract each other.",
+        "assumptions": "Square-law model."
+      },
+      "sky130_expected": {
+        "calculation": "Assume poly resistor TCR = 2000 ppm/C = 0.002. Mobility TC = -0.005. TC_IREF = -2(0.002) - (-0.005) = -0.004 + 0.005 = +0.001 = +1000 ppm/C.",
+        "range": {
+          "min": "0",
+          "typical": "1000",
+          "max": "2000",
+          "unit": "ppm/C"
+        },
+        "reasoning": "Positive TCR of resistor subtracts from negative TC of mobility."
+      },
+      "importance": "recommended"
+    },
+    "eq_20_38_39_40_beta_mult_vref": {
+      "description": "Voltage reference and zero-TC resistor sizing for Beta-multiplier.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "634",
+        "reference": "Eq 20.38, 20.39, 20.40"
+      },
+      "equation": {
+        "formula": "VREF = [2 / (R*KPn*W/L)]*(1 - 1/sqrt(K))^2 + VTHN",
+        "explanation": "Gate voltage of M1 used as a reference.",
+        "assumptions": "K is the multiplier ratio."
+      },
+      "sky130_expected": {
+        "calculation": "Assume R=5.5k, KPn=270u, W/L=10, K=4. VREF = [2 / (5500*270u*10)]*(0.5)^2 + 0.42 = 0.033 + 0.42 = 0.453 V.",
+        "range": {
+          "min": "0.4",
+          "typical": "0.45",
+          "max": "0.6",
+          "unit": "V"
+        },
+        "reasoning": "Dominated by VTHN (0.42V in SKY130)."
+      },
+      "importance": "recommended"
+    },
+    "eq_20_41_subthreshold_resistor": {
+      "description": "Resistor value for subthreshold bias without Beta-multiplier.",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "source": {
+        "page": "635",
+        "reference": "Eq 20.41"
+      },
+      "equation": {
+        "formula": "IREF = (VDD - VSG) / R",
+        "explanation": "Simple resistor bias current.",
+        "assumptions": "VSG is roughly VTHP."
+      },
+      "sky130_expected": {
+        "calculation": "VDD=1.8V, VSG=0.42V, R=72M. IREF = (1.8 - 0.42) / 72M = 19 nA.",
+        "range": {
+          "min": "10n",
+          "typical": "19n",
+          "max": "30n",
+          "unit": "A"
+        },
+        "reasoning": "Requires impractically large resistors for nA currents."
+      },
+      "importance": "optional"
+    },
+    "eq_20_42_to_46_subthreshold_beta_mult": {
+      "description": "Current and resistor sizing for subthreshold Beta-multiplier.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "635",
+        "reference": "Eq 20.42, 20.43, 20.44, 20.45, 20.46"
+      },
+      "equation": {
+        "formula": "IREF = (n*VT / R) * ln(K)",
+        "explanation": "Current is proportional to thermal voltage VT.",
+        "assumptions": "Weak inversion operation."
+      },
+      "sky130_expected": {
+        "calculation": "Assume n=1.5, VT=26mV, R=3.5M, K=4. IREF = (1.5 * 0.026 / 3.5M) * ln(4) = 15.4 nA.",
+        "range": {
+          "min": "5n",
+          "typical": "15.4n",
+          "max": "50n",
+          "unit": "A"
+        },
+        "reasoning": "PTAT current behavior in subthreshold."
+      },
+      "importance": "optional"
+    },
+    "eq_20_47_48_cascode_vmin": {
+      "description": "Minimum output voltage for cascode current mirror.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "637",
+        "reference": "Eq 20.47 and 20.48"
+      },
+      "equation": {
+        "formula": "VO,min = 2*VDS,sat + VTHN",
+        "explanation": "Minimum voltage to keep both cascode devices in saturation.",
+        "assumptions": "Simple cascode biasing."
+      },
+      "sky130_expected": {
+        "calculation": "Assume VDS,sat = 0.2V, VTHN = 0.42V. VO,min = 2(0.2) + 0.42 = 0.82V.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.82",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Limits output swing in 1.8V processes."
+      },
+      "importance": "essential"
+    },
+    "eq_20_49_to_53_cascode_rout": {
+      "description": "Output resistance of the cascode current mirror.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "source": {
+        "page": "637",
+        "reference": "Eq 20.49, 20.50, 20.51, 20.52, 20.53"
+      },
+      "equation": {
+        "formula": "Ro = (2 + gm*ro)*ro \u2248 gm*ro^2",
+        "explanation": "Boosts output resistance by intrinsic gain gm*ro.",
+        "assumptions": "Devices in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "Assume ID=10uA, W/L=10. gm = sqrt(2*270u*10*10u) = 232uS. ro = 1/(0.1*10u) = 1Mohm. Ro = 232u * (1M)^2 = 232 Mohm.",
+        "range": {
+          "min": "50M",
+          "typical": "232M",
+          "max": "500M",
+          "unit": "ohm"
+        },
+        "reasoning": "Short-channel effects (lambda) reduce ro, but cascoding restores high Ro."
+      },
+      "importance": "essential"
+    },
+    "eq_20_54_to_58_mws_sizing": {
+      "description": "Sizing of the wide-swing bias transistor MWS.",
+      "unit": "ratio",
+      "analysis_type": "DC",
+      "source": {
+        "page": "639",
+        "reference": "Eq 20.54, 20.55, 20.56, 20.57, 20.58"
+      },
+      "equation": {
+        "formula": "W/L = (W_MWS / L_MWS) * 4",
+        "explanation": "MWS is sized to generate exactly 2*VDS,sat + VTHN.",
+        "assumptions": "Long-channel square-law."
+      },
+      "sky130_expected": {
+        "calculation": "If main mirror W/L = 10, then MWS W/L should be 10/4 = 2.5.",
+        "range": {
+          "min": "1",
+          "typical": "2.5",
+          "max": "5",
+          "unit": "ratio"
+        },
+        "reasoning": "Theoretical sizing places M2 exactly on the edge of triode."
+      },
+      "importance": "recommended"
+    },
+    "eq_20_59_60_mws_sizing_practical": {
+      "description": "Practical sizing of MWS to keep M2 deeper in saturation.",
+      "unit": "ratio",
+      "analysis_type": "DC",
+      "source": {
+        "page": "641",
+        "reference": "Eq 20.59 and 20.60"
+      },
+      "equation": {
+        "formula": "W_MWS / L_MWS = (1/5) * (W/L)",
+        "explanation": "Increases VDS of M2 slightly to ensure saturation.",
+        "assumptions": "Long-channel design."
+      },
+      "sky130_expected": {
+        "calculation": "If main mirror W/L = 10, practical MWS W/L = 10/5 = 2.0.",
+        "range": {
+          "min": "1",
+          "typical": "2.0",
+          "max": "4",
+          "unit": "ratio"
+        },
+        "reasoning": "Provides margin against process variations."
+      },
+      "importance": "recommended"
+    },
+    "eq_20_61_short_channel_vds_sat": {
+      "description": "Short-channel VDS,sat deviation.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "642",
+        "reference": "Eq 20.61"
+      },
+      "equation": {
+        "formula": "VDS,sat \u2260 VGS - VTHN",
+        "explanation": "Velocity saturation causes VDS,sat to be lower than Vov.",
+        "assumptions": "Short-channel process."
+      },
+      "sky130_expected": {
+        "calculation": "In SKY130, VDS,sat is typically 50-100mV lower than VGS-VTHN for minimum length devices.",
+        "range": {
+          "min": "0.05",
+          "typical": "0.15",
+          "max": "0.3",
+          "unit": "V"
+        },
+        "reasoning": "Requires simulation to find exact VDS,sat."
+      },
+      "importance": "essential"
+    },
+    "eq_20_62_mws_sizing_short_channel": {
+      "description": "MWS sizing for short-channel wide-swing cascode.",
+      "unit": "ratio",
+      "analysis_type": "DC",
+      "source": {
+        "page": "642",
+        "reference": "Eq 20.62"
+      },
+      "equation": {
+        "formula": "W_MWS / L_MWS = (1/25) * (W/L)",
+        "explanation": "Extreme ratio needed in short-channel to push M2 into saturation.",
+        "assumptions": "Short-channel velocity saturation effects."
+      },
+      "sky130_expected": {
+        "calculation": "If main mirror W/L = 10, short-channel MWS W/L = 10/25 = 0.4.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.4",
+          "max": "1.0",
+          "unit": "ratio"
+        },
+        "reasoning": "Compensates for reduced output resistance at low VDS in short-channel nodes."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Simulates the wide-swing cascode bias circuit and output stage, measuring DC operating points and transient output voltage.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "eq_20_47_48_cascode_vmin",
+      "eq_20_54_to_58_mws_sizing"
+    ],
+    "spice": "* Testbench for Wide-Swing Cascode Bias and Output Stage\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2=10u L_xm2=2u\n.param W_xmn=10u L_xmn=2u\n.param W_xm6b=20u L_xm6b=2u\n.param W_xmp=20u L_xmp=2u\n.param W_xmp1=20u L_xmp1=2u\n.param W_xmn1=10u L_xmn1=2u\n.param W_xmop=40u L_xmop=2u\n.param W_xmon=20u L_xmon=2u\n.param W_xmsu2=20u L_xmsu2=2u\n.param W_xmsu1=10u L_xmsu1=2u\n.param W_xmsu3=10u L_xmsu3=2u\n.param W_xm3=20u L_xm3=2u\n.param W_xm4=20u L_xm4=2u\n.param W_xm1=10u L_xm1=2u\n.param W_xma4=20u L_xma4=2u\n.param W_xma3=20u L_xma3=2u\n.param W_xm5=10u L_xm5=2u\n.param W_xm6=10u L_xm6=2u\n.param W_xm7=20u L_xm7=2u\n.param W_xma1=20u L_xma1=2u\n.param W_xma2=20u L_xma2=2u\n.param W_xmsu4=10u L_xmsu4=2u\n.param W_xm8=10u L_xm8=2u\n.param W_xm9=10u L_xm9=2u\n.param W_xm10=10u L_xm10=2u\n.param W_xm11=10u L_xm11=2u\n.param W_xm12=10u L_xm12=2u\n.param W_xm13=10u L_xm13=2u\n.param W_xm14=10u L_xm14=2u\n.param W_xm15=10u L_xm15=2u\n.param W_xma5=20u L_xma5=2u\n.param W_xma6=20u L_xma6=2u\n.param W_xma7=20u L_xma7=2u\n.param W_xma8=20u L_xma8=2u\n.param W_xma9=20u L_xma9=2u\n.param W_xma10=20u L_xma10=2u\n.param W_xma11=20u L_xma11=2u\n.param W_xma12=20u L_xma12=2u\n.param W_xm16=10u L_xm16=2u\n.param W_xm17=10u L_xm17=2u\n.param W_xm18=10u L_xm18=2u\n\nVDD VDD 0 1.8\n\nxm2 N004 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxmn N003 Vbias3 N004 0 sky130_fd_pr__nfet_01v8 w={W_xmn} l={L_xmn}\nxm6b N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6b} l={L_xm6b}\nxmp N002 Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xmp} l={L_xmp}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nxmp1 N003 Vpcas N002 VDD sky130_fd_pr__pfet_01v8 w={W_xmp1} l={L_xmp1}\nxmn1 N002 Vncas N003 0 sky130_fd_pr__nfet_01v8 w={W_xmn1} l={L_xmn1}\nxmop Out N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmop} l={L_xmop}\nxmon Out N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmon} l={L_xmon}\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n\n.control\n  op\n  print v(Vbias1) v(Vbias2) v(Vbias3) v(Vbias4)\n  print v(Vpcas) v(Vncas)\n  \n  tran 1u 1m\n  meas tran v_out_avg avg v(Out)\n  meas tran v_n002_avg avg v(N002)\n  meas tran v_n003_avg avg v(N003)\n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 20.36\",\n    \"page\": \"643\",\n    \"circuit_type\": \"Wide-swing cascode bias circuit and current source\",\n    \"description\": \"The netlist contains a Beta-multiplier reference and a wide-swing cascode bias generator (SUB_1), which biases a cascode current mirror and a floating current source output stage. Figure 20.36 shows the core wide-swing cascode current source topology used in the short-channel process, which matches the biasing strategy in SUB_1.\"\n  },\n  \"step2_metrics\": {\n    \"eq_20_32_33_mosfet_only_iref\": {\n      \"description\": \"Reference current for the MOSFET-only bias circuit.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"633\", \"reference\": \"Eq 20.32 and 20.33\" },\n      \"equation\": { \"formula\": \"IREF = [VDD^2 - 2VDD(VTHN+VTHP) + (VTHN+VTHP)^2] / [sqrt(2L3/KPpW3) + sqrt(2L1/KPnW1)]^2\", \"explanation\": \"Calculates the output current based on VDD and threshold voltages.\", \"assumptions\": \"Long-channel square-law model applies.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD=1.8V, VTHN=0.42V, VTHP=0.42V, KPn=270u, KPp=50u. Assume W/L=1. Numerator = 1.8^2 - 2(1.8)(0.84) + 0.84^2 = 0.9216. Denominator = (sqrt(2/50u) + sqrt(2/270u))^2 = (200 + 86)^2 = 81796. IREF = 0.9216 / 81796 = 11.26 uA.\",\n        \"range\": { \"min\": \"10u\", \"typical\": \"11.26u\", \"max\": \"15u\", \"unit\": \"A\" },\n        \"reasoning\": \"Depends heavily on exact W/L sizing and VDD.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"eq_20_34_35_mosfet_only_tc\": {\n      \"description\": \"Temperature coefficient of the MOSFET-only reference current.\",\n      \"unit\": \"1/C\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"633\", \"reference\": \"Eq 20.34 and 20.35\" },\n      \"equation\": { \"formula\": \"TC = (1/KPn)(dKPn/dT) + [2(dVTHN/dT + dVTHP/dT)(VTHN+VTHP-VDD)] / Numerator\", \"explanation\": \"Fractional change in current per degree C.\", \"assumptions\": \"Linear temperature dependence of VTH.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume mobility TC = -0.005/C, dVTH/dT = -1mV/C. Term 2 = 2(-0.002)(0.84-1.8) / 0.9216 = 0.00416. Total TC = -0.005 + 0.00416 = -0.00084 = -840 ppm/C.\",\n        \"range\": { \"min\": \"-1500\", \"typical\": \"-840\", \"max\": \"0\", \"unit\": \"ppm/C\" },\n        \"reasoning\": \"Mobility degradation dominates over threshold voltage reduction.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"eq_20_36_37_beta_mult_tc\": {\n      \"description\": \"Temperature coefficient of the Beta-multiplier reference current.\",\n      \"unit\": \"1/C\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"634\", \"reference\": \"Eq 20.36 and 20.37\" },\n      \"equation\": { \"formula\": \"TC_IREF = -2(1/R * dR/dT) - (1/KPn * dKPn/dT)\", \"explanation\": \"Shows how resistor TC and mobility TC counteract each other.\", \"assumptions\": \"Square-law model.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume poly resistor TCR = 2000 ppm/C = 0.002. Mobility TC = -0.005. TC_IREF = -2(0.002) - (-0.005) = -0.004 + 0.005 = +0.001 = +1000 ppm/C.\",\n        \"range\": { \"min\": \"0\", \"typical\": \"1000\", \"max\": \"2000\", \"unit\": \"ppm/C\" },\n        \"reasoning\": \"Positive TCR of resistor subtracts from negative TC of mobility.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"eq_20_38_39_40_beta_mult_vref\": {\n      \"description\": \"Voltage reference and zero-TC resistor sizing for Beta-multiplier.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"634\", \"reference\": \"Eq 20.38, 20.39, 20.40\" },\n      \"equation\": { \"formula\": \"VREF = [2 / (R*KPn*W/L)]*(1 - 1/sqrt(K))^2 + VTHN\", \"explanation\": \"Gate voltage of M1 used as a reference.\", \"assumptions\": \"K is the multiplier ratio.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume R=5.5k, KPn=270u, W/L=10, K=4. VREF = [2 / (5500*270u*10)]*(0.5)^2 + 0.42 = 0.033 + 0.42 = 0.453 V.\",\n        \"range\": { \"min\": \"0.4\", \"typical\": \"0.45\", \"max\": \"0.6\", \"unit\": \"V\" },\n        \"reasoning\": \"Dominated by VTHN (0.42V in SKY130).\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"eq_20_41_subthreshold_resistor\": {\n      \"description\": \"Resistor value for subthreshold bias without Beta-multiplier.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"635\", \"reference\": \"Eq 20.41\" },\n      \"equation\": { \"formula\": \"IREF = (VDD - VSG) / R\", \"explanation\": \"Simple resistor bias current.\", \"assumptions\": \"VSG is roughly VTHP.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD=1.8V, VSG=0.42V, R=72M. IREF = (1.8 - 0.42) / 72M = 19 nA.\",\n        \"range\": { \"min\": \"10n\", \"typical\": \"19n\", \"max\": \"30n\", \"unit\": \"A\" },\n        \"reasoning\": \"Requires impractically large resistors for nA currents.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"eq_20_42_to_46_subthreshold_beta_mult\": {\n      \"description\": \"Current and resistor sizing for subthreshold Beta-multiplier.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"635\", \"reference\": \"Eq 20.42, 20.43, 20.44, 20.45, 20.46\" },\n      \"equation\": { \"formula\": \"IREF = (n*VT / R) * ln(K)\", \"explanation\": \"Current is proportional to thermal voltage VT.\", \"assumptions\": \"Weak inversion operation.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume n=1.5, VT=26mV, R=3.5M, K=4. IREF = (1.5 * 0.026 / 3.5M) * ln(4) = 15.4 nA.\",\n        \"range\": { \"min\": \"5n\", \"typical\": \"15.4n\", \"max\": \"50n\", \"unit\": \"A\" },\n        \"reasoning\": \"PTAT current behavior in subthreshold.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"eq_20_47_48_cascode_vmin\": {\n      \"description\": \"Minimum output voltage for cascode current mirror.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"637\", \"reference\": \"Eq 20.47 and 20.48\" },\n      \"equation\": { \"formula\": \"VO,min = 2*VDS,sat + VTHN\", \"explanation\": \"Minimum voltage to keep both cascode devices in saturation.\", \"assumptions\": \"Simple cascode biasing.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume VDS,sat = 0.2V, VTHN = 0.42V. VO,min = 2(0.2) + 0.42 = 0.82V.\",\n        \"range\": { \"min\": \"0.6\", \"typical\": \"0.82\", \"max\": \"1.0\", \"unit\": \"V\" },\n        \"reasoning\": \"Limits output swing in 1.8V processes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"eq_20_49_to_53_cascode_rout\": {\n      \"description\": \"Output resistance of the cascode current mirror.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"637\", \"reference\": \"Eq 20.49, 20.50, 20.51, 20.52, 20.53\" },\n      \"equation\": { \"formula\": \"Ro = (2 + gm*ro)*ro \u2248 gm*ro^2\", \"explanation\": \"Boosts output resistance by intrinsic gain gm*ro.\", \"assumptions\": \"Devices in saturation.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume ID=10uA, W/L=10. gm = sqrt(2*270u*10*10u) = 232uS. ro = 1/(0.1*10u) = 1Mohm. Ro = 232u * (1M)^2 = 232 Mohm.\",\n        \"range\": { \"min\": \"50M\", \"typical\": \"232M\", \"max\": \"500M\", \"unit\": \"ohm\" },\n        \"reasoning\": \"Short-channel effects (lambda) reduce ro, but cascoding restores high Ro.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"eq_20_54_to_58_mws_sizing\": {\n      \"description\": \"Sizing of the wide-swing bias transistor MWS.\",\n      \"unit\": \"ratio\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"639\", \"reference\": \"Eq 20.54, 20.55, 20.56, 20.57, 20.58\" },\n      \"equation\": { \"formula\": \"W/L = (W_MWS / L_MWS) * 4\", \"explanation\": \"MWS is sized to generate exactly 2*VDS,sat + VTHN.\", \"assumptions\": \"Long-channel square-law.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"If main mirror W/L = 10, then MWS W/L should be 10/4 = 2.5.\",\n        \"range\": { \"min\": \"1\", \"typical\": \"2.5\", \"max\": \"5\", \"unit\": \"ratio\" },\n        \"reasoning\": \"Theoretical sizing places M2 exactly on the edge of triode.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"eq_20_59_60_mws_sizing_practical\": {\n      \"description\": \"Practical sizing of MWS to keep M2 deeper in saturation.\",\n      \"unit\": \"ratio\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"641\", \"reference\": \"Eq 20.59 and 20.60\" },\n      \"equation\": { \"formula\": \"W_MWS / L_MWS = (1/5) * (W/L)\", \"explanation\": \"Increases VDS of M2 slightly to ensure saturation.\", \"assumptions\": \"Long-channel design.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"If main mirror W/L = 10, practical MWS W/L = 10/5 = 2.0.\",\n        \"range\": { \"min\": \"1\", \"typical\": \"2.0\", \"max\": \"4\", \"unit\": \"ratio\" },\n        \"reasoning\": \"Provides margin against process variations.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"eq_20_61_short_channel_vds_sat\": {\n      \"description\": \"Short-channel VDS,sat deviation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"642\", \"reference\": \"Eq 20.61\" },\n      \"equation\": { \"formula\": \"VDS,sat \u2260 VGS - VTHN\", \"explanation\": \"Velocity saturation causes VDS,sat to be lower than Vov.\", \"assumptions\": \"Short-channel process.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"In SKY130, VDS,sat is typically 50-100mV lower than VGS-VTHN for minimum length devices.\",\n        \"range\": { \"min\": \"0.05\", \"typical\": \"0.15\", \"max\": \"0.3\", \"unit\": \"V\" },\n        \"reasoning\": \"Requires simulation to find exact VDS,sat.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"eq_20_62_mws_sizing_short_channel\": {\n      \"description\": \"MWS sizing for short-channel wide-swing cascode.\",\n      \"unit\": \"ratio\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"642\", \"reference\": \"Eq 20.62\" },\n      \"equation\": { \"formula\": \"W_MWS / L_MWS = (1/25) * (W/L)\", \"explanation\": \"Extreme ratio needed in short-channel to push M2 into saturation.\", \"assumptions\": \"Short-channel velocity saturation effects.\" },\n      \"sky130_expected\": {\n        \"calculation\": \"If main mirror W/L = 10, short-channel MWS W/L = 10/25 = 0.4.\",\n        \"range\": { \"min\": \"0.1\", \"typical\": \"0.4\", \"max\": \"1.0\", \"unit\": \"ratio\" },\n        \"reasoning\": \"Compensates for reduced output resistance at low VDS in short-channel nodes.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Simulates the wide-swing cascode bias circuit and output stage, measuring DC operating points and transient output voltage.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"eq_20_47_48_cascode_vmin\",\n      \"eq_20_54_to_58_mws_sizing\"\n    ],\n    \"spice\": \"* Testbench for Wide-Swing Cascode Bias and Output Stage\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2=10u L_xm2=2u\\n.param W_xmn=10u L_xmn=2u\\n.param W_xm6b=20u L_xm6b=2u\\n.param W_xmp=20u L_xmp=2u\\n.param W_xmp1=20u L_xmp1=2u\\n.param W_xmn1=10u L_xmn1=2u\\n.param W_xmop=40u L_xmop=2u\\n.param W_xmon=20u L_xmon=2u\\n.param W_xmsu2=20u L_xmsu2=2u\\n.param W_xmsu1=10u L_xmsu1=2u\\n.param W_xmsu3=10u L_xmsu3=2u\\n.param W_xm3=20u L_xm3=2u\\n.param W_xm4=20u L_xm4=2u\\n.param W_xm1=10u L_xm1=2u\\n.param W_xma4=20u L_xma4=2u\\n.param W_xma3=20u L_xma3=2u\\n.param W_xm5=10u L_xm5=2u\\n.param W_xm6=10u L_xm6=2u\\n.param W_xm7=20u L_xm7=2u\\n.param W_xma1=20u L_xma1=2u\\n.param W_xma2=20u L_xma2=2u\\n.param W_xmsu4=10u L_xmsu4=2u\\n.param W_xm8=10u L_xm8=2u\\n.param W_xm9=10u L_xm9=2u\\n.param W_xm10=10u L_xm10=2u\\n.param W_xm11=10u L_xm11=2u\\n.param W_xm12=10u L_xm12=2u\\n.param W_xm13=10u L_xm13=2u\\n.param W_xm14=10u L_xm14=2u\\n.param W_xm15=10u L_xm15=2u\\n.param W_xma5=20u L_xma5=2u\\n.param W_xma6=20u L_xma6=2u\\n.param W_xma7=20u L_xma7=2u\\n.param W_xma8=20u L_xma8=2u\\n.param W_xma9=20u L_xma9=2u\\n.param W_xma10=20u L_xma10=2u\\n.param W_xma11=20u L_xma11=2u\\n.param W_xma12=20u L_xma12=2u\\n.param W_xm16=10u L_xm16=2u\\n.param W_xm17=10u L_xm17=2u\\n.param W_xm18=10u L_xm18=2u\\n\\nVDD VDD 0 1.8\\n\\nxm2 N004 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxmn N003 Vbias3 N004 0 sky130_fd_pr__nfet_01v8 w={W_xmn} l={L_xmn}\\nxm6b N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6b} l={L_xm6b}\\nxmp N002 Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xmp} l={L_xmp}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nxmp1 N003 Vpcas N002 VDD sky130_fd_pr__pfet_01v8 w={W_xmp1} l={L_xmp1}\\nxmn1 N002 Vncas N003 0 sky130_fd_pr__nfet_01v8 w={W_xmn1} l={L_xmn1}\\nxmop Out N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmop} l={L_xmop}\\nxmon Out N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmon} l={L_xmon}\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n\\n.control\\n  op\\n  print v(Vbias1) v(Vbias2) v(Vbias3) v(Vbias4)\\n  print v(Vpcas) v(Vncas)\\n  \\n  tran 1u 1m\\n  meas tran v_out_avg avg v(Out)\\n  meas tran v_n002_avg avg v(N002)\\n  meas tran v_n003_avg avg v(N003)\\n  quit\\n.endc\\n\"\n  }\n}\n```"
+}

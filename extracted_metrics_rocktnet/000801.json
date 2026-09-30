@@ -1,0 +1,124 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single-Balanced CMOS Passive Mixer",
+    "description": "A single-balanced passive mixer utilizing NMOS switches to downconvert an RF signal to baseband/IF. The parallel NMOS transistors (e.g., XM1_N and XM1_P) are used in conjunction with a bias-shifting network to track LO DC offsets, which significantly improves the second-order intermodulation (IIP2) performance.",
+    "node_mapping": {
+      "input": [
+        "N2",
+        "LON",
+        "LOCN",
+        "N1",
+        "N0"
+      ],
+      "output": [
+        "IF_P",
+        "IF_N"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Passive Mixer With Low Flicker Noise for Low-Power Direct-Conversion Receiver",
+      "figure": "Schematic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Conversion Gain": {
+      "description": "The ratio of the downconverted IF output voltage amplitude to the RF input voltage amplitude.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3 dB",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "A bare passive mixer switch network has a theoretical minimum voltage conversion loss of 2/pi (approx -3.9 dB). The 3 dB gain reported in the paper likely includes an integrated IF transimpedance amplifier or resonant RF matching. For the isolated switch netlist in SKY130, we expect a conversion loss.",
+        "range": {
+          "min": -7,
+          "typical": -5,
+          "max": -3.9,
+          "unit": "dB"
+        },
+        "reasoning": "Theoretical 2/pi loss combined with finite switch on-resistance (Ron) voltage division against the load."
+      },
+      "importance": "essential"
+    },
+    "IIP3": {
+      "description": "Third-order input intercept point, indicating the linearity of the mixer against third-order intermodulation products.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5 dBm",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Passive mixers are highly linear because they operate the transistors in the deep triode region. IIP3 depends heavily on the LO gate overdrive voltage (Vgs - Vth). With LO DC at 0.75V and amplitude 0.6V, peak Vgs is 1.35V, providing strong overdrive.",
+        "range": {
+          "min": 2,
+          "typical": 5,
+          "max": 10,
+          "unit": "dBm"
+        },
+        "reasoning": "Comparable to the 0.18um process, SKY130 1.8V devices driven with large LO swings will yield similar high linearity."
+      },
+      "importance": "essential"
+    },
+    "IIP2": {
+      "description": "Second-order input intercept point, critical for direct-conversion receivers to reject AM demodulation of interferers.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "39 dBm",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The paper achieves 39 dBm using a unique bias-shifting network to track LO DC offsets. Assuming the external bias network is perfectly tuned in the testbench, similar performance can be achieved.",
+        "range": {
+          "min": 30,
+          "typical": 40,
+          "max": 50,
+          "unit": "dBm"
+        },
+        "reasoning": "IIP2 in single-balanced passive mixers is highly dependent on device matching and LO duty cycle/offset compensation."
+      },
+      "importance": "recommended"
+    },
+    "Flicker Noise Corner": {
+      "description": "The frequency at which the 1/f noise power equals the thermal noise floor.",
+      "unit": "Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "45 kHz",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Passive mixers carry zero DC current, which inherently suppresses 1/f noise. The remaining flicker noise is usually due to indirect mechanisms (like LO noise folding).",
+        "range": {
+          "min": 10000,
+          "typical": 45000,
+          "max": 100000,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 devices have standard flicker noise profiles; zero DC current topology will keep the corner frequency very low, matching the paper's claims."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure the voltage Conversion Gain of the passive mixer. An RF signal at 5.001 GHz is mixed with a 5.000 GHz LO signal to produce a 1 MHz IF. A low-pass RC load filters out the high-frequency feedthrough, allowing the extraction of the IF amplitude.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Conversion Gain"
+    ],
+    "spice": "* CMOS Passive Mixer Testbench\n\n.param W_xm2_n=5u L_xm2_n=0.5u\n.param W_xm1_n=5u L_xm1_n=0.5u\n.param W_xm1_p=5u L_xm1_p=0.5u\n.param W_xm2_p=5u L_xm2_p=0.5u\n\n* DUT\nXM2_N IF_N LOCN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2_n} w={W_xm2_n}\nXM1_N IF_P LON N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1_n} w={W_xm1_n}\nXM1_P IF_P N1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1_p} w={W_xm1_p}\nXM2_P IF_N N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2_p} w={W_xm2_p}\n\n* Biasing and Signals\n* RF and IF DC bias set to 0V to ensure Vgs > Vth when LO is high\nV_IF_CM IF_CM 0 dc 0\n\n* RF Source (5.001 GHz, 10mV peak)\nVRF N2_ac 0 dc 0 sin(0 0.01 5.001G)\nR_RF N2_ac N2 50\n\n* LO Sources (5 GHz, 1.2V peak-to-peak, DC=0.75V)\nVLO_P LO_P 0 dc 0.75 sin(0.75 0.6 5G 0 0 0)\nVLO_N LO_N 0 dc 0.75 sin(0.75 0.6 5G 0 0 180)\n\n* Connect LO to mixer gates (parallel transistors driven together for basic test)\nR_LON LO_P LON 1\nR_N1  LO_P N1  1\nR_LOCN LO_N LOCN 1\nR_N0   LO_N N0   1\n\n* IF Load (Low pass filter to extract 1MHz IF, fc ~ 16MHz)\nR_IFP IF_P IF_CM 10k\nC_IFP IF_P IF_CM 1p\nR_IFN IF_N IF_CM 10k\nC_IFN IF_N IF_CM 1p\n\n* Differential IF output for easy measurement\nE_diff IF_DIFF 0 IF_P IF_N 1.0\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  * Run transient for 2us (two periods of 1MHz IF)\n  tran 10p 2u\n  \n  * Measure IF peak-to-peak (differential) in the steady-state region\n  meas tran if_max max v(IF_DIFF) from=1u to=2u\n  meas tran if_min min v(IF_DIFF) from=1u to=2u\n  \n  * Calculate Conversion Gain\n  let if_pp = if_max - if_min\n  let if_amp = if_pp / 2\n  let rf_amp = 0.01\n  let cg_linear = if_amp / rf_amp\n  let cg_db = 20 * log10(cg_linear)\n  \n  print cg_db\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single-Balanced CMOS Passive Mixer\",\n    \"description\": \"A single-balanced passive mixer utilizing NMOS switches to downconvert an RF signal to baseband/IF. The parallel NMOS transistors (e.g., XM1_N and XM1_P) are used in conjunction with a bias-shifting network to track LO DC offsets, which significantly improves the second-order intermodulation (IIP2) performance.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\",\n        \"LON\",\n        \"LOCN\",\n        \"N1\",\n        \"N0\"\n      ],\n      \"output\": [\n        \"IF_P\",\n        \"IF_N\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Passive Mixer With Low Flicker Noise for Low-Power Direct-Conversion Receiver\",\n      \"figure\": \"Schematic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Conversion Gain\": {\n      \"description\": \"The ratio of the downconverted IF output voltage amplitude to the RF input voltage amplitude.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3 dB\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A bare passive mixer switch network has a theoretical minimum voltage conversion loss of 2/pi (approx -3.9 dB). The 3 dB gain reported in the paper likely includes an integrated IF transimpedance amplifier or resonant RF matching. For the isolated switch netlist in SKY130, we expect a conversion loss.\",\n        \"range\": {\n          \"min\": -7,\n          \"typical\": -5,\n          \"max\": -3.9,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Theoretical 2/pi loss combined with finite switch on-resistance (Ron) voltage division against the load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"IIP3\": {\n      \"description\": \"Third-order input intercept point, indicating the linearity of the mixer against third-order intermodulation products.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5 dBm\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Passive mixers are highly linear because they operate the transistors in the deep triode region. IIP3 depends heavily on the LO gate overdrive voltage (Vgs - Vth). With LO DC at 0.75V and amplitude 0.6V, peak Vgs is 1.35V, providing strong overdrive.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 5,\n          \"max\": 10,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Comparable to the 0.18um process, SKY130 1.8V devices driven with large LO swings will yield similar high linearity.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"IIP2\": {\n      \"description\": \"Second-order input intercept point, critical for direct-conversion receivers to reject AM demodulation of interferers.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"39 dBm\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The paper achieves 39 dBm using a unique bias-shifting network to track LO DC offsets. Assuming the external bias network is perfectly tuned in the testbench, similar performance can be achieved.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 40,\n          \"max\": 50,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"IIP2 in single-balanced passive mixers is highly dependent on device matching and LO duty cycle/offset compensation.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Flicker Noise Corner\": {\n      \"description\": \"The frequency at which the 1/f noise power equals the thermal noise floor.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"45 kHz\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Passive mixers carry zero DC current, which inherently suppresses 1/f noise. The remaining flicker noise is usually due to indirect mechanisms (like LO noise folding).\",\n        \"range\": {\n          \"min\": 10000,\n          \"typical\": 45000,\n          \"max\": 100000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 devices have standard flicker noise profiles; zero DC current topology will keep the corner frequency very low, matching the paper's claims.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure the voltage Conversion Gain of the passive mixer. An RF signal at 5.001 GHz is mixed with a 5.000 GHz LO signal to produce a 1 MHz IF. A low-pass RC load filters out the high-frequency feedthrough, allowing the extraction of the IF amplitude.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Conversion Gain\"\n    ],\n    \"spice\": \"* CMOS Passive Mixer Testbench\\n\\n.param W_xm2_n=5u L_xm2_n=0.5u\\n.param W_xm1_n=5u L_xm1_n=0.5u\\n.param W_xm1_p=5u L_xm1_p=0.5u\\n.param W_xm2_p=5u L_xm2_p=0.5u\\n\\n* DUT\\nXM2_N IF_N LOCN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2_n} w={W_xm2_n}\\nXM1_N IF_P LON N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1_n} w={W_xm1_n}\\nXM1_P IF_P N1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1_p} w={W_xm1_p}\\nXM2_P IF_N N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2_p} w={W_xm2_p}\\n\\n* Biasing and Signals\\n* RF and IF DC bias set to 0V to ensure Vgs > Vth when LO is high\\nV_IF_CM IF_CM 0 dc 0\\n\\n* RF Source (5.001 GHz, 10mV peak)\\nVRF N2_ac 0 dc 0 sin(0 0.01 5.001G)\\nR_RF N2_ac N2 50\\n\\n* LO Sources (5 GHz, 1.2V peak-to-peak, DC=0.75V)\\nVLO_P LO_P 0 dc 0.75 sin(0.75 0.6 5G 0 0 0)\\nVLO_N LO_N 0 dc 0.75 sin(0.75 0.6 5G 0 0 180)\\n\\n* Connect LO to mixer gates (parallel transistors driven together for basic test)\\nR_LON LO_P LON 1\\nR_N1  LO_P N1  1\\nR_LOCN LO_N LOCN 1\\nR_N0   LO_N N0   1\\n\\n* IF Load (Low pass filter to extract 1MHz IF, fc ~ 16MHz)\\nR_IFP IF_P IF_CM 10k\\nC_IFP IF_P IF_CM 1p\\nR_IFN IF_N IF_CM 10k\\nC_IFN IF_N IF_CM 1p\\n\\n* Differential IF output for easy measurement\\nE_diff IF_DIFF 0 IF_P IF_N 1.0\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  * Run transient for 2us (two periods of 1MHz IF)\\n  tran 10p 2u\\n  \\n  * Measure IF peak-to-peak (differential) in the steady-state region\\n  meas tran if_max max v(IF_DIFF) from=1u to=2u\\n  meas tran if_min min v(IF_DIFF) from=1u to=2u\\n  \\n  * Calculate Conversion Gain\\n  let if_pp = if_max - if_min\\n  let if_amp = if_pp / 2\\n  let rf_amp = 0.01\\n  let cg_linear = if_amp / rf_amp\\n  let cg_db = 20 * log10(cg_linear)\\n  \\n  print cg_db\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1425716",
+  "_case": "1425716_image_12"
+}

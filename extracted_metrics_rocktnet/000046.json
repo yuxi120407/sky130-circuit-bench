@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Operational Transconductance Amplifier (OTA) and Current Mirrors",
+    "description": "This circuit is an unbuffered OTA (XM1-XM3, XM9) driving multiple PMOS current sources (XM4, XM6, XM7, XM10). It is likely the core of a Bandgap Reference (BGR) or a constant-gm bias generator, where the OTA forces the voltages at its inputs (N6, N5) to be equal. The resulting output (N3) biases the PMOS current mirrors to distribute proportional currents to various isolated branches, which aligns with the paper's mention of isolation circuits.",
+    "node_mapping": {
+      "input": [
+        "N6",
+        "N5"
+      ],
+      "output": [
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_2"
+      ],
+      "ground": [
+        "GND",
+        "N2"
+      ]
+    },
+    "paper_reference": {
+      "title": "Secure Contactless Smartcard ASIC with DPA Protection",
+      "figure": "none",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Open-loop DC gain of the OTA",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "66 dB",
+        "technology": "Not specified (likely 0.35um or 0.5um based on 2001 and 3V supply)"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * (ro_n || ro_p). With L=0.5um, lambda is around 0.05-0.1 V^-1. Intrinsic gain per transistor is ~20-40 V/V. Total gain is roughly 40-50 dB.",
+        "range": {
+          "min": 35,
+          "typical": 45,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "The paper reports 66 dB, which might have used longer channels or cascoded structures. With SKY130 L=0.5um, a single-stage uncascoded OTA typically achieves 40-50 dB."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity Gain Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3.39 MHz",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm / (2 * pi * C_load). Without an explicit load capacitor in the netlist, C_load is just parasitic (~50fF). gm ~ 1mS. UGBW ~ 1mS / (2*pi*50fF) = 3 GHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 1000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The 3.39 MHz reported in the paper likely includes a large compensation or load capacitor. In this isolated testbench without external load caps, the bandwidth will be extremely high (parasitic limited)."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin of the OTA",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not reported",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the location of the non-dominant pole at the current mirror node (N7).",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard stability requirement for an OTA in feedback."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2.5 mW",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_total. At 1.8V, assuming ~100uA per branch, total current is ~500uA. Power = 1.8V * 500uA = 0.9 mW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.001,
+          "max": 0.003,
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply compared to the paper's 3V supply. The OTA core consumes a fraction of the total chip power."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure OTA open-loop gain, bandwidth, phase margin, and power consumption. The loop is closed at DC using a large inductor to establish a stable operating point, and opened at AC using a large capacitor to inject the test signal.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "power"
+    ],
+    "spice": "* Secure Contactless Smartcard ASIC OTA Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\n* DUT\nXM1 N7 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N7 N6 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N6 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N5 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N9 LABEL_NET_2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 N5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N0 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\n\n* Power supply and Ground\nVVDD VDD 0 DC 1.8\nVGND GND 0 DC 0\nVN2 N2 0 DC 0\n\n* Biases for auxiliary PMOS current sources\nVLABEL_NET_0 LABEL_NET_0 0 DC 0.9\nVLABEL_NET_2 LABEL_NET_2 0 DC 0.9\n\n* Dummy loads to keep auxiliary current sources in saturation\nV_N1 N1 0 DC 0.9\nV_N4 N4 0 DC 0.9\nV_N9 N9 0 DC 0.9\nV_N0 N0 0 DC 0.9\n\n* OTA Biasing and AC input\n* N6 is the Non-Inverting input (+)\nV_N6 N6 0 DC 0.8 PULSE(0.75 0.85 1n 1n 1n 1u 2u)\n\n* N5 is the Inverting input (-)\n* Close the loop for DC to stabilize the high-gain node (N3), open for AC\nL1 N3 N5 1G\nC1 N5_ac N5 1G\nV_N5_ac N5_ac 0 DC 0 AC 1\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n* DC Operating Point and Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(N3) v(N7) v(N6) v(N5)\n\n* AC Analysis for Gain and Phase Margin\nac dec 100 1 10G\nlet gain_db = vdb(N3)\nlet phase = 180/PI * cph(v(N3))\nmeas ac dc_gain find gain_db at=10\nmeas ac ugbw when gain_db=0 fall=1\nmeas ac phase_at_ugbw find phase when gain_db=0 fall=1\n\n* Transient Analysis for Step Response\ntran 1n 3u\nmeas tran v_max max v(N3)\nmeas tran v_min min v(N3)\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Operational Transconductance Amplifier (OTA) and Current Mirrors\",\n    \"description\": \"This circuit is an unbuffered OTA (XM1-XM3, XM9) driving multiple PMOS current sources (XM4, XM6, XM7, XM10). It is likely the core of a Bandgap Reference (BGR) or a constant-gm bias generator, where the OTA forces the voltages at its inputs (N6, N5) to be equal. The resulting output (N3) biases the PMOS current mirrors to distribute proportional currents to various isolated branches, which aligns with the paper's mention of isolation circuits.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N6\",\n        \"N5\"\n      ],\n      \"output\": [\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N2\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Secure Contactless Smartcard ASIC with DPA Protection\",\n      \"figure\": \"none\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Open-loop DC gain of the OTA\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"66 dB\",\n        \"technology\": \"Not specified (likely 0.35um or 0.5um based on 2001 and 3V supply)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * (ro_n || ro_p). With L=0.5um, lambda is around 0.05-0.1 V^-1. Intrinsic gain per transistor is ~20-40 V/V. Total gain is roughly 40-50 dB.\",\n        \"range\": {\n          \"min\": 35,\n          \"typical\": 45,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper reports 66 dB, which might have used longer channels or cascoded structures. With SKY130 L=0.5um, a single-stage uncascoded OTA typically achieves 40-50 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity Gain Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3.39 MHz\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm / (2 * pi * C_load). Without an explicit load capacitor in the netlist, C_load is just parasitic (~50fF). gm ~ 1mS. UGBW ~ 1mS / (2*pi*50fF) = 3 GHz.\",\n        \"range\": {\n          \"min\": 1e8,\n          \"typical\": 1e9,\n          \"max\": 5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The 3.39 MHz reported in the paper likely includes a large compensation or load capacitor. In this isolated testbench without external load caps, the bandwidth will be extremely high (parasitic limited).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin of the OTA\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not reported\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the location of the non-dominant pole at the current mirror node (N7).\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard stability requirement for an OTA in feedback.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2.5 mW\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_total. At 1.8V, assuming ~100uA per branch, total current is ~500uA. Power = 1.8V * 500uA = 0.9 mW.\",\n        \"range\": {\n          \"min\": 1e-4,\n          \"typical\": 1e-3,\n          \"max\": 3e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply compared to the paper's 3V supply. The OTA core consumes a fraction of the total chip power.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure OTA open-loop gain, bandwidth, phase margin, and power consumption. The loop is closed at DC using a large inductor to establish a stable operating point, and opened at AC using a large capacitor to inject the test signal.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"power\"\n    ],\n    \"spice\": \"* Secure Contactless Smartcard ASIC OTA Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\n* DUT\\nXM1 N7 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N7 N6 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N6 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N5 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N9 LABEL_NET_2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 N5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N0 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Power supply and Ground\\nVVDD VDD 0 DC 1.8\\nVGND GND 0 DC 0\\nVN2 N2 0 DC 0\\n\\n* Biases for auxiliary PMOS current sources\\nVLABEL_NET_0 LABEL_NET_0 0 DC 0.9\\nVLABEL_NET_2 LABEL_NET_2 0 DC 0.9\\n\\n* Dummy loads to keep auxiliary current sources in saturation\\nV_N1 N1 0 DC 0.9\\nV_N4 N4 0 DC 0.9\\nV_N9 N9 0 DC 0.9\\nV_N0 N0 0 DC 0.9\\n\\n* OTA Biasing and AC input\\n* N6 is the Non-Inverting input (+)\\nV_N6 N6 0 DC 0.8 PULSE(0.75 0.85 1n 1n 1n 1u 2u)\\n\\n* N5 is the Inverting input (-)\\n* Close the loop for DC to stabilize the high-gain node (N3), open for AC\\nL1 N3 N5 1G\\nC1 N5_ac N5 1G\\nV_N5_ac N5_ac 0 DC 0 AC 1\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n* DC Operating Point and Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(N3) v(N7) v(N6) v(N5)\\n\\n* AC Analysis for Gain and Phase Margin\\nac dec 100 1 10G\\nlet gain_db = vdb(N3)\\nlet phase = 180/PI * cph(v(N3))\\nmeas ac dc_gain find gain_db at=10\\nmeas ac ugbw when gain_db=0 fall=1\\nmeas ac phase_at_ugbw find phase when gain_db=0 fall=1\\n\\n* Transient Analysis for Step Response\\ntran 1n 3u\\nmeas tran v_max max v(N3)\\nmeas tran v_min min v(N3)\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "910496",
+  "_case": "910496_image_9"
+}

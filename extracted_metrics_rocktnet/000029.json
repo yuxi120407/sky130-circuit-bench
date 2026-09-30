@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Amplifier / DFE Summer Stage",
+    "description": "A differential pair with PMOS active loads. Given the paper's context, this likely serves as an analog front-end amplifier or a summer stage for the Decision Feedback Equalizer (DFE), where tap currents would be summed at the output nodes.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N0",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N4",
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ],
+      "tail": [
+        "N1"
+      ]
+    },
+    "paper_reference": {
+      "title": "28Gb/s 560mW Multi-Standard SerDes with SingleStage Analog Front-End and 14-Tap DecisionFeedback Equalizer in 28nm CMOS",
+      "figure": "N/A",
+      "year": 2014
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "560mW",
+        "technology": "28nm"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I_tail = 1.8V * 200uA",
+        "range": {
+          "min": "300u",
+          "typical": "360u",
+          "max": "400u",
+          "unit": "W"
+        },
+        "reasoning": "The paper's 560mW is for the entire SerDes. For this single stage in SKY130, a 200uA tail current is chosen to keep the PMOS loads in saturation, resulting in ~360uW."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "15dB",
+        "technology": "28nm"
+      },
+      "sky130_expected": {
+        "calculation": "20*log10(gm_n / gm_p) = 20*log10(0.74mS / 0.32mS)",
+        "range": {
+          "min": "5",
+          "typical": "7.2",
+          "max": "10",
+          "unit": "dB"
+        },
+        "reasoning": "Assuming diode-connected PMOS loads for self-biasing, the gain is limited to the ratio of transconductances. The paper's 15dB likely refers to a stage with current-source loads or a multi-stage AFE."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3db": {
+      "description": "Frequency at which the gain drops by 3dB from its DC value.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3dB",
+        "technology": "28nm"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * Rout * C_total) = 1 / (2 * pi * 3.1kOhm * 16fF)",
+        "range": {
+          "min": "2G",
+          "typical": "3.2G",
+          "max": "5G",
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is determined by the PMOS 1/gm resistance and the parasitic capacitances of the transistors."
+      },
+      "importance": "essential"
+    },
+    "output_cm": {
+      "description": "Output common-mode voltage.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "VDD - Vgs_p = 1.8V - 1.05V",
+        "range": {
+          "min": "0.6",
+          "typical": "0.75",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "Self-biased by the diode-connected PMOS loads. Leaves enough headroom for the NMOS pair and tail current source."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for measuring DC power, common-mode voltage, AC gain, 3dB bandwidth, and transient response of the differential amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "bandwidth_3db",
+      "output_cm"
+    ],
+    "spice": "* Testbench for Differential Amplifier / DFE Summer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 N2 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 LABEL_NET_0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Supply and Inputs\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 0.5 sin(0.9 0.1 100Meg)\nVLABEL_NET_1 LABEL_NET_1 0 dc 0.9 ac -0.5 sin(0.9 -0.1 100Meg)\n\n* Tail current source (200uA to keep PMOS in saturation)\nI_tail N1 0 200u\n\n* Configure PMOS as diode-connected loads for self-biasing\nVshort1 N4 N2 0\nVshort2 N3 N0 0\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  let vout_cm = (v(N0) + v(N2))/2\n  print vout_cm\n\n  * AC Analysis\n  ac dec 100 1Meg 100Gig\n  let vout_diff_ac = v(N0) - v(N2)\n  let gain_db = 20*log10(mag(vout_diff_ac))\n  meas ac dc_gain MAX gain_db\n  meas ac bw_3db when gain_db='dc_gain - 3' fall=1\n\n  * Transient Analysis\n  tran 100p 20n\n  meas tran vout_p_max max v(N0)\n  meas tran vout_p_min min v(N0)\n  meas tran vout_n_max max v(N2)\n  meas tran vout_n_min min v(N2)\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Amplifier / DFE Summer Stage\",\n    \"description\": \"A differential pair with PMOS active loads. Given the paper's context, this likely serves as an analog front-end amplifier or a summer stage for the Decision Feedback Equalizer (DFE), where tap currents would be summed at the output nodes.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N4\",\n        \"N3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"tail\": [\n        \"N1\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"28Gb/s 560mW Multi-Standard SerDes with SingleStage Analog Front-End and 14-Tap DecisionFeedback Equalizer in 28nm CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2014\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"560mW\",\n        \"technology\": \"28nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I_tail = 1.8V * 200uA\",\n        \"range\": {\n          \"min\": \"300u\",\n          \"typical\": \"360u\",\n          \"max\": \"400u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 560mW is for the entire SerDes. For this single stage in SKY130, a 200uA tail current is chosen to keep the PMOS loads in saturation, resulting in ~360uW.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"15dB\",\n        \"technology\": \"28nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20*log10(gm_n / gm_p) = 20*log10(0.74mS / 0.32mS)\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"7.2\",\n          \"max\": \"10\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Assuming diode-connected PMOS loads for self-biasing, the gain is limited to the ratio of transconductances. The paper's 15dB likely refers to a stage with current-source loads or a multi-stage AFE.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3db\": {\n      \"description\": \"Frequency at which the gain drops by 3dB from its DC value.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3dB\",\n        \"technology\": \"28nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * Rout * C_total) = 1 / (2 * pi * 3.1kOhm * 16fF)\",\n        \"range\": {\n          \"min\": \"2G\",\n          \"typical\": \"3.2G\",\n          \"max\": \"5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is determined by the PMOS 1/gm resistance and the parasitic capacitances of the transistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_cm\": {\n      \"description\": \"Output common-mode voltage.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - Vgs_p = 1.8V - 1.05V\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.75\",\n          \"max\": \"0.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Self-biased by the diode-connected PMOS loads. Leaves enough headroom for the NMOS pair and tail current source.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for measuring DC power, common-mode voltage, AC gain, 3dB bandwidth, and transient response of the differential amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\",\n      \"bandwidth_3db\",\n      \"output_cm\"\n    ],\n    \"spice\": \"* Testbench for Differential Amplifier / DFE Summer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 N2 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 LABEL_NET_0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Supply and Inputs\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 0.5 sin(0.9 0.1 100Meg)\\nVLABEL_NET_1 LABEL_NET_1 0 dc 0.9 ac -0.5 sin(0.9 -0.1 100Meg)\\n\\n* Tail current source (200uA to keep PMOS in saturation)\\nI_tail N1 0 200u\\n\\n* Configure PMOS as diode-connected loads for self-biasing\\nVshort1 N4 N2 0\\nVshort2 N3 N0 0\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  let vout_cm = (v(N0) + v(N2))/2\\n  print vout_cm\\n\\n  * AC Analysis\\n  ac dec 100 1Meg 100Gig\\n  let vout_diff_ac = v(N0) - v(N2)\\n  let gain_db = 20*log10(mag(vout_diff_ac))\\n  meas ac dc_gain MAX gain_db\\n  meas ac bw_3db when gain_db='dc_gain - 3' fall=1\\n\\n  * Transient Analysis\\n  tran 100p 20n\\n  meas tran vout_p_max max v(N0)\\n  meas tran vout_p_min min v(N0)\\n  meas tran vout_n_max max v(N2)\\n  meas tran vout_n_min min v(N2)\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6757327",
+  "_case": "6757327_image_5"
+}

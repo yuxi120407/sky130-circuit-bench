@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "ISFET Readout Circuit / Voltage Follower",
+    "description": "A differential-based constant-voltage constant-current (CVCC) readout circuit for an ISFET sensor, configured as a unity-gain voltage follower to maintain constant bias conditions for the sensor.",
+    "node_mapping": {
+      "input": [
+        "Vset"
+      ],
+      "output": [
+        "Out"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N5"
+      ],
+      "ground": [
+        "GND",
+        "Vss"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Multiparameter Biochemical Microsensor With Temperature Control and Signal Interfacing",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipation",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.25 mW",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I_total = 1.8V * ~50uA = 90uW",
+        "range": {
+          "min": "50u",
+          "typical": "100u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down supply voltage (5V to 1.8V) and typical bias currents for SKY130."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Unity gain follower, so 20*log10(1) = 0 dB",
+        "range": {
+          "min": "-2",
+          "typical": "0",
+          "max": "1",
+          "unit": "dB"
+        },
+        "reasoning": "Closed-loop follower configuration."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 kHz",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm / (2 * pi * C_load) = 50uA/V / (2 * pi * 1pF) = ~8 MHz",
+        "range": {
+          "min": "1M",
+          "typical": "5M",
+          "max": "20M",
+          "unit": "Hz"
+        },
+        "reasoning": "Higher bandwidth expected in 130nm compared to 1.2um, assuming 1pF load."
+      },
+      "importance": "essential"
+    },
+    "offset_voltage": {
+      "description": "Input-referred offset voltage",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2.2 mV",
+        "technology": "1.2um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Systematic offset due to asymmetric topology",
+        "range": {
+          "min": "-50m",
+          "typical": "10m",
+          "max": "50m",
+          "unit": "V"
+        },
+        "reasoning": "Asymmetry in the folded branches and potential extraction errors will cause significant systematic offset."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for ISFET readout voltage follower measuring power, gain, bandwidth, and offset.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "bandwidth",
+      "offset_voltage"
+    ],
+    "spice": "* ISFET Readout Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_n=2u L_n=1u\n.param W_p=4u L_p=1u\n.param W_m6=1u L_m6=10u\n.param W_m7=1u L_m7=10u\n.param W_m5=10u L_m5=1u\n\nVVDD VDD 0 1.8\nVVSS Vss 0 0\nVGND GND 0 0\n\nVset Vset 0 DC 1.2 AC 1 SIN(1.2 0.1 1Meg)\n\n* DUT (T replaced with M for valid SPICE syntax)\nI1 VDD N5 10u\nM7 GND GND VDD VDD sky130_fd_pr__pfet_01v8 w={W_m7} l={L_m7}\nCc N1 GND 1p\nM3d N2 N6 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nM4a N1 N2 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM8 N9 N5 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM3a N7 N7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nM3c N1 N7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nM1b N3 Out N9 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM9 GND N5 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM6 Out GND VDD VDD sky130_fd_pr__pfet_01v8 w={W_m6} l={L_m6}\nM5 Vss N1 Out VDD sky130_fd_pr__pfet_01v8 w={W_m5} l={L_m5}\nM2a N7 Out Out GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM4b N2 N2 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM3b N6 N6 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\nM10 N5 N5 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM2b N6 Out N3 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM1a Out Vset N9 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nC2 Out N9 1p\n\n* Fix for floating nodes to help convergence\nR_n1 N1 GND 1G\nR_n7 N7 GND 1G\n\n.control\n  * OP Analysis\n  op\n  let power = -i(VVDD) * 1.8\n  let v_out_dc = v(Out)\n  let v_offset = v(Vset) - v(Out)\n  print power v_out_dc v_offset\n\n  * AC Analysis\n  ac dec 100 1 1G\n  let gain_db = vdb(Out)\n  meas ac dc_gain_db find gain_db at=10\n  meas ac bw_3db when gain_db=-3 fall=1\n\n  * Transient Analysis\n  tran 10n 5u\n  meas tran v_max max v(Out)\n  meas tran v_min min v(Out)\n  meas tran pk_pk param='v_max - v_min'\n  print pk_pk\n\n  * DC Sweep\n  dc Vset 0 1.8 0.01\n  meas dc out_at_1v find v(Out) at=1.0\n  meas dc out_at_1_5v find v(Out) at=1.5\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"ISFET Readout Circuit / Voltage Follower\",\n    \"description\": \"A differential-based constant-voltage constant-current (CVCC) readout circuit for an ISFET sensor, configured as a unity-gain voltage follower to maintain constant bias conditions for the sensor.\",\n    \"node_mapping\": {\n      \"input\": [\"Vset\"],\n      \"output\": [\"Out\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N5\"],\n      \"ground\": [\"GND\", \"Vss\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Multiparameter Biochemical Microsensor With Temperature Control and Signal Interfacing\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.25 mW\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I_total = 1.8V * ~50uA = 90uW\",\n        \"range\": { \"min\": \"50u\", \"typical\": \"100u\", \"max\": \"500u\", \"unit\": \"W\" },\n        \"reasoning\": \"Scaled down supply voltage (5V to 1.8V) and typical bias currents for SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Unity gain follower, so 20*log10(1) = 0 dB\",\n        \"range\": { \"min\": \"-2\", \"typical\": \"0\", \"max\": \"1\", \"unit\": \"dB\" },\n        \"reasoning\": \"Closed-loop follower configuration.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 kHz\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm / (2 * pi * C_load) = 50uA/V / (2 * pi * 1pF) = ~8 MHz\",\n        \"range\": { \"min\": \"1M\", \"typical\": \"5M\", \"max\": \"20M\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Higher bandwidth expected in 130nm compared to 1.2um, assuming 1pF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"offset_voltage\": {\n      \"description\": \"Input-referred offset voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2.2 mV\",\n        \"technology\": \"1.2um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Systematic offset due to asymmetric topology\",\n        \"range\": { \"min\": \"-50m\", \"typical\": \"10m\", \"max\": \"50m\", \"unit\": \"V\" },\n        \"reasoning\": \"Asymmetry in the folded branches and potential extraction errors will cause significant systematic offset.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for ISFET readout voltage follower measuring power, gain, bandwidth, and offset.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\", \"DC\"],\n    \"metrics_measured\": [\"power_consumption\", \"dc_gain\", \"bandwidth\", \"offset_voltage\"],\n    \"spice\": \"* ISFET Readout Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_n=2u L_n=1u\\n.param W_p=4u L_p=1u\\n.param W_m6=1u L_m6=10u\\n.param W_m7=1u L_m7=10u\\n.param W_m5=10u L_m5=1u\\n\\nVVDD VDD 0 1.8\\nVVSS Vss 0 0\\nVGND GND 0 0\\n\\nVset Vset 0 DC 1.2 AC 1 SIN(1.2 0.1 1Meg)\\n\\n* DUT (T replaced with M for valid SPICE syntax)\\nI1 VDD N5 10u\\nM7 GND GND VDD VDD sky130_fd_pr__pfet_01v8 w={W_m7} l={L_m7}\\nCc N1 GND 1p\\nM3d N2 N6 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nM4a N1 N2 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM8 N9 N5 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM3a N7 N7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nM3c N1 N7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nM1b N3 Out N9 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM9 GND N5 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM6 Out GND VDD VDD sky130_fd_pr__pfet_01v8 w={W_m6} l={L_m6}\\nM5 Vss N1 Out VDD sky130_fd_pr__pfet_01v8 w={W_m5} l={L_m5}\\nM2a N7 Out Out GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM4b N2 N2 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM3b N6 N6 VDD VDD sky130_fd_pr__pfet_01v8 w={W_p} l={L_p}\\nM10 N5 N5 Vss GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM2b N6 Out N3 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM1a Out Vset N9 GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nC2 Out N9 1p\\n\\n* Fix for floating nodes to help convergence\\nR_n1 N1 GND 1G\\nR_n7 N7 GND 1G\\n\\n.control\\n  * OP Analysis\\n  op\\n  let power = -i(VVDD) * 1.8\\n  let v_out_dc = v(Out)\\n  let v_offset = v(Vset) - v(Out)\\n  print power v_out_dc v_offset\\n\\n  * AC Analysis\\n  ac dec 100 1 1G\\n  let gain_db = vdb(Out)\\n  meas ac dc_gain_db find gain_db at=10\\n  meas ac bw_3db when gain_db=-3 fall=1\\n\\n  * Transient Analysis\\n  tran 10n 5u\\n  meas tran v_max max v(Out)\\n  meas tran v_min min v(Out)\\n  meas tran pk_pk param='v_max - v_min'\\n  print pk_pk\\n\\n  * DC Sweep\\n  dc Vset 0 1.8 0.01\\n  meas dc out_at_1v find v(Out) at=1.0\\n  meas dc out_at_1_5v find v(Out) at=1.5\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "972154",
+  "_case": "972154_image_4"
+}

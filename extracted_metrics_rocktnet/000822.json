@@ -1,0 +1,147 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Voltage-Controlled Oscillator (VCO)",
+    "description": "A cross-coupled LC VCO with capacitive cross-coupling and varactor tuning, used as the local oscillator in a 12-GHz dual-conversion receiver.",
+    "node_mapping": {
+      "input": [
+        "VTUNE"
+      ],
+      "output": [
+        "N1",
+        "N3"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "VB"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 12-GHz Silicon Bipolar Dual-Conversion Receiver for Digital Satellite Applications",
+      "figure": "VCO schematic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "Operating frequency of the VCO",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5.3 GHz",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1/(2*pi*sqrt(L*C))",
+        "range": {
+          "min": 4500000000.0,
+          "typical": 5300000000.0,
+          "max": 6000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Based on 1nH inductor and ~0.9pF total tank capacitance."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Phase noise at 100 kHz offset",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-102 dBc/Hz",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Leeson's equation",
+        "range": {
+          "min": -110,
+          "typical": -100,
+          "max": -90,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Depends heavily on inductor Q and active device noise."
+      },
+      "importance": "essential"
+    },
+    "tuning_range": {
+      "description": "Frequency tuning range across VTUNE",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.1 GHz",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Delta f from VTUNE=0 to 1.8V",
+        "range": {
+          "min": 500000000.0,
+          "typical": 1000000000.0,
+          "max": 1500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by varactor Cmax/Cmin ratio."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak voltage swing at the tank",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Vswing = I_tail * Rp",
+        "range": {
+          "min": 0.5,
+          "typical": 1.0,
+          "max": 2.0,
+          "unit": "V"
+        },
+        "reasoning": "With 5mA tail current and ~300 ohm tank parallel resistance, swing is ~1.5V."
+      },
+      "importance": "recommended"
+    },
+    "power_consumption": {
+      "description": "DC power consumption of the VCO core",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "P = VCC * I_tail",
+        "range": {
+          "min": 0.005,
+          "typical": 0.009,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "Assuming 5mA tail current from 1.8V supply."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure oscillation frequency, voltage swing, and power consumption of the LC VCO.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "voltage_swing",
+      "power_consumption"
+    ],
+    "spice": "* VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=10u L_xm1=0.15u\n\n* DUT\nR1 N4 GND 10k\nL1 VCC N1 1n\nI1 N0 GND 5m\nR2 N8 GND 10k\nL2 VCC N3 1n\nR3 N5 VB 10k\nR4 N6 VB 10k\nC1 N1 N4 1p\nD1 N4 VTUNE varactor\nC2 VTUNE GND 10p\nC3 VTUNE GND 10p\nQ1 N3 N6 N0 npn\nD2 N8 VTUNE varactor\nC4 N1 N6 1p\nC5 N3 N5 1p\nC6 N3 N8 1p\nQ2 N1 N5 N0 npn\n\n* Models\n.model npn npn (is=1e-16 bf=100)\n.model varactor d (cjo=1p m=0.5 vj=0.8)\n\n* Sources\nVVCC VCC 0 1.8\nVVB VB 0 0.9\nVVTUNE VTUNE 0 0.9\n\n* Initial conditions to start oscillation\n.ic v(N1)=1.8 v(N3)=1.7\n\n.control\n* Transient analysis\ntran 1p 10n\n\n* Measure oscillation frequency\nmeas tran t1 trig v(N1) val=1.8 rise=20 targ v(N1) val=1.8 rise=21\nlet f_osc = 1 / t1\nprint f_osc\n\n* Measure voltage swing\nmeas tran vmax max v(N1) from=5n to=10n\nmeas tran vmin min v(N1) from=5n to=10n\nlet vswing = vmax - vmin\nprint vswing\n\n* Measure power\nop\nlet power = -i(VVCC) * 1.8\nprint power\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Voltage-Controlled Oscillator (VCO)\",\n    \"description\": \"A cross-coupled LC VCO with capacitive cross-coupling and varactor tuning, used as the local oscillator in a 12-GHz dual-conversion receiver.\",\n    \"node_mapping\": {\n      \"input\": [\"VTUNE\"],\n      \"output\": [\"N1\", \"N3\"],\n      \"supply\": [\"VCC\"],\n      \"bias\": [\"VB\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 12-GHz Silicon Bipolar Dual-Conversion Receiver for Digital Satellite Applications\",\n      \"figure\": \"VCO schematic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"Operating frequency of the VCO\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5.3 GHz\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1/(2*pi*sqrt(L*C))\",\n        \"range\": { \"min\": 4.5e9, \"typical\": 5.3e9, \"max\": 6.0e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"Based on 1nH inductor and ~0.9pF total tank capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise at 100 kHz offset\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-102 dBc/Hz\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Leeson's equation\",\n        \"range\": { \"min\": -110, \"typical\": -100, \"max\": -90, \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"Depends heavily on inductor Q and active device noise.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tuning_range\": {\n      \"description\": \"Frequency tuning range across VTUNE\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.1 GHz\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta f from VTUNE=0 to 1.8V\",\n        \"range\": { \"min\": 0.5e9, \"typical\": 1.0e9, \"max\": 1.5e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"Determined by varactor Cmax/Cmin ratio.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the tank\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vswing = I_tail * Rp\",\n        \"range\": { \"min\": 0.5, \"typical\": 1.0, \"max\": 2.0, \"unit\": \"V\" },\n        \"reasoning\": \"With 5mA tail current and ~300 ohm tank parallel resistance, swing is ~1.5V.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_consumption\": {\n      \"description\": \"DC power consumption of the VCO core\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VCC * I_tail\",\n        \"range\": { \"min\": 5e-3, \"typical\": 9e-3, \"max\": 15e-3, \"unit\": \"W\" },\n        \"reasoning\": \"Assuming 5mA tail current from 1.8V supply.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure oscillation frequency, voltage swing, and power consumption of the LC VCO.\",\n    \"analyses\": [\"Tran\", \"OP\"],\n    \"metrics_measured\": [\"oscillation_frequency\", \"voltage_swing\", \"power_consumption\"],\n    \"spice\": \"* VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=10u L_xm1=0.15u\\n\\n* DUT\\nR1 N4 GND 10k\\nL1 VCC N1 1n\\nI1 N0 GND 5m\\nR2 N8 GND 10k\\nL2 VCC N3 1n\\nR3 N5 VB 10k\\nR4 N6 VB 10k\\nC1 N1 N4 1p\\nD1 N4 VTUNE varactor\\nC2 VTUNE GND 10p\\nC3 VTUNE GND 10p\\nQ1 N3 N6 N0 npn\\nD2 N8 VTUNE varactor\\nC4 N1 N6 1p\\nC5 N3 N5 1p\\nC6 N3 N8 1p\\nQ2 N1 N5 N0 npn\\n\\n* Models\\n.model npn npn (is=1e-16 bf=100)\\n.model varactor d (cjo=1p m=0.5 vj=0.8)\\n\\n* Sources\\nVVCC VCC 0 1.8\\nVVB VB 0 0.9\\nVVTUNE VTUNE 0 0.9\\n\\n* Initial conditions to start oscillation\\n.ic v(N1)=1.8 v(N3)=1.7\\n\\n.control\\n* Transient analysis\\ntran 1p 10n\\n\\n* Measure oscillation frequency\\nmeas tran t1 trig v(N1) val=1.8 rise=20 targ v(N1) val=1.8 rise=21\\nlet f_osc = 1 / t1\\nprint f_osc\\n\\n* Measure voltage swing\\nmeas tran vmax max v(N1) from=5n to=10n\\nmeas tran vmin min v(N1) from=5n to=10n\\nlet vswing = vmax - vmin\\nprint vswing\\n\\n* Measure power\\nop\\nlet power = -i(VVCC) * 1.8\\nprint power\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1435605",
+  "_case": "1435605_image_8"
+}

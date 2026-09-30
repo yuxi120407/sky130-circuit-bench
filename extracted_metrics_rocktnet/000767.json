@@ -1,0 +1,125 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive Balun (Capacitive Network)",
+    "description": "A lumped-element capacitive network representing a wideband passive balun. It converts a single-ended RF input signal into differential output signals for driving a double-balanced mixer.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "N3",
+        "N4"
+      ],
+      "supply": [],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Monolithic Double-Balanced Direct Conversion Mixer With an Integrated Wideband Passive Balun",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Insertion_Loss": {
+      "description": "Signal loss from the input port to each output port, including the theoretical 3-dB power split.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "4.5 dB",
+        "technology": "InGaP/GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Passive network loss depends on dielectric loss and metal resistance rather than active device parameters.",
+        "range": {
+          "min": 3.5,
+          "typical": 4.5,
+          "max": 6.0,
+          "unit": "dB"
+        },
+        "reasoning": "An ideal power split is 3 dB. The additional 1.5 dB accounts for parasitic losses in the passive structure, which would be similar in SKY130 back-end-of-line (BEOL) metal layers."
+      },
+      "importance": "essential"
+    },
+    "Return_Loss": {
+      "description": "Reflection coefficient at the input port (S11), indicating impedance matching quality.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "> 15 dB",
+        "technology": "InGaP/GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the specific sizing of the passive components to match 50 ohms.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "A return loss of >15 dB is a standard target for RF input ports to ensure minimal signal reflection."
+      },
+      "importance": "essential"
+    },
+    "Amplitude_Imbalance": {
+      "description": "Difference in magnitude between the two differential output ports.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly stated",
+        "technology": "InGaP/GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Ideal is 0 dB. Depends on the symmetry of the layout and parasitic matching.",
+        "range": {
+          "min": -1,
+          "typical": 0,
+          "max": 1,
+          "unit": "dB"
+        },
+        "reasoning": "Good balun design aims for < 1 dB amplitude imbalance to maintain high common-mode rejection in the mixer."
+      },
+      "importance": "essential"
+    },
+    "Phase_Imbalance": {
+      "description": "Deviation from the ideal 180-degree phase difference between the two differential outputs.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly stated",
+        "technology": "InGaP/GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Ideal is 0 degrees deviation from 180.",
+        "range": {
+          "min": -5,
+          "typical": 0,
+          "max": 5,
+          "unit": "degrees"
+        },
+        "reasoning": "Phase imbalance should be kept below 5 degrees to ensure proper double-balanced mixer operation and LO-RF isolation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure insertion loss, return loss, amplitude imbalance, and phase imbalance of the passive balun at 30 GHz.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "Insertion_Loss",
+      "Return_Loss",
+      "Amplitude_Imbalance",
+      "Phase_Imbalance"
+    ],
+    "spice": "* Passive Balun Testbench\n\n* DUT (Capacitor values added for simulation validity)\nC1 N1 N2 100f\nC3 N1 N3 100f\nC4 N2 N4 100f\nC2 N3 N4 100f\nC6 N3 GND 100f\nC5 N4 GND 100f\n\n* Sources and Terminations (50 ohm system)\nV1 N_in GND dc 0 ac 2\nR1 N_in N1 50\nR2 N2 GND 50\nR3 N3 GND 50\nR4 N4 GND 50\n\n.control\nac dec 50 1G 100G\n\n* S-parameters (V_source = 2V -> V_incident = 1V)\nlet v_ref = v(N1) - 1\nlet s11_db = 20 * log10(mag(v_ref))\nlet s31_db = 20 * log10(mag(v(N3)))\nlet s41_db = 20 * log10(mag(v(N4)))\n\n* Imbalance calculations\nlet amp_imb = s31_db - s41_db\nlet phase3 = 180/PI * cph(v(N3))\nlet phase4 = 180/PI * cph(v(N4))\nlet phase_diff = phase3 - phase4\nlet phase_imb = phase_diff - 180\n\n* Measure metrics at 30 GHz (center of 20-40 GHz band)\nmeas ac il_31_30G find s31_db at=30G\nmeas ac il_41_30G find s41_db at=30G\nmeas ac rl_30G find s11_db at=30G\nmeas ac amp_imb_30G find amp_imb at=30G\nmeas ac phase_imb_30G find phase_imb at=30G\n\nprint il_31_30G il_41_30G rl_30G amp_imb_30G phase_imb_30G\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive Balun (Capacitive Network)\",\n    \"description\": \"A lumped-element capacitive network representing a wideband passive balun. It converts a single-ended RF input signal into differential output signals for driving a double-balanced mixer.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N4\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Monolithic Double-Balanced Direct Conversion Mixer With an Integrated Wideband Passive Balun\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Insertion_Loss\": {\n      \"description\": \"Signal loss from the input port to each output port, including the theoretical 3-dB power split.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"4.5 dB\",\n        \"technology\": \"InGaP/GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Passive network loss depends on dielectric loss and metal resistance rather than active device parameters.\",\n        \"range\": {\n          \"min\": 3.5,\n          \"typical\": 4.5,\n          \"max\": 6.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"An ideal power split is 3 dB. The additional 1.5 dB accounts for parasitic losses in the passive structure, which would be similar in SKY130 back-end-of-line (BEOL) metal layers.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Return_Loss\": {\n      \"description\": \"Reflection coefficient at the input port (S11), indicating impedance matching quality.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"> 15 dB\",\n        \"technology\": \"InGaP/GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the specific sizing of the passive components to match 50 ohms.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A return loss of >15 dB is a standard target for RF input ports to ensure minimal signal reflection.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Amplitude_Imbalance\": {\n      \"description\": \"Difference in magnitude between the two differential output ports.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated\",\n        \"technology\": \"InGaP/GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal is 0 dB. Depends on the symmetry of the layout and parasitic matching.\",\n        \"range\": {\n          \"min\": -1,\n          \"typical\": 0,\n          \"max\": 1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Good balun design aims for < 1 dB amplitude imbalance to maintain high common-mode rejection in the mixer.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_Imbalance\": {\n      \"description\": \"Deviation from the ideal 180-degree phase difference between the two differential outputs.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated\",\n        \"technology\": \"InGaP/GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal is 0 degrees deviation from 180.\",\n        \"range\": {\n          \"min\": -5,\n          \"typical\": 0,\n          \"max\": 5,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Phase imbalance should be kept below 5 degrees to ensure proper double-balanced mixer operation and LO-RF isolation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure insertion loss, return loss, amplitude imbalance, and phase imbalance of the passive balun at 30 GHz.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Insertion_Loss\",\n      \"Return_Loss\",\n      \"Amplitude_Imbalance\",\n      \"Phase_Imbalance\"\n    ],\n    \"spice\": \"* Passive Balun Testbench\\n\\n* DUT (Capacitor values added for simulation validity)\\nC1 N1 N2 100f\\nC3 N1 N3 100f\\nC4 N2 N4 100f\\nC2 N3 N4 100f\\nC6 N3 GND 100f\\nC5 N4 GND 100f\\n\\n* Sources and Terminations (50 ohm system)\\nV1 N_in GND dc 0 ac 2\\nR1 N_in N1 50\\nR2 N2 GND 50\\nR3 N3 GND 50\\nR4 N4 GND 50\\n\\n.control\\nac dec 50 1G 100G\\n\\n* S-parameters (V_source = 2V -> V_incident = 1V)\\nlet v_ref = v(N1) - 1\\nlet s11_db = 20 * log10(mag(v_ref))\\nlet s31_db = 20 * log10(mag(v(N3)))\\nlet s41_db = 20 * log10(mag(v(N4)))\\n\\n* Imbalance calculations\\nlet amp_imb = s31_db - s41_db\\nlet phase3 = 180/PI * cph(v(N3))\\nlet phase4 = 180/PI * cph(v(N4))\\nlet phase_diff = phase3 - phase4\\nlet phase_imb = phase_diff - 180\\n\\n* Measure metrics at 30 GHz (center of 20-40 GHz band)\\nmeas ac il_31_30G find s31_db at=30G\\nmeas ac il_41_30G find s41_db at=30G\\nmeas ac rl_30G find s11_db at=30G\\nmeas ac amp_imb_30G find amp_imb at=30G\\nmeas ac phase_imb_30G find phase_imb at=30G\\n\\nprint il_31_30G il_41_30G rl_30G amp_imb_30G phase_imb_30G\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1408082",
+  "_case": "1408082_image_9_a"
+}

@@ -1,0 +1,166 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Bias Circuit for RF Power Amplifier",
+    "description": "A bias voltage generator circuit that provides a stable, low-impedance DC bias for an RF power amplifier or mixer. It uses a diode-connected reference branch (Q2/Q3) and an emitter/source follower (Q4) to supply bias current without loading the reference.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "n2",
+        "n4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "n0",
+        "n3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Silicon Bipolar Transmitter Front-End for 802.11a and HIPERLAN2 Wireless LANs",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the bias circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2 W",
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "I1 is set to 100uA. M4 branch draws ~70uA. Total current ~170uA. Power = 1.8V * 170uA = 306uW. Note: The paper's 2W figure is for the entire transmitter PA, not just this bias sub-block.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.000306,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on 1.8V supply and estimated branch currents for the bias core."
+      },
+      "importance": "essential"
+    },
+    "v_bias_n2": {
+      "description": "DC bias voltage output at node n2",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "M2/M3 set V(n0) to ~2*Vgs (~1.14V). M4 acts as a source follower, dropping ~0.5V. M1 is diode-connected, setting V(n2) to ~0.55V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.55,
+          "max": 0.7,
+          "unit": "V"
+        },
+        "reasoning": "Standard Vgs for diode-connected NMOS in SKY130 at moderate inversion."
+      },
+      "importance": "essential"
+    },
+    "startup_time": {
+      "description": "Time for the bias voltage at n0 to settle",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "C1 (1pF) is charged by I1 (100uA). dt = C * dV / I = 1pF * 0.9V / 100uA = 9ns.",
+        "range": {
+          "min": 5e-09,
+          "typical": 9e-09,
+          "max": 2e-08,
+          "unit": "s"
+        },
+        "reasoning": "Based on RC/IC charging dynamics of the reference node."
+      },
+      "importance": "recommended"
+    },
+    "gain": {
+      "description": "Power gain (Applies to the main PA, not this bias sub-circuit)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0.8 dB",
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "dB"
+        },
+        "reasoning": "This is a DC bias circuit, so RF gain is not applicable."
+      },
+      "importance": "optional"
+    },
+    "operating_frequency": {
+      "description": "Operating frequency of the transmitter",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5.2 GHz",
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "Hz"
+        },
+        "reasoning": "Bias circuits operate at DC."
+      },
+      "importance": "optional"
+    },
+    "capacitance": {
+      "description": "Filter capacitance at the reference node",
+      "unit": "F",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.7 fF",
+        "technology": "46-GHzT silicon bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Set to 1pF in testbench for realistic filtering.",
+        "range": {
+          "min": 5e-13,
+          "typical": 1e-12,
+          "max": 5e-12,
+          "unit": "F"
+        },
+        "reasoning": "0.7 fF is too small for a low-frequency bias filter; 1pF is more typical for on-chip bias decoupling."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC bias voltages, power consumption, and startup time of the bias circuit. Bipolar transistors are mapped to SKY130 NMOS equivalents.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_bias_n2",
+      "power_consumption",
+      "startup_time"
+    ],
+    "spice": "* Bias Circuit Testbench\n.lib \"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_m1=5u L_m1=0.15u\n.param W_m2=5u L_m2=0.15u\n.param W_m3=5u L_m3=0.15u\n.param W_m4=10u L_m4=0.15u\n.param R1_val=1k R2_val=1k C1_val=1p I1_val=100u\n\nVVDD VDD 0 1.8\nI1 VDD n0 {I1_val}\n\n* Mapped NPNs to NMOS for SKY130 CMOS evaluation\nM1 n2 n2 0 0 sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\nR1 n0 n3 {R1_val}\nR2 n2 n4 {R2_val}\nM2 n0 n0 n1 0 sky130_fd_pr__nfet_01v8 w={W_m2} l={L_m2}\nM3 n1 n1 0 0 sky130_fd_pr__nfet_01v8 w={W_m3} l={L_m3}\nC1 n0 0 {C1_val}\nM4 VDD n3 n4 0 sky130_fd_pr__nfet_01v8 w={W_m4} l={L_m4}\n\n.control\n* DC Operating Point\nop\nlet power = -i(VVDD) * 1.8\nprint v(n2) v(n4) power\n\n* Transient Analysis for Startup\ntran 0.1n 50n\nmeas tran v_n2_steady avg v(n2) from=30n to=50n\nmeas tran v_n4_steady avg v(n4) from=30n to=50n\nmeas tran t_startup trig v(n0) val=0.1 rise=1 targ v(n0) val=1.0 rise=1\nlet pwr_tran = -i(VVDD) * 1.8\nmeas tran avg_power avg pwr_tran from=30n to=50n\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Bias Circuit for RF Power Amplifier\",\n    \"description\": \"A bias voltage generator circuit that provides a stable, low-impedance DC bias for an RF power amplifier or mixer. It uses a diode-connected reference branch (Q2/Q3) and an emitter/source follower (Q4) to supply bias current without loading the reference.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\n        \"n2\",\n        \"n4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"n0\",\n        \"n3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Silicon Bipolar Transmitter Front-End for 802.11a and HIPERLAN2 Wireless LANs\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the bias circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2 W\",\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I1 is set to 100uA. M4 branch draws ~70uA. Total current ~170uA. Power = 1.8V * 170uA = 306uW. Note: The paper's 2W figure is for the entire transmitter PA, not just this bias sub-block.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 306e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on 1.8V supply and estimated branch currents for the bias core.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_bias_n2\": {\n      \"description\": \"DC bias voltage output at node n2\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"M2/M3 set V(n0) to ~2*Vgs (~1.14V). M4 acts as a source follower, dropping ~0.5V. M1 is diode-connected, setting V(n2) to ~0.55V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.55,\n          \"max\": 0.7,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard Vgs for diode-connected NMOS in SKY130 at moderate inversion.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"startup_time\": {\n      \"description\": \"Time for the bias voltage at n0 to settle\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C1 (1pF) is charged by I1 (100uA). dt = C * dV / I = 1pF * 0.9V / 100uA = 9ns.\",\n        \"range\": {\n          \"min\": 5e-9,\n          \"typical\": 9e-9,\n          \"max\": 20e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on RC/IC charging dynamics of the reference node.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"gain\": {\n      \"description\": \"Power gain (Applies to the main PA, not this bias sub-circuit)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0.8 dB\",\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"This is a DC bias circuit, so RF gain is not applicable.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Operating frequency of the transmitter\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz\",\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bias circuits operate at DC.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"capacitance\": {\n      \"description\": \"Filter capacitance at the reference node\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.7 fF\",\n        \"technology\": \"46-GHzT silicon bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set to 1pF in testbench for realistic filtering.\",\n        \"range\": {\n          \"min\": 0.5e-12,\n          \"typical\": 1e-12,\n          \"max\": 5e-12,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"0.7 fF is too small for a low-frequency bias filter; 1pF is more typical for on-chip bias decoupling.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC bias voltages, power consumption, and startup time of the bias circuit. Bipolar transistors are mapped to SKY130 NMOS equivalents.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_bias_n2\",\n      \"power_consumption\",\n      \"startup_time\"\n    ],\n    \"spice\": \"* Bias Circuit Testbench\\n.lib \\\"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_m1=5u L_m1=0.15u\\n.param W_m2=5u L_m2=0.15u\\n.param W_m3=5u L_m3=0.15u\\n.param W_m4=10u L_m4=0.15u\\n.param R1_val=1k R2_val=1k C1_val=1p I1_val=100u\\n\\nVVDD VDD 0 1.8\\nI1 VDD n0 {I1_val}\\n\\n* Mapped NPNs to NMOS for SKY130 CMOS evaluation\\nM1 n2 n2 0 0 sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\\nR1 n0 n3 {R1_val}\\nR2 n2 n4 {R2_val}\\nM2 n0 n0 n1 0 sky130_fd_pr__nfet_01v8 w={W_m2} l={L_m2}\\nM3 n1 n1 0 0 sky130_fd_pr__nfet_01v8 w={W_m3} l={L_m3}\\nC1 n0 0 {C1_val}\\nM4 VDD n3 n4 0 sky130_fd_pr__nfet_01v8 w={W_m4} l={L_m4}\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VVDD) * 1.8\\nprint v(n2) v(n4) power\\n\\n* Transient Analysis for Startup\\ntran 0.1n 50n\\nmeas tran v_n2_steady avg v(n2) from=30n to=50n\\nmeas tran v_n4_steady avg v(n4) from=30n to=50n\\nmeas tran t_startup trig v(n0) val=0.1 rise=1 targ v(n0) val=1.0 rise=1\\nlet pwr_tran = -i(VVDD) * 1.8\\nmeas tran avg_power avg pwr_tran from=30n to=50n\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "jssc.2005.847327",
+  "_case": "jssc.2005.847327_image_16"
+}

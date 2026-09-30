@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Electronic Attenuator / Voltage Controlled Amplifier (VCA)",
+    "description": "A translinear attenuator circuit that exploits the exponential I-V characteristics of bipolar transistors to achieve a wide dynamic range. It uses an input voltage-to-current converter, a bipolar current mirror core for attenuation, and an output transimpedance amplifier.",
+    "node_mapping": {
+      "input": [
+        "VIN",
+        "N1"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VEE"
+      ],
+      "bias": [
+        "VE1",
+        "VE2",
+        "N4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 147-dB Dynamic Range Electronic Attenuator for Audiometric Applications With On-Chip 1-W Power Amplifier",
+      "figure": "Generic",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "midband_gain": {
+      "description": "Voltage gain of the attenuator in its nominal (0 dB attenuation) state",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0 dB",
+        "technology": "2-um high-voltage CMOS/BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With R2 = R3 = 10k and a 1:1 current mirror ratio between Q1/Q2 and Q3/Q4, the transimpedance gain cancels the V-to-I conversion, yielding 0 dB.",
+        "range": {
+          "min": -1.0,
+          "typical": 0.0,
+          "max": 1.0,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by resistor matching and BJT beta/Early voltage."
+      },
+      "importance": "essential"
+    },
+    "dynamic_range": {
+      "description": "Ratio of maximum output signal to noise floor",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "147 dB",
+        "technology": "2-um high-voltage CMOS/BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Requires specific control voltage sweeping and noise integration over 20 kHz audio band.",
+        "range": {
+          "min": 100,
+          "typical": 120,
+          "max": 150,
+          "unit": "dB"
+        },
+        "reasoning": "Highly dependent on the noise floor of the op-amps and thermal noise of the 10k resistors."
+      },
+      "importance": "essential"
+    },
+    "thd": {
+      "description": "Total Harmonic Distortion for a 1 kHz input signal",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "-57 dB",
+        "technology": "2-um high-voltage CMOS/BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Simulated via Fourier analysis on the transient output.",
+        "range": {
+          "min": -70,
+          "typical": -60,
+          "max": -50,
+          "unit": "dB"
+        },
+        "reasoning": "Distortion arises from BJT base current errors and non-ideal virtual grounds."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power dissipated by the circuit",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "165 mW (33 mA from 5V)",
+        "technology": "2-um high-voltage CMOS/BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_bias = (1.8V - 0.7V) / 10k = 0.11 mA. Power = 1.8V * 0.11mA = ~0.2 mW (excluding op-amps).",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0002,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down significantly due to 1.8V supply and 10k bias resistors compared to the paper's 1-W PA inclusion."
+      },
+      "importance": "recommended"
+    },
+    "bandwidth": {
+      "description": "Upper -3dB cutoff frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20 kHz (Audio band)",
+        "technology": "2-um high-voltage CMOS/BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Limited by BJT parasitic capacitances and op-amp GBW.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 10000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Modern BJTs and ideal op-amps in the testbench will yield bandwidths far exceeding the 20 kHz audio requirement."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC gain, bandwidth, transient response, THD, and DC power of the translinear attenuator.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "midband_gain",
+      "power_consumption",
+      "thd"
+    ],
+    "spice": "* Electronic Attenuator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic BJT models for translinear core\n.model pnp pnp\n.model npn npn\n\n* Parameters\n.param R_val=10k\n\n* Ideal Op-Amps replacing A1 and A2 from netlist\n* A1 (N1 GND) amplifier -> Input buffer\nE1 N1 GND VIN GND 1\n* A2 (VOUT N4 GND) amplifier -> Output transimpedance amplifier\nE2 VOUT GND GND N4 1Meg\n\n* DUT (Original netlist with parameterized resistors)\nQ1 GND GND VE1 pnp\nR1 VE2 VEE {R_val}\nR2 VE1 N1 {R_val}\nR3 VOUT N4 {R_val}\nQ3 GND GND VE2 npn\nR4 VIN GND {R_val}\nQ4 N4 GND VE2 npn\nQ2 N4 GND VE1 pnp\n\n* Stimulus\nVVIN VIN GND DC 0 AC 1 SIN(0 0.1 1k)\nVVEE VEE GND DC -1.8\n\n.control\n  * DC Operating Point\n  op\n  let power = abs(i(VVEE) * -1.8)\n  print power\n\n  * AC Analysis for Gain and Bandwidth\n  ac dec 10 10 100Meg\n  let gain_db = vdb(VOUT)\n  meas ac midband_gain find gain_db at=1k\n\n  * Transient Analysis for THD and Swing\n  tran 10u 5m\n  meas tran v_max max v(VOUT)\n  meas tran v_min min v(VOUT)\n  fourier 1k v(VOUT)\n.endc\n\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Electronic Attenuator / Voltage Controlled Amplifier (VCA)\",\n    \"description\": \"A translinear attenuator circuit that exploits the exponential I-V characteristics of bipolar transistors to achieve a wide dynamic range. It uses an input voltage-to-current converter, a bipolar current mirror core for attenuation, and an output transimpedance amplifier.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN\",\n        \"N1\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VEE\"\n      ],\n      \"bias\": [\n        \"VE1\",\n        \"VE2\",\n        \"N4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 147-dB Dynamic Range Electronic Attenuator for Audiometric Applications With On-Chip 1-W Power Amplifier\",\n      \"figure\": \"Generic\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"midband_gain\": {\n      \"description\": \"Voltage gain of the attenuator in its nominal (0 dB attenuation) state\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0 dB\",\n        \"technology\": \"2-um high-voltage CMOS/BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With R2 = R3 = 10k and a 1:1 current mirror ratio between Q1/Q2 and Q3/Q4, the transimpedance gain cancels the V-to-I conversion, yielding 0 dB.\",\n        \"range\": {\n          \"min\": -1.0,\n          \"typical\": 0.0,\n          \"max\": 1.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by resistor matching and BJT beta/Early voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dynamic_range\": {\n      \"description\": \"Ratio of maximum output signal to noise floor\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"147 dB\",\n        \"technology\": \"2-um high-voltage CMOS/BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Requires specific control voltage sweeping and noise integration over 20 kHz audio band.\",\n        \"range\": {\n          \"min\": 100,\n          \"typical\": 120,\n          \"max\": 150,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Highly dependent on the noise floor of the op-amps and thermal noise of the 10k resistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"thd\": {\n      \"description\": \"Total Harmonic Distortion for a 1 kHz input signal\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"-57 dB\",\n        \"technology\": \"2-um high-voltage CMOS/BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Simulated via Fourier analysis on the transient output.\",\n        \"range\": {\n          \"min\": -70,\n          \"typical\": -60,\n          \"max\": -50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Distortion arises from BJT base current errors and non-ideal virtual grounds.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"165 mW (33 mA from 5V)\",\n        \"technology\": \"2-um high-voltage CMOS/BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_bias = (1.8V - 0.7V) / 10k = 0.11 mA. Power = 1.8V * 0.11mA = ~0.2 mW (excluding op-amps).\",\n        \"range\": {\n          \"min\": 0.1e-3,\n          \"typical\": 0.2e-3,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down significantly due to 1.8V supply and 10k bias resistors compared to the paper's 1-W PA inclusion.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Upper -3dB cutoff frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20 kHz (Audio band)\",\n        \"technology\": \"2-um high-voltage CMOS/BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by BJT parasitic capacitances and op-amp GBW.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 10e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Modern BJTs and ideal op-amps in the testbench will yield bandwidths far exceeding the 20 kHz audio requirement.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC gain, bandwidth, transient response, THD, and DC power of the translinear attenuator.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"midband_gain\",\n      \"power_consumption\",\n      \"thd\"\n    ],\n    \"spice\": \"* Electronic Attenuator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic BJT models for translinear core\\n.model pnp pnp\\n.model npn npn\\n\\n* Parameters\\n.param R_val=10k\\n\\n* Ideal Op-Amps replacing A1 and A2 from netlist\\n* A1 (N1 GND) amplifier -> Input buffer\\nE1 N1 GND VIN GND 1\\n* A2 (VOUT N4 GND) amplifier -> Output transimpedance amplifier\\nE2 VOUT GND GND N4 1Meg\\n\\n* DUT (Original netlist with parameterized resistors)\\nQ1 GND GND VE1 pnp\\nR1 VE2 VEE {R_val}\\nR2 VE1 N1 {R_val}\\nR3 VOUT N4 {R_val}\\nQ3 GND GND VE2 npn\\nR4 VIN GND {R_val}\\nQ4 N4 GND VE2 npn\\nQ2 N4 GND VE1 pnp\\n\\n* Stimulus\\nVVIN VIN GND DC 0 AC 1 SIN(0 0.1 1k)\\nVVEE VEE GND DC -1.8\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = abs(i(VVEE) * -1.8)\\n  print power\\n\\n  * AC Analysis for Gain and Bandwidth\\n  ac dec 10 10 100Meg\\n  let gain_db = vdb(VOUT)\\n  meas ac midband_gain find gain_db at=1k\\n\\n  * Transient Analysis for THD and Swing\\n  tran 10u 5m\\n  meas tran v_max max v(VOUT)\\n  meas tran v_min min v(VOUT)\\n  fourier 1k v(VOUT)\\n.endc\\n\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "933465",
+  "_case": "933465_image_2"
+}

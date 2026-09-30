@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current-Mode Sense Amplifier",
+    "description": "A current conveyor-based sense amplifier that clamps the bitline voltage to a low, steady value to minimize RC delay. It mirrors the memory cell current from the bitline (BL) to the output node (OUT1), where it is compared against a reference current to generate a full-swing digital output.",
+    "node_mapping": {
+      "input": [
+        "BL"
+      ],
+      "output": [
+        "OUT1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VREF",
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A High-Performance Very Low-Voltage Current Sense Amplifier for Nonvolatile Memories",
+      "figure": "none",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the sense amplifier bias and mirror branches.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "3 uW to 9 uW",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "I_bias = 0.5 * 270u * 10 * (0.9-0.42)^2 = 311uA. Total current = 3 * I_bias = 933uA. Power = 1.8V * 933uA = 1.68mW.",
+        "range": {
+          "min": "1mW",
+          "typical": "1.7mW",
+          "max": "2.5mW",
+          "unit": "W"
+        },
+        "reasoning": "Significantly higher than the paper because VREF=0.9V sets a very large bias current in SKY130 1.8V devices compared to the sub-1V optimized 0.18um design."
+      },
+      "importance": "essential"
+    },
+    "bitline_voltage": {
+      "description": "Clamped DC voltage at the bitline (BL) during a read operation.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "700 mV",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "V_BL = Vth + sqrt(2*(I_bias - I_cell)/(un*Cox*W/L)) = 0.42 + sqrt(2*211u/(270u*10)) = 0.81V",
+        "range": {
+          "min": "0.6",
+          "typical": "0.8",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the Vgs of the diode-connected NMOS (XM1) sinking the difference between the bias current and the cell current."
+      },
+      "importance": "essential"
+    },
+    "read_delay": {
+      "description": "Time delay from the cell current crossing the reference threshold to the output voltage reaching VDD/2.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "30 ns",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "With a 50fF load and 50uA net charging current, dt = C * dV / I = 50fF * 0.9V / 50uA = 0.9 ns.",
+        "range": {
+          "min": "0.5n",
+          "typical": "1n",
+          "max": "5n",
+          "unit": "s"
+        },
+        "reasoning": "The intrinsic delay of the sense amp core is very small. The paper's 30ns includes the full memory array bitline RC delay which is not present in this isolated testbench."
+      },
+      "importance": "essential"
+    },
+    "switching_threshold": {
+      "description": "The cell current required to switch the output voltage to VDD/2.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Ideally equals the reference current applied at OUT1 (100uA).",
+        "range": {
+          "min": "90u",
+          "typical": "100u",
+          "max": "110u",
+          "unit": "A"
+        },
+        "reasoning": "Current mirror mismatch due to channel length modulation will cause slight deviations from exactly 100uA."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point (power, bitline clamp voltage), DC transfer characteristics (switching threshold), and transient response (read delay) of the current sense amplifier.",
+    "analyses": [
+      "OP",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "bitline_voltage",
+      "switching_threshold",
+      "read_delay"
+    ],
+    "spice": "* High-Performance Very Low-Voltage Current Sense Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\n* DUT\nXM1 BL BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUT1 BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N2 VREF GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 BL N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUT1 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\n* Power and Bias\nVVDD VDD 0 1.8\nVVREF VREF 0 0.9\n\n* Reference Current at OUT1 (100uA sink to GND)\nI_REF OUT1 0 100u\n\n* Memory Cell Current at BL (Controlled by V_CELL_CTRL)\n* 1V on ctrl = 100uA cell current sinking from BL\nV_CELL_CTRL ctrl 0 PWL(0 0.5 1n 0.5 2n 1.5 10n 1.5 11n 0.5)\nG_CELL BL 0 ctrl 0 100u\n\n* Load Capacitance at Output\nC_LOAD OUT1 0 50f\n\n.control\n  * 1. DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  let v_bl = v(BL)\n  print v_bl\n\n  * 2. DC Sweep for Switching Threshold\n  dc V_CELL_CTRL 0 2 0.01\n  meas dc switch_threshold_v when v(OUT1)=0.9\n  * Note: switch_threshold_v of 1.0V corresponds to 100uA cell current\n\n  * 3. Transient Analysis for Delay\n  tran 10p 20n\n  * Measure delay from cell current crossing 100uA (ctrl=1.0V) to OUT1 crossing VDD/2 (0.9V)\n  meas tran t_delay_rise trig v(ctrl) val=1.0 rise=1 targ v(OUT1) val=0.9 rise=1\n  meas tran t_delay_fall trig v(ctrl) val=1.0 fall=1 targ v(OUT1) val=0.9 fall=1\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current-Mode Sense Amplifier\",\n    \"description\": \"A current conveyor-based sense amplifier that clamps the bitline voltage to a low, steady value to minimize RC delay. It mirrors the memory cell current from the bitline (BL) to the output node (OUT1), where it is compared against a reference current to generate a full-swing digital output.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"BL\"\n      ],\n      \"output\": [\n        \"OUT1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VREF\",\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A High-Performance Very Low-Voltage Current Sense Amplifier for Nonvolatile Memories\",\n      \"figure\": \"none\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the sense amplifier bias and mirror branches.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"3 uW to 9 uW\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_bias = 0.5 * 270u * 10 * (0.9-0.42)^2 = 311uA. Total current = 3 * I_bias = 933uA. Power = 1.8V * 933uA = 1.68mW.\",\n        \"range\": {\n          \"min\": \"1mW\",\n          \"typical\": \"1.7mW\",\n          \"max\": \"2.5mW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Significantly higher than the paper because VREF=0.9V sets a very large bias current in SKY130 1.8V devices compared to the sub-1V optimized 0.18um design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bitline_voltage\": {\n      \"description\": \"Clamped DC voltage at the bitline (BL) during a read operation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"700 mV\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_BL = Vth + sqrt(2*(I_bias - I_cell)/(un*Cox*W/L)) = 0.42 + sqrt(2*211u/(270u*10)) = 0.81V\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.8\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the Vgs of the diode-connected NMOS (XM1) sinking the difference between the bias current and the cell current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"read_delay\": {\n      \"description\": \"Time delay from the cell current crossing the reference threshold to the output voltage reaching VDD/2.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"30 ns\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 50fF load and 50uA net charging current, dt = C * dV / I = 50fF * 0.9V / 50uA = 0.9 ns.\",\n        \"range\": {\n          \"min\": \"0.5n\",\n          \"typical\": \"1n\",\n          \"max\": \"5n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The intrinsic delay of the sense amp core is very small. The paper's 30ns includes the full memory array bitline RC delay which is not present in this isolated testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"switching_threshold\": {\n      \"description\": \"The cell current required to switch the output voltage to VDD/2.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideally equals the reference current applied at OUT1 (100uA).\",\n        \"range\": {\n          \"min\": \"90u\",\n          \"typical\": \"100u\",\n          \"max\": \"110u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Current mirror mismatch due to channel length modulation will cause slight deviations from exactly 100uA.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point (power, bitline clamp voltage), DC transfer characteristics (switching threshold), and transient response (read delay) of the current sense amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"bitline_voltage\",\n      \"switching_threshold\",\n      \"read_delay\"\n    ],\n    \"spice\": \"* High-Performance Very Low-Voltage Current Sense Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\n* DUT\\nXM1 BL BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUT1 BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N2 VREF GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 BL N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUT1 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Power and Bias\\nVVDD VDD 0 1.8\\nVVREF VREF 0 0.9\\n\\n* Reference Current at OUT1 (100uA sink to GND)\\nI_REF OUT1 0 100u\\n\\n* Memory Cell Current at BL (Controlled by V_CELL_CTRL)\\n* 1V on ctrl = 100uA cell current sinking from BL\\nV_CELL_CTRL ctrl 0 PWL(0 0.5 1n 0.5 2n 1.5 10n 1.5 11n 0.5)\\nG_CELL BL 0 ctrl 0 100u\\n\\n* Load Capacitance at Output\\nC_LOAD OUT1 0 50f\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  let v_bl = v(BL)\\n  print v_bl\\n\\n  * 2. DC Sweep for Switching Threshold\\n  dc V_CELL_CTRL 0 2 0.01\\n  meas dc switch_threshold_v when v(OUT1)=0.9\\n  * Note: switch_threshold_v of 1.0V corresponds to 100uA cell current\\n\\n  * 3. Transient Analysis for Delay\\n  tran 10p 20n\\n  * Measure delay from cell current crossing 100uA (ctrl=1.0V) to OUT1 crossing VDD/2 (0.9V)\\n  meas tran t_delay_rise trig v(ctrl) val=1.0 rise=1 targ v(OUT1) val=0.9 rise=1\\n  meas tran t_delay_fall trig v(ctrl) val=1.0 fall=1 targ v(OUT1) val=0.9 fall=1\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1388640",
+  "_case": "1388640_image_3"
+}

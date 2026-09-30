@@ -1,0 +1,155 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Burst-Mode Receiver Buffer / Voltage Follower with Reset",
+    "description": "A fast voltage buffer utilizing a differential amplifier with an active load in unity-gain feedback, followed by a source follower. It includes a reset transistor to quickly discharge the internal node and output, which is essential for fast recovery in burst-mode optical receivers.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "RESET"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N5",
+        "N1",
+        "N0",
+        "N3",
+        "N4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Burst-Mode Receiver for 1.25-Gb/s Ethernet PON With AGC and Internally Created Reset Signal",
+      "figure": "Unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency voltage gain of the buffer",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "21 dB (for full receiver)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The circuit is in a unity-gain feedback configuration (N1 tracks IN, OUT replicates N1). Gain = 20*log10(Vout/Vin) \u2248 0 dB.",
+        "range": {
+          "min": -1.0,
+          "typical": 0.0,
+          "max": 0.5,
+          "unit": "dB"
+        },
+        "reasoning": "Feedback forces the source follower output to track the input closely, resulting in near 0 dB gain."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB cutoff frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz / 800 MHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the transconductance of the diff pair and the parasitic capacitance at node N0/N4. f_3dB \u2248 gm / (2 * pi * C_node).",
+        "range": {
+          "min": 500000000.0,
+          "typical": 1000000000.0,
+          "max": 2000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Expected to match the 1 GHz operating frequency reported in the paper for 1.25-Gb/s operation."
+      },
+      "importance": "essential"
+    },
+    "delay_rise": {
+      "description": "Propagation delay from input to output during a rising edge",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 ns (system level)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Buffer delay is minimal, dominated by the RC time constant of the internal nodes.",
+        "range": {
+          "min": 1e-10,
+          "typical": 5e-10,
+          "max": 1e-09,
+          "unit": "s"
+        },
+        "reasoning": "A single-stage buffer in 130nm should have sub-nanosecond delay."
+      },
+      "importance": "recommended"
+    },
+    "reset_time": {
+      "description": "Time required to discharge the output when RESET is asserted",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Minimized guard time",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Discharge time depends on the ON-resistance of XM6 and the load capacitance. t = R_on * C_load.",
+        "range": {
+          "min": 1e-10,
+          "typical": 1e-09,
+          "max": 5e-09,
+          "unit": "s"
+        },
+        "reasoning": "XM6 is a strong pull-down NMOS, ensuring rapid reset of the internal node N0."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * (I_tail + I_load1 + I_load2) = 1.8V * (200uA + 50uA + Vout/Rload).",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.0006,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Based on typical biasing currents required for GHz bandwidth in 130nm."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC bandwidth, transient tracking delay, and reset time of the burst-mode receiver buffer.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "bw_3db",
+      "delay_rise",
+      "delay_fall",
+      "reset_time"
+    ],
+    "spice": "* Testbench for Burst-Mode Receiver Buffer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5_prime=5u L_xm5_prime=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\n* DUT\nXM5 VDD N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM1 N3 IN N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM4 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM2 N4 N1 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM5_PRIME VDD N0 OUT GND sky130_fd_pr__nfet_01v8 l={L_xm5_prime} w={W_xm5_prime}\nXM3 N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\n\n* Missing connections and biasing\nR_short N4 N0 1m\nI_tail N5 GND 200u\nI_load1 N1 GND 50u\nR_load OUT GND 10k\nC_load OUT GND 250f\n\n* Sources\nVVDD VDD 0 1.8\nVIN IN 0 DC 0.9 AC 1 PULSE(0.6 1.2 1n 0.1n 0.1n 4n 10n)\nVRESET RESET 0 PULSE(0 1.8 7n 0.1n 0.1n 1n 10n)\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 50 1Meg 10G\n  let gain_db = vdb(OUT)\n  meas ac dc_gain find gain_db at=1Meg\n  meas ac bw_3db when gain_db=-3 fall=1\n\n  * Transient Analysis\n  tran 10p 10n\n  meas tran delay_rise trig v(IN) val=0.9 rise=1 targ v(OUT) val=0.9 rise=1\n  meas tran delay_fall trig v(IN) val=0.9 fall=1 targ v(OUT) val=0.9 fall=1\n  meas tran reset_time trig v(RESET) val=0.9 rise=1 targ v(OUT) val=0.2 fall=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Burst-Mode Receiver Buffer / Voltage Follower with Reset\",\n    \"description\": \"A fast voltage buffer utilizing a differential amplifier with an active load in unity-gain feedback, followed by a source follower. It includes a reset transistor to quickly discharge the internal node and output, which is essential for fast recovery in burst-mode optical receivers.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"RESET\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N5\",\n        \"N1\",\n        \"N0\",\n        \"N3\",\n        \"N4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Burst-Mode Receiver for 1.25-Gb/s Ethernet PON With AGC and Internally Created Reset Signal\",\n      \"figure\": \"Unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency voltage gain of the buffer\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"21 dB (for full receiver)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The circuit is in a unity-gain feedback configuration (N1 tracks IN, OUT replicates N1). Gain = 20*log10(Vout/Vin) \u2248 0 dB.\",\n        \"range\": {\n          \"min\": -1.0,\n          \"typical\": 0.0,\n          \"max\": 0.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Feedback forces the source follower output to track the input closely, resulting in near 0 dB gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz / 800 MHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the transconductance of the diff pair and the parasitic capacitance at node N0/N4. f_3dB \u2248 gm / (2 * pi * C_node).\",\n        \"range\": {\n          \"min\": 500e6,\n          \"typical\": 1e9,\n          \"max\": 2e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Expected to match the 1 GHz operating frequency reported in the paper for 1.25-Gb/s operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_rise\": {\n      \"description\": \"Propagation delay from input to output during a rising edge\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 ns (system level)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Buffer delay is minimal, dominated by the RC time constant of the internal nodes.\",\n        \"range\": {\n          \"min\": 100e-12,\n          \"typical\": 500e-12,\n          \"max\": 1e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"A single-stage buffer in 130nm should have sub-nanosecond delay.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"reset_time\": {\n      \"description\": \"Time required to discharge the output when RESET is asserted\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Minimized guard time\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Discharge time depends on the ON-resistance of XM6 and the load capacitance. t = R_on * C_load.\",\n        \"range\": {\n          \"min\": 100e-12,\n          \"typical\": 1e-9,\n          \"max\": 5e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"XM6 is a strong pull-down NMOS, ensuring rapid reset of the internal node N0.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * (I_tail + I_load1 + I_load2) = 1.8V * (200uA + 50uA + Vout/Rload).\",\n        \"range\": {\n          \"min\": 300e-6,\n          \"typical\": 600e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on typical biasing currents required for GHz bandwidth in 130nm.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC bandwidth, transient tracking delay, and reset time of the burst-mode receiver buffer.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"bw_3db\",\n      \"delay_rise\",\n      \"delay_fall\",\n      \"reset_time\"\n    ],\n    \"spice\": \"* Testbench for Burst-Mode Receiver Buffer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5_prime=5u L_xm5_prime=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\n* DUT\\nXM5 VDD N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM1 N3 IN N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM4 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM2 N4 N1 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM5_PRIME VDD N0 OUT GND sky130_fd_pr__nfet_01v8 l={L_xm5_prime} w={W_xm5_prime}\\nXM3 N3 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Missing connections and biasing\\nR_short N4 N0 1m\\nI_tail N5 GND 200u\\nI_load1 N1 GND 50u\\nR_load OUT GND 10k\\nC_load OUT GND 250f\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVIN IN 0 DC 0.9 AC 1 PULSE(0.6 1.2 1n 0.1n 0.1n 4n 10n)\\nVRESET RESET 0 PULSE(0 1.8 7n 0.1n 0.1n 1n 10n)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 50 1Meg 10G\\n  let gain_db = vdb(OUT)\\n  meas ac dc_gain find gain_db at=1Meg\\n  meas ac bw_3db when gain_db=-3 fall=1\\n\\n  * Transient Analysis\\n  tran 10p 10n\\n  meas tran delay_rise trig v(IN) val=0.9 rise=1 targ v(OUT) val=0.9 rise=1\\n  meas tran delay_fall trig v(IN) val=0.9 fall=1 targ v(OUT) val=0.9 fall=1\\n  meas tran reset_time trig v(RESET) val=0.9 rise=1 targ v(OUT) val=0.2 fall=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362846",
+  "_case": "1362846_image_5_a"
+}

@@ -1,0 +1,72 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 13.4",
+    "page": "377",
+    "circuit_type": "CMOS Transmission Gate (TG) discharge circuit",
+    "description": "A CMOS transmission gate connecting a 50fF load capacitor to ground. The capacitor is initially charged to VDD, and the circuit is used to simulate the discharge time (tPHL) through the TG."
+  },
+  "step2_metrics": {
+    "propagation_delay_tPHL": {
+      "description": "The time required to discharge the load capacitor from VDD to VDD/2 through the transmission gate.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "377",
+        "reference": "Eq 13.2"
+      },
+      "equation": {
+        "formula": "tPHL = 0.7 * N * (Rn || Rp) * Cload + 0.35 * (Rn || Rp) * (Coxn + Coxp) * N^2",
+        "explanation": "Estimates the delay through a series connection of N transmission gates. For this single TG circuit, N=1. The first term is the time to charge/discharge Cload, and the second term accounts for the intrinsic RC delay of the TG's parasitic capacitance.",
+        "assumptions": "Assumes MOSFETs operate primarily in the triode region during discharge and uses an effective resistance model."
+      },
+      "sky130_expected": {
+        "calculation": "1. Calculate effective resistances in triode (VDD=1.8V, Wn/Ln=10, Wp/Lp=20): Rn = 1 / (unCox * (W/L)n * (VDD - Vthn)) = 1 / (270e-6 * 10 * (1.8 - 0.42)) = 268 ohms. Rp = 1 / (upCox * (W/L)p * (VDD - |Vthp|)) = 1 / (50e-6 * 20 * (1.8 - 0.42)) = 724 ohms. \n2. Req = Rn || Rp = (268 * 724) / (268 + 724) = 196 ohms. \n3. Estimate oxide capacitance (assuming Cox ~ 8.6 fF/um^2 for tox=4nm): Coxn = 10 * 1 * 8.6fF = 86fF, Coxp = 20 * 1 * 8.6fF = 172fF. \n4. Calculate delay (N=1): tPHL = 0.7 * 196 * 50e-15 + 0.35 * 196 * (86e-15 + 172e-15) = 6.86ps + 17.7ps = 24.56ps.",
+        "range": {
+          "min": "10p",
+          "typical": "25p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "The delay is dominated by the RC time constant of the TG's effective resistance and the sum of the load and parasitic capacitances. Variations in Vth, mobility, and exact parasitic extraction will affect the final value."
+      },
+      "importance": "essential"
+    },
+    "effective_resistance": {
+      "description": "The equivalent parallel resistance of the NMOS and PMOS transistors in the transmission gate when both are ON.",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "377",
+        "reference": "Eq 13.2"
+      },
+      "equation": {
+        "formula": "Req = Rn || Rp",
+        "explanation": "The effective resistance of the TG is the parallel combination of the NMOS and PMOS effective resistances, which determines the discharge rate.",
+        "assumptions": "Assumes both transistors are in the triode region."
+      },
+      "sky130_expected": {
+        "calculation": "Rn = 1 / (270u * 10 * 1.38) = 268 ohms. Rp = 1 / (50u * 20 * 1.38) = 724 ohms. Req = 268 || 724 = 196 ohms.",
+        "range": {
+          "min": "150",
+          "typical": "196",
+          "max": "300",
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using the standard triode resistance formula with SKY130 typical parameters for VDD=1.8V."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the propagation delay (tPHL) of the transmission gate discharging a 50fF capacitor from VDD to VDD/2, and estimates the effective resistance.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "propagation_delay_tPHL",
+      "effective_resistance"
+    ],
+    "spice": "* Transmission Gate Discharge Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=10 L_xm1=1\n.param W_xm2=20 L_xm2=1\n\n* DUT\nxm1 0 S Vout 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nC1 Vout 0 5e-14\nVDD VDD 0 1.8\nxm2 Vout S_bar 0 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n\n* Stimulus to turn ON the TG\nVs S 0 1.8\nVs_bar S_bar 0 0\n\n* Initial condition: Capacitor charged to VDD\n.ic v(vout)=1.8\n\n.control\n* Run transient analysis\ntran 1p 200p\n\n* Measure propagation delay (time to reach VDD/2)\nmeas tran tphl find time when v(vout)=0.9 fall=1\n\n* Estimate effective resistance based on the dominant first term of Eq 13.2\nlet req_approx = tphl / (0.7 * 5e-14)\n\nprint tphl req_approx\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 13.4\",\n    \"page\": \"377\",\n    \"circuit_type\": \"CMOS Transmission Gate (TG) discharge circuit\",\n    \"description\": \"A CMOS transmission gate connecting a 50fF load capacitor to ground. The capacitor is initially charged to VDD, and the circuit is used to simulate the discharge time (tPHL) through the TG.\"\n  },\n  \"step2_metrics\": {\n    \"propagation_delay_tPHL\": {\n      \"description\": \"The time required to discharge the load capacitor from VDD to VDD/2 through the transmission gate.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"377\",\n        \"reference\": \"Eq 13.2\"\n      },\n      \"equation\": {\n        \"formula\": \"tPHL = 0.7 * N * (Rn || Rp) * Cload + 0.35 * (Rn || Rp) * (Coxn + Coxp) * N^2\",\n        \"explanation\": \"Estimates the delay through a series connection of N transmission gates. For this single TG circuit, N=1. The first term is the time to charge/discharge Cload, and the second term accounts for the intrinsic RC delay of the TG's parasitic capacitance.\",\n        \"assumptions\": \"Assumes MOSFETs operate primarily in the triode region during discharge and uses an effective resistance model.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. Calculate effective resistances in triode (VDD=1.8V, Wn/Ln=10, Wp/Lp=20): Rn = 1 / (unCox * (W/L)n * (VDD - Vthn)) = 1 / (270e-6 * 10 * (1.8 - 0.42)) = 268 ohms. Rp = 1 / (upCox * (W/L)p * (VDD - |Vthp|)) = 1 / (50e-6 * 20 * (1.8 - 0.42)) = 724 ohms. \\n2. Req = Rn || Rp = (268 * 724) / (268 + 724) = 196 ohms. \\n3. Estimate oxide capacitance (assuming Cox ~ 8.6 fF/um^2 for tox=4nm): Coxn = 10 * 1 * 8.6fF = 86fF, Coxp = 20 * 1 * 8.6fF = 172fF. \\n4. Calculate delay (N=1): tPHL = 0.7 * 196 * 50e-15 + 0.35 * 196 * (86e-15 + 172e-15) = 6.86ps + 17.7ps = 24.56ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"25p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The delay is dominated by the RC time constant of the TG's effective resistance and the sum of the load and parasitic capacitances. Variations in Vth, mobility, and exact parasitic extraction will affect the final value.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"effective_resistance\": {\n      \"description\": \"The equivalent parallel resistance of the NMOS and PMOS transistors in the transmission gate when both are ON.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"377\",\n        \"reference\": \"Eq 13.2\"\n      },\n      \"equation\": {\n        \"formula\": \"Req = Rn || Rp\",\n        \"explanation\": \"The effective resistance of the TG is the parallel combination of the NMOS and PMOS effective resistances, which determines the discharge rate.\",\n        \"assumptions\": \"Assumes both transistors are in the triode region.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rn = 1 / (270u * 10 * 1.38) = 268 ohms. Rp = 1 / (50u * 20 * 1.38) = 724 ohms. Req = 268 || 724 = 196 ohms.\",\n        \"range\": {\n          \"min\": \"150\",\n          \"typical\": \"196\",\n          \"max\": \"300\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Calculated using the standard triode resistance formula with SKY130 typical parameters for VDD=1.8V.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the propagation delay (tPHL) of the transmission gate discharging a 50fF capacitor from VDD to VDD/2, and estimates the effective resistance.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"propagation_delay_tPHL\",\n      \"effective_resistance\"\n    ],\n    \"spice\": \"* Transmission Gate Discharge Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=10 L_xm1=1\\n.param W_xm2=20 L_xm2=1\\n\\n* DUT\\nxm1 0 S Vout 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nC1 Vout 0 5e-14\\nVDD VDD 0 1.8\\nxm2 Vout S_bar 0 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n\\n* Stimulus to turn ON the TG\\nVs S 0 1.8\\nVs_bar S_bar 0 0\\n\\n* Initial condition: Capacitor charged to VDD\\n.ic v(vout)=1.8\\n\\n.control\\n* Run transient analysis\\ntran 1p 200p\\n\\n* Measure propagation delay (time to reach VDD/2)\\nmeas tran tphl find time when v(vout)=0.9 fall=1\\n\\n* Estimate effective resistance based on the dominant first term of Eq 13.2\\nlet req_approx = tphl / (0.7 * 5e-14)\\n\\nprint tphl req_approx\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

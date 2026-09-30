@@ -1,0 +1,123 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 18.28",
+    "page": "540",
+    "circuit_type": "DC generation circuit (Peak/Valley detector with averaging)",
+    "description": "A circuit that detects the peak and valley of an input signal, averages them to generate a DC reference voltage at the midpoint, and uses this reference to slice the input data via a differential buffer."
+  },
+  "step2_metrics": {
+    "buffer_logic_high": {
+      "description": "Buffer output state when the positive input exceeds the negative input",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "534",
+        "reference": "Eq 18.22"
+      },
+      "equation": {
+        "formula": "Vinp > Vinm -> out = '1'",
+        "explanation": "The differential buffer acts as a comparator. When the non-inverting input is higher, the output goes to logic high.",
+        "assumptions": "The input difference is large enough to overcome any inherent offset voltage."
+      },
+      "sky130_expected": {
+        "calculation": "Logic '1' in a 1.8V CMOS process corresponds to the VDD rail.",
+        "range": {
+          "min": 1.7,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "The output stage of the buffer (SUB_1) is a CMOS inverter (xm5, xm7) tied directly to VDD."
+      },
+      "importance": "essential"
+    },
+    "buffer_logic_low": {
+      "description": "Buffer output state when the positive input is less than the negative input",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "534",
+        "reference": "Eq 18.23"
+      },
+      "equation": {
+        "formula": "Vinp < Vinm -> out = '0'",
+        "explanation": "The differential buffer acts as a comparator. When the inverting input is higher, the output goes to logic low.",
+        "assumptions": "The input difference is large enough to overcome any inherent offset voltage."
+      },
+      "sky130_expected": {
+        "calculation": "Logic '0' in a CMOS process corresponds to the GND rail.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.0,
+          "max": 0.1,
+          "unit": "V"
+        },
+        "reasoning": "The output stage of the buffer (SUB_1) is a CMOS inverter (xm5, xm7) tied directly to GND."
+      },
+      "importance": "essential"
+    },
+    "channel_time_constant": {
+      "description": "Time constant of the RC lowpass filter modeling the transmission channel",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "541",
+        "reference": "Discussion of Fig 18.30"
+      },
+      "equation": {
+        "formula": "tau = R * C",
+        "explanation": "The product of the series resistance and shunt capacitance determines the bandwidth of the modeled transmission channel.",
+        "assumptions": "Modeled as a simple first-order RC lowpass filter."
+      },
+      "sky130_expected": {
+        "calculation": "Using the netlist values: tau = R3 * C4 = 1000 Ohm * 10e-12 F = 10 ns.",
+        "range": {
+          "min": 9e-09,
+          "typical": 1e-08,
+          "max": 1.1e-08,
+          "unit": "s"
+        },
+        "reasoning": "Directly calculated from the passive component values provided in the netlist."
+      },
+      "importance": "recommended"
+    },
+    "average_voltage": {
+      "description": "The generated DC reference voltage at the midpoint of the input signal swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "539",
+        "reference": "Discussion of Fig 18.28"
+      },
+      "equation": {
+        "formula": "V_avg = (V_peak + V_valley) / 2",
+        "explanation": "The resistor divider (R1, R2) averages the voltages stored on the peak and valley capacitors to find the DC midpoint.",
+        "assumptions": "R1 = R2, and the peak/valley detectors accurately track the signal extrema without significant diode drops."
+      },
+      "sky130_expected": {
+        "calculation": "For a 10MHz 0-1.8V input pulse, the 10ns RC filter limits the swing at node 'In' to approximately 0.01V to 1.79V. V_avg = (1.79 + 0.01) / 2 = 0.9V.",
+        "range": {
+          "min": 0.85,
+          "typical": 0.9,
+          "max": 0.95,
+          "unit": "V"
+        },
+        "reasoning": "The circuit is designed to find the exact midpoint of the data swing to optimally slice it, which should be half of VDD for a full-swing input."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the steady-state peak, valley, and average voltages, as well as the logic high/low levels of the output buffer.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "average_voltage",
+      "buffer_logic_high",
+      "buffer_logic_low"
+    ],
+    "spice": "* DC Generation Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the subcircuit and top level\n.param W_xm1=2 L_xm1=0.15\n.param W_xm2=1 L_xm2=0.15\n.param W_xm3=2 L_xm3=0.15\n.param W_xm4=2 L_xm4=0.15\n.param W_xm5=2 L_xm5=0.15\n.param W_xm6=1 L_xm6=0.15\n.param W_xm7=1 L_xm7=0.15\n.param W_xm8=1 L_xm8=0.15\n.param W_xm9=2 L_xm9=0.15\n.param W_xm10=2 L_xm10=0.15\n.param W_xm11=1 L_xm11=0.15\n.param W_xm12=2 L_xm12=0.15\n\n* DUT\nVDD VDD 0 1.8\nX_U1 Max In N001 VDD 0 SUB_1\nX_U2 Min In N002 VDD 0 SUB_1\nX_U3 In Avg Out VDD 0 SUB_1\nxm1 Max N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nxm2 Min N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nC1 Max 0 1e-12\nC2 0 Min 1e-12\nC3 Avg 0 1e-12\nR1 Max Avg 100000.0\nR2 Avg Min 100000.0\nR3 Vin In 1000.0\nC4 In 0 1e-11\n\n.subckt SUB_1 Vinp Vinm Out VDD GND\n  xm1 N004 Vinm N005 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm3 N004 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N002 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm2 N002 Vinp N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  xm6 N005 N004 GND 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm5 Out N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\n  xm7 Out N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 N003 Vinm N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 N002 Vinp N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\n.ends SUB_1\n\n* Stimulus: 10MHz square wave\nVvin Vin 0 PULSE(0 1.8 0 1n 1n 49n 100n)\n\n.control\n  tran 1n 1u\n  \n  * Measure steady state values after startup transient (800ns to 1us)\n  meas tran v_peak_ss max v(Max) from=800n to=1u\n  meas tran v_valley_ss min v(Min) from=800n to=1u\n  meas tran v_avg_ss avg v(Avg) from=800n to=1u\n  \n  * Measure logic high and low levels of the output buffer\n  meas tran out_high max v(Out) from=800n to=1u\n  meas tran out_low min v(Out) from=800n to=1u\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 18.28\",\n    \"page\": \"540\",\n    \"circuit_type\": \"DC generation circuit (Peak/Valley detector with averaging)\",\n    \"description\": \"A circuit that detects the peak and valley of an input signal, averages them to generate a DC reference voltage at the midpoint, and uses this reference to slice the input data via a differential buffer.\"\n  },\n  \"step2_metrics\": {\n    \"buffer_logic_high\": {\n      \"description\": \"Buffer output state when the positive input exceeds the negative input\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"534\",\n        \"reference\": \"Eq 18.22\"\n      },\n      \"equation\": {\n        \"formula\": \"Vinp > Vinm -> out = '1'\",\n        \"explanation\": \"The differential buffer acts as a comparator. When the non-inverting input is higher, the output goes to logic high.\",\n        \"assumptions\": \"The input difference is large enough to overcome any inherent offset voltage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Logic '1' in a 1.8V CMOS process corresponds to the VDD rail.\",\n        \"range\": {\n          \"min\": 1.7,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The output stage of the buffer (SUB_1) is a CMOS inverter (xm5, xm7) tied directly to VDD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"buffer_logic_low\": {\n      \"description\": \"Buffer output state when the positive input is less than the negative input\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"534\",\n        \"reference\": \"Eq 18.23\"\n      },\n      \"equation\": {\n        \"formula\": \"Vinp < Vinm -> out = '0'\",\n        \"explanation\": \"The differential buffer acts as a comparator. When the inverting input is higher, the output goes to logic low.\",\n        \"assumptions\": \"The input difference is large enough to overcome any inherent offset voltage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Logic '0' in a CMOS process corresponds to the GND rail.\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 0.0,\n          \"max\": 0.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The output stage of the buffer (SUB_1) is a CMOS inverter (xm5, xm7) tied directly to GND.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"channel_time_constant\": {\n      \"description\": \"Time constant of the RC lowpass filter modeling the transmission channel\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"541\",\n        \"reference\": \"Discussion of Fig 18.30\"\n      },\n      \"equation\": {\n        \"formula\": \"tau = R * C\",\n        \"explanation\": \"The product of the series resistance and shunt capacitance determines the bandwidth of the modeled transmission channel.\",\n        \"assumptions\": \"Modeled as a simple first-order RC lowpass filter.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using the netlist values: tau = R3 * C4 = 1000 Ohm * 10e-12 F = 10 ns.\",\n        \"range\": {\n          \"min\": 9e-9,\n          \"typical\": 10e-9,\n          \"max\": 11e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Directly calculated from the passive component values provided in the netlist.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"average_voltage\": {\n      \"description\": \"The generated DC reference voltage at the midpoint of the input signal swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"539\",\n        \"reference\": \"Discussion of Fig 18.28\"\n      },\n      \"equation\": {\n        \"formula\": \"V_avg = (V_peak + V_valley) / 2\",\n        \"explanation\": \"The resistor divider (R1, R2) averages the voltages stored on the peak and valley capacitors to find the DC midpoint.\",\n        \"assumptions\": \"R1 = R2, and the peak/valley detectors accurately track the signal extrema without significant diode drops.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 10MHz 0-1.8V input pulse, the 10ns RC filter limits the swing at node 'In' to approximately 0.01V to 1.79V. V_avg = (1.79 + 0.01) / 2 = 0.9V.\",\n        \"range\": {\n          \"min\": 0.85,\n          \"typical\": 0.9,\n          \"max\": 0.95,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The circuit is designed to find the exact midpoint of the data swing to optimally slice it, which should be half of VDD for a full-swing input.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the steady-state peak, valley, and average voltages, as well as the logic high/low levels of the output buffer.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"average_voltage\",\n      \"buffer_logic_high\",\n      \"buffer_logic_low\"\n    ],\n    \"spice\": \"* DC Generation Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the subcircuit and top level\\n.param W_xm1=2 L_xm1=0.15\\n.param W_xm2=1 L_xm2=0.15\\n.param W_xm3=2 L_xm3=0.15\\n.param W_xm4=2 L_xm4=0.15\\n.param W_xm5=2 L_xm5=0.15\\n.param W_xm6=1 L_xm6=0.15\\n.param W_xm7=1 L_xm7=0.15\\n.param W_xm8=1 L_xm8=0.15\\n.param W_xm9=2 L_xm9=0.15\\n.param W_xm10=2 L_xm10=0.15\\n.param W_xm11=1 L_xm11=0.15\\n.param W_xm12=2 L_xm12=0.15\\n\\n* DUT\\nVDD VDD 0 1.8\\nX_U1 Max In N001 VDD 0 SUB_1\\nX_U2 Min In N002 VDD 0 SUB_1\\nX_U3 In Avg Out VDD 0 SUB_1\\nxm1 Max N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 Min N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nC1 Max 0 1e-12\\nC2 0 Min 1e-12\\nC3 Avg 0 1e-12\\nR1 Max Avg 100000.0\\nR2 Avg Min 100000.0\\nR3 Vin In 1000.0\\nC4 In 0 1e-11\\n\\n.subckt SUB_1 Vinp Vinm Out VDD GND\\n  xm1 N004 Vinm N005 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm3 N004 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N002 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm2 N002 Vinp N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  xm6 N005 N004 GND 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm5 Out N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\n  xm7 Out N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 N003 Vinm N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 N002 Vinp N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\n.ends SUB_1\\n\\n* Stimulus: 10MHz square wave\\nVvin Vin 0 PULSE(0 1.8 0 1n 1n 49n 100n)\\n\\n.control\\n  tran 1n 1u\\n  \\n  * Measure steady state values after startup transient (800ns to 1us)\\n  meas tran v_peak_ss max v(Max) from=800n to=1u\\n  meas tran v_valley_ss min v(Min) from=800n to=1u\\n  meas tran v_avg_ss avg v(Avg) from=800n to=1u\\n  \\n  * Measure logic high and low levels of the output buffer\\n  meas tran out_high max v(Out) from=800n to=1u\\n  meas tran out_low min v(Out) from=800n to=1u\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

@@ -1,0 +1,110 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Folded-Cascode Low Noise Amplifier (LNA) / Mixer Core",
+    "description": "This circuit is a folded-cascode front-end stage suitable for low-voltage RF applications. The NMOS acts as an RF transconductor, while the PMOS acts as a common-gate cascode device (for an LNA) or an LO switch (for a mixer), folding the signal current to the output and allowing operation from a low supply voltage.",
+    "node_mapping": {
+      "input": [
+        "VIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND"
+      ],
+      "internal": [
+        "ZT"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low-Voltage 1.9-GHz Front-End Receiver in 0.5-m CMOS Technology",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Small-signal voltage gain at the resonant frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "15 dB",
+        "technology": "0.5-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "NMOS Id = 0.5 * 270u * 10 * (0.9-0.42)^2 = 311uA. gm = 2*311u/0.48 = 1.3mA/V. With a 5kOhm tank load, Gain = gm * Rload = 6.5 V/V = 16.2 dB.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the quality factor and parallel resistance of the LC tank used as the load."
+      },
+      "importance": "essential"
+    },
+    "center_frequency": {
+      "description": "Frequency at which the LNA achieves maximum gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.9 GHz",
+        "technology": "0.5-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the LC tank. For L=5nH and C=1.4pF, f = 1 / (2*pi*sqrt(LC)) = 1.9 GHz.",
+        "range": {
+          "min": 1800000000.0,
+          "typical": 1900000000.0,
+          "max": 2000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Parasitic capacitances from the transistors will slightly lower the center frequency from the ideal LC resonance."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power drawn from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id_n = 311uA, Id_p = 193uA. Total current = 504uA. Power = 1.8V * 504uA = 0.9 mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.0009,
+          "max": 0.0015,
+          "unit": "W"
+        },
+        "reasoning": "Calculated using square-law models for SKY130 at VDD=1.8V with given bias voltages."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC voltage gain, center frequency, and power consumption of the folded-cascode LNA. An LC tank is added at the output to tune the amplifier to 1.9 GHz.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "center_frequency",
+      "power_consumption"
+    ],
+    "spice": "* Folded-Cascode LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmg=5u L_xmg=0.5u\n.param W_xms=5u L_xms=0.5u\n\nVVDD VDD 0 1.8\n* AC source for AC analysis, SIN for transient\nVVIN VIN 0 DC 0.9 AC 1 SIN(0.9 0.01 1.9G 0 0)\nVBIAS BIAS 0 DC 0.5\n\n* RF Choke for folding node (DC short to VDD, AC open)\nLZT ZT VDD 1m\n\n* LC Tank Load tuned to ~1.9 GHz\nLtank VOUT 0 5n\nCtank VOUT 0 1.4p\nRtank VOUT 0 5k\n\n* DUT\nXMG VOUT BIAS ZT VDD sky130_fd_pr__pfet_01v8 l={L_xmg} w={W_xmg}\nXMS ZT VIN GND GND sky130_fd_pr__nfet_01v8 l={L_xms} w={W_xms}\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 100MEG 10G\nlet gain_db = vdb(VOUT)\nmeas ac max_gain max gain_db\nmeas ac gain_19g find gain_db at=1.9G\n\ntran 10p 20n\nmeas tran v_out_max max v(VOUT) from=10n to=20n\nmeas tran v_out_min min v(VOUT) from=10n to=20n\nlet v_out_pp = v_out_max - v_out_min\nlet tran_gain = v_out_pp / 0.02\nprint tran_gain\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Folded-Cascode Low Noise Amplifier (LNA) / Mixer Core\",\n    \"description\": \"This circuit is a folded-cascode front-end stage suitable for low-voltage RF applications. The NMOS acts as an RF transconductor, while the PMOS acts as a common-gate cascode device (for an LNA) or an LO switch (for a mixer), folding the signal current to the output and allowing operation from a low supply voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"internal\": [\n        \"ZT\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low-Voltage 1.9-GHz Front-End Receiver in 0.5-m CMOS Technology\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Small-signal voltage gain at the resonant frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"15 dB\",\n        \"technology\": \"0.5-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NMOS Id = 0.5 * 270u * 10 * (0.9-0.42)^2 = 311uA. gm = 2*311u/0.48 = 1.3mA/V. With a 5kOhm tank load, Gain = gm * Rload = 6.5 V/V = 16.2 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the quality factor and parallel resistance of the LC tank used as the load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"center_frequency\": {\n      \"description\": \"Frequency at which the LNA achieves maximum gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.9 GHz\",\n        \"technology\": \"0.5-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the LC tank. For L=5nH and C=1.4pF, f = 1 / (2*pi*sqrt(LC)) = 1.9 GHz.\",\n        \"range\": {\n          \"min\": 1.8e9,\n          \"typical\": 1.9e9,\n          \"max\": 2.0e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Parasitic capacitances from the transistors will slightly lower the center frequency from the ideal LC resonance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power drawn from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id_n = 311uA, Id_p = 193uA. Total current = 504uA. Power = 1.8V * 504uA = 0.9 mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.9e-3,\n          \"max\": 1.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated using square-law models for SKY130 at VDD=1.8V with given bias voltages.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC voltage gain, center frequency, and power consumption of the folded-cascode LNA. An LC tank is added at the output to tune the amplifier to 1.9 GHz.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"center_frequency\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Folded-Cascode LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmg=5u L_xmg=0.5u\\n.param W_xms=5u L_xms=0.5u\\n\\nVVDD VDD 0 1.8\\n* AC source for AC analysis, SIN for transient\\nVVIN VIN 0 DC 0.9 AC 1 SIN(0.9 0.01 1.9G 0 0)\\nVBIAS BIAS 0 DC 0.5\\n\\n* RF Choke for folding node (DC short to VDD, AC open)\\nLZT ZT VDD 1m\\n\\n* LC Tank Load tuned to ~1.9 GHz\\nLtank VOUT 0 5n\\nCtank VOUT 0 1.4p\\nRtank VOUT 0 5k\\n\\n* DUT\\nXMG VOUT BIAS ZT VDD sky130_fd_pr__pfet_01v8 l={L_xmg} w={W_xmg}\\nXMS ZT VIN GND GND sky130_fd_pr__nfet_01v8 l={L_xms} w={W_xms}\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 100MEG 10G\\nlet gain_db = vdb(VOUT)\\nmeas ac max_gain max gain_db\\nmeas ac gain_19g find gain_db at=1.9G\\n\\ntran 10p 20n\\nmeas tran v_out_max max v(VOUT) from=10n to=20n\\nmeas tran v_out_min min v(VOUT) from=10n to=20n\\nlet v_out_pp = v_out_max - v_out_min\\nlet tran_gain = v_out_pp / 0.02\\nprint tran_gain\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "953471",
+  "_case": "953471_image_3_b"
+}

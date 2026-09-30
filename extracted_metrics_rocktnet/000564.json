@@ -1,0 +1,154 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Intelligent Power Amplifier MMIC with Adaptive Bias Control",
+    "description": "A high-linearity RF power amplifier that uses an on-chip adaptive bias control circuit. The bias circuit detects the input RF power level and dynamically increases the quiescent current of the main amplifier transistor at high power levels to improve linearity, while keeping it low at low power levels to maximize efficiency.",
+    "node_mapping": {
+      "input": [
+        "RFin"
+      ],
+      "output": [
+        "RFout",
+        "N7"
+      ],
+      "supply": [
+        "VCC",
+        "Vreg"
+      ],
+      "bias": [
+        "N1",
+        "N3",
+        "N5",
+        "N10"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Intelligent Power Amplifier MMIC Using a New Adaptive Bias Control Circuit for W-CDMA Applications",
+      "figure": "Generic",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "small_signal_gain": {
+      "description": "Small-signal voltage gain from input to output at the operating frequency (e.g., 1.9 GHz for W-CDMA).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly stated, but typically 10-15 dB for such stages",
+        "technology": "GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rload. With W=2000u, Id=5mA, gm~100mS. Gain = 100mS * 50 = 5 V/V = 14 dB.",
+        "range": {
+          "min": 10,
+          "typical": 14,
+          "max": 18,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on the exact sizing of the main PA transistor and the load impedance."
+      },
+      "importance": "essential"
+    },
+    "max_output_power": {
+      "description": "Maximum RF output power delivered to the load before severe clipping.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "28.3 dBm",
+        "technology": "GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = Vpeak^2 / (2*Rload). Max Vpeak ~ 1.5V for 1.8V supply. Pout = 1.5^2 / 100 = 22.5mW = 13.5 dBm.",
+        "range": {
+          "min": 10,
+          "typical": 13.5,
+          "max": 16,
+          "unit": "dBm"
+        },
+        "reasoning": "Scaled down for 1.8V CMOS process compared to higher voltage GaAs HBT."
+      },
+      "importance": "essential"
+    },
+    "quiescent_current_low_power": {
+      "description": "DC bias current of the main PA transistor with no RF input.",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "16 mA",
+        "technology": "GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the adaptive bias loop settling point. Scaled for SKY130 NMOS W=2000u, expected around 5mA.",
+        "range": {
+          "min": 0.002,
+          "typical": 0.005,
+          "max": 0.01,
+          "unit": "A"
+        },
+        "reasoning": "Adjusted for CMOS threshold and sizing to maintain class AB operation at low power."
+      },
+      "importance": "essential"
+    },
+    "dynamic_current_high_power": {
+      "description": "Average DC current of the main PA transistor under large RF drive.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "90 mA",
+        "technology": "GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Adaptive bias increases Vgs, increasing average Id to support large RF swings. Expected ~30-50mA.",
+        "range": {
+          "min": 0.02,
+          "typical": 0.04,
+          "max": 0.06,
+          "unit": "A"
+        },
+        "reasoning": "Proportional to the required RF current to drive 50 ohms at 1.5V peak."
+      },
+      "importance": "essential"
+    },
+    "power_added_efficiency": {
+      "description": "Ratio of RF output power to DC input power (PAE).",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Improved by 1.93 times",
+        "technology": "GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "PAE = Pout / Pdc. Pout = 22.5mW, Pdc = 1.8V * 40mA = 72mW. PAE = 22.5/72 = 31%.",
+        "range": {
+          "min": 20,
+          "typical": 30,
+          "max": 45,
+          "unit": "%"
+        },
+        "reasoning": "Typical for Class AB PA in CMOS."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures small-signal gain, output power, static quiescent current, dynamic bias current, and efficiency.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "small_signal_gain",
+      "max_output_power",
+      "quiescent_current_low_power",
+      "dynamic_current_high_power",
+      "power_added_efficiency"
+    ],
+    "spice": "* Intelligent Power Amplifier MMIC Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Modified DUT (HBT -> X for subcircuit mapping, added Vshort for N6-N7)\nX3 N5 N10 N9 npn_bias\nX4 Vreg N5 N1 npn_bias\nX1 N7 N1 GND npn_pa\nRFC N7 VCC 1m\nX2 N3 N4 GND npn_bias\nRb N1 N4 1k\nR3 N3 N10 1k\nR2 Vreg N3 10k\nR1 Vreg N5 10k\nR4 N9 GND 100\nC1 N2 RFout 10p\nC2 N1 RFin 10p\nCb N5 GND 10p\nC4 N2 GND 100f\nCbypass N3 GND 10p\nL1 RFin GND 10n\nR7 N2 N6 0\nVshort N6 N7 0\n\n* Subcircuits mapping NPN to SKY130 NMOS\n.subckt npn_bias c b e\nXM1 c b e e sky130_fd_pr__nfet_01v8 w=50u l=0.15u\n.ends\n\n.subckt npn_pa c b e\nXM1 c b e e sky130_fd_pr__nfet_01v8 w=2000u l=0.15u\n.ends\n\n* Supplies\nVCC VCC 0 dc 1.8\nVreg Vreg 0 dc 1.8\n\n* Input Source (1.9 GHz for W-CDMA)\nVac RFin 0 dc 0 ac 1 sin(0 0.5 1.9G)\n\n* Load\nRload RFout 0 50\n\n.control\n  * 1. DC Analysis (Low Power Quiescent State)\n  op\n  let Iq_static = -i(VCC)\n  print Iq_static\n  let V_bias_static = v(N1)\n  print V_bias_static\n\n  * 2. AC Analysis (Small-Signal Gain)\n  ac dec 10 100Meg 10G\n  let gain_db = vdb(RFout)\n  meas ac gain_19g find gain_db at=1.9G\n\n  * 3. Transient Analysis (High Power Dynamic State)\n  * Run for 300ns to allow the 100ns bias time constant to settle\n  tran 10p 300n\n  \n  * Measure Output Power\n  meas tran vout_max max v(RFout) from=250n to=300n\n  meas tran vout_min min v(RFout) from=250n to=300n\n  let vout_amp = (vout_max - vout_min) / 2\n  let Pout_W = (vout_amp * vout_amp) / (2 * 50)\n  let Pout_dBm = 10 * log10(Pout_W * 1000)\n  print Pout_dBm\n\n  * Measure Dynamic Bias Current\n  meas tran Iq_dynamic avg i(VCC) from=250n to=300n\n  let Iq_dyn_mA = -Iq_dynamic * 1000\n  print Iq_dyn_mA\n\n  * Measure Efficiency (Drain Efficiency ~ PAE for high gain)\n  let Pdc = -Iq_dynamic * 1.8\n  let PAE = (Pout_W) / Pdc * 100\n  print PAE\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Intelligent Power Amplifier MMIC with Adaptive Bias Control\",\n    \"description\": \"A high-linearity RF power amplifier that uses an on-chip adaptive bias control circuit. The bias circuit detects the input RF power level and dynamically increases the quiescent current of the main amplifier transistor at high power levels to improve linearity, while keeping it low at low power levels to maximize efficiency.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RFin\"\n      ],\n      \"output\": [\n        \"RFout\",\n        \"N7\"\n      ],\n      \"supply\": [\n        \"VCC\",\n        \"Vreg\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"N3\",\n        \"N5\",\n        \"N10\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Intelligent Power Amplifier MMIC Using a New Adaptive Bias Control Circuit for W-CDMA Applications\",\n      \"figure\": \"Generic\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"small_signal_gain\": {\n      \"description\": \"Small-signal voltage gain from input to output at the operating frequency (e.g., 1.9 GHz for W-CDMA).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated, but typically 10-15 dB for such stages\",\n        \"technology\": \"GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rload. With W=2000u, Id=5mA, gm~100mS. Gain = 100mS * 50 = 5 V/V = 14 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 14,\n          \"max\": 18,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on the exact sizing of the main PA transistor and the load impedance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"max_output_power\": {\n      \"description\": \"Maximum RF output power delivered to the load before severe clipping.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"28.3 dBm\",\n        \"technology\": \"GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = Vpeak^2 / (2*Rload). Max Vpeak ~ 1.5V for 1.8V supply. Pout = 1.5^2 / 100 = 22.5mW = 13.5 dBm.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 13.5,\n          \"max\": 16,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Scaled down for 1.8V CMOS process compared to higher voltage GaAs HBT.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quiescent_current_low_power\": {\n      \"description\": \"DC bias current of the main PA transistor with no RF input.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"16 mA\",\n        \"technology\": \"GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the adaptive bias loop settling point. Scaled for SKY130 NMOS W=2000u, expected around 5mA.\",\n        \"range\": {\n          \"min\": 2e-3,\n          \"typical\": 5e-3,\n          \"max\": 10e-3,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Adjusted for CMOS threshold and sizing to maintain class AB operation at low power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dynamic_current_high_power\": {\n      \"description\": \"Average DC current of the main PA transistor under large RF drive.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"90 mA\",\n        \"technology\": \"GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Adaptive bias increases Vgs, increasing average Id to support large RF swings. Expected ~30-50mA.\",\n        \"range\": {\n          \"min\": 20e-3,\n          \"typical\": 40e-3,\n          \"max\": 60e-3,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Proportional to the required RF current to drive 50 ohms at 1.5V peak.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_added_efficiency\": {\n      \"description\": \"Ratio of RF output power to DC input power (PAE).\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Improved by 1.93 times\",\n        \"technology\": \"GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PAE = Pout / Pdc. Pout = 22.5mW, Pdc = 1.8V * 40mA = 72mW. PAE = 22.5/72 = 31%.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 30,\n          \"max\": 45,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Typical for Class AB PA in CMOS.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures small-signal gain, output power, static quiescent current, dynamic bias current, and efficiency.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"small_signal_gain\",\n      \"max_output_power\",\n      \"quiescent_current_low_power\",\n      \"dynamic_current_high_power\",\n      \"power_added_efficiency\"\n    ],\n    \"spice\": \"* Intelligent Power Amplifier MMIC Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Modified DUT (HBT -> X for subcircuit mapping, added Vshort for N6-N7)\\nX3 N5 N10 N9 npn_bias\\nX4 Vreg N5 N1 npn_bias\\nX1 N7 N1 GND npn_pa\\nRFC N7 VCC 1m\\nX2 N3 N4 GND npn_bias\\nRb N1 N4 1k\\nR3 N3 N10 1k\\nR2 Vreg N3 10k\\nR1 Vreg N5 10k\\nR4 N9 GND 100\\nC1 N2 RFout 10p\\nC2 N1 RFin 10p\\nCb N5 GND 10p\\nC4 N2 GND 100f\\nCbypass N3 GND 10p\\nL1 RFin GND 10n\\nR7 N2 N6 0\\nVshort N6 N7 0\\n\\n* Subcircuits mapping NPN to SKY130 NMOS\\n.subckt npn_bias c b e\\nXM1 c b e e sky130_fd_pr__nfet_01v8 w=50u l=0.15u\\n.ends\\n\\n.subckt npn_pa c b e\\nXM1 c b e e sky130_fd_pr__nfet_01v8 w=2000u l=0.15u\\n.ends\\n\\n* Supplies\\nVCC VCC 0 dc 1.8\\nVreg Vreg 0 dc 1.8\\n\\n* Input Source (1.9 GHz for W-CDMA)\\nVac RFin 0 dc 0 ac 1 sin(0 0.5 1.9G)\\n\\n* Load\\nRload RFout 0 50\\n\\n.control\\n  * 1. DC Analysis (Low Power Quiescent State)\\n  op\\n  let Iq_static = -i(VCC)\\n  print Iq_static\\n  let V_bias_static = v(N1)\\n  print V_bias_static\\n\\n  * 2. AC Analysis (Small-Signal Gain)\\n  ac dec 10 100Meg 10G\\n  let gain_db = vdb(RFout)\\n  meas ac gain_19g find gain_db at=1.9G\\n\\n  * 3. Transient Analysis (High Power Dynamic State)\\n  * Run for 300ns to allow the 100ns bias time constant to settle\\n  tran 10p 300n\\n  \\n  * Measure Output Power\\n  meas tran vout_max max v(RFout) from=250n to=300n\\n  meas tran vout_min min v(RFout) from=250n to=300n\\n  let vout_amp = (vout_max - vout_min) / 2\\n  let Pout_W = (vout_amp * vout_amp) / (2 * 50)\\n  let Pout_dBm = 10 * log10(Pout_W * 1000)\\n  print Pout_dBm\\n\\n  * Measure Dynamic Bias Current\\n  meas tran Iq_dynamic avg i(VCC) from=250n to=300n\\n  let Iq_dyn_mA = -Iq_dynamic * 1000\\n  print Iq_dyn_mA\\n\\n  * Measure Efficiency (Drain Efficiency ~ PAE for high gain)\\n  let Pdc = -Iq_dynamic * 1.8\\n  let PAE = (Pout_W) / Pdc * 100\\n  print PAE\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1302275",
+  "_case": "1302275_image_2"
+}

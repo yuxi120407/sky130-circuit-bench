@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Load-Adaptive Output Buffer",
+    "description": "An output buffer circuit designed to adapt to different load capacitances while minimizing switching noise. It consists of parallel inverter stages (pull-up and pull-down networks) that can be selectively enabled to adjust drive strength.",
+    "node_mapping": {
+      "input": [
+        "N1",
+        "N4",
+        "N5",
+        "N6"
+      ],
+      "output": [
+        "N0",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low Switching Noise and Load-Adaptive Output Buffer Design Techniques",
+      "figure": "Not specified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "t_rise": {
+      "description": "Rise time of the output signal (10% to 90% of VDD)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly given, but evaluated under 40pF, 80pF, 160pF loads",
+        "technology": "3.3V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_rise \u2248 C_load * \u0394V / I_drive. For 40pF load, \u0394V = 1.44V, and PMOS drive current (W=5u, L=0.5u) \u2248 2.5mA. t_rise \u2248 40pF * 1.44V / 2.5mA \u2248 23ns.",
+        "range": {
+          "min": "10ns",
+          "typical": "23ns",
+          "max": "40ns",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the load capacitance (40pF used as reference from paper) and the number of parallel PMOS devices enabled."
+      },
+      "importance": "essential"
+    },
+    "t_fall": {
+      "description": "Fall time of the output signal (90% to 10% of VDD)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly given",
+        "technology": "3.3V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_fall \u2248 C_load * \u0394V / I_drive. NMOS drive current is roughly 2x PMOS for same W/L. I_drive \u2248 5mA. t_fall \u2248 40pF * 1.44V / 5mA \u2248 11.5ns.",
+        "range": {
+          "min": "5ns",
+          "typical": "12ns",
+          "max": "20ns",
+          "unit": "s"
+        },
+        "reasoning": "NMOS devices typically have higher mobility, leading to faster fall times compared to rise times for equal sizing."
+      },
+      "importance": "essential"
+    },
+    "t_pd": {
+      "description": "Propagation delay from input crossing 50% to output crossing 50%",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Discussed as a key optimization metric",
+        "technology": "3.3V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay is approximately half of the rise/fall time for a lumped capacitive load.",
+        "range": {
+          "min": "2ns",
+          "typical": "8ns",
+          "max": "15ns",
+          "unit": "s"
+        },
+        "reasoning": "The primary goal of the paper is to shorten delay time while managing noise, making this a critical metric."
+      },
+      "importance": "essential"
+    },
+    "avg_power": {
+      "description": "Average power consumption during switching",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly given",
+        "technology": "3.3V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P_dyn = C_load * VDD^2 * f. For 40pF, 1.8V, and 25MHz input: P \u2248 40e-12 * 1.8^2 * 25e6 \u2248 3.24mW.",
+        "range": {
+          "min": "1mW",
+          "typical": "3.5mW",
+          "max": "10mW",
+          "unit": "W"
+        },
+        "reasoning": "Dominated by the dynamic power required to charge and discharge the large 40pF load capacitance."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure rise time, fall time, propagation delay, and average power of the output buffer driving a 40pF load.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "t_rise",
+      "t_fall",
+      "t_pd_hl",
+      "t_pd_lh",
+      "avg_pwr"
+    ],
+    "spice": "* Load-Adaptive Output Buffer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\n* DUT\nXM1 N0 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* Input Stimulus (25MHz, 1.8V swing)\nVIN IN 0 PULSE(0 1.8 5n 0.1n 0.1n 20n 40n)\n\n* Tie all control/input nodes together to enable maximum drive strength\nV1 N1 IN 0\nV4 N4 IN 0\nV5 N5 IN 0\nV6 N6 IN 0\n\n* Load Capacitors (40pF as reported in paper)\nCLOAD N0 0 40p\nCLOAD2 N2 0 40p\n\n.control\ntran 0.1n 100n\n\n* Measure Rise and Fall Times at main output N0\nmeas tran t_rise trig v(N0) val=0.18 rise=1 targ v(N0) val=1.62 rise=1\nmeas tran t_fall trig v(N0) val=1.62 fall=1 targ v(N0) val=0.18 fall=1\n\n* Measure Propagation Delay\nmeas tran t_pd_hl trig v(IN) val=0.9 rise=1 targ v(N0) val=0.9 fall=1\nmeas tran t_pd_lh trig v(IN) val=0.9 fall=1 targ v(N0) val=0.9 rise=1\n\n* Measure Average Power\nlet pwr = -i(VVDD)*1.8\nmeas tran avg_pwr avg pwr from=0 to=100n\n\nprint t_rise t_fall t_pd_hl t_pd_lh avg_pwr\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Load-Adaptive Output Buffer\",\n    \"description\": \"An output buffer circuit designed to adapt to different load capacitances while minimizing switching noise. It consists of parallel inverter stages (pull-up and pull-down networks) that can be selectively enabled to adjust drive strength.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\",\n        \"N4\",\n        \"N5\",\n        \"N6\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low Switching Noise and Load-Adaptive Output Buffer Design Techniques\",\n      \"figure\": \"Not specified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"t_rise\": {\n      \"description\": \"Rise time of the output signal (10% to 90% of VDD)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly given, but evaluated under 40pF, 80pF, 160pF loads\",\n        \"technology\": \"3.3V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise \u2248 C_load * \u0394V / I_drive. For 40pF load, \u0394V = 1.44V, and PMOS drive current (W=5u, L=0.5u) \u2248 2.5mA. t_rise \u2248 40pF * 1.44V / 2.5mA \u2248 23ns.\",\n        \"range\": {\n          \"min\": \"10ns\",\n          \"typical\": \"23ns\",\n          \"max\": \"40ns\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the load capacitance (40pF used as reference from paper) and the number of parallel PMOS devices enabled.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_fall\": {\n      \"description\": \"Fall time of the output signal (90% to 10% of VDD)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly given\",\n        \"technology\": \"3.3V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_fall \u2248 C_load * \u0394V / I_drive. NMOS drive current is roughly 2x PMOS for same W/L. I_drive \u2248 5mA. t_fall \u2248 40pF * 1.44V / 5mA \u2248 11.5ns.\",\n        \"range\": {\n          \"min\": \"5ns\",\n          \"typical\": \"12ns\",\n          \"max\": \"20ns\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"NMOS devices typically have higher mobility, leading to faster fall times compared to rise times for equal sizing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_pd\": {\n      \"description\": \"Propagation delay from input crossing 50% to output crossing 50%\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Discussed as a key optimization metric\",\n        \"technology\": \"3.3V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is approximately half of the rise/fall time for a lumped capacitive load.\",\n        \"range\": {\n          \"min\": \"2ns\",\n          \"typical\": \"8ns\",\n          \"max\": \"15ns\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The primary goal of the paper is to shorten delay time while managing noise, making this a critical metric.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"avg_power\": {\n      \"description\": \"Average power consumption during switching\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly given\",\n        \"technology\": \"3.3V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_dyn = C_load * VDD^2 * f. For 40pF, 1.8V, and 25MHz input: P \u2248 40e-12 * 1.8^2 * 25e6 \u2248 3.24mW.\",\n        \"range\": {\n          \"min\": \"1mW\",\n          \"typical\": \"3.5mW\",\n          \"max\": \"10mW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dominated by the dynamic power required to charge and discharge the large 40pF load capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure rise time, fall time, propagation delay, and average power of the output buffer driving a 40pF load.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"t_rise\",\n      \"t_fall\",\n      \"t_pd_hl\",\n      \"t_pd_lh\",\n      \"avg_pwr\"\n    ],\n    \"spice\": \"* Load-Adaptive Output Buffer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\n* DUT\\nXM1 N0 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* Input Stimulus (25MHz, 1.8V swing)\\nVIN IN 0 PULSE(0 1.8 5n 0.1n 0.1n 20n 40n)\\n\\n* Tie all control/input nodes together to enable maximum drive strength\\nV1 N1 IN 0\\nV4 N4 IN 0\\nV5 N5 IN 0\\nV6 N6 IN 0\\n\\n* Load Capacitors (40pF as reported in paper)\\nCLOAD N0 0 40p\\nCLOAD2 N2 0 40p\\n\\n.control\\ntran 0.1n 100n\\n\\n* Measure Rise and Fall Times at main output N0\\nmeas tran t_rise trig v(N0) val=0.18 rise=1 targ v(N0) val=1.62 rise=1\\nmeas tran t_fall trig v(N0) val=1.62 fall=1 targ v(N0) val=0.18 fall=1\\n\\n* Measure Propagation Delay\\nmeas tran t_pd_hl trig v(IN) val=0.9 rise=1 targ v(N0) val=0.9 fall=1\\nmeas tran t_pd_lh trig v(IN) val=0.9 fall=1 targ v(N0) val=0.9 rise=1\\n\\n* Measure Average Power\\nlet pwr = -i(VVDD)*1.8\\nmeas tran avg_pwr avg pwr from=0 to=100n\\n\\nprint t_rise t_fall t_pd_hl t_pd_lh avg_pwr\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "938374",
+  "_case": "938374_image_5"
+}

@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Continuous-Time FIR Filter Tap / Delay Cell",
+    "description": "A PMOS common-source amplifier with a diode-connected PMOS load, representing one half of a pseudo-differential delay cell. It acts as a first-order low-pass filter to provide a tunable fractional delay for a continuous-time FIR equalizer.",
+    "node_mapping": {
+      "input": [
+        "IN_PLUS"
+      ],
+      "output": [
+        "OUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS 0.25-m Continuous-Time FIR Filter With 125 ps per Tap Delay as a Fractionally Spaced Receiver Equalizer for 1-Gb/s Data Transmission",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency voltage gain of the delay cell.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm2 / gm1. Since XM1 and XM2 have identical W/L and similar bias currents, gm1 \u2248 gm2, yielding a gain of ~1 V/V or 0 dB.",
+        "range": {
+          "min": -2,
+          "typical": 0,
+          "max": 2,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the ratio of transconductances of the input and load PMOS devices."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the low-pass filter tap.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "800 MHz to 2.1 GHz",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = gm1 / (2 * pi * Cload). With gm1 \u2248 240uS and an assumed 50fF load, BW \u2248 760 MHz.",
+        "range": {
+          "min": 500000000,
+          "typical": 800000000,
+          "max": 2000000000,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is tunable via bias current (which changes gm1) and depends heavily on the load capacitance."
+      },
+      "importance": "essential"
+    },
+    "group_delay": {
+      "description": "Propagation delay through the filter tap.",
+      "unit": "ps",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "100 ps to 300 ps (125 ps nominal)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay \u2248 Cload / gm1. With 50fF load and 240uS gm1, delay \u2248 208 ps.",
+        "range": {
+          "min": 100,
+          "typical": 200,
+          "max": 300,
+          "unit": "ps"
+        },
+        "reasoning": "Matches the paper's tunable delay range. Adjusted by changing the bias current."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "DC power dissipation of the single tap half-circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "45 mW (total filter)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * Ibias = 1.8V * 115uA = 207 uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0002,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "A single half-tap consumes a fraction of the total 45mW reported for the entire 6-tap differential filter."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, -3dB bandwidth, group delay, and power consumption of the FIR filter tap.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "bw_3db",
+      "group_delay",
+      "power"
+    ],
+    "spice": "* Continuous-Time FIR Filter Tap Delay Cell\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 OUT_MINUS OUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUT_MINUS IN_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\n\nVVDD VDD 0 1.8\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 1 SIN(0.9 0.1 100MEG 0 0)\n\n* Bias current sink to ground to enable operation\nIbias OUT_MINUS 0 115u\n* Load capacitance to set bandwidth and delay\nCload OUT_MINUS 0 50f\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1MEG 10G\nlet gain_db = vdb(OUT_MINUS)\nmeas ac dc_gain find gain_db at=1MEG\nlet gain_db_3db = dc_gain - 3\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\n\n* Calculate group delay from phase derivative\nlet phase_rad = cph(v(OUT_MINUS))\nlet group_delay = -1 * deriv(phase_rad) / (2 * 3.14159265359)\nmeas ac delay_100M find group_delay at=100MEG\n\ntran 10p 30n\nmeas tran t_in trig v(IN_PLUS) val=0.9 rise=2\nmeas tran t_out trig v(OUT_MINUS) val=0.9 fall=2\nlet delay_tran = t_out - t_in\nprint delay_tran\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Continuous-Time FIR Filter Tap / Delay Cell\",\n    \"description\": \"A PMOS common-source amplifier with a diode-connected PMOS load, representing one half of a pseudo-differential delay cell. It acts as a first-order low-pass filter to provide a tunable fractional delay for a continuous-time FIR equalizer.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN_PLUS\"\n      ],\n      \"output\": [\n        \"OUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS 0.25-m Continuous-Time FIR Filter With 125 ps per Tap Delay as a Fractionally Spaced Receiver Equalizer for 1-Gb/s Data Transmission\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency voltage gain of the delay cell.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm2 / gm1. Since XM1 and XM2 have identical W/L and similar bias currents, gm1 \u2248 gm2, yielding a gain of ~1 V/V or 0 dB.\",\n        \"range\": {\n          \"min\": -2,\n          \"typical\": 0,\n          \"max\": 2,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by the ratio of transconductances of the input and load PMOS devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the low-pass filter tap.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"800 MHz to 2.1 GHz\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = gm1 / (2 * pi * Cload). With gm1 \u2248 240uS and an assumed 50fF load, BW \u2248 760 MHz.\",\n        \"range\": {\n          \"min\": 500000000,\n          \"typical\": 800000000,\n          \"max\": 2000000000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is tunable via bias current (which changes gm1) and depends heavily on the load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"group_delay\": {\n      \"description\": \"Propagation delay through the filter tap.\",\n      \"unit\": \"ps\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"100 ps to 300 ps (125 ps nominal)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay \u2248 Cload / gm1. With 50fF load and 240uS gm1, delay \u2248 208 ps.\",\n        \"range\": {\n          \"min\": 100,\n          \"typical\": 200,\n          \"max\": 300,\n          \"unit\": \"ps\"\n        },\n        \"reasoning\": \"Matches the paper's tunable delay range. Adjusted by changing the bias current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"DC power dissipation of the single tap half-circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"45 mW (total filter)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * Ibias = 1.8V * 115uA = 207 uW.\",\n        \"range\": {\n          \"min\": 0.0001,\n          \"typical\": 0.0002,\n          \"max\": 0.0005,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"A single half-tap consumes a fraction of the total 45mW reported for the entire 6-tap differential filter.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, -3dB bandwidth, group delay, and power consumption of the FIR filter tap.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"bw_3db\",\n      \"group_delay\",\n      \"power\"\n    ],\n    \"spice\": \"* Continuous-Time FIR Filter Tap Delay Cell\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 OUT_MINUS OUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUT_MINUS IN_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVVDD VDD 0 1.8\\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 1 SIN(0.9 0.1 100MEG 0 0)\\n\\n* Bias current sink to ground to enable operation\\nIbias OUT_MINUS 0 115u\\n* Load capacitance to set bandwidth and delay\\nCload OUT_MINUS 0 50f\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1MEG 10G\\nlet gain_db = vdb(OUT_MINUS)\\nmeas ac dc_gain find gain_db at=1MEG\\nlet gain_db_3db = dc_gain - 3\\nmeas ac bw_3db when gain_db=gain_db_3db fall=1\\n\\n* Calculate group delay from phase derivative\\nlet phase_rad = cph(v(OUT_MINUS))\\nlet group_delay = -1 * deriv(phase_rad) / (2 * 3.14159265359)\\nmeas ac delay_100M find group_delay at=100MEG\\n\\ntran 10p 30n\\nmeas tran t_in trig v(IN_PLUS) val=0.9 rise=2\\nmeas tran t_out trig v(OUT_MINUS) val=0.9 fall=2\\nlet delay_tran = t_out - t_in\\nprint delay_tran\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1408079",
+  "_case": "1408079_image_6"
+}

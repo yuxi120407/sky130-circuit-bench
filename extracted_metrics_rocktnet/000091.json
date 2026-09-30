@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Common-Source Amplifier with Active Load",
+    "description": "A single-stage common-source amplifier utilizing an NMOS input transistor and a PMOS active load. It is likely a core gain stage of the Low Noise Amplifier (LNA) or IF amplifier mentioned in the paper, providing voltage gain for RF signals around 1.9 GHz.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "N3"
+      ],
+      "supply": [
+        "N0",
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_1"
+      ],
+      "ground": [
+        "N2",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low-Voltage 1.9-GHz Front-End Receiver in 0.5-m CMOS Technology",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "DC_Power": {
+      "description": "Total DC power consumption of the amplifier stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1-V supply (implied low power)",
+        "technology": "0.5-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "PMOS Vsg = 1.8V - 0.9V = 0.9V. Vov = 0.9 - 0.42 = 0.48V. Id = 0.5 * 50u * 10 * 0.48^2 = 57.6 uA. Power = 57.6 uA * 1.8 V = 103.7 uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.0001,
+          "max": 0.0002,
+          "unit": "W"
+        },
+        "reasoning": "Calculated using SKY130 square-law parameters for the given bias voltage of 0.9V."
+      },
+      "importance": "essential"
+    },
+    "Low_Freq_Gain": {
+      "description": "Maximum voltage gain at low frequencies.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "gm_n = 2*Id/Vov_n = 559 uS. Rout = ro_n || ro_p = 173k || 173k = 86.5 kOhm. Gain = gm * Rout = 48.3 V/V = 33.6 dB.",
+        "range": {
+          "min": 25,
+          "typical": 33,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Standard common-source intrinsic gain calculation."
+      },
+      "importance": "essential"
+    },
+    "Gain_1_9GHz": {
+      "description": "Voltage gain at the target operating frequency of 1.9 GHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "15 dB",
+        "technology": "0.5-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 10fF load capacitance, the dominant pole is at ~180 MHz. At 1.9 GHz (approx 1 decade higher), the gain drops by ~20 dB from the low-frequency value (33.6 - 20 = 13.6 dB).",
+        "range": {
+          "min": 10,
+          "typical": 14,
+          "max": 18,
+          "unit": "dB"
+        },
+        "reasoning": "Matches the 15 dB LNA gain reported in the paper, adjusted for a generic 10fF parasitic load in SKY130."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth_3dB": {
+      "description": "The frequency at which the voltage gain drops by 3 dB from its maximum low-frequency value.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * Rout * Cload) = 1 / (2 * pi * 86.5k * 10fF) = 184 MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 180000000.0,
+          "max": 300000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the assumed output load capacitance (10fF)."
+      },
+      "importance": "recommended"
+    },
+    "Noise_Figure": {
+      "description": "Noise figure of the amplifier at 1.9 GHz.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "1.8 dB",
+        "technology": "0.5-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on gm and source resistance. Minimum NF is typically 1-2 dB for modern CMOS LNAs.",
+        "range": {
+          "min": 1.0,
+          "typical": 2.0,
+          "max": 3.0,
+          "unit": "dB"
+        },
+        "reasoning": "SKY130 has a higher fT than 0.5um CMOS, so the noise figure should be comparable or slightly better."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, low-frequency gain, 1.9 GHz gain, 3-dB bandwidth, and transient output swing of the common-source amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Power",
+      "Low_Freq_Gain",
+      "Gain_1_9GHz",
+      "Bandwidth_3dB",
+      "Vout_pp"
+    ],
+    "spice": "* Common-Source Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N0 LABEL_NET_1 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 N1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Power Supplies\nVVDD VDD 0 1.8\nV_N0 N0 0 1.8\nV_N2 N2 0 0\nVGND GND 0 0\n\n* PMOS Active Load Bias\nVLABEL_NET_1 LABEL_NET_1 0 0.9\n\n* Self-bias feedback resistor to keep NMOS in saturation\nRbias N3 N1 10Meg\n\n* AC and Transient Input Source\nCac IN_AC N1 1u\nVac IN_AC 0 DC 0 AC 1 SIN(0 10m 1.9G)\n\n* Load capacitance to simulate next stage / parasitics\nCload N3 0 10f\n\n.control\n  * DC Operating Point\n  op\n  let power = -(i(VVDD) + i(V_N0)) * 1.8\n  let v_out_dc = v(N3)\n  print power v_out_dc\n\n  * AC Analysis\n  ac dec 100 1k 10G\n  let gain_db = vdb(N3)\n  meas ac low_freq_gain find gain_db at=10k\n  meas ac gain_19g find gain_db at=1.9G\n  \n  let gain_3db = low_freq_gain - 3\n  meas ac bw_3db when gain_db=gain_3db fall=1\n\n  * Transient Analysis\n  tran 10p 5n\n  meas tran vout_max max v(N3) from=2n to=5n\n  meas tran vout_min min v(N3) from=2n to=5n\n  let vout_pp = vout_max - vout_min\n  print vout_pp\n\n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Common-Source Amplifier with Active Load\",\n    \"description\": \"A single-stage common-source amplifier utilizing an NMOS input transistor and a PMOS active load. It is likely a core gain stage of the Low Noise Amplifier (LNA) or IF amplifier mentioned in the paper, providing voltage gain for RF signals around 1.9 GHz.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\"\n      ],\n      \"output\": [\n        \"N3\"\n      ],\n      \"supply\": [\n        \"N0\",\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_1\"\n      ],\n      \"ground\": [\n        \"N2\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low-Voltage 1.9-GHz Front-End Receiver in 0.5-m CMOS Technology\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Power\": {\n      \"description\": \"Total DC power consumption of the amplifier stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1-V supply (implied low power)\",\n        \"technology\": \"0.5-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PMOS Vsg = 1.8V - 0.9V = 0.9V. Vov = 0.9 - 0.42 = 0.48V. Id = 0.5 * 50u * 10 * 0.48^2 = 57.6 uA. Power = 57.6 uA * 1.8 V = 103.7 uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 100e-6,\n          \"max\": 200e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated using SKY130 square-law parameters for the given bias voltage of 0.9V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Low_Freq_Gain\": {\n      \"description\": \"Maximum voltage gain at low frequencies.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm_n = 2*Id/Vov_n = 559 uS. Rout = ro_n || ro_p = 173k || 173k = 86.5 kOhm. Gain = gm * Rout = 48.3 V/V = 33.6 dB.\",\n        \"range\": {\n          \"min\": 25,\n          \"typical\": 33,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard common-source intrinsic gain calculation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Gain_1_9GHz\": {\n      \"description\": \"Voltage gain at the target operating frequency of 1.9 GHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"15 dB\",\n        \"technology\": \"0.5-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 10fF load capacitance, the dominant pole is at ~180 MHz. At 1.9 GHz (approx 1 decade higher), the gain drops by ~20 dB from the low-frequency value (33.6 - 20 = 13.6 dB).\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 14,\n          \"max\": 18,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Matches the 15 dB LNA gain reported in the paper, adjusted for a generic 10fF parasitic load in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth_3dB\": {\n      \"description\": \"The frequency at which the voltage gain drops by 3 dB from its maximum low-frequency value.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * Rout * Cload) = 1 / (2 * pi * 86.5k * 10fF) = 184 MHz.\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 180e6,\n          \"max\": 300e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the assumed output load capacitance (10fF).\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Noise_Figure\": {\n      \"description\": \"Noise figure of the amplifier at 1.9 GHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"1.8 dB\",\n        \"technology\": \"0.5-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on gm and source resistance. Minimum NF is typically 1-2 dB for modern CMOS LNAs.\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 2.0,\n          \"max\": 3.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SKY130 has a higher fT than 0.5um CMOS, so the noise figure should be comparable or slightly better.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, low-frequency gain, 1.9 GHz gain, 3-dB bandwidth, and transient output swing of the common-source amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Power\",\n      \"Low_Freq_Gain\",\n      \"Gain_1_9GHz\",\n      \"Bandwidth_3dB\",\n      \"Vout_pp\"\n    ],\n    \"spice\": \"* Common-Source Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N0 LABEL_NET_1 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 N1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Power Supplies\\nVVDD VDD 0 1.8\\nV_N0 N0 0 1.8\\nV_N2 N2 0 0\\nVGND GND 0 0\\n\\n* PMOS Active Load Bias\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\n\\n* Self-bias feedback resistor to keep NMOS in saturation\\nRbias N3 N1 10Meg\\n\\n* AC and Transient Input Source\\nCac IN_AC N1 1u\\nVac IN_AC 0 DC 0 AC 1 SIN(0 10m 1.9G)\\n\\n* Load capacitance to simulate next stage / parasitics\\nCload N3 0 10f\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -(i(VVDD) + i(V_N0)) * 1.8\\n  let v_out_dc = v(N3)\\n  print power v_out_dc\\n\\n  * AC Analysis\\n  ac dec 100 1k 10G\\n  let gain_db = vdb(N3)\\n  meas ac low_freq_gain find gain_db at=10k\\n  meas ac gain_19g find gain_db at=1.9G\\n  \\n  let gain_3db = low_freq_gain - 3\\n  meas ac bw_3db when gain_db=gain_3db fall=1\\n\\n  * Transient Analysis\\n  tran 10p 5n\\n  meas tran vout_max max v(N3) from=2n to=5n\\n  meas tran vout_min min v(N3) from=2n to=5n\\n  let vout_pp = vout_max - vout_min\\n  print vout_pp\\n\\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "953471",
+  "_case": "953471_image_6"
+}

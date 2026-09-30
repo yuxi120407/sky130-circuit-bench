@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CMOS Temperature Sensor Front-End",
+    "description": "A switched-capacitor front-end for a BJT-based CMOS temperature sensor. It extracts the temperature-dependent delta VBE (PTAT voltage) from two diode-connected substrate PNPs biased at a 1:5 current ratio, and amplifies it.",
+    "node_mapping": {
+      "input": [
+        "VIN_POS",
+        "VIN_NEG"
+      ],
+      "output": [
+        "VINT_POS",
+        "VINT_NEG"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Temperature Sensor with a VoltageCalibrated Inaccuracy of \u00b10.15\u00b0C (3\u03c3) From -55 to 125\u00b0C",
+      "figure": "unknown",
+      "year": 2012
+    }
+  },
+  "step2_metrics": {
+    "delta_vbe": {
+      "description": "Proportional To Absolute Temperature (PTAT) voltage difference between the two PNP emitters.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "100mV (approximate full scale)",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "VT * ln(5) = 25.7mV * 1.609 = 41.3mV at 25C",
+        "range": {
+          "min": 0.04,
+          "typical": 0.041,
+          "max": 0.045,
+          "unit": "V"
+        },
+        "reasoning": "Based on the 1:5 current ratio (2I and 10I) and ideal BJT physics at room temperature."
+      },
+      "importance": "essential"
+    },
+    "ptat_slope": {
+      "description": "Temperature coefficient of the delta VBE voltage.",
+      "unit": "V/C",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "(k/q) * ln(5) = 86.17uV/K * 1.609 = 138.7uV/C",
+        "range": {
+          "min": 0.00013,
+          "typical": 0.000138,
+          "max": 0.000145,
+          "unit": "V/C"
+        },
+        "reasoning": "Theoretical derivative of VT*ln(5) with respect to temperature."
+      },
+      "importance": "essential"
+    },
+    "amplifier_gain": {
+      "description": "Midband voltage gain of the amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "76dB",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Modeled as ideal VCVS with gain 6300",
+        "range": {
+          "min": 75,
+          "typical": 76,
+          "max": 77,
+          "unit": "dB"
+        },
+        "reasoning": "Directly set in the testbench subcircuit to match the paper's reported 76dB gain."
+      },
+      "importance": "recommended"
+    },
+    "power_consumption": {
+      "description": "Total static power consumption of the front-end.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "27nJ per operation",
+        "technology": "0.16\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * (2*I_bias + 10*I_bias) = 1.8V * 12uA = 21.6uW",
+        "range": {
+          "min": 2e-05,
+          "typical": 2.16e-05,
+          "max": 2.5e-05,
+          "unit": "W"
+        },
+        "reasoning": "Assuming a 1uA base bias current for the current sources."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure PTAT voltage, temperature coefficient, power, and amplifier gain.",
+    "analyses": [
+      "OP",
+      "DC",
+      "AC"
+    ],
+    "metrics_measured": [
+      "delta_vbe",
+      "ptat_slope",
+      "power_consumption",
+      "amplifier_gain"
+    ],
+    "spice": "* CMOS Temperature Sensor Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param I_bias=1u C_S=120f k=5\n\n* DUT (Modified syntax for ngspice compatibility)\nI1 VDD VIN_POS {2*I_bias}\nI2 VDD VIN_NEG {10*I_bias}\nQL GND GND VIN_POS pnp\nQR GND GND VIN_NEG pnp\nC3 VIN_POS VINT_POS {C_S}\nC2 VIN_POS IN_POS {k*C_S}\nC1 VIN_NEG IN_NEG {k*C_S}\nC4 GND VINT_NEG {C_S}\nX1 IN_POS IN_NEG VINT_POS VINT_NEG amplifier\n\n* Models and Subcircuits\n.model pnp pnp (is=1e-16 bf=10)\n\n.subckt amplifier in_pos in_neg out_pos out_neg\nE1 out_diff 0 in_pos in_neg 6300\nE2 out_pos 0 vol='0.9 + v(out_diff)/2'\nE3 out_neg 0 vol='0.9 - v(out_diff)/2'\nR1 in_pos 0 1G\nR2 in_neg 0 1G\n.ends\n\n* Sources\nVVDD VDD 0 1.8\nIac_pos 0 VIN_POS AC 1\nIac_neg 0 VIN_NEG AC -1\n\n.control\n* 1. DC Operating Point\nop\nlet power = -i(VVDD) * 1.8\nprint power\nlet vbe_pos = v(VIN_POS)\nlet vbe_neg = v(VIN_NEG)\nlet delta_vbe = vbe_neg - vbe_pos\nprint vbe_pos vbe_neg delta_vbe\n\n* 2. DC Sweep over Temperature\ndc temp -55 125 5\nlet delta_vbe_t = v(VIN_NEG) - v(VIN_POS)\nmeas dc dvbe_25 find delta_vbe_t at=25\nmeas dc dvbe_125 find delta_vbe_t at=125\nmeas dc dvbe_m55 find delta_vbe_t at=-55\nlet ptat_slope = (dvbe_125 - dvbe_m55) / 180\nprint ptat_slope\n\n* 3. AC Analysis\nac dec 10 1 1G\nlet v_in_diff = v(IN_POS) - v(IN_NEG)\nlet v_out_diff = v(VINT_POS) - v(VINT_NEG)\nlet gain_mag = mag(v_out_diff) / mag(v_in_diff)\nlet gain_db = 20 * log10(gain_mag)\nmeas ac midband_gain find gain_db at=1k\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CMOS Temperature Sensor Front-End\",\n    \"description\": \"A switched-capacitor front-end for a BJT-based CMOS temperature sensor. It extracts the temperature-dependent delta VBE (PTAT voltage) from two diode-connected substrate PNPs biased at a 1:5 current ratio, and amplifies it.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_POS\",\n        \"VIN_NEG\"\n      ],\n      \"output\": [\n        \"VINT_POS\",\n        \"VINT_NEG\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Temperature Sensor with a VoltageCalibrated Inaccuracy of \u00b10.15\u00b0C (3\u03c3) From -55 to 125\u00b0C\",\n      \"figure\": \"unknown\",\n      \"year\": 2012\n    }\n  },\n  \"step2_metrics\": {\n    \"delta_vbe\": {\n      \"description\": \"Proportional To Absolute Temperature (PTAT) voltage difference between the two PNP emitters.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"100mV (approximate full scale)\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VT * ln(5) = 25.7mV * 1.609 = 41.3mV at 25C\",\n        \"range\": {\n          \"min\": 0.04,\n          \"typical\": 0.041,\n          \"max\": 0.045,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on the 1:5 current ratio (2I and 10I) and ideal BJT physics at room temperature.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ptat_slope\": {\n      \"description\": \"Temperature coefficient of the delta VBE voltage.\",\n      \"unit\": \"V/C\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"(k/q) * ln(5) = 86.17uV/K * 1.609 = 138.7uV/C\",\n        \"range\": {\n          \"min\": 130e-6,\n          \"typical\": 138e-6,\n          \"max\": 145e-6,\n          \"unit\": \"V/C\"\n        },\n        \"reasoning\": \"Theoretical derivative of VT*ln(5) with respect to temperature.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"amplifier_gain\": {\n      \"description\": \"Midband voltage gain of the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"76dB\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Modeled as ideal VCVS with gain 6300\",\n        \"range\": {\n          \"min\": 75,\n          \"typical\": 76,\n          \"max\": 77,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Directly set in the testbench subcircuit to match the paper's reported 76dB gain.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total static power consumption of the front-end.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"27nJ per operation\",\n        \"technology\": \"0.16\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * (2*I_bias + 10*I_bias) = 1.8V * 12uA = 21.6uW\",\n        \"range\": {\n          \"min\": 20e-6,\n          \"typical\": 21.6e-6,\n          \"max\": 25e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Assuming a 1uA base bias current for the current sources.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure PTAT voltage, temperature coefficient, power, and amplifier gain.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"delta_vbe\",\n      \"ptat_slope\",\n      \"power_consumption\",\n      \"amplifier_gain\"\n    ],\n    \"spice\": \"* CMOS Temperature Sensor Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param I_bias=1u C_S=120f k=5\\n\\n* DUT (Modified syntax for ngspice compatibility)\\nI1 VDD VIN_POS {2*I_bias}\\nI2 VDD VIN_NEG {10*I_bias}\\nQL GND GND VIN_POS pnp\\nQR GND GND VIN_NEG pnp\\nC3 VIN_POS VINT_POS {C_S}\\nC2 VIN_POS IN_POS {k*C_S}\\nC1 VIN_NEG IN_NEG {k*C_S}\\nC4 GND VINT_NEG {C_S}\\nX1 IN_POS IN_NEG VINT_POS VINT_NEG amplifier\\n\\n* Models and Subcircuits\\n.model pnp pnp (is=1e-16 bf=10)\\n\\n.subckt amplifier in_pos in_neg out_pos out_neg\\nE1 out_diff 0 in_pos in_neg 6300\\nE2 out_pos 0 vol='0.9 + v(out_diff)/2'\\nE3 out_neg 0 vol='0.9 - v(out_diff)/2'\\nR1 in_pos 0 1G\\nR2 in_neg 0 1G\\n.ends\\n\\n* Sources\\nVVDD VDD 0 1.8\\nIac_pos 0 VIN_POS AC 1\\nIac_neg 0 VIN_NEG AC -1\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nlet vbe_pos = v(VIN_POS)\\nlet vbe_neg = v(VIN_NEG)\\nlet delta_vbe = vbe_neg - vbe_pos\\nprint vbe_pos vbe_neg delta_vbe\\n\\n* 2. DC Sweep over Temperature\\ndc temp -55 125 5\\nlet delta_vbe_t = v(VIN_NEG) - v(VIN_POS)\\nmeas dc dvbe_25 find delta_vbe_t at=25\\nmeas dc dvbe_125 find delta_vbe_t at=125\\nmeas dc dvbe_m55 find delta_vbe_t at=-55\\nlet ptat_slope = (dvbe_125 - dvbe_m55) / 180\\nprint ptat_slope\\n\\n* 3. AC Analysis\\nac dec 10 1 1G\\nlet v_in_diff = v(IN_POS) - v(IN_NEG)\\nlet v_out_diff = v(VINT_POS) - v(VINT_NEG)\\nlet gain_mag = mag(v_out_diff) / mag(v_in_diff)\\nlet gain_db = 20 * log10(gain_mag)\\nmeas ac midband_gain find gain_db at=1k\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6176978",
+  "_case": "6176978_image_3_a"
+}

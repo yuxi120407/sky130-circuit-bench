@@ -1,0 +1,203 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 23.11",
+    "page": "753",
+    "circuit_type": "Cascoded Beta-Multiplier Reference (BMR) with Start-up Circuit",
+    "description": "A self-biased beta-multiplier reference circuit where both the NMOS and PMOS sides are cascoded to equalize branch voltages across M1 and M2 and reduce current sensitivity to VDD variations, along with an MSU1-MSU3 startup circuit."
+  },
+  "step2_metrics": {
+    "iref_nominal": {
+      "description": "Nominal reference current flowing through the cascoded branches at VDD = 1.8 V",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.11 and Fig. 23.12"
+      },
+      "equation": {
+        "formula": "I_REF = (2 / (R^2 * un*Cox * (W/L)_1B)) * (1 - 1/sqrt(K))^2",
+        "explanation": "Standard beta-multiplier reference current equation where K is the ratio (W/L)_2B / (W/L)_1B.",
+        "assumptions": "Square-law saturation operation of M1B and M2B, matching threshold voltages, and negligible channel-length modulation due to cascoding."
+      },
+      "sky130_expected": {
+        "calculation": "K = (200/2) / (50/2) = 4. (1 - 1/sqrt(4))^2 = (1 - 0.5)^2 = 0.25. (W/L)_1B = 50u/2u = 25. beta_1 = 270uA/V^2 * 25 = 6.75 mA/V^2. R = 6.5 kOhm. R^2 * beta_1 = (6500)^2 * 6.75e-3 = 2.852e5 Ohm. I_REF = (2 / 2.852e5) * 0.25 = 1.75 uA. In practical short/moderate channel inversion on SKY130, I_REF is typically 2 uA to 8 uA.",
+        "range": {
+          "min": 1e-06,
+          "typical": 4e-06,
+          "max": 1e-05,
+          "unit": "A"
+        },
+        "reasoning": "Large device geometries (W=50u, 200u with L=2u) operate near weak-to-moderate inversion at microampere bias levels."
+      },
+      "importance": "essential"
+    },
+    "current_matching_error": {
+      "description": "Percentage mismatch between the two branch reference currents IREF1 and IREF2",
+      "unit": "%",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.11 and page 751 text"
+      },
+      "equation": {
+        "formula": "Mismatch = abs(I(M1T) - I(M2T)) / I(M1T) * 100",
+        "explanation": "Full cascoding on both NMOS and PMOS stacks forces drain voltages of M1B and M2B to track, matching currents tightly.",
+        "assumptions": "Equal PMOS mirror sizing (M3T=M4T, M3B=M4B) and matched drain potentials."
+      },
+      "sky130_expected": {
+        "calculation": "With cascode current mirror and cascode NMOS stack, Vds differences across M3T/M4T and M1B/M2B are suppressed by the cascode gain, yielding mismatch < 2%.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.5,
+          "max": 3.0,
+          "unit": "%"
+        },
+        "reasoning": "Cascode transistors provide high output impedance, minimizing systematic mismatch."
+      },
+      "importance": "essential"
+    },
+    "vdd_min": {
+      "description": "Minimum supply voltage required for the cascoded BMR current to stabilize into regulation",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.12"
+      },
+      "equation": {
+        "formula": "VDD_min = |Vthp| + 2*Vovp + Vthn + 2*Vovn + I_REF*R",
+        "explanation": "Sum of PMOS diode/cascode overdrive voltages, NMOS diode/cascode overdrive voltages, and resistor drop required to keep all transistors in saturation.",
+        "assumptions": "All stack transistors operating in saturation region."
+      },
+      "sky130_expected": {
+        "calculation": "Vthp = 0.42V, Vthn = 0.42V, overdrives ~0.05V to 0.1V each, I_REF*R ~ 20mV to 50mV. VDD_min = 0.42 + 2(0.08) + 0.42 + 2(0.08) + 0.03 ~ 1.19 V.",
+        "range": {
+          "min": 1.0,
+          "typical": 1.15,
+          "max": 1.35,
+          "unit": "V"
+        },
+        "reasoning": "As shown in Fig. 23.12, the current stabilizes around 1.1 V - 1.2 V in short-channel CMOS."
+      },
+      "importance": "essential"
+    },
+    "line_sensitivity": {
+      "description": "Supply sensitivity (dIREF / dVDD) of the reference current above VDD_min",
+      "unit": "A/V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.12 and page 751-752 discussion"
+      },
+      "equation": {
+        "formula": "Line_Sensitivity = (I_REF(VDD=1.8) - I_REF(VDD=1.4)) / (1.8 - 1.4)",
+        "explanation": "Measures how flat the reference current is across supply voltage variations in the regulated region.",
+        "assumptions": "All transistors maintain saturation across the supply sweep."
+      },
+      "sky130_expected": {
+        "calculation": "Due to double cascoding (PMOS and NMOS), output impedance of both stacks is ~ gm*ro^2. Current change over 400 mV delta VDD is typically < 0.2 uA, giving sensitivity < 0.5 uA/V.",
+        "range": {
+          "min": 0.0,
+          "typical": 2e-07,
+          "max": 1e-06,
+          "unit": "A/V"
+        },
+        "reasoning": "Cascode stages effectively shield the lower current-setting devices from supply variations."
+      },
+      "importance": "recommended"
+    },
+    "vbiasn": {
+      "description": "Generated NMOS bias voltage Vbiasn at VDD = 1.8 V",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.11"
+      },
+      "equation": {
+        "formula": "Vbiasn = VGS1B = Vthn + sqrt(2 * I_REF / beta_1)",
+        "explanation": "Gate-to-source voltage of diode-connected NMOS M1B.",
+        "assumptions": "M1B in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "Vthn = 0.42 V, beta_1 = 6.75 mA/V^2, I_REF ~ 4 uA. Vov = sqrt(2 * 4e-6 / 6.75e-3) ~ 0.034 V. Vbiasn ~ 0.42 + 0.034 = 0.454 V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.47,
+          "max": 0.6,
+          "unit": "V"
+        },
+        "reasoning": "Large device width with small reference current results in small overdrive above Vthn."
+      },
+      "importance": "recommended"
+    },
+    "vgs_msu3": {
+      "description": "Gate-to-source voltage of startup transistor MSU3 during normal steady-state operation",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.11 and page 753 text"
+      },
+      "equation": {
+        "formula": "VGS_MSU3 = V(N002) - V(Vbiasn)",
+        "explanation": "In normal operation, MSU1 is turned ON by Vbiasn, pulling node N002 close to ground. Hence VGS_MSU3 is negative and MSU3 is turned completely OFF.",
+        "assumptions": "Reference has started up properly and reached normal operating state."
+      },
+      "sky130_expected": {
+        "calculation": "MSU1 (50/2) is ON with Vgs = Vbiasn ~ 0.47 V. MSU2 (10/20) is a weak PMOS load. Node N002 is pulled to ~ 0.02 V. Vbiasn ~ 0.47 V. Thus VGS_MSU3 = 0.02 - 0.47 = -0.45 V < 0 V.",
+        "range": {
+          "min": -0.6,
+          "typical": -0.45,
+          "max": -0.2,
+          "unit": "V"
+        },
+        "reasoning": "As stated on page 753: 'In normal operation, MSU3 should be off (it should have a negative VGS).'"
+      },
+      "importance": "recommended"
+    },
+    "total_power": {
+      "description": "Total quiescent power consumption of the reference circuit at VDD = 1.8 V",
+      "unit": "W",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.11"
+      },
+      "equation": {
+        "formula": "P_total = VDD * (I_REF1 + I_REF2 + I_MSU)",
+        "explanation": "Total power drawn from the 1.8 V supply by the two reference branches and the startup branch.",
+        "assumptions": "MSU3 is off, so startup current is limited to the weak MSU1/MSU2 leakage/pull-down path."
+      },
+      "sky130_expected": {
+        "calculation": "Two active branches draw ~ 4 uA each -> 8 uA. Startup path draws < 0.5 uA. Total current ~ 8.5 uA * 1.8 V ~ 15.3 uW.",
+        "range": {
+          "min": 5e-06,
+          "typical": 1.8e-05,
+          "max": 4e-05,
+          "unit": "W"
+        },
+        "reasoning": "Dominated by 2 * I_REF * VDD."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "DC operating point and DC supply sweep testbench for the cascoded BMR circuit measuring IREF, current matching, minimum operating supply voltage, line sensitivity, bias voltages, startup shutoff, and total power.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "iref_nominal",
+      "current_matching_error",
+      "vdd_min",
+      "line_sensitivity",
+      "vbiasn",
+      "vgs_msu3",
+      "total_power"
+    ],
+    "spice": "* Cascoded BMR Simulation Testbench (Baker Fig. 23.11)\n.lib \"${SKY130_PDK}\" tt\n\n* Transistor dimensions from Fig. 23.11\n.param W_xmsu1=50u L_xmsu1=2u\n.param W_xmsu2=10u L_xmsu2=20u\n.param W_xmsu3=10u L_xmsu3=1u\n.param W_xm3t=100u L_xm3t=2u\n.param W_xm3b=100u L_xm3b=2u\n.param W_xm4t=100u L_xm4t=2u\n.param W_xm4b=100u L_xm4b=2u\n.param W_xm1t=50u  L_xm1t=2u\n.param W_xm1b=50u  L_xm1b=2u\n.param W_xm2t=50u  L_xm2t=2u\n.param W_xm2b=200u L_xm2b=2u\n\n* Power Supply\nVDD VDD 0 1.8\n\n* DUT Netlist from Fig. 23.11\nxmsu1 N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\nxmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\nxmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\nxm3t N001 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3t} l={L_xm3t}\nxm3b Vncas Vpcas N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3b} l={L_xm3b}\nxm4t Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4t} l={L_xm4t}\nxm4b Vpcas Vpcas Vbiasp VDD sky130_fd_pr__pfet_01v8 w={W_xm4b} l={L_xm4b}\nxm2b N003 Vbiasn N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2b} l={L_xm2b}\nxm1b Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1b} l={L_xm1b}\nR1 N004 0 6500.0\nxm2t Vpcas Vncas N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2t} l={L_xm2t}\nxm1t Vncas Vncas Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xm1t} l={L_xm1t}\n\n* Zero-volt sense voltage sources to measure branch currents\n* (Alternative in ngspice: current through R1 and diode M1B)\n\n.control\n  * Operating point at nominal VDD = 1.8V\n  op\n\n  let iref2 = v(N004) / 6500.0\n  let v_biasn = v(Vbiasn)\n  let v_n002 = v(N002)\n  let vgs_msu3_val = v_n002 - v_biasn\n  let p_tot = -i(vdd) * 1.8\n\n  echo \"=== Operating Point Results at VDD = 1.8V ===\"\n  print iref2\n  print v_biasn\n  print v_n002\n  print vgs_msu3_val\n  print p_tot\n\n  * DC Sweep of VDD from 0 to 1.8V (Baker Fig. 23.12)\n  dc VDD 0 1.8 0.01\n\n  let iref1_sweep = (v(Vbiasn) - 0) / 1.0  ; proxy or monitor branch\n  let iref2_sweep = v(N004) / 6500.0\n  let iref_at_1v8 = iref2_sweep[180]\n  let iref_at_1v4 = iref2_sweep[140]\n  let target_90pct = 0.90 * iref_at_1v8\n\n  meas dc iref_nom find iref2_sweep at=1.8\n  meas dc iref_1v4 find iref2_sweep at=1.4\n  let line_sens = (iref_nom - iref_1v4) / 0.4\n  meas dc vdd_stabilize when iref2_sweep=target_90pct rise=1\n\n  echo \"=== Summary of Extracted Metrics ===\"\n  print iref_nom\n  print line_sens\n  print vdd_stabilize\n  print vgs_msu3_val\n  print p_tot\n\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 23.11\",\n    \"page\": \"753\",\n    \"circuit_type\": \"Cascoded Beta-Multiplier Reference (BMR) with Start-up Circuit\",\n    \"description\": \"A self-biased beta-multiplier reference circuit where both the NMOS and PMOS sides are cascoded to equalize branch voltages across M1 and M2 and reduce current sensitivity to VDD variations, along with an MSU1-MSU3 startup circuit.\"\n  },\n  \"step2_metrics\": {\n    \"iref_nominal\": {\n      \"description\": \"Nominal reference current flowing through the cascoded branches at VDD = 1.8 V\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.11 and Fig. 23.12\" },\n      \"equation\": {\n        \"formula\": \"I_REF = (2 / (R^2 * un*Cox * (W/L)_1B)) * (1 - 1/sqrt(K))^2\",\n        \"explanation\": \"Standard beta-multiplier reference current equation where K is the ratio (W/L)_2B / (W/L)_1B.\",\n        \"assumptions\": \"Square-law saturation operation of M1B and M2B, matching threshold voltages, and negligible channel-length modulation due to cascoding.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"K = (200/2) / (50/2) = 4. (1 - 1/sqrt(4))^2 = (1 - 0.5)^2 = 0.25. (W/L)_1B = 50u/2u = 25. beta_1 = 270uA/V^2 * 25 = 6.75 mA/V^2. R = 6.5 kOhm. R^2 * beta_1 = (6500)^2 * 6.75e-3 = 2.852e5 Ohm. I_REF = (2 / 2.852e5) * 0.25 = 1.75 uA. In practical short/moderate channel inversion on SKY130, I_REF is typically 2 uA to 8 uA.\",\n        \"range\": { \"min\": 1e-6, \"typical\": 4e-6, \"max\": 10e-6, \"unit\": \"A\" },\n        \"reasoning\": \"Large device geometries (W=50u, 200u with L=2u) operate near weak-to-moderate inversion at microampere bias levels.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"current_matching_error\": {\n      \"description\": \"Percentage mismatch between the two branch reference currents IREF1 and IREF2\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.11 and page 751 text\" },\n      \"equation\": {\n        \"formula\": \"Mismatch = abs(I(M1T) - I(M2T)) / I(M1T) * 100\",\n        \"explanation\": \"Full cascoding on both NMOS and PMOS stacks forces drain voltages of M1B and M2B to track, matching currents tightly.\",\n        \"assumptions\": \"Equal PMOS mirror sizing (M3T=M4T, M3B=M4B) and matched drain potentials.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With cascode current mirror and cascode NMOS stack, Vds differences across M3T/M4T and M1B/M2B are suppressed by the cascode gain, yielding mismatch < 2%.\",\n        \"range\": { \"min\": 0.0, \"typical\": 0.5, \"max\": 3.0, \"unit\": \"%\" },\n        \"reasoning\": \"Cascode transistors provide high output impedance, minimizing systematic mismatch.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vdd_min\": {\n      \"description\": \"Minimum supply voltage required for the cascoded BMR current to stabilize into regulation\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.12\" },\n      \"equation\": {\n        \"formula\": \"VDD_min = |Vthp| + 2*Vovp + Vthn + 2*Vovn + I_REF*R\",\n        \"explanation\": \"Sum of PMOS diode/cascode overdrive voltages, NMOS diode/cascode overdrive voltages, and resistor drop required to keep all transistors in saturation.\",\n        \"assumptions\": \"All stack transistors operating in saturation region.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vthp = 0.42V, Vthn = 0.42V, overdrives ~0.05V to 0.1V each, I_REF*R ~ 20mV to 50mV. VDD_min = 0.42 + 2(0.08) + 0.42 + 2(0.08) + 0.03 ~ 1.19 V.\",\n        \"range\": { \"min\": 1.0, \"typical\": 1.15, \"max\": 1.35, \"unit\": \"V\" },\n        \"reasoning\": \"As shown in Fig. 23.12, the current stabilizes around 1.1 V - 1.2 V in short-channel CMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"line_sensitivity\": {\n      \"description\": \"Supply sensitivity (dIREF / dVDD) of the reference current above VDD_min\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.12 and page 751-752 discussion\" },\n      \"equation\": {\n        \"formula\": \"Line_Sensitivity = (I_REF(VDD=1.8) - I_REF(VDD=1.4)) / (1.8 - 1.4)\",\n        \"explanation\": \"Measures how flat the reference current is across supply voltage variations in the regulated region.\",\n        \"assumptions\": \"All transistors maintain saturation across the supply sweep.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Due to double cascoding (PMOS and NMOS), output impedance of both stacks is ~ gm*ro^2. Current change over 400 mV delta VDD is typically < 0.2 uA, giving sensitivity < 0.5 uA/V.\",\n        \"range\": { \"min\": 0.0, \"typical\": 0.2e-6, \"max\": 1e-6, \"unit\": \"A/V\" },\n        \"reasoning\": \"Cascode stages effectively shield the lower current-setting devices from supply variations.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vbiasn\": {\n      \"description\": \"Generated NMOS bias voltage Vbiasn at VDD = 1.8 V\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.11\" },\n      \"equation\": {\n        \"formula\": \"Vbiasn = VGS1B = Vthn + sqrt(2 * I_REF / beta_1)\",\n        \"explanation\": \"Gate-to-source voltage of diode-connected NMOS M1B.\",\n        \"assumptions\": \"M1B in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vthn = 0.42 V, beta_1 = 6.75 mA/V^2, I_REF ~ 4 uA. Vov = sqrt(2 * 4e-6 / 6.75e-3) ~ 0.034 V. Vbiasn ~ 0.42 + 0.034 = 0.454 V.\",\n        \"range\": { \"min\": 0.40, \"typical\": 0.47, \"max\": 0.60, \"unit\": \"V\" },\n        \"reasoning\": \"Large device width with small reference current results in small overdrive above Vthn.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vgs_msu3\": {\n      \"description\": \"Gate-to-source voltage of startup transistor MSU3 during normal steady-state operation\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.11 and page 753 text\" },\n      \"equation\": {\n        \"formula\": \"VGS_MSU3 = V(N002) - V(Vbiasn)\",\n        \"explanation\": \"In normal operation, MSU1 is turned ON by Vbiasn, pulling node N002 close to ground. Hence VGS_MSU3 is negative and MSU3 is turned completely OFF.\",\n        \"assumptions\": \"Reference has started up properly and reached normal operating state.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"MSU1 (50/2) is ON with Vgs = Vbiasn ~ 0.47 V. MSU2 (10/20) is a weak PMOS load. Node N002 is pulled to ~ 0.02 V. Vbiasn ~ 0.47 V. Thus VGS_MSU3 = 0.02 - 0.47 = -0.45 V < 0 V.\",\n        \"range\": { \"min\": -0.6, \"typical\": -0.45, \"max\": -0.2, \"unit\": \"V\" },\n        \"reasoning\": \"As stated on page 753: 'In normal operation, MSU3 should be off (it should have a negative VGS).'\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"total_power\": {\n      \"description\": \"Total quiescent power consumption of the reference circuit at VDD = 1.8 V\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.11\" },\n      \"equation\": {\n        \"formula\": \"P_total = VDD * (I_REF1 + I_REF2 + I_MSU)\",\n        \"explanation\": \"Total power drawn from the 1.8 V supply by the two reference branches and the startup branch.\",\n        \"assumptions\": \"MSU3 is off, so startup current is limited to the weak MSU1/MSU2 leakage/pull-down path.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Two active branches draw ~ 4 uA each -> 8 uA. Startup path draws < 0.5 uA. Total current ~ 8.5 uA * 1.8 V ~ 15.3 uW.\",\n        \"range\": { \"min\": 5e-6, \"typical\": 18e-6, \"max\": 40e-6, \"unit\": \"W\" },\n        \"reasoning\": \"Dominated by 2 * I_REF * VDD.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"DC operating point and DC supply sweep testbench for the cascoded BMR circuit measuring IREF, current matching, minimum operating supply voltage, line sensitivity, bias voltages, startup shutoff, and total power.\",\n    \"analyses\": [\"OP\", \"DC\"],\n    \"metrics_measured\": [\n      \"iref_nominal\",\n      \"current_matching_error\",\n      \"vdd_min\",\n      \"line_sensitivity\",\n      \"vbiasn\",\n      \"vgs_msu3\",\n      \"total_power\"\n    ],\n    \"spice\": \"* Cascoded BMR Simulation Testbench (Baker Fig. 23.11)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Transistor dimensions from Fig. 23.11\\n.param W_xmsu1=50u L_xmsu1=2u\\n.param W_xmsu2=10u L_xmsu2=20u\\n.param W_xmsu3=10u L_xmsu3=1u\\n.param W_xm3t=100u L_xm3t=2u\\n.param W_xm3b=100u L_xm3b=2u\\n.param W_xm4t=100u L_xm4t=2u\\n.param W_xm4b=100u L_xm4b=2u\\n.param W_xm1t=50u  L_xm1t=2u\\n.param W_xm1b=50u  L_xm1b=2u\\n.param W_xm2t=50u  L_xm2t=2u\\n.param W_xm2b=200u L_xm2b=2u\\n\\n* Power Supply\\nVDD VDD 0 1.8\\n\\n* DUT Netlist from Fig. 23.11\\nxmsu1 N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\nxmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\nxmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\nxm3t N001 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3t} l={L_xm3t}\\nxm3b Vncas Vpcas N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3b} l={L_xm3b}\\nxm4t Vbiasp Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4t} l={L_xm4t}\\nxm4b Vpcas Vpcas Vbiasp VDD sky130_fd_pr__pfet_01v8 w={W_xm4b} l={L_xm4b}\\nxm2b N003 Vbiasn N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2b} l={L_xm2b}\\nxm1b Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1b} l={L_xm1b}\\nR1 N004 0 6500.0\\nxm2t Vpcas Vncas N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2t} l={L_xm2t}\\nxm1t Vncas Vncas Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xm1t} l={L_xm1t}\\n\\n* Zero-volt sense voltage sources to measure branch currents\\n* (Alternative in ngspice: current through R1 and diode M1B)\\n\\n.control\\n  * Operating point at nominal VDD = 1.8V\\n  op\\n\\n  let iref2 = v(N004) / 6500.0\\n  let v_biasn = v(Vbiasn)\\n  let v_n002 = v(N002)\\n  let vgs_msu3_val = v_n002 - v_biasn\\n  let p_tot = -i(vdd) * 1.8\\n\\n  echo \\\"=== Operating Point Results at VDD = 1.8V ===\\\"\\n  print iref2\\n  print v_biasn\\n  print v_n002\\n  print vgs_msu3_val\\n  print p_tot\\n\\n  * DC Sweep of VDD from 0 to 1.8V (Baker Fig. 23.12)\\n  dc VDD 0 1.8 0.01\\n\\n  let iref1_sweep = (v(Vbiasn) - 0) / 1.0  ; proxy or monitor branch\\n  let iref2_sweep = v(N004) / 6500.0\\n  let iref_at_1v8 = iref2_sweep[180]\\n  let iref_at_1v4 = iref2_sweep[140]\\n  let target_90pct = 0.90 * iref_at_1v8\\n\\n  meas dc iref_nom find iref2_sweep at=1.8\\n  meas dc iref_1v4 find iref2_sweep at=1.4\\n  let line_sens = (iref_nom - iref_1v4) / 0.4\\n  meas dc vdd_stabilize when iref2_sweep=target_90pct rise=1\\n\\n  echo \\\"=== Summary of Extracted Metrics ===\\\"\\n  print iref_nom\\n  print line_sens\\n  print vdd_stabilize\\n  print vgs_msu3_val\\n  print p_tot\\n\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

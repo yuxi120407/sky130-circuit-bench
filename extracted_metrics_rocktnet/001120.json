@@ -1,0 +1,110 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CML AND/NAND Gate",
+    "description": "A Current-Mode Logic (CML) AND/NAND gate, typically used in the synchronous counter section of a high-speed dual-modulus prescaler. It uses a stacked differential pair topology to perform logic operations at microwave frequencies.",
+    "node_mapping": {
+      "input": [
+        "A",
+        "A_BAR",
+        "B",
+        "B_BAR"
+      ],
+      "output": [
+        "Q",
+        "Q_BAR"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "Bias"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Brief Papers",
+      "figure": "Fig. 1",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the gate.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "2 mW (low power version), 30 mW (high speed version)",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = (Vbias - Vgs) / R_deg = (0.8V - 0.5V) / 200 = 1.5mA. Power = VDD * I_tail = 1.8V * 1.5mA = 2.7mW.",
+        "range": {
+          "min": "1m",
+          "typical": "2.7m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Depends on the bias voltage and degeneration resistor. Adjusted for 1.8V SKY130 supply to match the low-power target."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Time delay between input crossing 50% and output crossing 50%.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Max operating frequency 12 GHz",
+        "technology": "Silicon Bipolar (fT=52GHz, fmax=65GHz)"
+      },
+      "sky130_expected": {
+        "calculation": "Delay ~ R_load * C_load. C_load ~ 10fF for W=5u. R_load = 400 ohm. RC = 4ps. Intrinsic transistor transit time adds ~20-30ps.",
+        "range": {
+          "min": "10p",
+          "typical": "30p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "CMOS CML delay is dominated by the load RC time constant and the intrinsic fT of the SKY130 NMOS devices."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak voltage swing of the output.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_load = 1.5mA * 400 ohm = 0.6V.",
+        "range": {
+          "min": "0.4",
+          "typical": "0.6",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Swing must be large enough to fully switch the next differential pair but small enough to keep the stacked transistors in saturation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power consumption, propagation delay, and voltage swing of the CML AND gate. The bipolar netlist is adapted to SKY130 CMOS by replacing Q instances with M instances.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "propagation_delay",
+      "voltage_swing"
+    ],
+    "spice": "* CML AND Gate Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param R_load = 400\n.param R_deg = 200\n.param W = 5u\n.param L = 0.15u\n.param W_tail = 10u\n\n* DUT (Adapted to standard MOSFET syntax for SKY130)\nR1 Q VCC {R_load}\nR3 Q_BAR VCC {R_load}\nR2 N1 GND {R_deg}\nM1 Q_BAR A N4 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\nM2 Q A_BAR N4 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\nM3 Q B_BAR N3 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\nM4 N3 Bias N1 GND sky130_fd_pr__nfet_01v8 w={W_tail} l={L}\nM5 N4 B N3 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\n\n* Sources\nVCC VCC 0 1.8\nVBias Bias 0 0.8\n\n* Inputs (B is the lower pair, A is the upper pair)\nV_B B 0 pulse(0.6 1.2 0 20p 20p 980p 2n)\nV_B_BAR B_BAR 0 pulse(1.2 0.6 0 20p 20p 980p 2n)\n\nV_A A 0 pulse(1.2 1.8 250p 20p 20p 480p 1n)\nV_A_BAR A_BAR 0 pulse(1.8 1.2 250p 20p 20p 480p 1n)\n\n.control\nop\nlet power = -i(VCC) * 1.8\nprint power\n\ntran 5p 3n\n* Measure delay when B is high (Q follows A)\nmeas tran delay_rise trig v(A) val=1.5 rise=1 targ v(Q) val=1.5 rise=1\nmeas tran delay_fall trig v(A) val=1.5 fall=1 targ v(Q) val=1.5 fall=1\n\n* Measure voltage swing\nmeas tran swing_max max v(Q)\nmeas tran swing_min min v(Q)\nlet swing = swing_max - swing_min\nprint swing\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CML AND/NAND Gate\",\n    \"description\": \"A Current-Mode Logic (CML) AND/NAND gate, typically used in the synchronous counter section of a high-speed dual-modulus prescaler. It uses a stacked differential pair topology to perform logic operations at microwave frequencies.\",\n    \"node_mapping\": {\n      \"input\": [\"A\", \"A_BAR\", \"B\", \"B_BAR\"],\n      \"output\": [\"Q\", \"Q_BAR\"],\n      \"supply\": [\"VCC\"],\n      \"bias\": [\"Bias\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Brief Papers\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the gate.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"2 mW (low power version), 30 mW (high speed version)\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = (Vbias - Vgs) / R_deg = (0.8V - 0.5V) / 200 = 1.5mA. Power = VDD * I_tail = 1.8V * 1.5mA = 2.7mW.\",\n        \"range\": { \"min\": \"1m\", \"typical\": \"2.7m\", \"max\": \"5m\", \"unit\": \"W\" },\n        \"reasoning\": \"Depends on the bias voltage and degeneration resistor. Adjusted for 1.8V SKY130 supply to match the low-power target.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Time delay between input crossing 50% and output crossing 50%.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Max operating frequency 12 GHz\",\n        \"technology\": \"Silicon Bipolar (fT=52GHz, fmax=65GHz)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay ~ R_load * C_load. C_load ~ 10fF for W=5u. R_load = 400 ohm. RC = 4ps. Intrinsic transistor transit time adds ~20-30ps.\",\n        \"range\": { \"min\": \"10p\", \"typical\": \"30p\", \"max\": \"100p\", \"unit\": \"s\" },\n        \"reasoning\": \"CMOS CML delay is dominated by the load RC time constant and the intrinsic fT of the SKY130 NMOS devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the output.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_load = 1.5mA * 400 ohm = 0.6V.\",\n        \"range\": { \"min\": \"0.4\", \"typical\": \"0.6\", \"max\": \"1.0\", \"unit\": \"V\" },\n        \"reasoning\": \"Swing must be large enough to fully switch the next differential pair but small enough to keep the stacked transistors in saturation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power consumption, propagation delay, and voltage swing of the CML AND gate. The bipolar netlist is adapted to SKY130 CMOS by replacing Q instances with M instances.\",\n    \"analyses\": [\"OP\", \"Tran\"],\n    \"metrics_measured\": [\"power_consumption\", \"propagation_delay\", \"voltage_swing\"],\n    \"spice\": \"* CML AND Gate Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param R_load = 400\\n.param R_deg = 200\\n.param W = 5u\\n.param L = 0.15u\\n.param W_tail = 10u\\n\\n* DUT (Adapted to standard MOSFET syntax for SKY130)\\nR1 Q VCC {R_load}\\nR3 Q_BAR VCC {R_load}\\nR2 N1 GND {R_deg}\\nM1 Q_BAR A N4 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\\nM2 Q A_BAR N4 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\\nM3 Q B_BAR N3 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\\nM4 N3 Bias N1 GND sky130_fd_pr__nfet_01v8 w={W_tail} l={L}\\nM5 N4 B N3 GND sky130_fd_pr__nfet_01v8 w={W} l={L}\\n\\n* Sources\\nVCC VCC 0 1.8\\nVBias Bias 0 0.8\\n\\n* Inputs (B is the lower pair, A is the upper pair)\\nV_B B 0 pulse(0.6 1.2 0 20p 20p 980p 2n)\\nV_B_BAR B_BAR 0 pulse(1.2 0.6 0 20p 20p 980p 2n)\\n\\nV_A A 0 pulse(1.2 1.8 250p 20p 20p 480p 1n)\\nV_A_BAR A_BAR 0 pulse(1.8 1.2 250p 20p 20p 480p 1n)\\n\\n.control\\nop\\nlet power = -i(VCC) * 1.8\\nprint power\\n\\ntran 5p 3n\\n* Measure delay when B is high (Q follows A)\\nmeas tran delay_rise trig v(A) val=1.5 rise=1 targ v(Q) val=1.5 rise=1\\nmeas tran delay_fall trig v(A) val=1.5 fall=1 targ v(Q) val=1.5 fall=1\\n\\n* Measure voltage swing\\nmeas tran swing_max max v(Q)\\nmeas tran swing_min min v(Q)\\nlet swing = swing_max - swing_min\\nprint swing\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "944671",
+  "_case": "944671_image_3"
+}

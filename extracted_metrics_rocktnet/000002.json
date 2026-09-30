@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Comparator / StrongARM Latch with Offset Control",
+    "description": "This circuit is a clocked sense amplifier (comparator) designed for high-speed PAM3 signaling. It features a precharged pseudo-differential input stage and a cross-coupled inverter latch output stage. The OFFCTRL signal enables an additional parallel input branch to adjust the effective transconductance, deliberately shifting the comparator's threshold to resolve multi-level PAM3 signals.",
+    "node_mapping": {
+      "input": [
+        "IN0",
+        "INB0",
+        "CLK",
+        "OFFCTRL"
+      ],
+      "output": [
+        "OUT",
+        "OUTB"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "13.1 A 35.4Gb/s/pin 16Gb GDDR7 with a Low-Power Clocking Architecture and PAM3 IO Circuitry",
+      "figure": "Not specified",
+      "year": 2024
+    }
+  },
+  "step2_metrics": {
+    "delay_clk_to_out": {
+      "description": "Delay from the rising edge of the clock to the output resolving to 50% VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.5ps",
+        "technology": "Advanced FinFET (implied by 35.4Gb/s)"
+      },
+      "sky130_expected": {
+        "calculation": "Delay \u2248 C_load * VDD / I_tail. With W=5u, I_tail \u2248 2mA. C_load \u2248 15fF. Delay \u2248 15fF * 0.9V / 2mA = 6.75ps. Adding intrinsic gate delays yields ~20ps.",
+        "range": {
+          "min": "10p",
+          "typical": "20p",
+          "max": "40p",
+          "unit": "s"
+        },
+        "reasoning": "SKY130 is a 130nm node, which is significantly slower than the advanced node used in the paper. The delay will be roughly an order of magnitude larger."
+      },
+      "importance": "essential"
+    },
+    "power_dynamic": {
+      "description": "Average power consumption of the comparator during continuous 10GHz clocking.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "4W (Total Chip)",
+        "technology": "Advanced FinFET"
+      },
+      "sky130_expected": {
+        "calculation": "P = f * C_total * VDD^2. At 10GHz, assuming total switching capacitance of 20fF: P = 10e9 * 20e-15 * 1.8^2 = 648uW.",
+        "range": {
+          "min": "200u",
+          "typical": "600u",
+          "max": "1.5m",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the dynamic switching power of the internal precharge nodes and output latch at 10GHz in SKY130."
+      },
+      "importance": "essential"
+    },
+    "ac_gain": {
+      "description": "Small-signal AC gain at 1GHz when the clock is biased at the metastable mid-rail point.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "8dB",
+        "technology": "Advanced FinFET"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rout. At the metastable point, the positive feedback of the latch increases the effective Rout, leading to high gain, limited by parasitic poles at 1GHz.",
+        "range": {
+          "min": "5",
+          "typical": "12",
+          "max": "25",
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the exact metastable bias point and frequency. 8dB is easily achievable."
+      },
+      "importance": "recommended"
+    },
+    "trip_point": {
+      "description": "Input voltage threshold where the output flips, indicating the input-referred offset.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "31.2mV (Offset / Eye Height)",
+        "technology": "Advanced FinFET"
+      },
+      "sky130_expected": {
+        "calculation": "Nominally 0V offset due to perfect symmetry in the parameterized netlist. The trip point should exactly equal the reference voltage (0.9V).",
+        "range": {
+          "min": "0.89",
+          "typical": "0.9",
+          "max": "0.91",
+          "unit": "V"
+        },
+        "reasoning": "The SPICE netlist has identical W/L for all symmetric pairs, so the systematic offset is zero. The paper's reported offset values are likely achieved by asymmetric sizing or applying differential OFFCTRL voltages."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC gain at the metastable point, transient delay and power at 10GHz, and DC trip point (offset) in static evaluation mode.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "gain_1ghz",
+      "delay_clk_out",
+      "power_avg",
+      "trip_point"
+    ],
+    "spice": "* Clocked Comparator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm18=5u L_xm18=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm16=5u L_xm16=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm15=5u L_xm15=0.5u\n.param W_xm17=5u L_xm17=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm11=5u L_xm11=0.5u\n\n* DUT\nXM10 N1 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM8 N2 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM18 N1 IN0 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm18} w={W_xm18}\nXM7 N5 OFFCTRL N3 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM16 N1 IN0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm16} w={W_xm16}\nXM3 N3 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM2 N2 INB0 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM15 N6 OFFCTRL N4 GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\nXM17 N2 INB0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\nXM12 N4 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\nXM4 OUT N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUT OUTB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM1 OUTB N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM14 OUTB OUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\nXM9 OUT N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM13 OUT OUTB GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\nXM6 OUTB N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM11 OUTB OUT GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\n\n* Sources\nVVDD VDD 0 1.8\nVIN0 IN0 0 DC 0.9 AC 1\nVINB0 INB0 0 DC 0.9 AC 0\nVOFFCTRL OFFCTRL 0 DC 0\nVCLK CLK 0 DC 0.9 PULSE(0 1.8 10p 10p 10p 40p 100p)\n\n.control\n* 1. AC Analysis (Biased at metastable point)\nalter VCLK DC = 0.9\nac dec 10 1Meg 100G\nlet gain_db = vdb(out)\nmeas ac gain_1ghz find gain_db at=1G\n\n* 2. Transient Analysis (10GHz Clocking)\nalter VCLK DC = 0\nalter VIN0 DC = 0.95\nalter VINB0 DC = 0.85\ntran 1p 300p\nmeas tran delay_clk_out trig v(clk) val=0.9 rise=1 targ v(out) val=0.9 rise=1\nmeas tran power_avg avg -i(VVDD)*1.8 from=0 to=300p\n\n* 3. DC Sweep (Static Latch Mode for Trip Point)\nalter VCLK DC = 1.8\nalter VIN0 DC = 0.9\nalter VINB0 DC = 0.9\ndc VIN0 0.7 1.1 0.001\nmeas dc trip_point when v(out)=0.9 rise=1\n\nprint gain_1ghz delay_clk_out power_avg trip_point\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Comparator / StrongARM Latch with Offset Control\",\n    \"description\": \"This circuit is a clocked sense amplifier (comparator) designed for high-speed PAM3 signaling. It features a precharged pseudo-differential input stage and a cross-coupled inverter latch output stage. The OFFCTRL signal enables an additional parallel input branch to adjust the effective transconductance, deliberately shifting the comparator's threshold to resolve multi-level PAM3 signals.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN0\",\n        \"INB0\",\n        \"CLK\",\n        \"OFFCTRL\"\n      ],\n      \"output\": [\n        \"OUT\",\n        \"OUTB\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"13.1 A 35.4Gb/s/pin 16Gb GDDR7 with a Low-Power Clocking Architecture and PAM3 IO Circuitry\",\n      \"figure\": \"Not specified\",\n      \"year\": 2024\n    }\n  },\n  \"step2_metrics\": {\n    \"delay_clk_to_out\": {\n      \"description\": \"Delay from the rising edge of the clock to the output resolving to 50% VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.5ps\",\n        \"technology\": \"Advanced FinFET (implied by 35.4Gb/s)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay \u2248 C_load * VDD / I_tail. With W=5u, I_tail \u2248 2mA. C_load \u2248 15fF. Delay \u2248 15fF * 0.9V / 2mA = 6.75ps. Adding intrinsic gate delays yields ~20ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"20p\",\n          \"max\": \"40p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 is a 130nm node, which is significantly slower than the advanced node used in the paper. The delay will be roughly an order of magnitude larger.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dynamic\": {\n      \"description\": \"Average power consumption of the comparator during continuous 10GHz clocking.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"4W (Total Chip)\",\n        \"technology\": \"Advanced FinFET\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = f * C_total * VDD^2. At 10GHz, assuming total switching capacitance of 20fF: P = 10e9 * 20e-15 * 1.8^2 = 648uW.\",\n        \"range\": {\n          \"min\": \"200u\",\n          \"typical\": \"600u\",\n          \"max\": \"1.5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the dynamic switching power of the internal precharge nodes and output latch at 10GHz in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ac_gain\": {\n      \"description\": \"Small-signal AC gain at 1GHz when the clock is biased at the metastable mid-rail point.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"8dB\",\n        \"technology\": \"Advanced FinFET\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rout. At the metastable point, the positive feedback of the latch increases the effective Rout, leading to high gain, limited by parasitic poles at 1GHz.\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"12\",\n          \"max\": \"25\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the exact metastable bias point and frequency. 8dB is easily achievable.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"trip_point\": {\n      \"description\": \"Input voltage threshold where the output flips, indicating the input-referred offset.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"31.2mV (Offset / Eye Height)\",\n        \"technology\": \"Advanced FinFET\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Nominally 0V offset due to perfect symmetry in the parameterized netlist. The trip point should exactly equal the reference voltage (0.9V).\",\n        \"range\": {\n          \"min\": \"0.89\",\n          \"typical\": \"0.9\",\n          \"max\": \"0.91\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The SPICE netlist has identical W/L for all symmetric pairs, so the systematic offset is zero. The paper's reported offset values are likely achieved by asymmetric sizing or applying differential OFFCTRL voltages.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC gain at the metastable point, transient delay and power at 10GHz, and DC trip point (offset) in static evaluation mode.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"gain_1ghz\",\n      \"delay_clk_out\",\n      \"power_avg\",\n      \"trip_point\"\n    ],\n    \"spice\": \"* Clocked Comparator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm18=5u L_xm18=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm16=5u L_xm16=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm15=5u L_xm15=0.5u\\n.param W_xm17=5u L_xm17=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n\\n* DUT\\nXM10 N1 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM8 N2 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM18 N1 IN0 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm18} w={W_xm18}\\nXM7 N5 OFFCTRL N3 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM16 N1 IN0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm16} w={W_xm16}\\nXM3 N3 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM2 N2 INB0 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM15 N6 OFFCTRL N4 GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\\nXM17 N2 INB0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\\nXM12 N4 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\nXM4 OUT N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUT OUTB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM1 OUTB N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM14 OUTB OUT VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\\nXM9 OUT N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM13 OUT OUTB GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\\nXM6 OUTB N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM11 OUTB OUT GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVIN0 IN0 0 DC 0.9 AC 1\\nVINB0 INB0 0 DC 0.9 AC 0\\nVOFFCTRL OFFCTRL 0 DC 0\\nVCLK CLK 0 DC 0.9 PULSE(0 1.8 10p 10p 10p 40p 100p)\\n\\n.control\\n* 1. AC Analysis (Biased at metastable point)\\nalter VCLK DC = 0.9\\nac dec 10 1Meg 100G\\nlet gain_db = vdb(out)\\nmeas ac gain_1ghz find gain_db at=1G\\n\\n* 2. Transient Analysis (10GHz Clocking)\\nalter VCLK DC = 0\\nalter VIN0 DC = 0.95\\nalter VINB0 DC = 0.85\\ntran 1p 300p\\nmeas tran delay_clk_out trig v(clk) val=0.9 rise=1 targ v(out) val=0.9 rise=1\\nmeas tran power_avg avg -i(VVDD)*1.8 from=0 to=300p\\n\\n* 3. DC Sweep (Static Latch Mode for Trip Point)\\nalter VCLK DC = 1.8\\nalter VIN0 DC = 0.9\\nalter VINB0 DC = 0.9\\ndc VIN0 0.7 1.1 0.001\\nmeas dc trip_point when v(out)=0.9 rise=1\\n\\nprint gain_1ghz delay_clk_out power_avg trip_point\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "10454560",
+  "_case": "10454560_image_4_a"
+}

@@ -1,0 +1,127 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 24.17",
+    "page": "750",
+    "circuit_type": "Current Mirror OTA",
+    "description": "A standard current mirror operational transconductance amplifier (OTA) with a single-ended output. It uses a differential pair with current mirror loads to provide high output impedance and gain."
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "Low-frequency open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "751",
+        "reference": "Eq 24.20"
+      },
+      "equation": {
+        "formula": "A_v = G_m * R_out",
+        "explanation": "Product of total transconductance and output resistance",
+        "assumptions": "K=1 current mirror ratio"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming W/L=10 for all devices and Itail=20uA. Gm = gm1 = sqrt(2 * un*Cox * (W/L) * I_D) = sqrt(2 * 270u * 10 * 10u) = 232 uA/V. Rout = ro6 || ro9 = 1/(lambda*I_D) || 1/(lambda*I_D) = 1/(0.1*10u) || 1/(0.1*10u) = 500 kOhm. Av = 232u * 500k = 116 V/V = 41.3 dB",
+        "range": {
+          "min": 30,
+          "typical": 41.3,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on exact W/L sizing and resulting overdrive voltages."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency where open-loop gain drops to 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "752",
+        "reference": "Eq 24.22"
+      },
+      "equation": {
+        "formula": "f_un = G_m / (2 * pi * C_L)",
+        "explanation": "Determined by transconductance and load capacitance",
+        "assumptions": "Dominant pole is at the output"
+      },
+      "sky130_expected": {
+        "calculation": "f_un = 232uA/V / (2 * pi * 1pF) = 36.9 MHz",
+        "range": {
+          "min": 20000000.0,
+          "typical": 36900000.0,
+          "max": 50000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Scales linearly with Gm and inversely with Cload."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "753",
+        "reference": "Eq 24.25"
+      },
+      "equation": {
+        "formula": "SR = I_tail / C_L",
+        "explanation": "Maximum current available to charge/discharge the load capacitor",
+        "assumptions": "K=1 current mirror ratio"
+      },
+      "sky130_expected": {
+        "calculation": "SR = 20uA / 1pF = 20 V/us",
+        "range": {
+          "min": 15,
+          "typical": 20,
+          "max": 25,
+          "unit": "V/us"
+        },
+        "reasoning": "Directly proportional to tail current and inversely to load capacitance."
+      },
+      "importance": "essential"
+    },
+    "power_dissipation": {
+      "description": "Total static power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "754",
+        "reference": "Eq 24.28"
+      },
+      "equation": {
+        "formula": "P = V_DD * I_tot",
+        "explanation": "Sum of currents in all branches multiplied by supply voltage",
+        "assumptions": "I_tot = I_bias + I_tail + I_branch1 + I_branch2"
+      },
+      "sky130_expected": {
+        "calculation": "I_tot = 20uA (bias) + 20uA (tail) + 10uA (mirror 1) + 10uA (mirror 2) = 60uA. P = 1.8V * 60uA = 108uW",
+        "range": {
+          "min": 9e-05,
+          "typical": 0.000108,
+          "max": 0.00013,
+          "unit": "W"
+        },
+        "reasoning": "Depends on exact current mirror ratios and channel length modulation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure open-loop gain, unity-gain frequency, phase margin, slew rate, and power dissipation of the Current Mirror OTA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "open_loop_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate",
+      "power_dissipation"
+    ],
+    "spice": "* OTA testbench\n.lib ${SKY130_PDK} tt\n\n.param W_XM5=2u L_XM5=1u\n.param W_XM4=2u L_XM4=1u\n.param W_XM3=4u L_XM3=1u\n.param W_XM0=4u L_XM0=1u\n.param W_XM2=4u L_XM2=1u\n.param W_XM1=4u L_XM1=1u\n.param W_XM6=4u L_XM6=1u\n.param W_XM7=4u L_XM7=1u\n.param W_XM8=2u L_XM8=1u\n.param W_XM9=2u L_XM9=1u\n\n.subckt CURRENT_MIRROR_OTA VSS VDD VOUT VINN VINP ID\nXM5 ID ID VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM5} l={L_XM5}\nXM4 SOURCE ID VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM4} l={L_XM4}\nXM3 NET7 VINN SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM3} l={L_XM3}\nXM0 NET8 VINP SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM0} l={L_XM0}\nXM2 NET7 NET7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM2} l={L_XM2}\nXM1 NET8 NET8 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM1} l={L_XM1}\nXM6 VOUT NET7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM6} l={L_XM6}\nXM7 NET9 NET8 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM7} l={L_XM7}\nXM8 NET9 NET9 SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM8} l={L_XM8}\nXM9 VOUT NET9 SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM9} l={L_XM9}\n.ends CURRENT_MIRROR_OTA\n\nVDD VDD 0 DC 1.8\nVSS VSS 0 DC 0\nIBIAS VDD ID DC 20e-6\n\n* Open-loop AC setup\nVCM VCM 0 DC 0.9\nVINP VINP VCM DC 0 AC 1\nVINN VINN VCM DC 0 AC 0\nXOTA VSS VDD VOUT VINN VINP ID CURRENT_MIRROR_OTA\nCLOAD VOUT 0 1e-12\n\n* Closed-loop Transient setup for Slew Rate\nXOTA_TRAN VSS VDD VOUT_TRAN VOUT_TRAN VINP_TRAN ID CURRENT_MIRROR_OTA\nCLOAD_TRAN VOUT_TRAN 0 1e-12\nVINP_TRAN VINP_TRAN 0 DC 0.9 PULSE(0.4 1.4 10n 1n 1n 40n 100n)\n\n.control\n  op\n  let power = -i(VDD) * 1.8\n  print power\n\n  ac dec 100 1 1G\n  let gain_db = vdb(VOUT)\n  let phase = 180/PI * cph(v(VOUT))\n  meas ac dc_gain find gain_db at=10\n  meas ac ugf when gain_db=0 fall=1\n  meas ac pm find phase when gain_db=0 fall=1\n\n  tran 100p 100n\n  meas tran sr_rise deriv v(VOUT_TRAN) at=15n\n  meas tran sr_fall deriv v(VOUT_TRAN) at=55n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 24.17\",\n    \"page\": \"750\",\n    \"circuit_type\": \"Current Mirror OTA\",\n    \"description\": \"A standard current mirror operational transconductance amplifier (OTA) with a single-ended output. It uses a differential pair with current mirror loads to provide high output impedance and gain.\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"751\",\n        \"reference\": \"Eq 24.20\"\n      },\n      \"equation\": {\n        \"formula\": \"A_v = G_m * R_out\",\n        \"explanation\": \"Product of total transconductance and output resistance\",\n        \"assumptions\": \"K=1 current mirror ratio\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming W/L=10 for all devices and Itail=20uA. Gm = gm1 = sqrt(2 * un*Cox * (W/L) * I_D) = sqrt(2 * 270u * 10 * 10u) = 232 uA/V. Rout = ro6 || ro9 = 1/(lambda*I_D) || 1/(lambda*I_D) = 1/(0.1*10u) || 1/(0.1*10u) = 500 kOhm. Av = 232u * 500k = 116 V/V = 41.3 dB\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 41.3,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on exact W/L sizing and resulting overdrive voltages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency where open-loop gain drops to 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"752\",\n        \"reference\": \"Eq 24.22\"\n      },\n      \"equation\": {\n        \"formula\": \"f_un = G_m / (2 * pi * C_L)\",\n        \"explanation\": \"Determined by transconductance and load capacitance\",\n        \"assumptions\": \"Dominant pole is at the output\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_un = 232uA/V / (2 * pi * 1pF) = 36.9 MHz\",\n        \"range\": {\n          \"min\": 20e6,\n          \"typical\": 36.9e6,\n          \"max\": 50e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Scales linearly with Gm and inversely with Cload.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"753\",\n        \"reference\": \"Eq 24.25\"\n      },\n      \"equation\": {\n        \"formula\": \"SR = I_tail / C_L\",\n        \"explanation\": \"Maximum current available to charge/discharge the load capacitor\",\n        \"assumptions\": \"K=1 current mirror ratio\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = 20uA / 1pF = 20 V/us\",\n        \"range\": {\n          \"min\": 15,\n          \"typical\": 20,\n          \"max\": 25,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Directly proportional to tail current and inversely to load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total static power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"754\",\n        \"reference\": \"Eq 24.28\"\n      },\n      \"equation\": {\n        \"formula\": \"P = V_DD * I_tot\",\n        \"explanation\": \"Sum of currents in all branches multiplied by supply voltage\",\n        \"assumptions\": \"I_tot = I_bias + I_tail + I_branch1 + I_branch2\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tot = 20uA (bias) + 20uA (tail) + 10uA (mirror 1) + 10uA (mirror 2) = 60uA. P = 1.8V * 60uA = 108uW\",\n        \"range\": {\n          \"min\": 90e-6,\n          \"typical\": 108e-6,\n          \"max\": 130e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on exact current mirror ratios and channel length modulation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure open-loop gain, unity-gain frequency, phase margin, slew rate, and power dissipation of the Current Mirror OTA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"open_loop_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\",\n      \"power_dissipation\"\n    ],\n    \"spice\": \"* OTA testbench\\n.lib ${SKY130_PDK} tt\\n\\n.param W_XM5=2u L_XM5=1u\\n.param W_XM4=2u L_XM4=1u\\n.param W_XM3=4u L_XM3=1u\\n.param W_XM0=4u L_XM0=1u\\n.param W_XM2=4u L_XM2=1u\\n.param W_XM1=4u L_XM1=1u\\n.param W_XM6=4u L_XM6=1u\\n.param W_XM7=4u L_XM7=1u\\n.param W_XM8=2u L_XM8=1u\\n.param W_XM9=2u L_XM9=1u\\n\\n.subckt CURRENT_MIRROR_OTA VSS VDD VOUT VINN VINP ID\\nXM5 ID ID VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM5} l={L_XM5}\\nXM4 SOURCE ID VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM4} l={L_XM4}\\nXM3 NET7 VINN SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM3} l={L_XM3}\\nXM0 NET8 VINP SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM0} l={L_XM0}\\nXM2 NET7 NET7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM2} l={L_XM2}\\nXM1 NET8 NET8 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM1} l={L_XM1}\\nXM6 VOUT NET7 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM6} l={L_XM6}\\nXM7 NET9 NET8 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM7} l={L_XM7}\\nXM8 NET9 NET9 SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM8} l={L_XM8}\\nXM9 VOUT NET9 SOURCE VSS sky130_fd_pr__nfet_01v8 w={W_XM9} l={L_XM9}\\n.ends CURRENT_MIRROR_OTA\\n\\nVDD VDD 0 DC 1.8\\nVSS VSS 0 DC 0\\nIBIAS VDD ID DC 20e-6\\n\\n* Open-loop AC setup\\nVCM VCM 0 DC 0.9\\nVINP VINP VCM DC 0 AC 1\\nVINN VINN VCM DC 0 AC 0\\nXOTA VSS VDD VOUT VINN VINP ID CURRENT_MIRROR_OTA\\nCLOAD VOUT 0 1e-12\\n\\n* Closed-loop Transient setup for Slew Rate\\nXOTA_TRAN VSS VDD VOUT_TRAN VOUT_TRAN VINP_TRAN ID CURRENT_MIRROR_OTA\\nCLOAD_TRAN VOUT_TRAN 0 1e-12\\nVINP_TRAN VINP_TRAN 0 DC 0.9 PULSE(0.4 1.4 10n 1n 1n 40n 100n)\\n\\n.control\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n\\n  ac dec 100 1 1G\\n  let gain_db = vdb(VOUT)\\n  let phase = 180/PI * cph(v(VOUT))\\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugf when gain_db=0 fall=1\\n  meas ac pm find phase when gain_db=0 fall=1\\n\\n  tran 100p 100n\\n  meas tran sr_rise deriv v(VOUT_TRAN) at=15n\\n  meas tran sr_fall deriv v(VOUT_TRAN) at=55n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

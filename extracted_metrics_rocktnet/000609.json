@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "XOR/XNOR Phase Detector (Lock Detector)",
+    "description": "A Gilbert-cell based XOR/XNOR gate used as a lock detector or phase detector. It employs Current Mode Logic (CML) with a differential pair tree and source follower output buffers.",
+    "node_mapping": {
+      "input": [
+        "DELAYED_DATA_P",
+        "DELAYED_DATA_N",
+        "RETIMED_DATA_P",
+        "RETIMED_DATA_N"
+      ],
+      "output": [
+        "OUTPUT_P",
+        "OUTPUT_N"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "VCS"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 39-to-45-Gbit/s Multi-Data-Rate Clock and Data Recovery Circuit With a Robust Lock Detector",
+      "figure": "Not specified",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the lock detector circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly isolated (chip total reported)",
+        "technology": "InP/InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current ~0.5mA (set by VCS=0.8V and R_tail=200), two source followers ~0.5mA each. Total current ~1.5mA. Power = 1.5mA * 1.8V = 2.7mW.",
+        "range": {
+          "min": "1m",
+          "typical": "2.7m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Based on typical CML bias currents in 130nm to achieve >1GHz operation."
+      },
+      "importance": "essential"
+    },
+    "differential_swing": {
+      "description": "Peak-to-peak differential output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "400 mV",
+        "technology": "InP/InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current 0.5mA steered into 1kOhm load gives 0.5V single-ended swing, or 1.0V differential.",
+        "range": {
+          "min": "0.4",
+          "typical": "1.0",
+          "max": "1.5",
+          "unit": "V"
+        },
+        "reasoning": "Adjusted for 1.8V CMOS supply and typical CML load resistors."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Delay from input crossing to output crossing",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10 ps",
+        "technology": "InP/InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "RC delay at the internal nodes. R=1k, C_parasitic~20fF. Delay ~ 0.69*R*C ~ 15-30ps.",
+        "range": {
+          "min": "10p",
+          "typical": "25p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "CMOS 130nm is slower than InP HBTs, so delay will be larger."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify XOR/XNOR logic function, measure differential output swing, propagation delay, and power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "differential_swing",
+      "propagation_delay"
+    ],
+    "spice": "* Testbench for XOR/XNOR Lock Detector\n.lib \"${SKY130_PDK}\" tt\n\n.param W_m=2u L_m=0.15u\n.param W_tail=4u L_tail=0.15u\n.param R_load=1k\n.param R_tail=200\n.param R_ef=2k\n\nV1 VDD 0 1.8\nV2 VCS 0 0.8\n\n* Inputs (1GHz and 2GHz effective data rates for testing)\nV3 DELAYED_DATA_P 0 dc 0.9 pulse(0.6 1.2 0 20p 20p 480p 1n)\nV4 DELAYED_DATA_N 0 dc 0.9 pulse(1.2 0.6 0 20p 20p 480p 1n)\nV5 RETIMED_DATA_P 0 dc 0.9 pulse(0.6 1.2 250p 20p 20p 480p 1n)\nV6 RETIMED_DATA_N 0 dc 0.9 pulse(1.2 0.6 250p 20p 20p 480p 1n)\n\n* DUT\nR1 VDD N_C2 {R_load}\nR2 VDD N_C1 {R_load}\nR3 OUTPUT_P 0 {R_ef}\nR4 N_E6 0 {R_tail}\nR5 OUTPUT_N 0 {R_ef}\n\nM1 N_C1 RETIMED_DATA_N N_E34 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\nM2 N_E12 DELAYED_DATA_P N_E5 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\nM3 N_C1 RETIMED_DATA_P N_E12 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\nM4 VDD N_C2 OUTPUT_N 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\nM5 N_E5 VCS N_E6 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nM6 N_C2 RETIMED_DATA_N N_E12 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\nM7 VDD N_C1 OUTPUT_P 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\nM8 N_E34 DELAYED_DATA_N N_E5 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\nM9 N_C2 RETIMED_DATA_P N_E34 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\n\n.control\ntran 10p 4n\nlet out_diff = v(OUTPUT_P) - v(OUTPUT_N)\n\n* Swing measurement\nmeas tran v_max max out_diff\nmeas tran v_min min out_diff\n\n* Power measurement\nlet pwr = -i(V1)*1.8\nmeas tran avg_pwr avg pwr\n\n* Delay measurement\nmeas tran t_in trig v(DELAYED_DATA_P) val=0.9 rise=2\nmeas tran t_out trig out_diff val=0 rise=3\nlet delay = t_out - t_in\nprint delay\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"XOR/XNOR Phase Detector (Lock Detector)\",\n    \"description\": \"A Gilbert-cell based XOR/XNOR gate used as a lock detector or phase detector. It employs Current Mode Logic (CML) with a differential pair tree and source follower output buffers.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"DELAYED_DATA_P\",\n        \"DELAYED_DATA_N\",\n        \"RETIMED_DATA_P\",\n        \"RETIMED_DATA_N\"\n      ],\n      \"output\": [\n        \"OUTPUT_P\",\n        \"OUTPUT_N\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"VCS\"\n      ],\n      \"ground\": [\n        \"VEE\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 39-to-45-Gbit/s Multi-Data-Rate Clock and Data Recovery Circuit With a Robust Lock Detector\",\n      \"figure\": \"Not specified\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the lock detector circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly isolated (chip total reported)\",\n        \"technology\": \"InP/InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current ~0.5mA (set by VCS=0.8V and R_tail=200), two source followers ~0.5mA each. Total current ~1.5mA. Power = 1.5mA * 1.8V = 2.7mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"2.7m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on typical CML bias currents in 130nm to achieve >1GHz operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"differential_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"400 mV\",\n        \"technology\": \"InP/InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current 0.5mA steered into 1kOhm load gives 0.5V single-ended swing, or 1.0V differential.\",\n        \"range\": {\n          \"min\": \"0.4\",\n          \"typical\": \"1.0\",\n          \"max\": \"1.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Adjusted for 1.8V CMOS supply and typical CML load resistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Delay from input crossing to output crossing\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10 ps\",\n        \"technology\": \"InP/InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"RC delay at the internal nodes. R=1k, C_parasitic~20fF. Delay ~ 0.69*R*C ~ 15-30ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"25p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"CMOS 130nm is slower than InP HBTs, so delay will be larger.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify XOR/XNOR logic function, measure differential output swing, propagation delay, and power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"differential_swing\",\n      \"propagation_delay\"\n    ],\n    \"spice\": \"* Testbench for XOR/XNOR Lock Detector\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_m=2u L_m=0.15u\\n.param W_tail=4u L_tail=0.15u\\n.param R_load=1k\\n.param R_tail=200\\n.param R_ef=2k\\n\\nV1 VDD 0 1.8\\nV2 VCS 0 0.8\\n\\n* Inputs (1GHz and 2GHz effective data rates for testing)\\nV3 DELAYED_DATA_P 0 dc 0.9 pulse(0.6 1.2 0 20p 20p 480p 1n)\\nV4 DELAYED_DATA_N 0 dc 0.9 pulse(1.2 0.6 0 20p 20p 480p 1n)\\nV5 RETIMED_DATA_P 0 dc 0.9 pulse(0.6 1.2 250p 20p 20p 480p 1n)\\nV6 RETIMED_DATA_N 0 dc 0.9 pulse(1.2 0.6 250p 20p 20p 480p 1n)\\n\\n* DUT\\nR1 VDD N_C2 {R_load}\\nR2 VDD N_C1 {R_load}\\nR3 OUTPUT_P 0 {R_ef}\\nR4 N_E6 0 {R_tail}\\nR5 OUTPUT_N 0 {R_ef}\\n\\nM1 N_C1 RETIMED_DATA_N N_E34 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\nM2 N_E12 DELAYED_DATA_P N_E5 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\nM3 N_C1 RETIMED_DATA_P N_E12 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\nM4 VDD N_C2 OUTPUT_N 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\nM5 N_E5 VCS N_E6 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nM6 N_C2 RETIMED_DATA_N N_E12 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\nM7 VDD N_C1 OUTPUT_P 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\nM8 N_E34 DELAYED_DATA_N N_E5 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\nM9 N_C2 RETIMED_DATA_P N_E34 0 sky130_fd_pr__nfet_01v8 w={W_m} l={L_m}\\n\\n.control\\ntran 10p 4n\\nlet out_diff = v(OUTPUT_P) - v(OUTPUT_N)\\n\\n* Swing measurement\\nmeas tran v_max max out_diff\\nmeas tran v_min min out_diff\\n\\n* Power measurement\\nlet pwr = -i(V1)*1.8\\nmeas tran avg_pwr avg pwr\\n\\n* Delay measurement\\nmeas tran t_in trig v(DELAYED_DATA_P) val=0.9 rise=2\\nmeas tran t_out trig out_diff val=0 rise=3\\nlet delay = t_out - t_in\\nprint delay\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1317064",
+  "_case": "1317064_image_5"
+}

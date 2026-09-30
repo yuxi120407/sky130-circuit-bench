@@ -1,0 +1,230 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 22.12 (and Figure 22.6)",
+    "page": "720 (and 716)",
+    "circuit_type": "NMOS differential amplifier with PMOS current-mirror active load and cascode tail current source",
+    "description": "The circuit is an NMOS input differential pair (M1, M2) loaded by a PMOS current mirror (M3, M4) with cascode NMOS tail current source biased by Vbias3 and Vbias4 from a wide-swing cascode bias generator (SUB_1), driving an output load capacitance."
+  },
+  "step2_metrics": {
+    "differential_voltage_gain": {
+      "description": "Small-signal low-frequency differential voltage gain Ad",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "719",
+        "reference": "Eq. (22.22)"
+      },
+      "equation": {
+        "formula": "Ad = gm * (ro2 || ro4)",
+        "explanation": "Differential input voltage creates small-signal current gm*vdi/2 in each branch; the current mirror mirrors id1 to the output node yielding total AC current 2*id = gm*vdi flowing into output resistance ro2 || ro4.",
+        "assumptions": "M1-M4 operating in saturation region, matched differential pair and mirror."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming tail current Iss \u2248 20 uA (ID1 = ID2 = 10 uA), W/L = 10u/1u for NMOS. gm = sqrt(2 * un*Cox * (W/L) * ID) = sqrt(2 * 270u * 10 * 10u) = 232 uA/V. Output resistance ro2 = 1/(lambda_n * ID) = 1/(0.1 * 10u) = 1 MOhm, ro4 = 1/(lambda_p * ID) = 1/(0.1 * 10u) = 1 MOhm. ro2 || ro4 = 500 kOhm. Ad = 232 uA/V * 500 kOhm = 116 V/V \u2248 41.3 dB.",
+        "range": {
+          "min": 25.0,
+          "typical": 40.0,
+          "max": 55.0,
+          "unit": "dB"
+        },
+        "reasoning": "Device channel length modulation and sizing variations typically result in DC gains between 30 dB and 50 dB for standard length devices in SKY130."
+      },
+      "importance": "essential"
+    },
+    "f_3dB_bandwidth": {
+      "description": "Output pole -3 dB corner frequency with capacitive load",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "721",
+        "reference": "Example 22.6"
+      },
+      "equation": {
+        "formula": "f_3dB = 1 / (2 * pi * (ro2 || ro4) * Cload)",
+        "explanation": "The output is the highest-impedance node in the circuit; the dominant pole is determined by parallel output resistance ro2||ro4 and load capacitance Cload.",
+        "assumptions": "Single dominant pole determined by Cload = 1 pF at high-impedance output node."
+      },
+      "sky130_expected": {
+        "calculation": "With ro2 || ro4 \u2248 500 kOhm and Cload = 1 pF: f_3dB = 1 / (2 * pi * 500k * 1pF) \u2248 318 kHz.",
+        "range": {
+          "min": 100000.0,
+          "typical": 320000.0,
+          "max": 1000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Output resistance is typically 300 kOhm - 1 MOhm depending on biasing and transistor lengths."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Unity gain frequency (gain-bandwidth product)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "721",
+        "reference": "Fig. 22.14"
+      },
+      "equation": {
+        "formula": "fun = gm / (2 * pi * Cload)",
+        "explanation": "Product of DC gain and 3-dB frequency equals transconductance divided by 2*pi*Cload.",
+        "assumptions": "Dominant single-pole roll-off up to 0 dB crossover."
+      },
+      "sky130_expected": {
+        "calculation": "fun = 232 uA/V / (2 * pi * 1 pF) \u2248 36.9 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 35000000.0,
+          "max": 80000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined primarily by input pair transconductance gm and Cload = 1 pF."
+      },
+      "importance": "recommended"
+    },
+    "vcm_min": {
+      "description": "Minimum common-mode input voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "714",
+        "reference": "Eq. (22.11)"
+      },
+      "equation": {
+        "formula": "V_CMMIN = VGS1,2 + 2 * VDS,sat",
+        "explanation": "Input voltage must be high enough to establish VGS on the input NMOS plus keep the cascode current sink saturated (2*VDS,sat).",
+        "assumptions": "Cascode tail current sink requires minimum 2*VDS,sat across it to stay in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "VGS1 = Vthn + Vov1 \u2248 0.42V + 0.10V = 0.52V. Minimum voltage across cascode current sink is 2*VDS,sat \u2248 2 * 0.12V = 0.24V. V_CMMIN = 0.52V + 0.24V = 0.76 V.",
+        "range": {
+          "min": 0.6,
+          "typical": 0.75,
+          "max": 0.95,
+          "unit": "V"
+        },
+        "reasoning": "Vthn is ~0.42V in SKY130 with overdrive voltages around 100-150 mV."
+      },
+      "importance": "recommended"
+    },
+    "vcm_max": {
+      "description": "Maximum common-mode input voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "716",
+        "reference": "Eq. (22.12)"
+      },
+      "equation": {
+        "formula": "V_CMMAX = VDD - VSG + VTHN",
+        "explanation": "To keep input transistors M1/M2 saturated, VD >= VG - VTHN. The drain of M1 is clamped at VDD - VSG3 by the diode-connected PMOS load, giving VG <= VDD - VSG3 + VTHN.",
+        "assumptions": "M1 and M3 in saturation with balanced DC inputs."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8V, VSG3 = |Vthp| + Vov3 \u2248 0.42V + 0.15V = 0.57V. VTHN \u2248 0.42V. V_CMMAX = 1.8 - 0.57 + 0.42 = 1.65 V.",
+        "range": {
+          "min": 1.4,
+          "typical": 1.65,
+          "max": 1.75,
+          "unit": "V"
+        },
+        "reasoning": "Maximum CM is elevated above drain voltage by one threshold voltage VTHN."
+      },
+      "importance": "recommended"
+    },
+    "vout_max": {
+      "description": "Maximum output voltage swing limit",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "716",
+        "reference": "Eq. (22.13)"
+      },
+      "equation": {
+        "formula": "V_OUTMAX = VDD - VSD,sat",
+        "explanation": "Output voltage can swing up to VDD minus the saturation voltage of PMOS mirror transistor M4 before M4 enters triode.",
+        "assumptions": "M4 remains in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8V, VSD,sat \u2248 0.15V. V_OUTMAX = 1.8 - 0.15 = 1.65 V.",
+        "range": {
+          "min": 1.5,
+          "typical": 1.65,
+          "max": 1.75,
+          "unit": "V"
+        },
+        "reasoning": "PMOS requires at least its saturation voltage VSD,sat to maintain high drain impedance."
+      },
+      "importance": "recommended"
+    },
+    "vout_min": {
+      "description": "Minimum output voltage swing limit",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "716",
+        "reference": "Eq. (22.14)"
+      },
+      "equation": {
+        "formula": "V_OUTMIN = VI2 - VTHN",
+        "explanation": "Output can swing down until M2 enters triode when VD2 drops below VG2 - VTHN.",
+        "assumptions": "Input VI2 held at DC reference voltage."
+      },
+      "sky130_expected": {
+        "calculation": "VI2 = 0.50 V, VTHN (with body effect) \u2248 0.45V to 0.50V. V_OUTMIN = 0.50 - 0.45 \u2248 0.05 V (or up to ~0.2 V depending on gate bias).",
+        "range": {
+          "min": 0.0,
+          "typical": 0.1,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "Limited by the pinch-off of NMOS M2 with fixed gate voltage VI2."
+      },
+      "importance": "recommended"
+    },
+    "dc_output_voltage": {
+      "description": "Quiescent DC output voltage when differential input is zero",
+      "unit": "V",
+      "analysis_type": "OP",
+      "source": {
+        "page": "720",
+        "reference": "Ex. 22.5 text"
+      },
+      "equation": {
+        "formula": "V_OUT,DC = VDD - VSG3",
+        "explanation": "Due to circuit symmetry and mirror action, the quiescent drain voltage of M4 matches that of diode-connected M3.",
+        "assumptions": "Matched M1-M2 and M3-M4 with zero differential DC offset."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8 V, VSG3 \u2248 0.57 V. V_OUT,DC = 1.8 - 0.57 = 1.23 V.",
+        "range": {
+          "min": 1.0,
+          "typical": 1.25,
+          "max": 1.45,
+          "unit": "V"
+        },
+        "reasoning": "Equal to VDD minus PMOS threshold and overdrive voltage."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "SPICE testbench for AC response, DC operating point, and input/output swing characteristics of diff-amp with current mirror load",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC"
+    ],
+    "metrics_measured": [
+      "differential_voltage_gain",
+      "f_3dB_bandwidth",
+      "unity_gain_frequency",
+      "dc_output_voltage",
+      "vcm_min",
+      "vcm_max",
+      "vout_max",
+      "vout_min"
+    ],
+    "spice": "* Testbench for Diff-Amp with Current Mirror Load (Fig 22.12)\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter defaults\n.param W_xm1=10u L_xm1=1u\n.param W_xm2=10u L_xm2=1u\n.param W_xm3=20u L_xm3=1u\n.param W_xm4=20u L_xm4=1u\n.param W_xm6t=20u L_xm6t=1u\n.param W_xm6b=20u L_xm6b=1u\n.param W_xmsu1=10u L_xmsu1=1u\n.param W_xmsu2=10u L_xmsu2=1u\n.param W_xmsu3=10u L_xmsu3=1u\n.param W_xmsu4=10u L_xmsu4=1u\n.param W_xm5=10u L_xm5=1u\n.param W_xm6=10u L_xm6=1u\n.param W_xm7=10u L_xm7=1u\n.param W_xm8=10u L_xm8=1u\n.param W_xm9=10u L_xm9=1u\n.param W_xm10=10u L_xm10=1u\n.param W_xm11=10u L_xm11=1u\n.param W_xm12=10u L_xm12=1u\n.param W_xm13=10u L_xm13=1u\n.param W_xm14=10u L_xm14=1u\n.param W_xm15=10u L_xm15=1u\n.param W_xm16=10u L_xm16=1u\n.param W_xm17=10u L_xm17=1u\n.param W_xm18=10u L_xm18=1u\n.param W_xma1=10u L_xma1=1u\n.param W_xma2=10u L_xma2=1u\n.param W_xma3=10u L_xma3=1u\n.param W_xma4=10u L_xma4=1u\n.param W_xma5=10u L_xma5=1u\n.param W_xma6=10u L_xma6=1u\n.param W_xma7=10u L_xma7=1u\n.param W_xma8=10u L_xma8=1u\n.param W_xma9=10u L_xma9=1u\n.param W_xma10=10u L_xma10=1u\n.param W_xma11=10u L_xma11=1u\n.param W_xma12=10u L_xma12=1u\n\n* DUT Netlist\nVDD VDD 0 1.8\nxm2 Vout N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 N002 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm4 Vout N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nxm6t N004 Vbias3 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\nxm6b N005 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\nVI2 N003 0 500m\nCload Vout 0 1e-12\n\n* Differential Input AC source on M1\nVI1 N002 0 dc 500m ac 1\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n\n.control\n* 1. DC Operating point\nop\nlet vout_dc = v(vout)\nprint vout_dc\n\n* 2. AC Analysis\nac dec 100 10k 100MEG\nlet gain_db = vdb(vout)\nlet phase = 180/PI * cph(v(vout))\n\nmeas ac low_freq_gain max gain_db\nlet target_3db = low_freq_gain - 3\nmeas ac f_3db when gain_db=target_3db fall=1\nmeas ac fun when gain_db=0 fall=1\n\n* 3. DC sweep of input to measure output swing and common-mode range\ndc VI1 0 1.8 0.01\nmeas dc vout_max max v(vout)\nmeas dc vout_min min v(vout)\n\nprint low_freq_gain f_3db fun vout_max vout_min\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 22.12 (and Figure 22.6)\",\n    \"page\": \"720 (and 716)\",\n    \"circuit_type\": \"NMOS differential amplifier with PMOS current-mirror active load and cascode tail current source\",\n    \"description\": \"The circuit is an NMOS input differential pair (M1, M2) loaded by a PMOS current mirror (M3, M4) with cascode NMOS tail current source biased by Vbias3 and Vbias4 from a wide-swing cascode bias generator (SUB_1), driving an output load capacitance.\"\n  },\n  \"step2_metrics\": {\n    \"differential_voltage_gain\": {\n      \"description\": \"Small-signal low-frequency differential voltage gain Ad\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"719\",\n        \"reference\": \"Eq. (22.22)\"\n      },\n      \"equation\": {\n        \"formula\": \"Ad = gm * (ro2 || ro4)\",\n        \"explanation\": \"Differential input voltage creates small-signal current gm*vdi/2 in each branch; the current mirror mirrors id1 to the output node yielding total AC current 2*id = gm*vdi flowing into output resistance ro2 || ro4.\",\n        \"assumptions\": \"M1-M4 operating in saturation region, matched differential pair and mirror.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming tail current Iss \u2248 20 uA (ID1 = ID2 = 10 uA), W/L = 10u/1u for NMOS. gm = sqrt(2 * un*Cox * (W/L) * ID) = sqrt(2 * 270u * 10 * 10u) = 232 uA/V. Output resistance ro2 = 1/(lambda_n * ID) = 1/(0.1 * 10u) = 1 MOhm, ro4 = 1/(lambda_p * ID) = 1/(0.1 * 10u) = 1 MOhm. ro2 || ro4 = 500 kOhm. Ad = 232 uA/V * 500 kOhm = 116 V/V \u2248 41.3 dB.\",\n        \"range\": {\n          \"min\": 25.0,\n          \"typical\": 40.0,\n          \"max\": 55.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Device channel length modulation and sizing variations typically result in DC gains between 30 dB and 50 dB for standard length devices in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"f_3dB_bandwidth\": {\n      \"description\": \"Output pole -3 dB corner frequency with capacitive load\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"721\",\n        \"reference\": \"Example 22.6\"\n      },\n      \"equation\": {\n        \"formula\": \"f_3dB = 1 / (2 * pi * (ro2 || ro4) * Cload)\",\n        \"explanation\": \"The output is the highest-impedance node in the circuit; the dominant pole is determined by parallel output resistance ro2||ro4 and load capacitance Cload.\",\n        \"assumptions\": \"Single dominant pole determined by Cload = 1 pF at high-impedance output node.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With ro2 || ro4 \u2248 500 kOhm and Cload = 1 pF: f_3dB = 1 / (2 * pi * 500k * 1pF) \u2248 318 kHz.\",\n        \"range\": {\n          \"min\": 100000.0,\n          \"typical\": 320000.0,\n          \"max\": 1000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Output resistance is typically 300 kOhm - 1 MOhm depending on biasing and transistor lengths.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Unity gain frequency (gain-bandwidth product)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"721\",\n        \"reference\": \"Fig. 22.14\"\n      },\n      \"equation\": {\n        \"formula\": \"fun = gm / (2 * pi * Cload)\",\n        \"explanation\": \"Product of DC gain and 3-dB frequency equals transconductance divided by 2*pi*Cload.\",\n        \"assumptions\": \"Dominant single-pole roll-off up to 0 dB crossover.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"fun = 232 uA/V / (2 * pi * 1 pF) \u2248 36.9 MHz.\",\n        \"range\": {\n          \"min\": 10000000.0,\n          \"typical\": 35000000.0,\n          \"max\": 80000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined primarily by input pair transconductance gm and Cload = 1 pF.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vcm_min\": {\n      \"description\": \"Minimum common-mode input voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"714\",\n        \"reference\": \"Eq. (22.11)\"\n      },\n      \"equation\": {\n        \"formula\": \"V_CMMIN = VGS1,2 + 2 * VDS,sat\",\n        \"explanation\": \"Input voltage must be high enough to establish VGS on the input NMOS plus keep the cascode current sink saturated (2*VDS,sat).\",\n        \"assumptions\": \"Cascode tail current sink requires minimum 2*VDS,sat across it to stay in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VGS1 = Vthn + Vov1 \u2248 0.42V + 0.10V = 0.52V. Minimum voltage across cascode current sink is 2*VDS,sat \u2248 2 * 0.12V = 0.24V. V_CMMIN = 0.52V + 0.24V = 0.76 V.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.75,\n          \"max\": 0.95,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Vthn is ~0.42V in SKY130 with overdrive voltages around 100-150 mV.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vcm_max\": {\n      \"description\": \"Maximum common-mode input voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"716\",\n        \"reference\": \"Eq. (22.12)\"\n      },\n      \"equation\": {\n        \"formula\": \"V_CMMAX = VDD - VSG + VTHN\",\n        \"explanation\": \"To keep input transistors M1/M2 saturated, VD >= VG - VTHN. The drain of M1 is clamped at VDD - VSG3 by the diode-connected PMOS load, giving VG <= VDD - VSG3 + VTHN.\",\n        \"assumptions\": \"M1 and M3 in saturation with balanced DC inputs.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8V, VSG3 = |Vthp| + Vov3 \u2248 0.42V + 0.15V = 0.57V. VTHN \u2248 0.42V. V_CMMAX = 1.8 - 0.57 + 0.42 = 1.65 V.\",\n        \"range\": {\n          \"min\": 1.4,\n          \"typical\": 1.65,\n          \"max\": 1.75,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Maximum CM is elevated above drain voltage by one threshold voltage VTHN.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vout_max\": {\n      \"description\": \"Maximum output voltage swing limit\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"716\",\n        \"reference\": \"Eq. (22.13)\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OUTMAX = VDD - VSD,sat\",\n        \"explanation\": \"Output voltage can swing up to VDD minus the saturation voltage of PMOS mirror transistor M4 before M4 enters triode.\",\n        \"assumptions\": \"M4 remains in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8V, VSD,sat \u2248 0.15V. V_OUTMAX = 1.8 - 0.15 = 1.65 V.\",\n        \"range\": {\n          \"min\": 1.5,\n          \"typical\": 1.65,\n          \"max\": 1.75,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"PMOS requires at least its saturation voltage VSD,sat to maintain high drain impedance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vout_min\": {\n      \"description\": \"Minimum output voltage swing limit\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"716\",\n        \"reference\": \"Eq. (22.14)\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OUTMIN = VI2 - VTHN\",\n        \"explanation\": \"Output can swing down until M2 enters triode when VD2 drops below VG2 - VTHN.\",\n        \"assumptions\": \"Input VI2 held at DC reference voltage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VI2 = 0.50 V, VTHN (with body effect) \u2248 0.45V to 0.50V. V_OUTMIN = 0.50 - 0.45 \u2248 0.05 V (or up to ~0.2 V depending on gate bias).\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 0.1,\n          \"max\": 0.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Limited by the pinch-off of NMOS M2 with fixed gate voltage VI2.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dc_output_voltage\": {\n      \"description\": \"Quiescent DC output voltage when differential input is zero\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"720\",\n        \"reference\": \"Ex. 22.5 text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OUT,DC = VDD - VSG3\",\n        \"explanation\": \"Due to circuit symmetry and mirror action, the quiescent drain voltage of M4 matches that of diode-connected M3.\",\n        \"assumptions\": \"Matched M1-M2 and M3-M4 with zero differential DC offset.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8 V, VSG3 \u2248 0.57 V. V_OUT,DC = 1.8 - 0.57 = 1.23 V.\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.25,\n          \"max\": 1.45,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Equal to VDD minus PMOS threshold and overdrive voltage.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"SPICE testbench for AC response, DC operating point, and input/output swing characteristics of diff-amp with current mirror load\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"differential_voltage_gain\",\n      \"f_3dB_bandwidth\",\n      \"unity_gain_frequency\",\n      \"dc_output_voltage\",\n      \"vcm_min\",\n      \"vcm_max\",\n      \"vout_max\",\n      \"vout_min\"\n    ],\n    \"spice\": \"* Testbench for Diff-Amp with Current Mirror Load (Fig 22.12)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter defaults\\n.param W_xm1=10u L_xm1=1u\\n.param W_xm2=10u L_xm2=1u\\n.param W_xm3=20u L_xm3=1u\\n.param W_xm4=20u L_xm4=1u\\n.param W_xm6t=20u L_xm6t=1u\\n.param W_xm6b=20u L_xm6b=1u\\n.param W_xmsu1=10u L_xmsu1=1u\\n.param W_xmsu2=10u L_xmsu2=1u\\n.param W_xmsu3=10u L_xmsu3=1u\\n.param W_xmsu4=10u L_xmsu4=1u\\n.param W_xm5=10u L_xm5=1u\\n.param W_xm6=10u L_xm6=1u\\n.param W_xm7=10u L_xm7=1u\\n.param W_xm8=10u L_xm8=1u\\n.param W_xm9=10u L_xm9=1u\\n.param W_xm10=10u L_xm10=1u\\n.param W_xm11=10u L_xm11=1u\\n.param W_xm12=10u L_xm12=1u\\n.param W_xm13=10u L_xm13=1u\\n.param W_xm14=10u L_xm14=1u\\n.param W_xm15=10u L_xm15=1u\\n.param W_xm16=10u L_xm16=1u\\n.param W_xm17=10u L_xm17=1u\\n.param W_xm18=10u L_xm18=1u\\n.param W_xma1=10u L_xma1=1u\\n.param W_xma2=10u L_xma2=1u\\n.param W_xma3=10u L_xma3=1u\\n.param W_xma4=10u L_xma4=1u\\n.param W_xma5=10u L_xma5=1u\\n.param W_xma6=10u L_xma6=1u\\n.param W_xma7=10u L_xma7=1u\\n.param W_xma8=10u L_xma8=1u\\n.param W_xma9=10u L_xma9=1u\\n.param W_xma10=10u L_xma10=1u\\n.param W_xma11=10u L_xma11=1u\\n.param W_xma12=10u L_xma12=1u\\n\\n* DUT Netlist\\nVDD VDD 0 1.8\\nxm2 Vout N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 N002 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm4 Vout N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nxm6t N004 Vbias3 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\\nxm6b N005 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\\nVI2 N003 0 500m\\nCload Vout 0 1e-12\\n\\n* Differential Input AC source on M1\\nVI1 N002 0 dc 500m ac 1\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n\\n.control\\n* 1. DC Operating point\\nop\\nlet vout_dc = v(vout)\\nprint vout_dc\\n\\n* 2. AC Analysis\\nac dec 100 10k 100MEG\\nlet gain_db = vdb(vout)\\nlet phase = 180/PI * cph(v(vout))\\n\\nmeas ac low_freq_gain max gain_db\\nlet target_3db = low_freq_gain - 3\\nmeas ac f_3db when gain_db=target_3db fall=1\\nmeas ac fun when gain_db=0 fall=1\\n\\n* 3. DC sweep of input to measure output swing and common-mode range\\ndc VI1 0 1.8 0.01\\nmeas dc vout_max max v(vout)\\nmeas dc vout_min min v(vout)\\n\\nprint low_freq_gain f_3db fun vout_max vout_min\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

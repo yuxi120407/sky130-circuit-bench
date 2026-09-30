@@ -1,0 +1,252 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.21",
+    "page": "503",
+    "circuit_type": "Delta-Sigma Modulator (DSM) Sensing Circuit for Resistive Memory",
+    "description": "Figure 17.21 depicts a simplified DSM sensing circuit for 1T1R resistive memory where the switched-capacitor feedback network is replaced by a 25 k\u03a9 resistor. A clocked comparator with built-in offset (Fig. 17.16) senses the bitline voltage against VDD/2 and drives PMOS switch M3, which along with common-gate PMOS M4 injects compensating charge into the bitline to balance the memory cell current."
+  },
+  "step2_metrics": {
+    "comparator_offset_voltage": {
+      "description": "Built-in input offset voltage of the clocked comparator created by sizing mismatch (13/1 vs 10/1) on the differential input transistors",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "498",
+        "reference": "Fig 17.16 and Fig 17.17"
+      },
+      "equation": {
+        "formula": "Vos = V(vbit_avg) - VREF",
+        "explanation": "The comparator is intentionally designed with an input offset Vos so that the DSM feedback loop drives the bitline to VREF + Vos rather than exactly VREF, ensuring non-zero sense current through Rmbit.",
+        "assumptions": "Input transistor with gate In- is sized 13/1 while In+ is 10/1."
+      },
+      "sky130_expected": {
+        "calculation": "Vos \u2248 (Vgs - Vthn) * (1 - sqrt(W1/W2)) \u2248 (0.5V - 0.42V) * (1 - sqrt(10/13)) = 0.08V * 0.123 \u2248 10 mV to 50 mV depending on bias current and dynamic latch regeneration; textbook design targets Vos \u2248 50 mV.",
+        "range": {
+          "min": 0.02,
+          "typical": 0.05,
+          "max": 0.08,
+          "unit": "V"
+        },
+        "reasoning": "Designed deliberately around 50 mV in textbook; process variations and 1.8V VDD shift Vos within 20 mV to 80 mV."
+      },
+      "importance": "essential"
+    },
+    "average_bitline_voltage": {
+      "description": "Average steady-state DC voltage maintained on the bitline by the DSM feedback loop",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Text discussing Eq. 17.16 and Fig 17.18"
+      },
+      "equation": {
+        "formula": "Vbit,avg = VREF + Vos = VDD/2 + Vos",
+        "explanation": "Delta-sigma modulation regulates the average bitline voltage precisely to the comparator switching threshold VREF + Vos.",
+        "assumptions": "Sufficient loop gain and feedback capability to track cell discharge current."
+      },
+      "sky130_expected": {
+        "calculation": "VREF = 0.500 V, Vos \u2248 0.050 V -> Vbit,avg = 0.500 V + 0.050 V = 0.550 V.",
+        "range": {
+          "min": 0.52,
+          "typical": 0.55,
+          "max": 0.58,
+          "unit": "V"
+        },
+        "reasoning": "VREF is biased at 500 mV, and the comparator built-in offset raises the average bitline voltage by ~50 mV."
+      },
+      "importance": "essential"
+    },
+    "cell_sense_current": {
+      "description": "Average current flowing through the resistive memory cell during sensing",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "497",
+        "reference": "Eq. (17.16)"
+      },
+      "equation": {
+        "formula": "Imbit = Vos / Rmbit",
+        "explanation": "Because the bitline is held at VREF + Vos and the far end of Rmbit connects to VREF, the net voltage drop across Rmbit is Vos.",
+        "assumptions": "Access transistor on-resistance is negligible compared to Rmbit."
+      },
+      "sky130_expected": {
+        "calculation": "With Vos = 50 mV and Rmbit = 200 k\u03a9: Imbit = 0.050 V / 200,000 \u03a9 = 0.25 \u00b5A (250 nA).",
+        "range": {
+          "min": 1e-07,
+          "typical": 2.5e-07,
+          "max": 4e-07,
+          "unit": "A"
+        },
+        "reasoning": "Determined by Vos / 200k\u03a9 with Vos ranging from 20 mV to 80 mV."
+      },
+      "importance": "recommended"
+    },
+    "bitline_voltage_ripple": {
+      "description": "Peak-to-peak variation of the bitline voltage during DSM cycling",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Eq. (17.21) and Eq. (17.22)"
+      },
+      "equation": {
+        "formula": "delta_Vbit = Q_pulse / Cbit \u2248 (I_feedback * T_pulse) / Cbit",
+        "explanation": "Every clock cycle where feedback is activated, current injects charge onto Cbit, creating a voltage step that settles as current drains through Rmbit.",
+        "assumptions": "Cbit = 500 fF, clock period T = 10 ns."
+      },
+      "sky130_expected": {
+        "calculation": "Feedback current through R2=25k when M3 is on: (VDD - Vbit)/R2 \u2248 (1.8V - 0.55V)/25k \u2248 50 \u00b5A. For pulse duration ~2.5 ns: delta_Q \u2248 125 fC. delta_Vbit = 125 fC / 500 fF \u2248 0.25 V (settles dynamically to ~50 - 100 mV).",
+        "range": {
+          "min": 0.03,
+          "typical": 0.08,
+          "max": 0.2,
+          "unit": "V"
+        },
+        "reasoning": "Continuous discharge by Rmbit and low duty-cycle pulse injection keep bitline excursion below 200 mV."
+      },
+      "importance": "recommended"
+    },
+    "bitstream_density": {
+      "description": "Ratio of clock cycles M in which the feedback current pulse is enabled to total clock cycles N (duty factor M/N)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Eq. (17.18) and Eq. (17.20)"
+      },
+      "equation": {
+        "formula": "M / N \u2248 R_feedback / Rmbit = 25k / Rmbit",
+        "explanation": "Charge balance over N cycles requires the average injected charge to equal the charge extracted by Rmbit.",
+        "assumptions": "Linear charge feedback; R2 = 25 k\u03a9, Rmbit = 200 k\u03a9."
+      },
+      "sky130_expected": {
+        "calculation": "For Rmbit = 200 k\u03a9: M/N \u2248 25k / 200k = 0.125 (12.5%). Over 50 cycles (500 ns at 100 MHz), M \u2248 6 pulses (6/50 = 0.12).",
+        "range": {
+          "min": 0.08,
+          "typical": 0.12,
+          "max": 0.18,
+          "unit": "V"
+        },
+        "reasoning": "Textbook simulates M=6 for 50 cycles at Rmbit=200k (page 501)."
+      },
+      "importance": "essential"
+    },
+    "sensed_resistance": {
+      "description": "Calculated value of the memory cell resistance derived from the DSM digital output count M/N",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Eq. (17.20)"
+      },
+      "equation": {
+        "formula": "Rmbit_calc = 25k * (N / M)",
+        "explanation": "Digital output ratio N/M directly maps back to estimated Rmbit.",
+        "assumptions": "Nominal reference resistor is 25 k\u03a9."
+      },
+      "sky130_expected": {
+        "calculation": "For M = 6 and N = 50: Rmbit_calc = 25k * (50 / 6) = 208.3 k\u03a9 (actual is 200 k\u03a9).",
+        "range": {
+          "min": 160000,
+          "typical": 208000,
+          "max": 260000,
+          "unit": "ohm"
+        },
+        "reasoning": "Quantization over 50 clock cycles gives discrete M values; M=6 yields 208 k\u03a9."
+      },
+      "importance": "essential"
+    },
+    "minimum_sense_resistance": {
+      "description": "Minimum detectable resistance before DSM saturates at continuous ones (M = N)",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "501",
+        "reference": "Eq. (17.24)"
+      },
+      "equation": {
+        "formula": "Rmbit,min = R_feedback = 25 k\u03a9",
+        "explanation": "When Rmbit equals the pull-up resistor (25 k\u03a9), feedback must be active 100% of the cycles (M = N).",
+        "assumptions": "Continuous enable condition M=N."
+      },
+      "sky130_expected": {
+        "calculation": "Rmbit,min = 25,000 \u03a9.",
+        "range": {
+          "min": 20000,
+          "typical": 25000,
+          "max": 30000,
+          "unit": "ohm"
+        },
+        "reasoning": "Directly equal to pull-up feedback resistor R2 = 25 k\u03a9."
+      },
+      "importance": "optional"
+    },
+    "maximum_sense_resistance": {
+      "description": "Maximum finite detectable resistance resolvable with N clock cycles",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "501",
+        "reference": "Eq. (17.23)"
+      },
+      "equation": {
+        "formula": "Rmbit,max = 25k * N",
+        "explanation": "Corresponds to the minimum non-zero count M = 1 over N cycles.",
+        "assumptions": "N = 50 clock cycles."
+      },
+      "sky130_expected": {
+        "calculation": "For N = 50: Rmbit,max = 25,000 * 50 = 1.25 M\u03a9.",
+        "range": {
+          "min": 1000000,
+          "typical": 1250000,
+          "max": 1500000,
+          "unit": "ohm"
+        },
+        "reasoning": "Single pulse in 50 cycles gives 1.25 M\u03a9 as derived on page 501."
+      },
+      "importance": "optional"
+    },
+    "average_supply_current": {
+      "description": "Average supply current drawn from VDD by the DSM sensing circuit during 100 MHz operation",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "503",
+        "reference": "Page 503 text discussion"
+      },
+      "equation": {
+        "formula": "Idd_avg = (1/T_sim) * integral(i(VDD)) dt",
+        "explanation": "Total current pulled from VDD includes comparator dynamic switching current and feedback resistor current.",
+        "assumptions": "Clock frequency = 100 MHz; Rmbit = 200 k\u03a9."
+      },
+      "sky130_expected": {
+        "calculation": "Text states Fig 17.21 draws ~20 \u00b5A at 100 MHz. In SKY130 at VDD=1.8V, comparator dynamic power is higher, yielding 25 \u00b5A to 60 \u00b5A.",
+        "range": {
+          "min": 1.5e-05,
+          "typical": 3.5e-05,
+          "max": 7e-05,
+          "unit": "A"
+        },
+        "reasoning": "Resistor feedback branches consume ~5 \u00b5A average while dynamic comparator clocks at 100 MHz."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient simulation of the simpler DSM sensing circuit (Fig 17.21) with 100 MHz clocking over 600 ns (Baker CMOSedu methodology). Measures bitline DC average, ripple, comparator offset, bitstream pulse density M/N, estimated Rmbit, and average VDD current consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "comparator_offset_voltage",
+      "average_bitline_voltage",
+      "cell_sense_current",
+      "bitline_voltage_ripple",
+      "bitstream_density",
+      "sensed_resistance",
+      "average_supply_current"
+    ],
+    "spice": "* Testbench for Simpler DSM Sensing Circuit (Fig. 17.21)\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter definitions for transistors\n.param W_xm1=10u  L_xm1=1u\n.param W_xm2=20u  L_xm2=1u\n.param W_xm3=20u  L_xm3=1u\n.param W_xm4=20u  L_xm4=1u\n.param W_xm5=10u  L_xm5=1u\n.param W_xm6=10u  L_xm6=1u\n.param W_xm7=20u  L_xm7=1u\n.param W_xm8=20u  L_xm8=1u\n.param W_xm9=10u  L_xm9=1u\n.param W_xm10=13u L_xm10=1u\n.param W_xm11=10u L_xm11=1u\n.param W_xm12=10u L_xm12=1u\n\n* Power Supplies\nVDD VDD 0 1.8\nVREF VREF 0 500m\n\n* 100 MHz Clock Source (Period 10ns, 50% duty cycle)\nVclock clock 0 pulse(0 1.8 0 100p 100p 4.9n 10n)\n\n* DUT Netlist from Fig. 17.21\nxm2 N003 N002 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nX_U1 vbit VREF N002 Out clock VDD 0 SUB_1\nCbit vbit 0 5e-13\nR1 VREF vbit 200000.0\nR2 VDD N001 25000.0\n\n* Subcircuit definitions\n.subckt SUB_1 inp inm q qi clock VDD GND\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  X_U1 Outp q qi VDD 0 NAND_2\n  X_U2 qi Outm q VDD 0 NAND_2\n.ends SUB_1\n\n.subckt NAND_2 A B Out VDD GND\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NAND_2\n\n* Transient Analysis matching Baker's original simulation (600ns)\n.tran 0.1n 600n 100n uic\n\n.control\nrun\n\n* 1. Average bitline voltage (Vbit_avg)\nmeas tran vbit_avg avg v(vbit) from=100n to=600n\n\n* 2. Bitline voltage ripple (peak-to-peak swing)\nmeas tran vbit_max max v(vbit) from=100n to=600n\nmeas tran vbit_min min v(vbit) from=100n to=600n\nlet delta_vbit = vbit_max - vbit_min\nprint delta_vbit\n\n* 3. Comparator offset voltage Vos\nlet v_os = vbit_avg - 0.500\nprint v_os\n\n* 4. Cell sense current Imbit\nlet i_mbit = v_os / 200000.0\nprint i_mbit\n\n* 5. Bitstream density M/N from average value of Out (Out is 1.8V when feedback active)\nmeas tran vout_avg avg v(Out) from=100n to=600n\nlet m_over_n = vout_avg / 1.8\nprint m_over_n\n\n* 6. Sensed resistance Rmbit_calc\nlet rmbit_calc = 25000.0 / m_over_n\nprint rmbit_calc\n\n* 7. Average supply current drawn from VDD\nmeas tran idd_avg avg i(VDD) from=100n to=600n\nlet idd_mag = -idd_avg\nprint idd_mag\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.21\",\n    \"page\": \"503\",\n    \"circuit_type\": \"Delta-Sigma Modulator (DSM) Sensing Circuit for Resistive Memory\",\n    \"description\": \"Figure 17.21 depicts a simplified DSM sensing circuit for 1T1R resistive memory where the switched-capacitor feedback network is replaced by a 25 k\u03a9 resistor. A clocked comparator with built-in offset (Fig. 17.16) senses the bitline voltage against VDD/2 and drives PMOS switch M3, which along with common-gate PMOS M4 injects compensating charge into the bitline to balance the memory cell current.\"\n  },\n  \"step2_metrics\": {\n    \"comparator_offset_voltage\": {\n      \"description\": \"Built-in input offset voltage of the clocked comparator created by sizing mismatch (13/1 vs 10/1) on the differential input transistors\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"498\", \"reference\": \"Fig 17.16 and Fig 17.17\" },\n      \"equation\": {\n        \"formula\": \"Vos = V(vbit_avg) - VREF\",\n        \"explanation\": \"The comparator is intentionally designed with an input offset Vos so that the DSM feedback loop drives the bitline to VREF + Vos rather than exactly VREF, ensuring non-zero sense current through Rmbit.\",\n        \"assumptions\": \"Input transistor with gate In- is sized 13/1 while In+ is 10/1.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vos \u2248 (Vgs - Vthn) * (1 - sqrt(W1/W2)) \u2248 (0.5V - 0.42V) * (1 - sqrt(10/13)) = 0.08V * 0.123 \u2248 10 mV to 50 mV depending on bias current and dynamic latch regeneration; textbook design targets Vos \u2248 50 mV.\",\n        \"range\": { \"min\": 0.02, \"typical\": 0.05, \"max\": 0.08, \"unit\": \"V\" },\n        \"reasoning\": \"Designed deliberately around 50 mV in textbook; process variations and 1.8V VDD shift Vos within 20 mV to 80 mV.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"average_bitline_voltage\": {\n      \"description\": \"Average steady-state DC voltage maintained on the bitline by the DSM feedback loop\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"500\", \"reference\": \"Text discussing Eq. 17.16 and Fig 17.18\" },\n      \"equation\": {\n        \"formula\": \"Vbit,avg = VREF + Vos = VDD/2 + Vos\",\n        \"explanation\": \"Delta-sigma modulation regulates the average bitline voltage precisely to the comparator switching threshold VREF + Vos.\",\n        \"assumptions\": \"Sufficient loop gain and feedback capability to track cell discharge current.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VREF = 0.500 V, Vos \u2248 0.050 V -> Vbit,avg = 0.500 V + 0.050 V = 0.550 V.\",\n        \"range\": { \"min\": 0.52, \"typical\": 0.55, \"max\": 0.58, \"unit\": \"V\" },\n        \"reasoning\": \"VREF is biased at 500 mV, and the comparator built-in offset raises the average bitline voltage by ~50 mV.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cell_sense_current\": {\n      \"description\": \"Average current flowing through the resistive memory cell during sensing\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"497\", \"reference\": \"Eq. (17.16)\" },\n      \"equation\": {\n        \"formula\": \"Imbit = Vos / Rmbit\",\n        \"explanation\": \"Because the bitline is held at VREF + Vos and the far end of Rmbit connects to VREF, the net voltage drop across Rmbit is Vos.\",\n        \"assumptions\": \"Access transistor on-resistance is negligible compared to Rmbit.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With Vos = 50 mV and Rmbit = 200 k\u03a9: Imbit = 0.050 V / 200,000 \u03a9 = 0.25 \u00b5A (250 nA).\",\n        \"range\": { \"min\": 1e-7, \"typical\": 2.5e-7, \"max\": 4e-7, \"unit\": \"A\" },\n        \"reasoning\": \"Determined by Vos / 200k\u03a9 with Vos ranging from 20 mV to 80 mV.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"bitline_voltage_ripple\": {\n      \"description\": \"Peak-to-peak variation of the bitline voltage during DSM cycling\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"500\", \"reference\": \"Eq. (17.21) and Eq. (17.22)\" },\n      \"equation\": {\n        \"formula\": \"delta_Vbit = Q_pulse / Cbit \u2248 (I_feedback * T_pulse) / Cbit\",\n        \"explanation\": \"Every clock cycle where feedback is activated, current injects charge onto Cbit, creating a voltage step that settles as current drains through Rmbit.\",\n        \"assumptions\": \"Cbit = 500 fF, clock period T = 10 ns.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Feedback current through R2=25k when M3 is on: (VDD - Vbit)/R2 \u2248 (1.8V - 0.55V)/25k \u2248 50 \u00b5A. For pulse duration ~2.5 ns: delta_Q \u2248 125 fC. delta_Vbit = 125 fC / 500 fF \u2248 0.25 V (settles dynamically to ~50 - 100 mV).\",\n        \"range\": { \"min\": 0.03, \"typical\": 0.08, \"max\": 0.2, \"unit\": \"V\" },\n        \"reasoning\": \"Continuous discharge by Rmbit and low duty-cycle pulse injection keep bitline excursion below 200 mV.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"bitstream_density\": {\n      \"description\": \"Ratio of clock cycles M in which the feedback current pulse is enabled to total clock cycles N (duty factor M/N)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"500\", \"reference\": \"Eq. (17.18) and Eq. (17.20)\" },\n      \"equation\": {\n        \"formula\": \"M / N \u2248 R_feedback / Rmbit = 25k / Rmbit\",\n        \"explanation\": \"Charge balance over N cycles requires the average injected charge to equal the charge extracted by Rmbit.\",\n        \"assumptions\": \"Linear charge feedback; R2 = 25 k\u03a9, Rmbit = 200 k\u03a9.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For Rmbit = 200 k\u03a9: M/N \u2248 25k / 200k = 0.125 (12.5%). Over 50 cycles (500 ns at 100 MHz), M \u2248 6 pulses (6/50 = 0.12).\",\n        \"range\": { \"min\": 0.08, \"typical\": 0.12, \"max\": 0.18, \"unit\": \"V\" },\n        \"reasoning\": \"Textbook simulates M=6 for 50 cycles at Rmbit=200k (page 501).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"sensed_resistance\": {\n      \"description\": \"Calculated value of the memory cell resistance derived from the DSM digital output count M/N\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"500\", \"reference\": \"Eq. (17.20)\" },\n      \"equation\": {\n        \"formula\": \"Rmbit_calc = 25k * (N / M)\",\n        \"explanation\": \"Digital output ratio N/M directly maps back to estimated Rmbit.\",\n        \"assumptions\": \"Nominal reference resistor is 25 k\u03a9.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For M = 6 and N = 50: Rmbit_calc = 25k * (50 / 6) = 208.3 k\u03a9 (actual is 200 k\u03a9).\",\n        \"range\": { \"min\": 160000, \"typical\": 208000, \"max\": 260000, \"unit\": \"ohm\" },\n        \"reasoning\": \"Quantization over 50 clock cycles gives discrete M values; M=6 yields 208 k\u03a9.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"minimum_sense_resistance\": {\n      \"description\": \"Minimum detectable resistance before DSM saturates at continuous ones (M = N)\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"501\", \"reference\": \"Eq. (17.24)\" },\n      \"equation\": {\n        \"formula\": \"Rmbit,min = R_feedback = 25 k\u03a9\",\n        \"explanation\": \"When Rmbit equals the pull-up resistor (25 k\u03a9), feedback must be active 100% of the cycles (M = N).\",\n        \"assumptions\": \"Continuous enable condition M=N.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rmbit,min = 25,000 \u03a9.\",\n        \"range\": { \"min\": 20000, \"typical\": 25000, \"max\": 30000, \"unit\": \"ohm\" },\n        \"reasoning\": \"Directly equal to pull-up feedback resistor R2 = 25 k\u03a9.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"maximum_sense_resistance\": {\n      \"description\": \"Maximum finite detectable resistance resolvable with N clock cycles\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"501\", \"reference\": \"Eq. (17.23)\" },\n      \"equation\": {\n        \"formula\": \"Rmbit,max = 25k * N\",\n        \"explanation\": \"Corresponds to the minimum non-zero count M = 1 over N cycles.\",\n        \"assumptions\": \"N = 50 clock cycles.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For N = 50: Rmbit,max = 25,000 * 50 = 1.25 M\u03a9.\",\n        \"range\": { \"min\": 1000000, \"typical\": 1250000, \"max\": 1500000, \"unit\": \"ohm\" },\n        \"reasoning\": \"Single pulse in 50 cycles gives 1.25 M\u03a9 as derived on page 501.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"average_supply_current\": {\n      \"description\": \"Average supply current drawn from VDD by the DSM sensing circuit during 100 MHz operation\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"503\", \"reference\": \"Page 503 text discussion\" },\n      \"equation\": {\n        \"formula\": \"Idd_avg = (1/T_sim) * integral(i(VDD)) dt\",\n        \"explanation\": \"Total current pulled from VDD includes comparator dynamic switching current and feedback resistor current.\",\n        \"assumptions\": \"Clock frequency = 100 MHz; Rmbit = 200 k\u03a9.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Text states Fig 17.21 draws ~20 \u00b5A at 100 MHz. In SKY130 at VDD=1.8V, comparator dynamic power is higher, yielding 25 \u00b5A to 60 \u00b5A.\",\n        \"range\": { \"min\": 1.5e-5, \"typical\": 3.5e-5, \"max\": 7e-5, \"unit\": \"A\" },\n        \"reasoning\": \"Resistor feedback branches consume ~5 \u00b5A average while dynamic comparator clocks at 100 MHz.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient simulation of the simpler DSM sensing circuit (Fig 17.21) with 100 MHz clocking over 600 ns (Baker CMOSedu methodology). Measures bitline DC average, ripple, comparator offset, bitstream pulse density M/N, estimated Rmbit, and average VDD current consumption.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\n      \"comparator_offset_voltage\",\n      \"average_bitline_voltage\",\n      \"cell_sense_current\",\n      \"bitline_voltage_ripple\",\n      \"bitstream_density\",\n      \"sensed_resistance\",\n      \"average_supply_current\"\n    ],\n    \"spice\": \"* Testbench for Simpler DSM Sensing Circuit (Fig. 17.21)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter definitions for transistors\\n.param W_xm1=10u  L_xm1=1u\\n.param W_xm2=20u  L_xm2=1u\\n.param W_xm3=20u  L_xm3=1u\\n.param W_xm4=20u  L_xm4=1u\\n.param W_xm5=10u  L_xm5=1u\\n.param W_xm6=10u  L_xm6=1u\\n.param W_xm7=20u  L_xm7=1u\\n.param W_xm8=20u  L_xm8=1u\\n.param W_xm9=10u  L_xm9=1u\\n.param W_xm10=13u L_xm10=1u\\n.param W_xm11=10u L_xm11=1u\\n.param W_xm12=10u L_xm12=1u\\n\\n* Power Supplies\\nVDD VDD 0 1.8\\nVREF VREF 0 500m\\n\\n* 100 MHz Clock Source (Period 10ns, 50% duty cycle)\\nVclock clock 0 pulse(0 1.8 0 100p 100p 4.9n 10n)\\n\\n* DUT Netlist from Fig. 17.21\\nxm2 N003 N002 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nX_U1 vbit VREF N002 Out clock VDD 0 SUB_1\\nCbit vbit 0 5e-13\\nR1 VREF vbit 200000.0\\nR2 VDD N001 25000.0\\n\\n* Subcircuit definitions\\n.subckt SUB_1 inp inm q qi clock VDD GND\\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  X_U1 Outp q qi VDD 0 NAND_2\\n  X_U2 qi Outm q VDD 0 NAND_2\\n.ends SUB_1\\n\\n.subckt NAND_2 A B Out VDD GND\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NAND_2\\n\\n* Transient Analysis matching Baker's original simulation (600ns)\\n.tran 0.1n 600n 100n uic\\n\\n.control\\nrun\\n\\n* 1. Average bitline voltage (Vbit_avg)\\nmeas tran vbit_avg avg v(vbit) from=100n to=600n\\n\\n* 2. Bitline voltage ripple (peak-to-peak swing)\\nmeas tran vbit_max max v(vbit) from=100n to=600n\\nmeas tran vbit_min min v(vbit) from=100n to=600n\\nlet delta_vbit = vbit_max - vbit_min\\nprint delta_vbit\\n\\n* 3. Comparator offset voltage Vos\\nlet v_os = vbit_avg - 0.500\\nprint v_os\\n\\n* 4. Cell sense current Imbit\\nlet i_mbit = v_os / 200000.0\\nprint i_mbit\\n\\n* 5. Bitstream density M/N from average value of Out (Out is 1.8V when feedback active)\\nmeas tran vout_avg avg v(Out) from=100n to=600n\\nlet m_over_n = vout_avg / 1.8\\nprint m_over_n\\n\\n* 6. Sensed resistance Rmbit_calc\\nlet rmbit_calc = 25000.0 / m_over_n\\nprint rmbit_calc\\n\\n* 7. Average supply current drawn from VDD\\nmeas tran idd_avg avg i(VDD) from=100n to=600n\\nlet idd_mag = -idd_avg\\nprint idd_mag\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

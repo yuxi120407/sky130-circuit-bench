@@ -1,0 +1,157 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Transconductor (Gm cell) / Charge Pump branch",
+    "description": "A differential input transconductor with a cascode tail current source and PMOS active loads. Due to likely schematic extraction artifacts on the PMOS nodes (N1 and LABEL_NET_3), it is biased in the testbench to operate as a single-ended output Gm cell.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN"
+      ],
+      "output": [
+        "OUTN",
+        "OUTP"
+      ],
+      "supply": [
+        "VDD",
+        "N1",
+        "LABEL_NET_3"
+      ],
+      "bias": [
+        "R1",
+        "R2",
+        "R3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Generation of Accurate On-Chip Time Constants and Stable Transconductances",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total static power consumption of the circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "I_tail \u2248 0.5 * un * Cox * (W/L) * (Vgs - Vth)^2. With R1=0.7V, Vgs=0.7V, I_tail \u2248 100uA. Total power = VDD * I_tail = 1.8V * 100uA = 180uW.",
+        "range": {
+          "min": "100u",
+          "typical": "200u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Depends heavily on the applied bias voltages (R1, R2, R3) which set the tail and load currents."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Gain = Gm * Rout. Gm \u2248 1mS. Rout \u2248 1 / (lambda * I_tail) \u2248 100kOhm. Gain \u2248 100 V/V = 40 dB.",
+        "range": {
+          "min": "20",
+          "typical": "35",
+          "max": "50",
+          "unit": "dB"
+        },
+        "reasoning": "Standard gain for a single-stage differential amplifier with active load in 130nm."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "3dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "300 MHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rout * CL). With Rout=100kOhm and CL=10fF, BW \u2248 159 MHz.",
+        "range": {
+          "min": "50M",
+          "typical": "150M",
+          "max": "500M",
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the order of magnitude of the frequencies reported in the paper (250-300 MHz)."
+      },
+      "importance": "essential"
+    },
+    "vout_trip": {
+      "description": "Input voltage at which the output crosses VDD/2",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Should be close to the common-mode voltage of the negative input (INN = 0.9V).",
+        "range": {
+          "min": "0.8",
+          "typical": "0.9",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Symmetry of the differential pair dictates the trip point is near the reference input voltage."
+      },
+      "importance": "recommended"
+    },
+    "v_max": {
+      "description": "Maximum transient output voltage",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Limited by VDD and the saturation voltage of the PMOS load.",
+        "range": {
+          "min": "1.5",
+          "typical": "1.7",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "The PMOS load will pull the output close to VDD when the NMOS is off."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC operating point, AC gain and bandwidth, DC transfer characteristics, and transient response of the Gm cell.",
+    "analyses": [
+      "OP",
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "bw_3db",
+      "vout_trip",
+      "v_max",
+      "v_min"
+    ],
+    "spice": "* Gm cell testbench\n.param W_xm1cas=5u L_xm1cas=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1CAS N2 R2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1cas} w={W_xm1cas}\nXM2 OUTN INP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 N4 R1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM5 OUTP N1 LABEL_NET_3 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM3 OUTP INN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTN R3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\n* DC Sources and Biasing\nVVDD VDD 0 1.8\nVN1 N1 0 1.8\nVLABEL_NET_3 LABEL_NET_3 0 1.8\nVR1 R1 0 0.7\nVR2 R2 0 1.2\nVR3 R3 0 0.9\n\n* Inputs\nVINN INN 0 DC 0.9 AC 0\nVINP INP 0 DC 0.9 AC 1 SIN(0.9 0.1 10MEG 0 0)\n\n* Load Capacitance\nCL OUTN 0 10f\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VVDD)*1.8 - i(VN1)*1.8 - i(VLABEL_NET_3)*1.8\n  print power\n\n  * 2. DC Sweep for Trip Point\n  dc VINP 0 1.8 0.01\n  meas dc vout_trip when v(OUTN)=0.9\n\n  * 3. AC Analysis for Gain and Bandwidth\n  ac dec 10 1k 10G\n  let gain_db = vdb(OUTN)\n  meas ac dc_gain find gain_db at=1k\n  meas ac bw_3db when gain_db=(dc_gain-3) fall=1\n\n  * 4. Transient Analysis\n  tran 1n 200n\n  meas tran v_max max v(OUTN)\n  meas tran v_min min v(OUTN)\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Transconductor (Gm cell) / Charge Pump branch\",\n    \"description\": \"A differential input transconductor with a cascode tail current source and PMOS active loads. Due to likely schematic extraction artifacts on the PMOS nodes (N1 and LABEL_NET_3), it is biased in the testbench to operate as a single-ended output Gm cell.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INN\"\n      ],\n      \"output\": [\n        \"OUTN\",\n        \"OUTP\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"N1\",\n        \"LABEL_NET_3\"\n      ],\n      \"bias\": [\n        \"R1\",\n        \"R2\",\n        \"R3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Generation of Accurate On-Chip Time Constants and Stable Transconductances\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total static power consumption of the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail \u2248 0.5 * un * Cox * (W/L) * (Vgs - Vth)^2. With R1=0.7V, Vgs=0.7V, I_tail \u2248 100uA. Total power = VDD * I_tail = 1.8V * 100uA = 180uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"200u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends heavily on the applied bias voltages (R1, R2, R3) which set the tail and load currents.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = Gm * Rout. Gm \u2248 1mS. Rout \u2248 1 / (lambda * I_tail) \u2248 100kOhm. Gain \u2248 100 V/V = 40 dB.\",\n        \"range\": {\n          \"min\": \"20\",\n          \"typical\": \"35\",\n          \"max\": \"50\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard gain for a single-stage differential amplifier with active load in 130nm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"3dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"300 MHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rout * CL). With Rout=100kOhm and CL=10fF, BW \u2248 159 MHz.\",\n        \"range\": {\n          \"min\": \"50M\",\n          \"typical\": \"150M\",\n          \"max\": \"500M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the order of magnitude of the frequencies reported in the paper (250-300 MHz).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vout_trip\": {\n      \"description\": \"Input voltage at which the output crosses VDD/2\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Should be close to the common-mode voltage of the negative input (INN = 0.9V).\",\n        \"range\": {\n          \"min\": \"0.8\",\n          \"typical\": \"0.9\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Symmetry of the differential pair dictates the trip point is near the reference input voltage.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"v_max\": {\n      \"description\": \"Maximum transient output voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by VDD and the saturation voltage of the PMOS load.\",\n        \"range\": {\n          \"min\": \"1.5\",\n          \"typical\": \"1.7\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The PMOS load will pull the output close to VDD when the NMOS is off.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC operating point, AC gain and bandwidth, DC transfer characteristics, and transient response of the Gm cell.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"bw_3db\",\n      \"vout_trip\",\n      \"v_max\",\n      \"v_min\"\n    ],\n    \"spice\": \"* Gm cell testbench\\n.param W_xm1cas=5u L_xm1cas=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1CAS N2 R2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1cas} w={W_xm1cas}\\nXM2 OUTN INP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 N4 R1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM5 OUTP N1 LABEL_NET_3 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM3 OUTP INN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTN R3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* DC Sources and Biasing\\nVVDD VDD 0 1.8\\nVN1 N1 0 1.8\\nVLABEL_NET_3 LABEL_NET_3 0 1.8\\nVR1 R1 0 0.7\\nVR2 R2 0 1.2\\nVR3 R3 0 0.9\\n\\n* Inputs\\nVINN INN 0 DC 0.9 AC 0\\nVINP INP 0 DC 0.9 AC 1 SIN(0.9 0.1 10MEG 0 0)\\n\\n* Load Capacitance\\nCL OUTN 0 10f\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VVDD)*1.8 - i(VN1)*1.8 - i(VLABEL_NET_3)*1.8\\n  print power\\n\\n  * 2. DC Sweep for Trip Point\\n  dc VINP 0 1.8 0.01\\n  meas dc vout_trip when v(OUTN)=0.9\\n\\n  * 3. AC Analysis for Gain and Bandwidth\\n  ac dec 10 1k 10G\\n  let gain_db = vdb(OUTN)\\n  meas ac dc_gain find gain_db at=1k\\n  meas ac bw_3db when gain_db=(dc_gain-3) fall=1\\n\\n  * 4. Transient Analysis\\n  tran 1n 200n\\n  meas tran v_max max v(OUTN)\\n  meas tran v_min min v(OUTN)\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "913748",
+  "_case": "913748_image_6_a"
+}

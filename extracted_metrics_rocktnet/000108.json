@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Complex logic gate (pull-down network)",
+    "description": "A 7-input NMOS pull-down network for a complex logic gate, likely part of the digital control circuitry for the phased-array T/R module (e.g., for phase shifter or attenuator control). It implements the logic function Out' = IN4*(IN0 + IN1) + IN6*(IN3 + IN5*IN2).",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "LABEL_NET_3",
+        "LABEL_NET_4",
+        "LABEL_NET_5",
+        "LABEL_NET_6"
+      ],
+      "output": [
+        "N2"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Fully-Integrated Core chip for X-Band PhasedArray T/R modules",
+      "figure": "1",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "VOL": {
+      "description": "Output low voltage when the pull-down network is active",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25um PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Ron of one NMOS (W/L=10) is ~268 ohms. Two in series = 536 ohms. With a 10k pull-up resistor added for testing, VOL = 1.8V * 536 / (10k + 536) = 91mV.",
+        "range": {
+          "min": 0.05,
+          "typical": 0.09,
+          "max": 0.15,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact Vth and mobility, but should be well below the logic threshold to ensure a valid logic '0'."
+      },
+      "importance": "essential"
+    },
+    "tpHL": {
+      "description": "High-to-low propagation delay",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25um PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Pull-down resistance ~536 ohms. With 10fF load, intrinsic delay is ~5ps. Dominated by input rise time (100ps), so tpHL ~ 50ps.",
+        "range": {
+          "min": 1e-11,
+          "typical": 5e-11,
+          "max": 1e-10,
+          "unit": "s"
+        },
+        "reasoning": "Delay is very small due to large W/L and small load, mostly tracking the input edge."
+      },
+      "importance": "essential"
+    },
+    "static_power": {
+      "description": "Static power consumption when output is low",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25um PHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "I = 1.8V / 10.536kohm = 170uA. Power = 1.8V * 170uA = 307uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.0003,
+          "max": 0.0004,
+          "unit": "W"
+        },
+        "reasoning": "Determined primarily by the 10k pull-up resistor added in the testbench to form a pseudo-NMOS gate."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify logic functionality, measure propagation delay, output low voltage, and static power. A 10k pull-up resistor is added to form a complete logic gate.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "VOL",
+      "tpHL",
+      "tpLH",
+      "static_power"
+    ],
+    "spice": "* Complex Logic Gate Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\n* DUT\nXM1 N0 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N1 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 LABEL_NET_4 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N1 LABEL_NET_5 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N2 LABEL_NET_6 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\n* Pull-up resistor and load capacitor to complete the gate\nRpu VDD N2 10k\nCload N2 GND 10f\n\n* Power supply\nVdd VDD 0 1.8\n\n* Stimulus for Path 1: IN4=1, IN0 pulses\nV0 LABEL_NET_0 0 pulse(0 1.8 1n 0.1n 0.1n 2n 5n)\nV1 LABEL_NET_1 0 dc 0\nV2 LABEL_NET_2 0 dc 0\nV3 LABEL_NET_3 0 dc 0\nV4 LABEL_NET_4 0 dc 1.8\nV5 LABEL_NET_5 0 dc 0\nV6 LABEL_NET_6 0 dc 0\n\n.control\ntran 10p 5n\n\n* Measure delays\nmeas tran tpHL trig v(LABEL_NET_0) val=0.9 rise=1 targ v(N2) val=0.9 fall=1\nmeas tran tpLH trig v(LABEL_NET_0) val=0.9 fall=1 targ v(N2) val=0.9 rise=1\n\n* Measure logic levels\nmeas tran VOL min v(N2)\nmeas tran VOH max v(N2)\n\n* Measure static power when output is low (at t=2ns)\nmeas tran I_vdd find i(Vdd) at=2n\nlet static_power = -I_vdd * 1.8\nprint static_power\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Complex logic gate (pull-down network)\",\n    \"description\": \"A 7-input NMOS pull-down network for a complex logic gate, likely part of the digital control circuitry for the phased-array T/R module (e.g., for phase shifter or attenuator control). It implements the logic function Out' = IN4*(IN0 + IN1) + IN6*(IN3 + IN5*IN2).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_4\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_6\"\n      ],\n      \"output\": [\n        \"N2\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Fully-Integrated Core chip for X-Band PhasedArray T/R modules\",\n      \"figure\": \"1\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"VOL\": {\n      \"description\": \"Output low voltage when the pull-down network is active\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25um PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron of one NMOS (W/L=10) is ~268 ohms. Two in series = 536 ohms. With a 10k pull-up resistor added for testing, VOL = 1.8V * 536 / (10k + 536) = 91mV.\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.09,\n          \"max\": 0.15,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact Vth and mobility, but should be well below the logic threshold to ensure a valid logic '0'.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tpHL\": {\n      \"description\": \"High-to-low propagation delay\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25um PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pull-down resistance ~536 ohms. With 10fF load, intrinsic delay is ~5ps. Dominated by input rise time (100ps), so tpHL ~ 50ps.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 50e-12,\n          \"max\": 100e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Delay is very small due to large W/L and small load, mostly tracking the input edge.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"static_power\": {\n      \"description\": \"Static power consumption when output is low\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25um PHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I = 1.8V / 10.536kohm = 170uA. Power = 1.8V * 170uA = 307uW.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 300e-6,\n          \"max\": 400e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Determined primarily by the 10k pull-up resistor added in the testbench to form a pseudo-NMOS gate.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify logic functionality, measure propagation delay, output low voltage, and static power. A 10k pull-up resistor is added to form a complete logic gate.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"VOL\",\n      \"tpHL\",\n      \"tpLH\",\n      \"static_power\"\n    ],\n    \"spice\": \"* Complex Logic Gate Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\n* DUT\\nXM1 N0 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N1 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 LABEL_NET_4 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N1 LABEL_NET_5 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N2 LABEL_NET_6 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Pull-up resistor and load capacitor to complete the gate\\nRpu VDD N2 10k\\nCload N2 GND 10f\\n\\n* Power supply\\nVdd VDD 0 1.8\\n\\n* Stimulus for Path 1: IN4=1, IN0 pulses\\nV0 LABEL_NET_0 0 pulse(0 1.8 1n 0.1n 0.1n 2n 5n)\\nV1 LABEL_NET_1 0 dc 0\\nV2 LABEL_NET_2 0 dc 0\\nV3 LABEL_NET_3 0 dc 0\\nV4 LABEL_NET_4 0 dc 1.8\\nV5 LABEL_NET_5 0 dc 0\\nV6 LABEL_NET_6 0 dc 0\\n\\n.control\\ntran 10p 5n\\n\\n* Measure delays\\nmeas tran tpHL trig v(LABEL_NET_0) val=0.9 rise=1 targ v(N2) val=0.9 fall=1\\nmeas tran tpLH trig v(LABEL_NET_0) val=0.9 fall=1 targ v(N2) val=0.9 rise=1\\n\\n* Measure logic levels\\nmeas tran VOL min v(N2)\\nmeas tran VOH max v(N2)\\n\\n* Measure static power when output is low (at t=2ns)\\nmeas tran I_vdd find i(Vdd) at=2n\\nlet static_power = -I_vdd * 1.8\\nprint static_power\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "mwsym.2004.1338936",
+  "_case": "mwsym.2004.1338936_image_5"
+}

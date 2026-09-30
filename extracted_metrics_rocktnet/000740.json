@@ -1,0 +1,125 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LVDS Driver (H-Bridge)",
+    "description": "This circuit is a Low-Voltage Differential Signaling (LVDS) driver implemented as an H-bridge. It steers a constant current (typically 3.5mA) through a differential termination load using four switches to generate a high-speed differential voltage swing.",
+    "node_mapping": {
+      "input": [
+        "Vinp",
+        "Vinn"
+      ],
+      "output": [
+        "Vop",
+        "Von"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "Vocm"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Low-Voltage Low-Power LVDS Drivers",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "VOD": {
+      "description": "Differential output voltage swing (peak)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "320 mV to 400 mV",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail * R_diff = 3.5mA * (50 + 50) ohms = 350mV",
+        "range": {
+          "min": "0.30",
+          "typical": "0.35",
+          "max": "0.40",
+          "unit": "V"
+        },
+        "reasoning": "Standard LVDS specifications require a differential swing around 350mV. The ideal current sources and 50-ohm resistors will yield exactly 350mV."
+      }
+    },
+    "VOCM": {
+      "description": "Common-mode output voltage",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.25 V",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Set by the center-tap bias voltage Vcm = 1.25V",
+        "range": {
+          "min": "1.125",
+          "typical": "1.25",
+          "max": "1.375",
+          "unit": "V"
+        },
+        "reasoning": "The common-mode voltage is explicitly set by the center tap of the termination resistors to match the standard LVDS VOCM of 1.25V."
+      }
+    },
+    "Power": {
+      "description": "Total static power consumption",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Reduced by 60%",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I_tail = 1.8V * 3.5mA = 6.3mW",
+        "range": {
+          "min": "0.005",
+          "typical": "0.0063",
+          "max": "0.010",
+          "unit": "W"
+        },
+        "reasoning": "The primary power draw is the 3.5mA steering current from the 1.8V supply."
+      }
+    },
+    "Rise_Time": {
+      "description": "20% to 80% rise time of the differential output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "6.4 pF load mentioned",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_rise \u2248 2.2 * R_diff * C_load = 2.2 * 100 ohms * 6.4pF = 1.4ns",
+        "range": {
+          "min": "1.0e-9",
+          "typical": "1.4e-9",
+          "max": "2.0e-9",
+          "unit": "s"
+        },
+        "reasoning": "Based on the 6.4pF load capacitance reported in the paper and the 100-ohm differential termination."
+      }
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure LVDS differential swing (VOD), common-mode voltage (VOCM), rise/fall times, and power consumption. The pseudo-netlist switches are adapted to standard ngspice voltage-controlled switches.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "VOD",
+      "VOCM",
+      "Power",
+      "Rise_Time",
+      "Fall_Time"
+    ],
+    "spice": "* LVDS Driver Testbench\n.param VDD_val = 1.8\n\nVVDD VDD 0 {VDD_val}\n* Common-mode bias for the termination center tap\nVcm Vocm 0 1.25\n\n* DUT (Adapted for valid ngspice syntax)\nI1 VDD N1 3.5m\nI2 N2 GND 3.5m\nR1 Vocm Von 50\nR2 Vop Vocm 50\n\n* Voltage-controlled switches replacing pseudo-syntax\nS1 Von N2 Vinp 0 switch_ideal\nS2 N1 Vop Vinp 0 switch_ideal\nS3 N1 Von Vinn 0 switch_ideal\nS4 Vop N2 Vinn 0 switch_ideal\n\n.model switch_ideal sw vt=0.9 vh=0.1 ron=1 roff=1G\n\n* Load capacitance (from paper: 6.4pF)\nCload Vop Von 6.4p\n\n* Stimulus (125 MHz clock to allow settling with 6.4pF load)\nVinp Vinp 0 PULSE(0 1.8 0 100p 100p 4n 8n)\nVinn Vinn 0 PULSE(1.8 0 0 100p 100p 4n 8n)\n\n* Behavioral sources for differential and common-mode measurements\nB1 Vdiff 0 V=v(Vop)-v(Von)\nB2 Vcm_out 0 V=(v(Vop)+v(Von))/2\n\n.control\ntran 10p 20n\n\n* Measure Differential Output Voltage (VOD)\nmeas tran VOD_max max v(Vdiff)\nmeas tran VOD_min min v(Vdiff)\n\n* Measure Common-Mode Voltage (VOCM)\nmeas tran VOCM_meas avg v(Vcm_out)\n\n* Measure Rise and Fall Times (approx 20% to 80% of 700mVpp diff swing)\nmeas tran trise trig v(Vdiff) val=-200m rise=1 targ v(Vdiff) val=200m rise=1\nmeas tran tfall trig v(Vdiff) val=200m fall=1 targ v(Vdiff) val=-200m fall=1\n\n* Measure Power Consumption\nmeas tran I_vdd avg i(VVDD)\nlet power = -I_vdd * 1.8\nprint power\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LVDS Driver (H-Bridge)\",\n    \"description\": \"This circuit is a Low-Voltage Differential Signaling (LVDS) driver implemented as an H-bridge. It steers a constant current (typically 3.5mA) through a differential termination load using four switches to generate a high-speed differential voltage swing.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vinp\",\n        \"Vinn\"\n      ],\n      \"output\": [\n        \"Vop\",\n        \"Von\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"Vocm\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Low-Voltage Low-Power LVDS Drivers\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"VOD\": {\n      \"description\": \"Differential output voltage swing (peak)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"320 mV to 400 mV\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail * R_diff = 3.5mA * (50 + 50) ohms = 350mV\",\n        \"range\": {\n          \"min\": \"0.30\",\n          \"typical\": \"0.35\",\n          \"max\": \"0.40\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard LVDS specifications require a differential swing around 350mV. The ideal current sources and 50-ohm resistors will yield exactly 350mV.\"\n      }\n    },\n    \"VOCM\": {\n      \"description\": \"Common-mode output voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.25 V\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set by the center-tap bias voltage Vcm = 1.25V\",\n        \"range\": {\n          \"min\": \"1.125\",\n          \"typical\": \"1.25\",\n          \"max\": \"1.375\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The common-mode voltage is explicitly set by the center tap of the termination resistors to match the standard LVDS VOCM of 1.25V.\"\n      }\n    },\n    \"Power\": {\n      \"description\": \"Total static power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Reduced by 60%\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I_tail = 1.8V * 3.5mA = 6.3mW\",\n        \"range\": {\n          \"min\": \"0.005\",\n          \"typical\": \"0.0063\",\n          \"max\": \"0.010\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The primary power draw is the 3.5mA steering current from the 1.8V supply.\"\n      }\n    },\n    \"Rise_Time\": {\n      \"description\": \"20% to 80% rise time of the differential output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"6.4 pF load mentioned\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise \u2248 2.2 * R_diff * C_load = 2.2 * 100 ohms * 6.4pF = 1.4ns\",\n        \"range\": {\n          \"min\": \"1.0e-9\",\n          \"typical\": \"1.4e-9\",\n          \"max\": \"2.0e-9\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on the 6.4pF load capacitance reported in the paper and the 100-ohm differential termination.\"\n      }\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure LVDS differential swing (VOD), common-mode voltage (VOCM), rise/fall times, and power consumption. The pseudo-netlist switches are adapted to standard ngspice voltage-controlled switches.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"VOD\",\n      \"VOCM\",\n      \"Power\",\n      \"Rise_Time\",\n      \"Fall_Time\"\n    ],\n    \"spice\": \"* LVDS Driver Testbench\\n.param VDD_val = 1.8\\n\\nVVDD VDD 0 {VDD_val}\\n* Common-mode bias for the termination center tap\\nVcm Vocm 0 1.25\\n\\n* DUT (Adapted for valid ngspice syntax)\\nI1 VDD N1 3.5m\\nI2 N2 GND 3.5m\\nR1 Vocm Von 50\\nR2 Vop Vocm 50\\n\\n* Voltage-controlled switches replacing pseudo-syntax\\nS1 Von N2 Vinp 0 switch_ideal\\nS2 N1 Vop Vinp 0 switch_ideal\\nS3 N1 Von Vinn 0 switch_ideal\\nS4 Vop N2 Vinn 0 switch_ideal\\n\\n.model switch_ideal sw vt=0.9 vh=0.1 ron=1 roff=1G\\n\\n* Load capacitance (from paper: 6.4pF)\\nCload Vop Von 6.4p\\n\\n* Stimulus (125 MHz clock to allow settling with 6.4pF load)\\nVinp Vinp 0 PULSE(0 1.8 0 100p 100p 4n 8n)\\nVinn Vinn 0 PULSE(1.8 0 0 100p 100p 4n 8n)\\n\\n* Behavioral sources for differential and common-mode measurements\\nB1 Vdiff 0 V=v(Vop)-v(Von)\\nB2 Vcm_out 0 V=(v(Vop)+v(Von))/2\\n\\n.control\\ntran 10p 20n\\n\\n* Measure Differential Output Voltage (VOD)\\nmeas tran VOD_max max v(Vdiff)\\nmeas tran VOD_min min v(Vdiff)\\n\\n* Measure Common-Mode Voltage (VOCM)\\nmeas tran VOCM_meas avg v(Vcm_out)\\n\\n* Measure Rise and Fall Times (approx 20% to 80% of 700mVpp diff swing)\\nmeas tran trise trig v(Vdiff) val=-200m rise=1 targ v(Vdiff) val=200m rise=1\\nmeas tran tfall trig v(Vdiff) val=200m fall=1 targ v(Vdiff) val=-200m fall=1\\n\\n* Measure Power Consumption\\nmeas tran I_vdd avg i(VVDD)\\nlet power = -I_vdd * 1.8\\nprint power\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1388636",
+  "_case": "1388636_image_3_b"
+}

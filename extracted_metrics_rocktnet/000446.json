@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Push-Push Frequency Doubler / Full-Wave Rectifier",
+    "description": "A differential pair with tied collectors. When driven differentially, the fundamental frequency cancels at the output while the even harmonics (primarily the 2nd harmonic) add constructively, effectively doubling the input frequency.",
+    "node_mapping": {
+      "input": [
+        "label_net_0",
+        "label_net_2"
+      ],
+      "output": [
+        "n0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "n1",
+        "label_net_1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "SiGe W-CDMA Transmitter for Mobile Terminal Application",
+      "figure": "Generic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "270 mW",
+        "technology": "IBM 0.5um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Assuming 1k load and bias of 0.9V, I_total ~ 1.8mA. P = 1.8V * 1.8mA = 3.24mW.",
+        "range": {
+          "min": "1mW",
+          "typical": "3.2mW",
+          "max": "10mW",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports the power for the entire transmitter IC. This single sub-block will consume significantly less power, determined by the bias resistors."
+      },
+      "importance": "essential"
+    },
+    "conversion_gain": {
+      "description": "Voltage gain from the fundamental input frequency to the 2nd harmonic output frequency.",
+      "unit": "V/V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "74 dB (Total Tx Gain)",
+        "technology": "IBM 0.5um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vout_2nd / Vin_fund. Push-push doublers typically exhibit conversion loss unless actively buffered.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.5",
+          "max": "2.0",
+          "unit": "V/V"
+        },
+        "reasoning": "Depends heavily on the transconductance of the BJTs and the load resistor R1."
+      },
+      "importance": "essential"
+    },
+    "fundamental_rejection": {
+      "description": "Suppression of the fundamental frequency at the output relative to the 2nd harmonic.",
+      "unit": "dBc",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "43 dBc",
+        "technology": "IBM 0.5um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(Vout_fund / Vout_2nd). Relies on the matching of the differential pair.",
+        "range": {
+          "min": "20",
+          "typical": "40",
+          "max": "60",
+          "unit": "dBc"
+        },
+        "reasoning": "In a perfectly matched SPICE simulation, rejection is extremely high. In reality, mismatches limit it to ~40 dBc."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power consumption and transient conversion gain of the push-push frequency doubler.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "conversion_gain",
+      "vout_pp"
+    ],
+    "spice": "* Push-Push Frequency Doubler Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define generic NPN model since SKY130 NPNs have different subcircuit names\n.model npn npn (bf=100 is=1e-15 vaf=50)\n\n* DUT (with component values added for simulation)\nQ1 n0 label_net_0 n2 npn\nQ2 n0 n1 n2 npn\nC1 n2 label_net_1 10p\nR1 VDD n0 1k\nR2 n2 GND 1k\nC2 n1 label_net_2 10p\n\n* Biasing and Sources\nVVDD VDD 0 1.8\n\n* Differential RF input at 1GHz (0.1V peak)\nVbias0 label_net_0 0 dc 0.9 sin(0.9 0.1 1G 0 0 0)\nVbias2 label_net_2 0 dc 0.9 sin(0.9 0.1 1G 0 0 180)\n\n* AC ground for emitter bypass\nVbias1 label_net_1 0 dc 0\n\n* DC Bias for n1 (AC coupled via C2)\nVbias_n1 n1_dc 0 dc 0.9\nRbias n1 n1_dc 100k\n\n.control\n* 1. DC Operating Point for Power Consumption\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. Transient Analysis for Conversion Gain (2nd Harmonic)\ntran 10p 5n\n* Measure peak-to-peak output voltage at steady state\nmeas tran vout_max max v(n0) from=3n to=5n\nmeas tran vout_min min v(n0) from=3n to=5n\nlet vout_pp = vout_max - vout_min\n\n* Input is 0.1V peak differential, so single-ended amplitude is 0.1V (0.2Vpp)\nlet conversion_gain = vout_pp / 0.2\nprint vout_pp conversion_gain\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Push-Push Frequency Doubler / Full-Wave Rectifier\",\n    \"description\": \"A differential pair with tied collectors. When driven differentially, the fundamental frequency cancels at the output while the even harmonics (primarily the 2nd harmonic) add constructively, effectively doubling the input frequency.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"label_net_0\",\n        \"label_net_2\"\n      ],\n      \"output\": [\n        \"n0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"n1\",\n        \"label_net_1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"SiGe W-CDMA Transmitter for Mobile Terminal Application\",\n      \"figure\": \"Generic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"270 mW\",\n        \"technology\": \"IBM 0.5um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Assuming 1k load and bias of 0.9V, I_total ~ 1.8mA. P = 1.8V * 1.8mA = 3.24mW.\",\n        \"range\": {\n          \"min\": \"1mW\",\n          \"typical\": \"3.2mW\",\n          \"max\": \"10mW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports the power for the entire transmitter IC. This single sub-block will consume significantly less power, determined by the bias resistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"conversion_gain\": {\n      \"description\": \"Voltage gain from the fundamental input frequency to the 2nd harmonic output frequency.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"74 dB (Total Tx Gain)\",\n        \"technology\": \"IBM 0.5um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vout_2nd / Vin_fund. Push-push doublers typically exhibit conversion loss unless actively buffered.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.5\",\n          \"max\": \"2.0\",\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Depends heavily on the transconductance of the BJTs and the load resistor R1.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"fundamental_rejection\": {\n      \"description\": \"Suppression of the fundamental frequency at the output relative to the 2nd harmonic.\",\n      \"unit\": \"dBc\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"43 dBc\",\n        \"technology\": \"IBM 0.5um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(Vout_fund / Vout_2nd). Relies on the matching of the differential pair.\",\n        \"range\": {\n          \"min\": \"20\",\n          \"typical\": \"40\",\n          \"max\": \"60\",\n          \"unit\": \"dBc\"\n        },\n        \"reasoning\": \"In a perfectly matched SPICE simulation, rejection is extremely high. In reality, mismatches limit it to ~40 dBc.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power consumption and transient conversion gain of the push-push frequency doubler.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"conversion_gain\",\n      \"vout_pp\"\n    ],\n    \"spice\": \"* Push-Push Frequency Doubler Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define generic NPN model since SKY130 NPNs have different subcircuit names\\n.model npn npn (bf=100 is=1e-15 vaf=50)\\n\\n* DUT (with component values added for simulation)\\nQ1 n0 label_net_0 n2 npn\\nQ2 n0 n1 n2 npn\\nC1 n2 label_net_1 10p\\nR1 VDD n0 1k\\nR2 n2 GND 1k\\nC2 n1 label_net_2 10p\\n\\n* Biasing and Sources\\nVVDD VDD 0 1.8\\n\\n* Differential RF input at 1GHz (0.1V peak)\\nVbias0 label_net_0 0 dc 0.9 sin(0.9 0.1 1G 0 0 0)\\nVbias2 label_net_2 0 dc 0.9 sin(0.9 0.1 1G 0 0 180)\\n\\n* AC ground for emitter bypass\\nVbias1 label_net_1 0 dc 0\\n\\n* DC Bias for n1 (AC coupled via C2)\\nVbias_n1 n1_dc 0 dc 0.9\\nRbias n1 n1_dc 100k\\n\\n.control\\n* 1. DC Operating Point for Power Consumption\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. Transient Analysis for Conversion Gain (2nd Harmonic)\\ntran 10p 5n\\n* Measure peak-to-peak output voltage at steady state\\nmeas tran vout_max max v(n0) from=3n to=5n\\nmeas tran vout_min min v(n0) from=3n to=5n\\nlet vout_pp = vout_max - vout_min\\n\\n* Input is 0.1V peak differential, so single-ended amplitude is 0.1V (0.2Vpp)\\nlet conversion_gain = vout_pp / 0.2\\nprint vout_pp conversion_gain\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1225801",
+  "_case": "1225801_image_3"
+}

@@ -1,0 +1,114 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Active Filter / Compensation Network",
+    "description": "The circuit consists of multiple operational amplifiers with RC feedback networks, likely serving as a loop filter, error amplifier, or compensation network for an AC-coupled hybrid envelope modulator.",
+    "node_mapping": {
+      "input": [
+        "n11",
+        "n4",
+        "n8",
+        "n6"
+      ],
+      "output": [
+        "n10",
+        "n3",
+        "n9"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "label_net_0",
+        "label_net_1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An AC-Coupled Hybrid Envelope Modulator for HSUPA Transmitters with 80% Modulator Efficiency",
+      "figure": "unknown",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency voltage gain of the active filter network.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.15\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the RC ratios in the feedback network. Assuming standard 10k resistors, gain is typically around 0 dB to 20 dB.",
+        "range": {
+          "min": 0,
+          "typical": 10,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the closed-loop configuration of the op-amps."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the filter.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.6MHz",
+        "technology": "0.15\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * R * C). With 10k and 1pF, BW is ~15.9 MHz. Adjusted to match paper's 1.6MHz operating frequency.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 1600000.0,
+          "max": 20000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The envelope modulator operates at 1.6MHz, so the filter bandwidth should be wide enough to pass the envelope signal."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the amplifiers.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.15\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Assuming 1.8V supply and ~1mA per amplifier.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.005,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Typical power for baseband active filters in 1.8V CMOS."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, AC frequency response, and transient response of the active filter network. Missing component values are parameterized with typical defaults.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "bandwidth",
+      "v_max",
+      "v_min"
+    ],
+    "spice": "* AC-Coupled Hybrid Envelope Modulator Filter Testbench\n\n.param VDD=1.8\n.param RVAL=10k\n.param CVAL=1p\n\n* Power Supplies and Bias\nVvdd vdd 0 dc {VDD}\nVLABEL_NET_0 label_net_0 0 dc 0.9\nVLABEL_NET_1 label_net_1 0 dc 0.9\n\n* Inputs\nVin1 n11 0 dc 0.9 ac 1 sin(0.9 0.1 1.6Meg)\nVin2 n4 0 dc 0.9 ac 0\nVin3 n8 0 dc 0.9 ac 0\nVin4 n6 0 dc 0.9 ac 0\n\n* Amplifier Macro-model\n.subckt amplifier out in_minus in_plus\nE1 out 0 in_plus in_minus 100k\n.ends\n\n* DUT (Netlist with added values for R and C)\nX1 n10 n1 n7 amplifier\nX2 n3 label_net_0 n0 amplifier\nX3 n9 n5 n3 amplifier\nR1 n6 n7 {RVAL}\nR2 n2 n4 {RVAL}\nR3 n1 n1 {RVAL}\nR4 n7 n8 {RVAL}\nR5 n0 n3 {RVAL}\nR6 n10 n11 {RVAL}\nC1 n8 n10 {CVAL}\nR7 n5 n5 {RVAL}\nR8 n6 n9 {RVAL}\nR9 n3 n3 {RVAL}\nR10 n0 label_net_1 {RVAL}\nC2 n10 0 {CVAL}\nR11 n1 n2 {RVAL}\nR12 n5 0 {RVAL}\nC3 n1 0 {CVAL}\nC4 n0 n3 {CVAL}\nC5 n11 0 {CVAL}\nC6 n7 n10 {CVAL}\nC7 n4 0 {CVAL}\n* Replaced ideal switch with a resistor for linear analysis\nR_S1 n6 n7 1k\n\n.control\n* DC Operating Point\nop\nprint v(n10) v(n3) v(n9)\n\n* AC Analysis\nac dec 20 1k 100Meg\nlet gain_db = vdb(n10)\nmeas ac dc_gain find gain_db at=1k\nmeas ac max_gain max gain_db\nlet gain_3db = max_gain - 3\nmeas ac bandwidth when gain_db=gain_3db fall=1\n\n* Transient Analysis\ntran 10n 5u\nmeas tran v_max max v(n10)\nmeas tran v_min min v(n10)\nlet v_pp = v_max - v_min\nprint v_pp\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Active Filter / Compensation Network\",\n    \"description\": \"The circuit consists of multiple operational amplifiers with RC feedback networks, likely serving as a loop filter, error amplifier, or compensation network for an AC-coupled hybrid envelope modulator.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n11\",\n        \"n4\",\n        \"n8\",\n        \"n6\"\n      ],\n      \"output\": [\n        \"n10\",\n        \"n3\",\n        \"n9\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"label_net_0\",\n        \"label_net_1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An AC-Coupled Hybrid Envelope Modulator for HSUPA Transmitters with 80% Modulator Efficiency\",\n      \"figure\": \"unknown\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency voltage gain of the active filter network.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.15\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the RC ratios in the feedback network. Assuming standard 10k resistors, gain is typically around 0 dB to 20 dB.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 10,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by the closed-loop configuration of the op-amps.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the filter.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.6MHz\",\n        \"technology\": \"0.15\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * R * C). With 10k and 1pF, BW is ~15.9 MHz. Adjusted to match paper's 1.6MHz operating frequency.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 1.6e6,\n          \"max\": 20e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The envelope modulator operates at 1.6MHz, so the filter bandwidth should be wide enough to pass the envelope signal.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the amplifiers.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.15\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Assuming 1.8V supply and ~1mA per amplifier.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 5e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Typical power for baseband active filters in 1.8V CMOS.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, AC frequency response, and transient response of the active filter network. Missing component values are parameterized with typical defaults.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"bandwidth\",\n      \"v_max\",\n      \"v_min\"\n    ],\n    \"spice\": \"* AC-Coupled Hybrid Envelope Modulator Filter Testbench\\n\\n.param VDD=1.8\\n.param RVAL=10k\\n.param CVAL=1p\\n\\n* Power Supplies and Bias\\nVvdd vdd 0 dc {VDD}\\nVLABEL_NET_0 label_net_0 0 dc 0.9\\nVLABEL_NET_1 label_net_1 0 dc 0.9\\n\\n* Inputs\\nVin1 n11 0 dc 0.9 ac 1 sin(0.9 0.1 1.6Meg)\\nVin2 n4 0 dc 0.9 ac 0\\nVin3 n8 0 dc 0.9 ac 0\\nVin4 n6 0 dc 0.9 ac 0\\n\\n* Amplifier Macro-model\\n.subckt amplifier out in_minus in_plus\\nE1 out 0 in_plus in_minus 100k\\n.ends\\n\\n* DUT (Netlist with added values for R and C)\\nX1 n10 n1 n7 amplifier\\nX2 n3 label_net_0 n0 amplifier\\nX3 n9 n5 n3 amplifier\\nR1 n6 n7 {RVAL}\\nR2 n2 n4 {RVAL}\\nR3 n1 n1 {RVAL}\\nR4 n7 n8 {RVAL}\\nR5 n0 n3 {RVAL}\\nR6 n10 n11 {RVAL}\\nC1 n8 n10 {CVAL}\\nR7 n5 n5 {RVAL}\\nR8 n6 n9 {RVAL}\\nR9 n3 n3 {RVAL}\\nR10 n0 label_net_1 {RVAL}\\nC2 n10 0 {CVAL}\\nR11 n1 n2 {RVAL}\\nR12 n5 0 {RVAL}\\nC3 n1 0 {CVAL}\\nC4 n0 n3 {CVAL}\\nC5 n11 0 {CVAL}\\nC6 n7 n10 {CVAL}\\nC7 n4 0 {CVAL}\\n* Replaced ideal switch with a resistor for linear analysis\\nR_S1 n6 n7 1k\\n\\n.control\\n* DC Operating Point\\nop\\nprint v(n10) v(n3) v(n9)\\n\\n* AC Analysis\\nac dec 20 1k 100Meg\\nlet gain_db = vdb(n10)\\nmeas ac dc_gain find gain_db at=1k\\nmeas ac max_gain max gain_db\\nlet gain_3db = max_gain - 3\\nmeas ac bandwidth when gain_db=gain_3db fall=1\\n\\n* Transient Analysis\\ntran 10n 5u\\nmeas tran v_max max v(n10)\\nmeas tran v_min min v(n10)\\nlet v_pp = v_max - v_min\\nprint v_pp\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "6487771",
+  "_case": "6487771_image_3"
+}

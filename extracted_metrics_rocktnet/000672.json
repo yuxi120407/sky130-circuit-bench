@@ -1,0 +1,112 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Interpolating / Summing Amplifier",
+    "description": "A dual differential pair that sums two differential input signals. It is typically used in flash or subranging ADCs to interpolate between reference levels, generating intermediate zero-crossings and reducing the number of required preamplifiers.",
+    "node_mapping": {
+      "input": [
+        "VIN_0_P",
+        "VIN_0_N",
+        "VIN_1_P",
+        "VIN_1_N"
+      ],
+      "output": [
+        "VOUT_P",
+        "VOUT_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1",
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 21-mW 8-b 125-MSample/s ADC in 0.09-mm2 0.13-m CMOS",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Low-frequency differential voltage gain from one input pair",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "68 dB (likely for a full op-amp, not this single stage)",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = sqrt(2 * 270uA/V^2 * (5u/0.5u) * 50uA) = 0.52 mA/V. Gain = gm * RL = 0.52m * 10k = 5.2 V/V = 14.3 dB",
+        "range": {
+          "min": 10,
+          "typical": 14,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the load resistor chosen in the testbench. With 10k loads, gain is around 14 dB."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "600 MHz",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * RL * CL) = 1 / (2 * pi * 10k * 50fF) = 318 MHz",
+        "range": {
+          "min": 100000000.0,
+          "typical": 300000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is limited by the output pole formed by the load resistor and parasitic/load capacitance. Adjusted for 50fF load."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the stage",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "21 mW (entire ADC)",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = (I_tail1 + I_tail2) * VDD = 200uA * 1.8V = 360 uW",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00036,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "A single interpolating stage consumes a small fraction of the total ADC power."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC gain, bandwidth, and transient response of the interpolating amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "bandwidth",
+      "power_consumption"
+    ],
+    "spice": "* Interpolating Amplifier Testbench\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 VOUT_N VIN_0_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VOUT_P VIN_0_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VOUT_P VIN_1_P N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUT_N VIN_1_N N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Power supply\nVVDD VDD 0 1.8\n\n* Input signals (AC for gain/BW, SIN for transient)\nVVIN_0_P VIN_0_P 0 DC 0.9 AC 0.5 SIN(0.9 0.1 100MEG 0 0)\nVVIN_0_N VIN_0_N 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 100MEG 0 0)\nVVIN_1_P VIN_1_P 0 DC 0.9 AC 0 SIN(0.9 0 100MEG 0 0)\nVVIN_1_N VIN_1_N 0 DC 0.9 AC 0 SIN(0.9 0 100MEG 0 0)\n\n* Loads and Biasing\nRL1 VDD VOUT_P 10k\nRL2 VDD VOUT_N 10k\nI1 N1 0 100u\nI2 N2 0 100u\nCL1 VOUT_P 0 50f\nCL2 VOUT_N 0 50f\n\n* Differential output voltage for easy measurement\nE_diff VOUT_DIFF 0 VOUT_N VOUT_P 1.0\n\n.control\n* 1. DC Operating Point & Power\nop\nlet total_power = -i(VVDD) * 1.8\nprint total_power\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 100 1Meg 10G\nlet gain_db = vdb(VOUT_DIFF)\nmeas ac dc_gain find gain_db at=1Meg\nlet gain_3db = dc_gain - 3\nmeas ac bw_3db when gain_db=gain_3db fall=1\n\n* 3. Transient Analysis\ntran 10p 20n\nmeas tran vout_diff_max max v(VOUT_DIFF)\nmeas tran vout_diff_min min v(VOUT_DIFF)\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Interpolating / Summing Amplifier\",\n    \"description\": \"A dual differential pair that sums two differential input signals. It is typically used in flash or subranging ADCs to interpolate between reference levels, generating intermediate zero-crossings and reducing the number of required preamplifiers.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_0_P\",\n        \"VIN_0_N\",\n        \"VIN_1_P\",\n        \"VIN_1_N\"\n      ],\n      \"output\": [\n        \"VOUT_P\",\n        \"VOUT_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 21-mW 8-b 125-MSample/s ADC in 0.09-mm2 0.13-m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency differential voltage gain from one input pair\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"68 dB (likely for a full op-amp, not this single stage)\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = sqrt(2 * 270uA/V^2 * (5u/0.5u) * 50uA) = 0.52 mA/V. Gain = gm * RL = 0.52m * 10k = 5.2 V/V = 14.3 dB\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 14,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the load resistor chosen in the testbench. With 10k loads, gain is around 14 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"600 MHz\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * RL * CL) = 1 / (2 * pi * 10k * 50fF) = 318 MHz\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 300e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is limited by the output pole formed by the load resistor and parasitic/load capacitance. Adjusted for 50fF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"21 mW (entire ADC)\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = (I_tail1 + I_tail2) * VDD = 200uA * 1.8V = 360 uW\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 360e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"A single interpolating stage consumes a small fraction of the total ADC power.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC gain, bandwidth, and transient response of the interpolating amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Interpolating Amplifier Testbench\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 VOUT_N VIN_0_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VOUT_P VIN_0_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VOUT_P VIN_1_P N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUT_N VIN_1_N N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Power supply\\nVVDD VDD 0 1.8\\n\\n* Input signals (AC for gain/BW, SIN for transient)\\nVVIN_0_P VIN_0_P 0 DC 0.9 AC 0.5 SIN(0.9 0.1 100MEG 0 0)\\nVVIN_0_N VIN_0_N 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 100MEG 0 0)\\nVVIN_1_P VIN_1_P 0 DC 0.9 AC 0 SIN(0.9 0 100MEG 0 0)\\nVVIN_1_N VIN_1_N 0 DC 0.9 AC 0 SIN(0.9 0 100MEG 0 0)\\n\\n* Loads and Biasing\\nRL1 VDD VOUT_P 10k\\nRL2 VDD VOUT_N 10k\\nI1 N1 0 100u\\nI2 N2 0 100u\\nCL1 VOUT_P 0 50f\\nCL2 VOUT_N 0 50f\\n\\n* Differential output voltage for easy measurement\\nE_diff VOUT_DIFF 0 VOUT_N VOUT_P 1.0\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet total_power = -i(VVDD) * 1.8\\nprint total_power\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 100 1Meg 10G\\nlet gain_db = vdb(VOUT_DIFF)\\nmeas ac dc_gain find gain_db at=1Meg\\nlet gain_3db = dc_gain - 3\\nmeas ac bw_3db when gain_db=gain_3db fall=1\\n\\n* 3. Transient Analysis\\ntran 10p 20n\\nmeas tran vout_diff_max max v(VOUT_DIFF)\\nmeas tran vout_diff_min min v(VOUT_DIFF)\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1362821",
+  "_case": "1362821_image_11"
+}

@@ -1,0 +1,83 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Antenna Switch (SPDT branch)",
+    "description": "A CMOS RF switch branch connecting a transmit (TX) port to an antenna (AN) port. It uses a series transistor to pass the RF signal and a shunt transistor to isolate the port by shorting it to ground.",
+    "node_mapping": {
+      "input": [
+        "TX"
+      ],
+      "output": [
+        "AN"
+      ],
+      "supply": [],
+      "bias": [
+        "ON",
+        "OFF"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A High-Performance CMOS-SOI Antenna Switch for the 2.5\u20135-GHz Band",
+      "figure": "Schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "insertion_loss": {
+      "description": "Insertion loss from TX to AN at 2.4 GHz and 5 GHz when the switch is in the pass state (series ON, shunt OFF).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 dB",
+        "technology": "0.25um SOI"
+      },
+      "sky130_expected": {
+        "calculation": "Ron of XM2 (W=5u, L=0.5u) is approx 1/(270u * 10 * (1.8-0.42)) = 270 ohms. In a 50-ohm system, Vout = 2 * 50 / (50 + 270 + 50) = 0.27V. 20*log10(0.27) = -11.3 dB.",
+        "range": {
+          "min": -15,
+          "typical": -11,
+          "max": -8,
+          "unit": "dB"
+        },
+        "reasoning": "The provided netlist uses very small transistor widths (5um) compared to typical RF switches (which use >1000um). This results in a high ON-resistance and thus higher insertion loss than the paper's 1 dB."
+      },
+      "importance": "essential"
+    },
+    "isolation": {
+      "description": "Isolation from TX to AN at 2.4 GHz and 5 GHz when the switch is in the isolation state (series OFF, shunt ON).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "25 dB to 45 dB",
+        "technology": "0.25um SOI"
+      },
+      "sky130_expected": {
+        "calculation": "XM2 is OFF (Cds ~ few fF, Zc ~ 13kOhm at 2.4GHz). XM1 is ON (Ron ~ 270 ohms). V_TX ~ 2 * 270 / (50 + 270) = 1.68V. V_AN = 1.68 * 50 / 13000 = 0.0064V. 20*log10(0.0064) = -43 dB.",
+        "range": {
+          "min": -50,
+          "typical": -43,
+          "max": -30,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the OFF-state capacitance of XM2 and the ON-resistance of the shunt transistor XM1."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures Insertion Loss and Isolation of the RF switch at 2.4 GHz and 5 GHz using AC analysis with 50-ohm source and load terminations.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "insertion_loss",
+      "isolation"
+    ],
+    "spice": "* RF Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 TX ON GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 TX OFF AN GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* 50-ohm RF Source at TX (2V AC with 50 ohm divider gives 0dB reference at matched load)\nVac TX_src GND dc 0 ac 2\nRsrc TX_src TX 50\n\n* 50-ohm Load at AN\nRload AN GND 50\n\n* Control Voltages\nVon ON GND dc 0\nVoff OFF GND dc 1.8\n\n.control\n* State 1: Pass Mode (TX to AN)\n* XM2 (series) is ON, XM1 (shunt) is OFF\nalter Von 0\nalter Voff 1.8\nop\nac dec 50 100Meg 10Gig\nlet il_db = vdb(AN)\nmeas ac IL_2_4G find il_db at=2.4G\nmeas ac IL_5G find il_db at=5G\n\n* State 2: Isolation Mode\n* XM2 (series) is OFF, XM1 (shunt) is ON\nalter Von 1.8\nalter Voff 0\nop\nac dec 50 100Meg 10Gig\nlet iso_db = vdb(AN)\nmeas ac ISO_2_4G find iso_db at=2.4G\nmeas ac ISO_5G find iso_db at=5G\n\nprint IL_2_4G IL_5G ISO_2_4G ISO_5G\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Antenna Switch (SPDT branch)\",\n    \"description\": \"A CMOS RF switch branch connecting a transmit (TX) port to an antenna (AN) port. It uses a series transistor to pass the RF signal and a shunt transistor to isolate the port by shorting it to ground.\",\n    \"node_mapping\": {\n      \"input\": [\"TX\"],\n      \"output\": [\"AN\"],\n      \"supply\": [],\n      \"bias\": [\"ON\", \"OFF\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A High-Performance CMOS-SOI Antenna Switch for the 2.5\u20135-GHz Band\",\n      \"figure\": \"Schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"insertion_loss\": {\n      \"description\": \"Insertion loss from TX to AN at 2.4 GHz and 5 GHz when the switch is in the pass state (series ON, shunt OFF).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 dB\",\n        \"technology\": \"0.25um SOI\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron of XM2 (W=5u, L=0.5u) is approx 1/(270u * 10 * (1.8-0.42)) = 270 ohms. In a 50-ohm system, Vout = 2 * 50 / (50 + 270 + 50) = 0.27V. 20*log10(0.27) = -11.3 dB.\",\n        \"range\": {\n          \"min\": -15,\n          \"typical\": -11,\n          \"max\": -8,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The provided netlist uses very small transistor widths (5um) compared to typical RF switches (which use >1000um). This results in a high ON-resistance and thus higher insertion loss than the paper's 1 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"isolation\": {\n      \"description\": \"Isolation from TX to AN at 2.4 GHz and 5 GHz when the switch is in the isolation state (series OFF, shunt ON).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"25 dB to 45 dB\",\n        \"technology\": \"0.25um SOI\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"XM2 is OFF (Cds ~ few fF, Zc ~ 13kOhm at 2.4GHz). XM1 is ON (Ron ~ 270 ohms). V_TX ~ 2 * 270 / (50 + 270) = 1.68V. V_AN = 1.68 * 50 / 13000 = 0.0064V. 20*log10(0.0064) = -43 dB.\",\n        \"range\": {\n          \"min\": -50,\n          \"typical\": -43,\n          \"max\": -30,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by the OFF-state capacitance of XM2 and the ON-resistance of the shunt transistor XM1.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures Insertion Loss and Isolation of the RF switch at 2.4 GHz and 5 GHz using AC analysis with 50-ohm source and load terminations.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"insertion_loss\",\n      \"isolation\"\n    ],\n    \"spice\": \"* RF Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 TX ON GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 TX OFF AN GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* 50-ohm RF Source at TX (2V AC with 50 ohm divider gives 0dB reference at matched load)\\nVac TX_src GND dc 0 ac 2\\nRsrc TX_src TX 50\\n\\n* 50-ohm Load at AN\\nRload AN GND 50\\n\\n* Control Voltages\\nVon ON GND dc 0\\nVoff OFF GND dc 1.8\\n\\n.control\\n* State 1: Pass Mode (TX to AN)\\n* XM2 (series) is ON, XM1 (shunt) is OFF\\nalter Von 0\\nalter Voff 1.8\\nop\\nac dec 50 100Meg 10Gig\\nlet il_db = vdb(AN)\\nmeas ac IL_2_4G find il_db at=2.4G\\nmeas ac IL_5G find il_db at=5G\\n\\n* State 2: Isolation Mode\\n* XM2 (series) is OFF, XM1 (shunt) is ON\\nalter Von 1.8\\nalter Voff 0\\nop\\nac dec 50 100Meg 10Gig\\nlet iso_db = vdb(AN)\\nmeas ac ISO_2_4G find iso_db at=2.4G\\nmeas ac ISO_5G find iso_db at=5G\\n\\nprint IL_2_4G IL_5G ISO_2_4G ISO_5G\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1208481",
+  "_case": "1208481_image_5"
+}

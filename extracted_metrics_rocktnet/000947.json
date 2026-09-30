@@ -1,0 +1,156 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual-Path Operational Transconductance Amplifier (OTA)",
+    "description": "A fully differential OTA featuring a main amplification path and a feedforward auxiliary path. This architecture is typically used to achieve both high DC gain and high unity-gain bandwidth, making it suitable for the MDAC in high-speed pipelined ADCs.",
+    "node_mapping": {
+      "input": [
+        "N8",
+        "N0"
+      ],
+      "output": [
+        "N4",
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_1",
+        "N9",
+        "LABEL_NET_5",
+        "LABEL_NET_0",
+        "LABEL_NET_2",
+        "N11"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5.37mW 10b 200MS/s Dual-Path Pipelined ADC",
+      "figure": "N/A",
+      "year": 2012
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency differential voltage gain of the OTA.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "56.7",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is proportional to gm * Rout. With L=0.5um in SKY130, intrinsic gain per stage is around 25-30dB. A two-stage/cascoded structure yields ~50dB.",
+        "range": {
+          "min": 40,
+          "typical": 50,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "SKY130 at 1.8V has lower gm/Id compared to 65nm at 1.0V, but the longer channel length (0.5um) provides decent output resistance, keeping the gain comparable to the paper."
+      },
+      "importance": "essential"
+    },
+    "ugf": {
+      "description": "Unity Gain Frequency, where the open-loop gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.1G",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "UGF = gm / (2 * pi * Cload). Assuming gm ~ 1mA/V and Cload = 100fF, UGF ~ 1.5GHz. However, internal parasitic poles will lower this.",
+        "range": {
+          "min": 200000000.0,
+          "typical": 600000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The 130nm process is slower than 65nm, resulting in higher parasitic capacitances for the same gm, which reduces the achievable bandwidth."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase difference from -180 degrees at the Unity Gain Frequency, indicating stability.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the location of the non-dominant pole relative to the UGF. Feedforward compensation typically introduces a LHP zero to boost phase.",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 75,
+          "unit": "degrees"
+        },
+        "reasoning": "A phase margin of ~60 degrees is standard target for stable settling in pipelined ADC op-amps."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total static power consumption of the op-amp.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.23m",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * Itotal. With VDD=1.8V and estimated total bias current of 400uA across all branches.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.0008,
+          "max": 0.0015,
+          "unit": "W"
+        },
+        "reasoning": "Operating at 1.8V in 130nm requires more power to achieve similar bandwidths compared to a 1.0V 65nm design."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage during a large-signal step.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "SR = Itail / Cload. With Itail ~ 200uA and Cload = 100fF, SR ~ 2000 V/us.",
+        "range": {
+          "min": 500,
+          "typical": 1000,
+          "max": 2500,
+          "unit": "V/us"
+        },
+        "reasoning": "High slew rate is required for 200MS/s operation (5ns clock period, ~1-2ns allocated for slewing)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, UGF, phase margin, slew rate, and power consumption of the dual-path OTA. Ideal CMFB loops are used to stabilize the high-impedance output nodes.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "ugf",
+      "phase_margin",
+      "slew_rate"
+    ],
+    "spice": "* Dual-Path OTA Testbench\n\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm14=5u L_xm14=0.5u\n\n* DUT\nXM1 N3 N8 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N6 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 LABEL_NET_0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N10 N9 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 LABEL_NET_2 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N4 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N10 N11 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N7 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N4 N5 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N5 N9 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N3 LABEL_NET_3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM13 N5 N11 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM14 N1 LABEL_NET_5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\n\n* Fix missing connection from OCR (LABEL_NET_3 is the symmetric counterpart to N5)\nVshort LABEL_NET_3 N10 0\n\n* Power supply\nVVDD VDD 0 1.8\n\n* Biases\nVbias_tail LABEL_NET_1 0 0.7\nVbias_casc N9 0 1.1\nVbias_ptail LABEL_NET_5 0 1.0\n\n* Ideal CMFB for main outputs (N4, N3) to hold CM at 0.9V\nEcmfb1_1 LABEL_NET_0 0 vol='1.0 + 5*( (v(N4)+v(N3))/2 - 0.9 )'\nEcmfb1_2 LABEL_NET_2 0 vol='1.0 + 5*( (v(N4)+v(N3))/2 - 0.9 )'\n\n* Ideal CMFB for aux outputs (N5, N10) to hold CM at 0.9V\nEcmfb2 N11 0 vol='1.0 + 5*( (v(N5)+v(N10))/2 - 0.9 )'\n\n* Inputs (Combined AC and Tran)\nVac_p in_ac_p 0 dc 0 ac 0.5\nVac_n in_ac_n 0 dc 0 ac -0.5\n\nVtran_p in_tran_p 0 pulse(0 0.5 1n 10p 10p 10n 20n)\nVtran_n in_tran_n 0 pulse(0 -0.5 1n 10p 10p 10n 20n)\n\nE_inp N8 0 vol='0.9 + v(in_ac_p) + v(in_tran_p)'\nE_inn N0 0 vol='0.9 + v(in_ac_n) + v(in_tran_n)'\n\n* Differential output\nEdiff out_diff 0 vol='v(N4) - v(N3)'\n\n* Load capacitors\nCload1 N4 0 100f\nCload2 N3 0 100f\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis (Gain, UGF, Phase Margin)\nac dec 100 1k 10G\nlet gain_db = vdb(out_diff)\nlet phase = 180/PI * cph(v(out_diff))\nmeas ac dc_gain find gain_db at=1k\nmeas ac ugf when gain_db=0 fall=1\nmeas ac phase_at_ugf find phase when gain_db=0 fall=1\nlet pm = phase_at_ugf + 180\nprint dc_gain ugf pm\n\n* 3. Transient Analysis (Slew Rate)\ntran 10p 20n\nmeas tran t_rise trig v(out_diff) val=-0.5 rise=1 targ v(out_diff) val=0.5 rise=1\nlet sr_rise = 1.0 / t_rise\nmeas tran t_fall trig v(out_diff) val=0.5 fall=1 targ v(out_diff) val=-0.5 fall=1\nlet sr_fall = 1.0 / t_fall\nprint sr_rise sr_fall\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual-Path Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"A fully differential OTA featuring a main amplification path and a feedforward auxiliary path. This architecture is typically used to achieve both high DC gain and high unity-gain bandwidth, making it suitable for the MDAC in high-speed pipelined ADCs.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N8\",\n        \"N0\"\n      ],\n      \"output\": [\n        \"N4\",\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_1\",\n        \"N9\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\",\n        \"N11\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5.37mW 10b 200MS/s Dual-Path Pipelined ADC\",\n      \"figure\": \"N/A\",\n      \"year\": 2012\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency differential voltage gain of the OTA.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"56.7\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is proportional to gm * Rout. With L=0.5um in SKY130, intrinsic gain per stage is around 25-30dB. A two-stage/cascoded structure yields ~50dB.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 50,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SKY130 at 1.8V has lower gm/Id compared to 65nm at 1.0V, but the longer channel length (0.5um) provides decent output resistance, keeping the gain comparable to the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugf\": {\n      \"description\": \"Unity Gain Frequency, where the open-loop gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.1G\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = gm / (2 * pi * Cload). Assuming gm ~ 1mA/V and Cload = 100fF, UGF ~ 1.5GHz. However, internal parasitic poles will lower this.\",\n        \"range\": {\n          \"min\": 200e6,\n          \"typical\": 600e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The 130nm process is slower than 65nm, resulting in higher parasitic capacitances for the same gm, which reduces the achievable bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase difference from -180 degrees at the Unity Gain Frequency, indicating stability.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the location of the non-dominant pole relative to the UGF. Feedforward compensation typically introduces a LHP zero to boost phase.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 75,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"A phase margin of ~60 degrees is standard target for stable settling in pipelined ADC op-amps.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total static power consumption of the op-amp.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.23m\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * Itotal. With VDD=1.8V and estimated total bias current of 400uA across all branches.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.8e-3,\n          \"max\": 1.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Operating at 1.8V in 130nm requires more power to achieve similar bandwidths compared to a 1.0V 65nm design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage during a large-signal step.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = Itail / Cload. With Itail ~ 200uA and Cload = 100fF, SR ~ 2000 V/us.\",\n        \"range\": {\n          \"min\": 500,\n          \"typical\": 1000,\n          \"max\": 2500,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"High slew rate is required for 200MS/s operation (5ns clock period, ~1-2ns allocated for slewing).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, UGF, phase margin, slew rate, and power consumption of the dual-path OTA. Ideal CMFB loops are used to stabilize the high-impedance output nodes.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"ugf\",\n      \"phase_margin\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Dual-Path OTA Testbench\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n\\n* DUT\\nXM1 N3 N8 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N6 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 LABEL_NET_0 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N10 N9 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 LABEL_NET_2 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N4 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N10 N11 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N7 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N4 N5 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N5 N9 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N3 LABEL_NET_3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 N5 N11 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM14 N1 LABEL_NET_5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\\n\\n* Fix missing connection from OCR (LABEL_NET_3 is the symmetric counterpart to N5)\\nVshort LABEL_NET_3 N10 0\\n\\n* Power supply\\nVVDD VDD 0 1.8\\n\\n* Biases\\nVbias_tail LABEL_NET_1 0 0.7\\nVbias_casc N9 0 1.1\\nVbias_ptail LABEL_NET_5 0 1.0\\n\\n* Ideal CMFB for main outputs (N4, N3) to hold CM at 0.9V\\nEcmfb1_1 LABEL_NET_0 0 vol='1.0 + 5*( (v(N4)+v(N3))/2 - 0.9 )'\\nEcmfb1_2 LABEL_NET_2 0 vol='1.0 + 5*( (v(N4)+v(N3))/2 - 0.9 )'\\n\\n* Ideal CMFB for aux outputs (N5, N10) to hold CM at 0.9V\\nEcmfb2 N11 0 vol='1.0 + 5*( (v(N5)+v(N10))/2 - 0.9 )'\\n\\n* Inputs (Combined AC and Tran)\\nVac_p in_ac_p 0 dc 0 ac 0.5\\nVac_n in_ac_n 0 dc 0 ac -0.5\\n\\nVtran_p in_tran_p 0 pulse(0 0.5 1n 10p 10p 10n 20n)\\nVtran_n in_tran_n 0 pulse(0 -0.5 1n 10p 10p 10n 20n)\\n\\nE_inp N8 0 vol='0.9 + v(in_ac_p) + v(in_tran_p)'\\nE_inn N0 0 vol='0.9 + v(in_ac_n) + v(in_tran_n)'\\n\\n* Differential output\\nEdiff out_diff 0 vol='v(N4) - v(N3)'\\n\\n* Load capacitors\\nCload1 N4 0 100f\\nCload2 N3 0 100f\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Gain, UGF, Phase Margin)\\nac dec 100 1k 10G\\nlet gain_db = vdb(out_diff)\\nlet phase = 180/PI * cph(v(out_diff))\\nmeas ac dc_gain find gain_db at=1k\\nmeas ac ugf when gain_db=0 fall=1\\nmeas ac phase_at_ugf find phase when gain_db=0 fall=1\\nlet pm = phase_at_ugf + 180\\nprint dc_gain ugf pm\\n\\n* 3. Transient Analysis (Slew Rate)\\ntran 10p 20n\\nmeas tran t_rise trig v(out_diff) val=-0.5 rise=1 targ v(out_diff) val=0.5 rise=1\\nlet sr_rise = 1.0 / t_rise\\nmeas tran t_fall trig v(out_diff) val=0.5 fall=1 targ v(out_diff) val=-0.5 fall=1\\nlet sr_fall = 1.0 / t_fall\\nprint sr_rise sr_fall\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6177091",
+  "_case": "6177091_image_4_a"
+}

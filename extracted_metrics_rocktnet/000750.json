@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Transconductor / OTA (Sinh Resistor)",
+    "description": "A subthreshold transconductor that generates an output current proportional to the hyperbolic sine (sinh) of the differential input voltage. It utilizes a parallel NMOS and PMOS pair to achieve an expansive sinh characteristic, which is typically used to linearize compressive tanh differential pairs.",
+    "node_mapping": {
+      "input": [
+        "V1",
+        "V2"
+      ],
+      "output": [
+        "Vout"
+      ],
+      "supply": [
+        "N3",
+        "VDD"
+      ],
+      "bias": [
+        "Vb"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A sinh Resistor and Its Application to tanh Linearization",
+      "figure": "8-transistor circuit (partial)",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Gm": {
+      "description": "Transconductance (differential mode)",
+      "unit": "A/V",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "1.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gm \u2248 I_bias / (2 * n * V_T). With Vb=0.54V, I_bias \u2248 2uA, n \u2248 1.5, V_T = 26mV.",
+        "range": {
+          "min": 1e-06,
+          "typical": 2.5e-05,
+          "max": 0.0001,
+          "unit": "A/V"
+        },
+        "reasoning": "Depends strongly on the exact subthreshold bias current set by Vb=0.54V."
+      },
+      "importance": "essential"
+    },
+    "CMRR": {
+      "description": "Common-Mode Rejection Ratio",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "46 dB",
+        "technology": "1.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20*log10(Gm_dm / Gm_cm)",
+        "range": {
+          "min": 40,
+          "typical": 50,
+          "max": 80,
+          "unit": "dB"
+        },
+        "reasoning": "Expected to be similar to the paper's reported 46 dB, limited by the simple current mirror and tail current source output resistance."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB frequency of the transconductance",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20 kHz (application range)",
+        "technology": "1.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB \u2248 Gm / (2 * pi * C_parasitic). With Gm=25uS and C~50fF.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 10000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The intrinsic bandwidth of the OTA in SKY130 will be in the MHz range, much higher than the 20kHz application frequency."
+      },
+      "importance": "recommended"
+    },
+    "Power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "1.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * (I_bias + I_mirror) \u2248 1.8V * 3uA",
+        "range": {
+          "min": 1e-06,
+          "typical": 5e-06,
+          "max": 2e-05,
+          "unit": "W"
+        },
+        "reasoning": "Subthreshold operation results in very low power consumption."
+      },
+      "importance": "essential"
+    },
+    "Iout_max": {
+      "description": "Maximum output current in sinh expansive region",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "1.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the exponential increase in current before leaving subthreshold.",
+        "range": {
+          "min": 1e-06,
+          "typical": 1e-05,
+          "max": 0.0001,
+          "unit": "A"
+        },
+        "reasoning": "The sinh characteristic allows the current to expand beyond the quiescent bias current, unlike a standard tanh differential pair."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure Gm, CMRR, Bandwidth, Power, and DC sinh characteristic of the transconductor.",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC"
+    ],
+    "metrics_measured": [
+      "Gm",
+      "CMRR",
+      "Bandwidth",
+      "Power",
+      "Iout_max"
+    ],
+    "spice": "* Sinh Resistor Transconductor Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_p=2u L_p=1u\n.param W_n=2u L_n=1u\n\n* DUT (T replaced with M for standard SPICE, N3 mapped to VDD)\nM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 W={W_p} L={L_p}\nM6 N2 Vb GND GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nM4 Vout N1 VDD VDD sky130_fd_pr__pfet_01v8 W={W_p} L={L_p}\nM5 Vout Vout N2 GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nM1 N1 V1 N2 GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nM2 N2 V2 N1 VDD sky130_fd_pr__pfet_01v8 W={W_p} L={L_p}\n\n* Sources\nVVDD VDD 0 1.8\nVVB Vb 0 0.54\n\nVCM VCM 0 DC 0.9 AC 0\nVdiff Vdiff 0 DC 0 AC 1\n\n* E-sources for differential inputs (V1, V2)\nE1 V1 VCM Vdiff 0 0.5\nE2 V2 VCM Vdiff 0 -0.5\n\n* Output load (force voltage to measure short-circuit current)\nVmeas Vout 0 0.9\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * DM AC Analysis\n  alter Vdiff ac=1\n  alter VCM ac=0\n  ac dec 10 1 100Meg\n  let adm = mag(i(Vmeas))\n  meas ac gm_dm find adm at=10\n  meas ac bw_3db when adm='gm_dm/1.414' fall=1\n\n  * CM AC Analysis\n  alter Vdiff ac=0\n  alter VCM ac=1\n  ac dec 10 1 100Meg\n  let acm = mag(i(Vmeas))\n  meas ac gm_cm find acm at=10\n\n  * CMRR\n  let cmrr_db = 20*log10(gm_dm / gm_cm)\n  print cmrr_db\n\n  * DC Sweep for Sinh characteristic\n  alter Vdiff ac=0\n  alter VCM ac=0\n  dc Vdiff -0.5 0.5 0.01\n  meas dc iout_max max i(Vmeas)\n  meas dc iout_min min i(Vmeas)\n\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Transconductor / OTA (Sinh Resistor)\",\n    \"description\": \"A subthreshold transconductor that generates an output current proportional to the hyperbolic sine (sinh) of the differential input voltage. It utilizes a parallel NMOS and PMOS pair to achieve an expansive sinh characteristic, which is typically used to linearize compressive tanh differential pairs.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"V1\",\n        \"V2\"\n      ],\n      \"output\": [\n        \"Vout\"\n      ],\n      \"supply\": [\n        \"N3\",\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"Vb\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A sinh Resistor and Its Application to tanh Linearization\",\n      \"figure\": \"8-transistor circuit (partial)\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Gm\": {\n      \"description\": \"Transconductance (differential mode)\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"1.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm \u2248 I_bias / (2 * n * V_T). With Vb=0.54V, I_bias \u2248 2uA, n \u2248 1.5, V_T = 26mV.\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 2.5e-05,\n          \"max\": 0.0001,\n          \"unit\": \"A/V\"\n        },\n        \"reasoning\": \"Depends strongly on the exact subthreshold bias current set by Vb=0.54V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"CMRR\": {\n      \"description\": \"Common-Mode Rejection Ratio\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"46 dB\",\n        \"technology\": \"1.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20*log10(Gm_dm / Gm_cm)\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 50,\n          \"max\": 80,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Expected to be similar to the paper's reported 46 dB, limited by the simple current mirror and tail current source output resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB frequency of the transconductance\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20 kHz (application range)\",\n        \"technology\": \"1.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB \u2248 Gm / (2 * pi * C_parasitic). With Gm=25uS and C~50fF.\",\n        \"range\": {\n          \"min\": 1000000.0,\n          \"typical\": 10000000.0,\n          \"max\": 100000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The intrinsic bandwidth of the OTA in SKY130 will be in the MHz range, much higher than the 20kHz application frequency.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"1.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * (I_bias + I_mirror) \u2248 1.8V * 3uA\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 5e-06,\n          \"max\": 2e-05,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Subthreshold operation results in very low power consumption.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Iout_max\": {\n      \"description\": \"Maximum output current in sinh expansive region\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"1.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the exponential increase in current before leaving subthreshold.\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 1e-05,\n          \"max\": 0.0001,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"The sinh characteristic allows the current to expand beyond the quiescent bias current, unlike a standard tanh differential pair.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure Gm, CMRR, Bandwidth, Power, and DC sinh characteristic of the transconductor.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"Gm\",\n      \"CMRR\",\n      \"Bandwidth\",\n      \"Power\",\n      \"Iout_max\"\n    ],\n    \"spice\": \"* Sinh Resistor Transconductor Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_p=2u L_p=1u\\n.param W_n=2u L_n=1u\\n\\n* DUT (T replaced with M for standard SPICE, N3 mapped to VDD)\\nM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 W={W_p} L={L_p}\\nM6 N2 Vb GND GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nM4 Vout N1 VDD VDD sky130_fd_pr__pfet_01v8 W={W_p} L={L_p}\\nM5 Vout Vout N2 GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nM1 N1 V1 N2 GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nM2 N2 V2 N1 VDD sky130_fd_pr__pfet_01v8 W={W_p} L={L_p}\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVVB Vb 0 0.54\\n\\nVCM VCM 0 DC 0.9 AC 0\\nVdiff Vdiff 0 DC 0 AC 1\\n\\n* E-sources for differential inputs (V1, V2)\\nE1 V1 VCM Vdiff 0 0.5\\nE2 V2 VCM Vdiff 0 -0.5\\n\\n* Output load (force voltage to measure short-circuit current)\\nVmeas Vout 0 0.9\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * DM AC Analysis\\n  alter Vdiff ac=1\\n  alter VCM ac=0\\n  ac dec 10 1 100Meg\\n  let adm = mag(i(Vmeas))\\n  meas ac gm_dm find adm at=10\\n  meas ac bw_3db when adm='gm_dm/1.414' fall=1\\n\\n  * CM AC Analysis\\n  alter Vdiff ac=0\\n  alter VCM ac=1\\n  ac dec 10 1 100Meg\\n  let acm = mag(i(Vmeas))\\n  meas ac gm_cm find acm at=10\\n\\n  * CMRR\\n  let cmrr_db = 20*log10(gm_dm / gm_cm)\\n  print cmrr_db\\n\\n  * DC Sweep for Sinh characteristic\\n  alter Vdiff ac=0\\n  alter VCM ac=0\\n  dc Vdiff -0.5 0.5 0.01\\n  meas dc iout_max max i(Vmeas)\\n  meas dc iout_min min i(Vmeas)\\n\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1388644",
+  "_case": "1388644_image_3_a"
+}

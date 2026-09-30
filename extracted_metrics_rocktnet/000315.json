@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Decision-Feedback Equalizer (DFE) Tap / Current Steering Branch",
+    "description": "This circuit is a differential pair with diode-connected PMOS loads, where the inputs are hardwired to VDD and VSS. It acts as a fixed-weight tap or dummy branch in a DFE, steering a constant tail current to one of the output summing nodes (VB) while leaving the other (N1) pulled to VDD.",
+    "node_mapping": {
+      "input": [
+        "VSS",
+        "VDD"
+      ],
+      "output": [
+        "VB",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Analog Timing Recovery for a Noise-Predictive Decision-Feedback Equalizer",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_dc": {
+      "description": "DC power consumption of the tap branch.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "27 mW",
+        "technology": "0.5um CMOS, 3.3V"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 100uA tail current is applied to N0: P = VDD * I_tail = 1.8V * 100uA = 180 uW.",
+        "range": {
+          "min": 0.00015,
+          "typical": 0.00018,
+          "max": 0.0002,
+          "unit": "W"
+        },
+        "reasoning": "The 27 mW reported in the paper is for the entire timing recovery block. A single DFE tap in 1.8V SKY130 will consume a fraction of this, dominated by its tail current."
+      },
+      "importance": "essential"
+    },
+    "v_swing": {
+      "description": "Output voltage swing at the active summing node (VB) when the tail current is switched.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail / gm_pmos. gm_pmos = sqrt(2 * upCox * (W/L) * I_tail) = sqrt(2 * 50uA/V^2 * (10u/0.5u) * 100uA) = 0.447 mS. Swing = 100uA / 0.447mS = 223 mV.",
+        "range": {
+          "min": 0.15,
+          "typical": 0.22,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "Based on the square-law model for the diode-connected PMOS loads (XM3/XM4 in parallel)."
+      },
+      "importance": "essential"
+    },
+    "t_fall": {
+      "description": "Fall time of the output node when the tap is enabled.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 ps (jitter)",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_fall ~ 2.2 * R * C. R = 1/gm_pmos = 2.23 kOhm. C ~ Cgs_pmos + Cdb_nmos ~ 20 fF. t_fall = 2.2 * 2.23k * 20fF = 98 ps.",
+        "range": {
+          "min": 5e-11,
+          "typical": 1e-10,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "Determined by the RC time constant of the diode-connected load and local parasitic capacitances."
+      },
+      "importance": "recommended"
+    },
+    "transimpedance_gain": {
+      "description": "Low-frequency transimpedance gain from tail current to output voltage.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2 dB",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Z = 1/gm_pmos = 2.23 kOhm. For a 1uA AC input, Vout = 2.23 mV. Gain in dBV = 20*log10(2.23e-3) = -53 dB.",
+        "range": {
+          "min": -60,
+          "typical": -53,
+          "max": -45,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated from the small-signal resistance of the diode-connected PMOS loads. The 2 dB reported in the paper likely refers to the overall equalizer gain, not this specific node."
+      },
+      "importance": "recommended"
+    },
+    "capacitance_load": {
+      "description": "Parasitic capacitance at the output node.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 pF",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "C = Cgs_pmos + Cdb_nmos. Cgs = (2/3)*W*L*Cox = (2/3)*10u*0.5u*5fF/um2 = 16.6 fF.",
+        "range": {
+          "min": 1e-14,
+          "typical": 2e-14,
+          "max": 3e-14,
+          "unit": "F"
+        },
+        "reasoning": "The 40 pF reported in the paper is likely a large loop filter capacitor. This sub-block only has intrinsic device parasitics."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, transimpedance gain, and transient switching characteristics of the DFE tap by modulating its tail current.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_dc",
+      "v_swing",
+      "t_fall",
+      "transimpedance_gain"
+    ],
+    "spice": "* DFE Tap Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM3 VB VB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VB VB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM1 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM5 N1 VSS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VB VDD N0 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* DC Sources\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVGND GND 0 0\n\n* Tail current source at N0 (simulating tap enable/disable)\n* DC 100uA, AC 1uA for small signal, PULSE for transient switching\nI_tail N0 GND DC 100u AC 1u PULSE(0 100u 1n 10p 10p 1n 2n)\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  print v(VB) v(N1) v(N0)\n\n  * AC Analysis\n  ac dec 10 1Meg 10Gig\n  let gain_db = vdb(VB)\n  meas ac gain_1M find gain_db at=1Meg\n  meas ac gain_1G find gain_db at=1Gig\n\n  * Transient Analysis\n  tran 1p 3n\n  meas tran v_max max v(VB)\n  meas tran v_min min v(VB)\n  \n  * Measure fall and rise times (1.75V to 1.65V thresholds based on expected swing)\n  meas tran t_fall trig v(VB) val=1.75 fall=1 targ v(VB) val=1.65 fall=1\n  meas tran t_rise trig v(VB) val=1.65 rise=1 targ v(VB) val=1.75 rise=1\n\n  quit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Decision-Feedback Equalizer (DFE) Tap / Current Steering Branch\",\n    \"description\": \"This circuit is a differential pair with diode-connected PMOS loads, where the inputs are hardwired to VDD and VSS. It acts as a fixed-weight tap or dummy branch in a DFE, steering a constant tail current to one of the output summing nodes (VB) while leaving the other (N1) pulled to VDD.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VSS\",\n        \"VDD\"\n      ],\n      \"output\": [\n        \"VB\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Analog Timing Recovery for a Noise-Predictive Decision-Feedback Equalizer\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_dc\": {\n      \"description\": \"DC power consumption of the tap branch.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"27 mW\",\n        \"technology\": \"0.5um CMOS, 3.3V\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 100uA tail current is applied to N0: P = VDD * I_tail = 1.8V * 100uA = 180 uW.\",\n        \"range\": {\n          \"min\": 150e-6,\n          \"typical\": 180e-6,\n          \"max\": 200e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 27 mW reported in the paper is for the entire timing recovery block. A single DFE tap in 1.8V SKY130 will consume a fraction of this, dominated by its tail current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_swing\": {\n      \"description\": \"Output voltage swing at the active summing node (VB) when the tail current is switched.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail / gm_pmos. gm_pmos = sqrt(2 * upCox * (W/L) * I_tail) = sqrt(2 * 50uA/V^2 * (10u/0.5u) * 100uA) = 0.447 mS. Swing = 100uA / 0.447mS = 223 mV.\",\n        \"range\": {\n          \"min\": 0.15,\n          \"typical\": 0.22,\n          \"max\": 0.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on the square-law model for the diode-connected PMOS loads (XM3/XM4 in parallel).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_fall\": {\n      \"description\": \"Fall time of the output node when the tap is enabled.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 ps (jitter)\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_fall ~ 2.2 * R * C. R = 1/gm_pmos = 2.23 kOhm. C ~ Cgs_pmos + Cdb_nmos ~ 20 fF. t_fall = 2.2 * 2.23k * 20fF = 98 ps.\",\n        \"range\": {\n          \"min\": 50e-12,\n          \"typical\": 100e-12,\n          \"max\": 200e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Determined by the RC time constant of the diode-connected load and local parasitic capacitances.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"transimpedance_gain\": {\n      \"description\": \"Low-frequency transimpedance gain from tail current to output voltage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2 dB\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Z = 1/gm_pmos = 2.23 kOhm. For a 1uA AC input, Vout = 2.23 mV. Gain in dBV = 20*log10(2.23e-3) = -53 dB.\",\n        \"range\": {\n          \"min\": -60,\n          \"typical\": -53,\n          \"max\": -45,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated from the small-signal resistance of the diode-connected PMOS loads. The 2 dB reported in the paper likely refers to the overall equalizer gain, not this specific node.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"capacitance_load\": {\n      \"description\": \"Parasitic capacitance at the output node.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 pF\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C = Cgs_pmos + Cdb_nmos. Cgs = (2/3)*W*L*Cox = (2/3)*10u*0.5u*5fF/um2 = 16.6 fF.\",\n        \"range\": {\n          \"min\": 10e-15,\n          \"typical\": 20e-15,\n          \"max\": 30e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"The 40 pF reported in the paper is likely a large loop filter capacitor. This sub-block only has intrinsic device parasitics.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, transimpedance gain, and transient switching characteristics of the DFE tap by modulating its tail current.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_dc\",\n      \"v_swing\",\n      \"t_fall\",\n      \"transimpedance_gain\"\n    ],\n    \"spice\": \"* DFE Tap Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM3 VB VB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VB VB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM1 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM5 N1 VSS N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VB VDD N0 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVGND GND 0 0\\n\\n* Tail current source at N0 (simulating tap enable/disable)\\n* DC 100uA, AC 1uA for small signal, PULSE for transient switching\\nI_tail N0 GND DC 100u AC 1u PULSE(0 100u 1n 10p 10p 1n 2n)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  print v(VB) v(N1) v(N0)\\n\\n  * AC Analysis\\n  ac dec 10 1Meg 10Gig\\n  let gain_db = vdb(VB)\\n  meas ac gain_1M find gain_db at=1Meg\\n  meas ac gain_1G find gain_db at=1Gig\\n\\n  * Transient Analysis\\n  tran 1p 3n\\n  meas tran v_max max v(VB)\\n  meas tran v_min min v(VB)\\n  \\n  * Measure fall and rise times (1.75V to 1.65V thresholds based on expected swing)\\n  meas tran t_fall trig v(VB) val=1.75 fall=1 targ v(VB) val=1.65 fall=1\\n  meas tran t_rise trig v(VB) val=1.65 rise=1 targ v(VB) val=1.75 rise=1\\n\\n  quit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1175515",
+  "_case": "1175515_image_6"
+}

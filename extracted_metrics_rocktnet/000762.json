@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current-Steering DAC Cell / Analog Multiplexer",
+    "description": "A dual differential pair sharing cross-coupled output nodes. It functions as a current-steering DAC segment or an analog multiplexer used for dynamic element matching and mismatch shaping.",
+    "node_mapping": {
+      "input": [
+        "In1",
+        "In1x",
+        "In2",
+        "In2x"
+      ],
+      "output": [
+        "OUT1",
+        "OUT2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2-GS/s 3-bit -Modulated DAC With Tunable Bandpass Mismatch Shaping",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption of the cell",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "8.1 W (entire DAC)",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail1 + I_tail2 = 2mA. Power = 2mA * 1.8V = 3.6mW",
+        "range": {
+          "min": 0.003,
+          "typical": 0.0036,
+          "max": 0.004,
+          "unit": "W"
+        },
+        "reasoning": "Based on 1mA tail currents and 1.8V supply in SKY130."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the cell",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "750 MHz (signal band)",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * R_load * C_parasitic). R_load=500, C~20fF -> ~15 GHz",
+        "range": {
+          "min": 10000000000.0,
+          "typical": 15000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Limited by the RC time constant of the load resistor and transistor parasitic capacitances."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency voltage gain from input to differential output",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "68 dB (SNR)",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = g_m * R_load. g_m ~ 4.3mS, R_load = 500 -> 2.15 V/V = 6.6 dB",
+        "range": {
+          "min": 4,
+          "typical": 6.6,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using typical SKY130 NMOS g_m at 0.5mA bias current."
+      },
+      "importance": "recommended"
+    },
+    "t_rise": {
+      "description": "Rise time of the output voltage",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2 GS/s (sampling rate)",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "t_rise = 2.2 * R_load * C_parasitic = 2.2 * 500 * 20fF = 22ps",
+        "range": {
+          "min": 1.5e-11,
+          "typical": 2.2e-11,
+          "max": 4e-11,
+          "unit": "s"
+        },
+        "reasoning": "Determined by the RC time constant at the output nodes."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC bandwidth, DC gain, and transient rise/fall times of the DAC cell.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "bandwidth",
+      "t_rise",
+      "t_fall"
+    ],
+    "spice": "* Testbench for DAC cell\n.lib \"${SKY130_PDK}\" tt\n\n.param W_n = 10u\n.param L_n = 0.15u\n.param R_load = 500\n.param I_tail = 1m\n\nVDD VDD 0 DC 1.8\n\nR1 VDD OUT1 {R_load}\nR2 VDD OUT2 {R_load}\n\nI1 N0 0 {I_tail}\nI2 N1 0 {I_tail}\n\nM1 OUT2 IN2 N1 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nM2 OUT1 IN2X N1 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nM3 OUT1 IN1 N0 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\nM4 OUT2 IN1X N0 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\n\nVIN1 IN1 0 DC 0.9 AC 1 PULSE(0.7 1.1 100p 50p 50p 400p 1n)\nVIN1X IN1X 0 DC 0.9 AC -1 PULSE(1.1 0.7 100p 50p 50p 400p 1n)\nVIN2 IN2 0 DC 0.9 AC 0 PULSE(1.1 0.7 100p 50p 50p 400p 1n)\nVIN2X IN2X 0 DC 0.9 AC 0 PULSE(0.7 1.1 100p 50p 50p 400p 1n)\n\nE1 diff_out 0 OUT1 OUT2 1.0\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 50 1Meg 100G\n  let gain_db = vdb(diff_out)\n  meas ac dc_gain find gain_db at=1Meg\n  meas ac bw when gain_db='dc_gain - 3' fall=1\n\n  * Transient Analysis\n  tran 1p 2n\n  meas tran v_max max v(OUT1)\n  meas tran v_min min v(OUT1)\n  * Measure rise and fall times between 1.1V and 1.5V to ensure crossing\n  meas tran t_fall trig v(OUT1) val=1.5 fall=1 targ v(OUT1) val=1.1 fall=1\n  meas tran t_rise trig v(OUT1) val=1.1 rise=1 targ v(OUT1) val=1.5 rise=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current-Steering DAC Cell / Analog Multiplexer\",\n    \"description\": \"A dual differential pair sharing cross-coupled output nodes. It functions as a current-steering DAC segment or an analog multiplexer used for dynamic element matching and mismatch shaping.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"In1\",\n        \"In1x\",\n        \"In2\",\n        \"In2x\"\n      ],\n      \"output\": [\n        \"OUT1\",\n        \"OUT2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2-GS/s 3-bit -Modulated DAC With Tunable Bandpass Mismatch Shaping\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption of the cell\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"8.1 W (entire DAC)\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail1 + I_tail2 = 2mA. Power = 2mA * 1.8V = 3.6mW\",\n        \"range\": {\n          \"min\": 3e-3,\n          \"typical\": 3.6e-3,\n          \"max\": 4e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on 1mA tail currents and 1.8V supply in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the cell\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"750 MHz (signal band)\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * R_load * C_parasitic). R_load=500, C~20fF -> ~15 GHz\",\n        \"range\": {\n          \"min\": 10e9,\n          \"typical\": 15e9,\n          \"max\": 20e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Limited by the RC time constant of the load resistor and transistor parasitic capacitances.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency voltage gain from input to differential output\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"68 dB (SNR)\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = g_m * R_load. g_m ~ 4.3mS, R_load = 500 -> 2.15 V/V = 6.6 dB\",\n        \"range\": {\n          \"min\": 4,\n          \"typical\": 6.6,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using typical SKY130 NMOS g_m at 0.5mA bias current.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"t_rise\": {\n      \"description\": \"Rise time of the output voltage\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2 GS/s (sampling rate)\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise = 2.2 * R_load * C_parasitic = 2.2 * 500 * 20fF = 22ps\",\n        \"range\": {\n          \"min\": 15e-12,\n          \"typical\": 22e-12,\n          \"max\": 40e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Determined by the RC time constant at the output nodes.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC bandwidth, DC gain, and transient rise/fall times of the DAC cell.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"bandwidth\",\n      \"t_rise\",\n      \"t_fall\"\n    ],\n    \"spice\": \"* Testbench for DAC cell\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_n = 10u\\n.param L_n = 0.15u\\n.param R_load = 500\\n.param I_tail = 1m\\n\\nVDD VDD 0 DC 1.8\\n\\nR1 VDD OUT1 {R_load}\\nR2 VDD OUT2 {R_load}\\n\\nI1 N0 0 {I_tail}\\nI2 N1 0 {I_tail}\\n\\nM1 OUT2 IN2 N1 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nM2 OUT1 IN2X N1 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nM3 OUT1 IN1 N0 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\nM4 OUT2 IN1X N0 0 sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\n\\nVIN1 IN1 0 DC 0.9 AC 1 PULSE(0.7 1.1 100p 50p 50p 400p 1n)\\nVIN1X IN1X 0 DC 0.9 AC -1 PULSE(1.1 0.7 100p 50p 50p 400p 1n)\\nVIN2 IN2 0 DC 0.9 AC 0 PULSE(1.1 0.7 100p 50p 50p 400p 1n)\\nVIN2X IN2X 0 DC 0.9 AC 0 PULSE(0.7 1.1 100p 50p 50p 400p 1n)\\n\\nE1 diff_out 0 OUT1 OUT2 1.0\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 50 1Meg 100G\\n  let gain_db = vdb(diff_out)\\n  meas ac dc_gain find gain_db at=1Meg\\n  meas ac bw when gain_db='dc_gain - 3' fall=1\\n\\n  * Transient Analysis\\n  tran 1p 2n\\n  meas tran v_max max v(OUT1)\\n  meas tran v_min min v(OUT1)\\n  * Measure rise and fall times between 1.1V and 1.5V to ensure crossing\\n  meas tran t_fall trig v(OUT1) val=1.5 fall=1 targ v(OUT1) val=1.1 fall=1\\n  meas tran t_rise trig v(OUT1) val=1.1 rise=1 targ v(OUT1) val=1.5 rise=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1408080",
+  "_case": "1408080_image_18"
+}

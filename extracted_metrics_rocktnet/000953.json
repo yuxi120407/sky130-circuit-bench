@@ -1,0 +1,146 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Compensated Bias Current Circuit",
+    "description": "A bias generation circuit that provides a baseline current via N3 and an additional switchable compensation current via N2. N1 acts as a switch to disable the compensation current by pulling the gate of N2 to ground, allowing dynamic adjustment of the bias voltage (V_B).",
+    "node_mapping": {
+      "input": [
+        "V_3",
+        "V_2",
+        "V_1"
+      ],
+      "output": [
+        "V_B"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 13.56MHz Fully Integrated 1X/2X Active Rectifier with Compensated Bias Current for Inductively Powered Devices",
+      "figure": "N/A",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "I_bias_total": {
+      "description": "Total bias current when compensation is active (V1=0V, V2=0.6V, V3=0.6V)",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Id_n3 + Id_n2 \u2248 43uA + 43uA = 86uA (assuming V_3=V_2=0.6V, Vth=0.42V)",
+        "range": {
+          "min": "50u",
+          "typical": "86u",
+          "max": "150u",
+          "unit": "A"
+        },
+        "reasoning": "Based on square law for W/L=10 and Vov=0.18V for both N2 and N3."
+      },
+      "importance": "essential"
+    },
+    "I_bias_base": {
+      "description": "Baseline bias current when compensation is disabled (V1=1.8V, V2 pulled low, V3=0.6V)",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Id_n3 \u2248 43uA (N2 is turned off by N1)",
+        "range": {
+          "min": "20u",
+          "typical": "43u",
+          "max": "80u",
+          "unit": "A"
+        },
+        "reasoning": "Only N3 contributes to the bias current when N1 pulls V_2 to ground."
+      },
+      "importance": "essential"
+    },
+    "V_B_active": {
+      "description": "Generated bias voltage when compensation is active",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "VDD - |Vgs_p| = 1.8V - 1.0V = 0.8V",
+        "range": {
+          "min": "0.6",
+          "typical": "0.8",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Diode-connected PMOS sinking 86uA."
+      },
+      "importance": "essential"
+    },
+    "V_B_base": {
+      "description": "Generated bias voltage when compensation is disabled",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "VDD - |Vgs_p| = 1.8V - 0.83V = 0.97V",
+        "range": {
+          "min": "0.8",
+          "typical": "0.97",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "Diode-connected PMOS sinking 43uA."
+      },
+      "importance": "essential"
+    },
+    "Power_consumption": {
+      "description": "Power consumption of the bias circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "30mW (whole rectifier)",
+        "technology": "0.35\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I_bias_total = 1.8V * 86uA = 155uW",
+        "range": {
+          "min": "100u",
+          "typical": "155u",
+          "max": "300u",
+          "unit": "W"
+        },
+        "reasoning": "Power is dominated by the bias current drawn from VDD."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the bias current and voltage in both active and disabled compensation states. V_2 is driven through a resistor to allow N1 to pull it down.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "I_bias_total",
+      "I_bias_base",
+      "V_B_active",
+      "V_B_base"
+    ],
+    "spice": "* Compensated Bias Current Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm_n3=5u L_xm_n3=0.5u\n.param W_xm_n2=5u L_xm_n2=0.5u\n.param W_xm_n1=5u L_xm_n1=0.5u\n.param W_xm_p1=5u L_xm_p1=0.5u\n\nXM_N3 V_B V_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm_n3} w={W_xm_n3}\nXM_N2 V_B V_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm_n2} w={W_xm_n2}\nXM_N1 V_2 V_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm_n1} w={W_xm_n1}\nXM_P1 V_B V_B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm_p1} w={W_xm_p1}\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* Input Stimulus\nV3 V_3 0 0.6\nV2_drv V_2_drv 0 0.6\nR2 V_2_drv V_2 10k\nV1 V_1 0 pwl(0 0 1u 0 1.01u 1.8 2u 1.8)\n\n.control\ntran 10n 2u\n\n* Measure at t=0.5u (Compensation Active, V1=0V)\nmeas tran I_vdd_active find i(VVDD) at=0.5u\nmeas tran V_B_active find v(V_B) at=0.5u\nmeas tran V_2_active find v(V_2) at=0.5u\n\n* Measure at t=1.5u (Compensation Disabled, V1=1.8V)\nmeas tran I_vdd_base find i(VVDD) at=1.5u\nmeas tran V_B_base find v(V_B) at=1.5u\nmeas tran V_2_disabled find v(V_2) at=1.5u\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Compensated Bias Current Circuit\",\n    \"description\": \"A bias generation circuit that provides a baseline current via N3 and an additional switchable compensation current via N2. N1 acts as a switch to disable the compensation current by pulling the gate of N2 to ground, allowing dynamic adjustment of the bias voltage (V_B).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"V_3\",\n        \"V_2\",\n        \"V_1\"\n      ],\n      \"output\": [\n        \"V_B\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 13.56MHz Fully Integrated 1X/2X Active Rectifier with Compensated Bias Current for Inductively Powered Devices\",\n      \"figure\": \"N/A\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"I_bias_total\": {\n      \"description\": \"Total bias current when compensation is active (V1=0V, V2=0.6V, V3=0.6V)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id_n3 + Id_n2 \u2248 43uA + 43uA = 86uA (assuming V_3=V_2=0.6V, Vth=0.42V)\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"86u\",\n          \"max\": \"150u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Based on square law for W/L=10 and Vov=0.18V for both N2 and N3.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_bias_base\": {\n      \"description\": \"Baseline bias current when compensation is disabled (V1=1.8V, V2 pulled low, V3=0.6V)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id_n3 \u2248 43uA (N2 is turned off by N1)\",\n        \"range\": {\n          \"min\": \"20u\",\n          \"typical\": \"43u\",\n          \"max\": \"80u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Only N3 contributes to the bias current when N1 pulls V_2 to ground.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_B_active\": {\n      \"description\": \"Generated bias voltage when compensation is active\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - |Vgs_p| = 1.8V - 1.0V = 0.8V\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.8\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Diode-connected PMOS sinking 86uA.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_B_base\": {\n      \"description\": \"Generated bias voltage when compensation is disabled\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - |Vgs_p| = 1.8V - 0.83V = 0.97V\",\n        \"range\": {\n          \"min\": \"0.8\",\n          \"typical\": \"0.97\",\n          \"max\": \"1.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Diode-connected PMOS sinking 43uA.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_consumption\": {\n      \"description\": \"Power consumption of the bias circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"30mW (whole rectifier)\",\n        \"technology\": \"0.35\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I_bias_total = 1.8V * 86uA = 155uW\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"155u\",\n          \"max\": \"300u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Power is dominated by the bias current drawn from VDD.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the bias current and voltage in both active and disabled compensation states. V_2 is driven through a resistor to allow N1 to pull it down.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"I_bias_total\",\n      \"I_bias_base\",\n      \"V_B_active\",\n      \"V_B_base\"\n    ],\n    \"spice\": \"* Compensated Bias Current Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm_n3=5u L_xm_n3=0.5u\\n.param W_xm_n2=5u L_xm_n2=0.5u\\n.param W_xm_n1=5u L_xm_n1=0.5u\\n.param W_xm_p1=5u L_xm_p1=0.5u\\n\\nXM_N3 V_B V_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm_n3} w={W_xm_n3}\\nXM_N2 V_B V_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm_n2} w={W_xm_n2}\\nXM_N1 V_2 V_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm_n1} w={W_xm_n1}\\nXM_P1 V_B V_B VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm_p1} w={W_xm_p1}\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* Input Stimulus\\nV3 V_3 0 0.6\\nV2_drv V_2_drv 0 0.6\\nR2 V_2_drv V_2 10k\\nV1 V_1 0 pwl(0 0 1u 0 1.01u 1.8 2u 1.8)\\n\\n.control\\ntran 10n 2u\\n\\n* Measure at t=0.5u (Compensation Active, V1=0V)\\nmeas tran I_vdd_active find i(VVDD) at=0.5u\\nmeas tran V_B_active find v(V_B) at=0.5u\\nmeas tran V_2_active find v(V_2) at=0.5u\\n\\n* Measure at t=1.5u (Compensation Disabled, V1=1.8V)\\nmeas tran I_vdd_base find i(VVDD) at=1.5u\\nmeas tran V_B_base find v(V_B) at=1.5u\\nmeas tran V_2_disabled find v(V_2) at=1.5u\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6487639",
+  "_case": "6487639_image_2_b"
+}

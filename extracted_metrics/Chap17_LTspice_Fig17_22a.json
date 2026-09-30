@@ -1,0 +1,176 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 17.21",
+    "page": "503",
+    "circuit_type": "Continuous-Time Resistor-Based Delta-Sigma Modulator (DSM) Sensing Circuit for Resistive Memory",
+    "description": "Figure 17.21 shows a simplified DSM sensing circuit for resistive memory where the switched-capacitor branch (M1, M2, Ccup) is replaced by a fixed 25k pull-up resistor connected through PMOS switches M3 and M4 to the bit line, controlled by the clocked comparator (Fig. 17.16)."
+  },
+  "step2_metrics": {
+    "comparator_offset_voltage": {
+      "description": "Built-in input offset voltage of the clocked comparator intentionally introduced by sizing one input NMOS wider",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "498",
+        "reference": "Fig 17.16 and Fig 17.17"
+      },
+      "equation": {
+        "formula": "V_OS = V(In+) - V(In-) at switching threshold",
+        "explanation": "In Figure 17.16, one input transistor is sized wider (13/1 vs 10/1) to introduce an intentional ~50 mV built-in offset so that the bit line is held at VDD/2 + V_OS.",
+        "assumptions": "Mismatched differential input NMOS pair operated dynamically with clock."
+      },
+      "sky130_expected": {
+        "calculation": "With W_ratio = 13/10 = 1.3, Delta_Vth_eff = sqrt(2*Id/(mu*Cox*W/L))*(1 - 1/sqrt(1.3)) ~ 50 mV in typical sub-micron CMOS.",
+        "range": {
+          "min": 0.03,
+          "typical": 0.05,
+          "max": 0.08,
+          "unit": "V"
+        },
+        "reasoning": "Designed for a built-in offset around 50 mV as stated in the textbook text and simulation of Fig 17.17."
+      },
+      "importance": "essential"
+    },
+    "bitline_average_voltage": {
+      "description": "DC average voltage maintained on the bit line by the DSM negative feedback loop",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Eq (17.16) discussion"
+      },
+      "equation": {
+        "formula": "V_bit,avg = VREF + V_OS",
+        "explanation": "The DSM loop actively servoes the bit line voltage so that on average it equals the comparator threshold, which is VREF (VDD/2) plus the built-in offset Vos.",
+        "assumptions": "Stable closed-loop sigma-delta operation around equilibrium."
+      },
+      "sky130_expected": {
+        "calculation": "VREF = 0.5 V, V_OS ~ 0.05 V -> V_bit,avg = 0.50 V + 0.05 V = 0.55 V.",
+        "range": {
+          "min": 0.52,
+          "typical": 0.55,
+          "max": 0.58,
+          "unit": "V"
+        },
+        "reasoning": "VREF is biased at 500 mV and comparator offset is ~50 mV."
+      },
+      "importance": "essential"
+    },
+    "cell_current": {
+      "description": "Average current flowing through the resistive memory cell Rmbit",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "497",
+        "reference": "Eq (17.16)"
+      },
+      "equation": {
+        "formula": "I_mbit = V_OS / R_mbit",
+        "explanation": "The voltage across Rmbit is V_bit - VREF = (VREF + V_OS) - VREF = V_OS, establishing an average sense current through the cell.",
+        "assumptions": "V_bit average is held at VREF + V_OS."
+      },
+      "sky130_expected": {
+        "calculation": "For Rmbit = 50 kOhm: I_mbit = 50 mV / 50 kOhm = 1.0 uA.",
+        "range": {
+          "min": 6e-07,
+          "typical": 1e-06,
+          "max": 1.5e-06,
+          "unit": "A"
+        },
+        "reasoning": "Offset is ~50 mV across a 50 kOhm sensed resistance."
+      },
+      "importance": "essential"
+    },
+    "bitline_voltage_ripple": {
+      "description": "Peak-to-peak voltage ripple on the bit line during DSM operation",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "500",
+        "reference": "Eq (17.21), Eq (17.22), Fig 17.22"
+      },
+      "equation": {
+        "formula": "Delta_V_bit = V_bit,max - V_bit,min",
+        "explanation": "During clock cycles when feedback switch M3 is turned ON, charge is injected through R2 and M4 onto Cbit, causing a ripple Delta_V_bit on the bit line.",
+        "assumptions": "Cbit = 500 fF, R2 = 25 kOhm, pulse duration t_pulse ~ 5 ns."
+      },
+      "sky130_expected": {
+        "calculation": "During pulse, injection current I_pullup ~ (VDD - (VREF + |Vthp|)) / R2 = (1.8 - (0.5 + 0.42)) / 25k = 0.88 V / 25k = 35 uA. Charge per pulse ~ 35 uA * 3 ns ~ 105 fC. Delta_V_bit ~ 105 fC / 500 fF ~ 200 mV; with feedback regulation and Rmbit discharge, observed peak-to-peak ripple is ~50-150 mV.",
+        "range": {
+          "min": 0.03,
+          "typical": 0.08,
+          "max": 0.18,
+          "unit": "V"
+        },
+        "reasoning": "Matches the transient ripple amplitude shown in Fig 17.22."
+      },
+      "importance": "recommended"
+    },
+    "average_supply_current": {
+      "description": "Average current pulled from VDD by the DSM sensing circuit",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "503",
+        "reference": "Example 17.5 text"
+      },
+      "equation": {
+        "formula": "I_DD,avg = (1/T_sim) * integral(i(VDD) dt)",
+        "explanation": "Current drawn from the 1.8V supply by the pull-up branch and dynamic switching of the comparator and latch.",
+        "assumptions": "Clock frequency = 100 MHz, Rmbit = 50 kOhm."
+      },
+      "sky130_expected": {
+        "calculation": "Textbook reports 20 uA for Fig 17.21 at 1V/100MHz. In SKY130 at 1.8V, dynamic current scales with VDD and higher branch voltage: typical average current is 25 uA to 50 uA.",
+        "range": {
+          "min": 1.5e-05,
+          "typical": 3.5e-05,
+          "max": 6.5e-05,
+          "unit": "A"
+        },
+        "reasoning": "Directly referenced in Example 17.5 text (page 503) noting ~20 uA for the simplified topology."
+      },
+      "importance": "recommended"
+    },
+    "average_power": {
+      "description": "Total average power dissipation of the sensing circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "503",
+        "reference": "Example 17.5 text"
+      },
+      "equation": {
+        "formula": "P_avg = VDD * I_DD,avg",
+        "explanation": "Static and dynamic power consumption of the continuous-time DSM circuit.",
+        "assumptions": "VDD = 1.8 V."
+      },
+      "sky130_expected": {
+        "calculation": "P_avg = 1.8 V * 35 uA = 63 uW.",
+        "range": {
+          "min": 2.5e-05,
+          "typical": 6.3e-05,
+          "max": 0.00012,
+          "unit": "W"
+        },
+        "reasoning": "Product of 1.8V supply and average supply current."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench for Figure 17.21 continuous-time resistor-based DSM sensing circuit clocked at 100 MHz for 600 ns, measuring comparator offset, average bitline voltage, cell current, bitline ripple, supply current, and total power.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "comparator_offset_voltage",
+      "bitline_average_voltage",
+      "cell_current",
+      "bitline_voltage_ripple",
+      "average_supply_current",
+      "average_power"
+    ],
+    "spice": "* Testbench for Figure 17.21: Resistor-based DSM Sensing Circuit\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter declarations for transistors\n.param L_xm1=0.5u W_xm1=1.5u\n.param L_xm2=0.5u W_xm2=3.0u\n.param L_xm3=0.5u W_xm3=3.0u\n.param L_xm4=0.5u W_xm4=3.0u\n.param L_xm5=0.5u W_xm5=1.5u\n.param L_xm6=0.5u W_xm6=1.5u\n.param L_xm7=0.5u W_xm7=3.0u\n.param L_xm8=0.5u W_xm8=1.5u\n.param L_xm9=0.5u W_xm9=1.5u\n.param L_xm10=0.5u W_xm10=2.0u\n.param L_xm11=0.5u W_xm11=1.5u\n.param L_xm12=0.5u W_xm12=1.5u\n\n* DUT Circuit\nVDD VDD 0 1.8\nxm2 N003 N002 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nVREF VREF 0 500m\nX_U1 vbit VREF N002 Out clock VDD 0 SUB_1\nCbit vbit 0 5e-13\nR1 VREF vbit 50000.0\nR2 VDD N001 25000.0\n\n* Clock generator: 100 MHz, 50% duty cycle\nVclock clock 0 PULSE(0 1.8 0 100p 100p 4.9n 10n)\n\n.subckt SUB_1 inp inm q qi clock VDD GND\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  X_U1 Outp q qi VDD 0 NAND_2\n  X_U2 qi Outm q VDD 0 NAND_2\n.ends SUB_1\n\n.subckt NAND_2 A B Out VDD GND\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NAND_2\n\n* Transient Analysis (600 ns as in Baker LTspice)\n.tran 0.1n 600n 100n\n\n.control\n  run\n  * Average bit line voltage in steady-state (100n to 600n)\n  meas tran vbit_avg avg v(vbit) from=100n to=600n\n  * Offset voltage relative to VREF (500 mV)\n  let v_os_val = vbit_avg - 0.5\n  print v_os_val\n  * Cell current through R1 (50k)\n  let i_cell = v_os_val / 50000.0\n  print i_cell\n  * Bit line ripple\n  meas tran vbit_max max v(vbit) from=100n to=600n\n  meas tran vbit_min min v(vbit) from=100n to=600n\n  let delta_vbit = vbit_max - vbit_min\n  print delta_vbit\n  * Supply current and power from VDD\n  meas tran idd_avg avg i(VDD) from=100n to=600n\n  let i_supply_mag = abs(idd_avg)\n  let p_avg_val = 1.8 * i_supply_mag\n  print i_supply_mag\n  print p_avg_val\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 17.21\",\n    \"page\": \"503\",\n    \"circuit_type\": \"Continuous-Time Resistor-Based Delta-Sigma Modulator (DSM) Sensing Circuit for Resistive Memory\",\n    \"description\": \"Figure 17.21 shows a simplified DSM sensing circuit for resistive memory where the switched-capacitor branch (M1, M2, Ccup) is replaced by a fixed 25k pull-up resistor connected through PMOS switches M3 and M4 to the bit line, controlled by the clocked comparator (Fig. 17.16).\"\n  },\n  \"step2_metrics\": {\n    \"comparator_offset_voltage\": {\n      \"description\": \"Built-in input offset voltage of the clocked comparator intentionally introduced by sizing one input NMOS wider\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"498\",\n        \"reference\": \"Fig 17.16 and Fig 17.17\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OS = V(In+) - V(In-) at switching threshold\",\n        \"explanation\": \"In Figure 17.16, one input transistor is sized wider (13/1 vs 10/1) to introduce an intentional ~50 mV built-in offset so that the bit line is held at VDD/2 + V_OS.\",\n        \"assumptions\": \"Mismatched differential input NMOS pair operated dynamically with clock.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W_ratio = 13/10 = 1.3, Delta_Vth_eff = sqrt(2*Id/(mu*Cox*W/L))*(1 - 1/sqrt(1.3)) ~ 50 mV in typical sub-micron CMOS.\",\n        \"range\": {\n          \"min\": 0.03,\n          \"typical\": 0.05,\n          \"max\": 0.08,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Designed for a built-in offset around 50 mV as stated in the textbook text and simulation of Fig 17.17.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bitline_average_voltage\": {\n      \"description\": \"DC average voltage maintained on the bit line by the DSM negative feedback loop\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"500\",\n        \"reference\": \"Eq (17.16) discussion\"\n      },\n      \"equation\": {\n        \"formula\": \"V_bit,avg = VREF + V_OS\",\n        \"explanation\": \"The DSM loop actively servoes the bit line voltage so that on average it equals the comparator threshold, which is VREF (VDD/2) plus the built-in offset Vos.\",\n        \"assumptions\": \"Stable closed-loop sigma-delta operation around equilibrium.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VREF = 0.5 V, V_OS ~ 0.05 V -> V_bit,avg = 0.50 V + 0.05 V = 0.55 V.\",\n        \"range\": {\n          \"min\": 0.52,\n          \"typical\": 0.55,\n          \"max\": 0.58,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"VREF is biased at 500 mV and comparator offset is ~50 mV.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cell_current\": {\n      \"description\": \"Average current flowing through the resistive memory cell Rmbit\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"497\",\n        \"reference\": \"Eq (17.16)\"\n      },\n      \"equation\": {\n        \"formula\": \"I_mbit = V_OS / R_mbit\",\n        \"explanation\": \"The voltage across Rmbit is V_bit - VREF = (VREF + V_OS) - VREF = V_OS, establishing an average sense current through the cell.\",\n        \"assumptions\": \"V_bit average is held at VREF + V_OS.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For Rmbit = 50 kOhm: I_mbit = 50 mV / 50 kOhm = 1.0 uA.\",\n        \"range\": {\n          \"min\": 6e-7,\n          \"typical\": 1e-6,\n          \"max\": 1.5e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Offset is ~50 mV across a 50 kOhm sensed resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bitline_voltage_ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple on the bit line during DSM operation\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"500\",\n        \"reference\": \"Eq (17.21), Eq (17.22), Fig 17.22\"\n      },\n      \"equation\": {\n        \"formula\": \"Delta_V_bit = V_bit,max - V_bit,min\",\n        \"explanation\": \"During clock cycles when feedback switch M3 is turned ON, charge is injected through R2 and M4 onto Cbit, causing a ripple Delta_V_bit on the bit line.\",\n        \"assumptions\": \"Cbit = 500 fF, R2 = 25 kOhm, pulse duration t_pulse ~ 5 ns.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"During pulse, injection current I_pullup ~ (VDD - (VREF + |Vthp|)) / R2 = (1.8 - (0.5 + 0.42)) / 25k = 0.88 V / 25k = 35 uA. Charge per pulse ~ 35 uA * 3 ns ~ 105 fC. Delta_V_bit ~ 105 fC / 500 fF ~ 200 mV; with feedback regulation and Rmbit discharge, observed peak-to-peak ripple is ~50-150 mV.\",\n        \"range\": {\n          \"min\": 0.03,\n          \"typical\": 0.08,\n          \"max\": 0.18,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Matches the transient ripple amplitude shown in Fig 17.22.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"average_supply_current\": {\n      \"description\": \"Average current pulled from VDD by the DSM sensing circuit\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"503\",\n        \"reference\": \"Example 17.5 text\"\n      },\n      \"equation\": {\n        \"formula\": \"I_DD,avg = (1/T_sim) * integral(i(VDD) dt)\",\n        \"explanation\": \"Current drawn from the 1.8V supply by the pull-up branch and dynamic switching of the comparator and latch.\",\n        \"assumptions\": \"Clock frequency = 100 MHz, Rmbit = 50 kOhm.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Textbook reports 20 uA for Fig 17.21 at 1V/100MHz. In SKY130 at 1.8V, dynamic current scales with VDD and higher branch voltage: typical average current is 25 uA to 50 uA.\",\n        \"range\": {\n          \"min\": 1.5e-5,\n          \"typical\": 3.5e-5,\n          \"max\": 6.5e-5,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Directly referenced in Example 17.5 text (page 503) noting ~20 uA for the simplified topology.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"average_power\": {\n      \"description\": \"Total average power dissipation of the sensing circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"503\",\n        \"reference\": \"Example 17.5 text\"\n      },\n      \"equation\": {\n        \"formula\": \"P_avg = VDD * I_DD,avg\",\n        \"explanation\": \"Static and dynamic power consumption of the continuous-time DSM circuit.\",\n        \"assumptions\": \"VDD = 1.8 V.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_avg = 1.8 V * 35 uA = 63 uW.\",\n        \"range\": {\n          \"min\": 2.5e-5,\n          \"typical\": 6.3e-5,\n          \"max\": 1.2e-4,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Product of 1.8V supply and average supply current.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench for Figure 17.21 continuous-time resistor-based DSM sensing circuit clocked at 100 MHz for 600 ns, measuring comparator offset, average bitline voltage, cell current, bitline ripple, supply current, and total power.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"comparator_offset_voltage\",\n      \"bitline_average_voltage\",\n      \"cell_current\",\n      \"bitline_voltage_ripple\",\n      \"average_supply_current\",\n      \"average_power\"\n    ],\n    \"spice\": \"* Testbench for Figure 17.21: Resistor-based DSM Sensing Circuit\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter declarations for transistors\\n.param L_xm1=0.5u W_xm1=1.5u\\n.param L_xm2=0.5u W_xm2=3.0u\\n.param L_xm3=0.5u W_xm3=3.0u\\n.param L_xm4=0.5u W_xm4=3.0u\\n.param L_xm5=0.5u W_xm5=1.5u\\n.param L_xm6=0.5u W_xm6=1.5u\\n.param L_xm7=0.5u W_xm7=3.0u\\n.param L_xm8=0.5u W_xm8=1.5u\\n.param L_xm9=0.5u W_xm9=1.5u\\n.param L_xm10=0.5u W_xm10=2.0u\\n.param L_xm11=0.5u W_xm11=1.5u\\n.param L_xm12=0.5u W_xm12=1.5u\\n\\n* DUT Circuit\\nVDD VDD 0 1.8\\nxm2 N003 N002 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nVREF VREF 0 500m\\nX_U1 vbit VREF N002 Out clock VDD 0 SUB_1\\nCbit vbit 0 5e-13\\nR1 VREF vbit 50000.0\\nR2 VDD N001 25000.0\\n\\n* Clock generator: 100 MHz, 50% duty cycle\\nVclock clock 0 PULSE(0 1.8 0 100p 100p 4.9n 10n)\\n\\n.subckt SUB_1 inp inm q qi clock VDD GND\\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  X_U1 Outp q qi VDD 0 NAND_2\\n  X_U2 qi Outm q VDD 0 NAND_2\\n.ends SUB_1\\n\\n.subckt NAND_2 A B Out VDD GND\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NAND_2\\n\\n* Transient Analysis (600 ns as in Baker LTspice)\\n.tran 0.1n 600n 100n\\n\\n.control\\n  run\\n  * Average bit line voltage in steady-state (100n to 600n)\\n  meas tran vbit_avg avg v(vbit) from=100n to=600n\\n  * Offset voltage relative to VREF (500 mV)\\n  let v_os_val = vbit_avg - 0.5\\n  print v_os_val\\n  * Cell current through R1 (50k)\\n  let i_cell = v_os_val / 50000.0\\n  print i_cell\\n  * Bit line ripple\\n  meas tran vbit_max max v(vbit) from=100n to=600n\\n  meas tran vbit_min min v(vbit) from=100n to=600n\\n  let delta_vbit = vbit_max - vbit_min\\n  print delta_vbit\\n  * Supply current and power from VDD\\n  meas tran idd_avg avg i(VDD) from=100n to=600n\\n  let i_supply_mag = abs(idd_avg)\\n  let p_avg_val = 1.8 * i_supply_mag\\n  print i_supply_mag\\n  print p_avg_val\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

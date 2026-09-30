@@ -1,0 +1,148 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascode Low Noise Amplifier (LNA)",
+    "description": "A 900-MHz CMOS cascode LNA with inductive source degeneration. The common-source transistor (XM1) provides gain and noise optimization, while the common-gate transistor (XM2) reduces the Miller effect and improves reverse isolation. XM2B is likely part of a bias mirror or ESD protection structure.",
+    "node_mapping": {
+      "input": [
+        "N2"
+      ],
+      "output": [
+        "RFOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1",
+        "VDD"
+      ],
+      "ground": [
+        "GND",
+        "N6 (via source degeneration inductor)"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Sub-1-dB NF 2.3-kV ESD-Protected 900-MHz CMOS LNA",
+      "figure": "1",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipated by the circuit from the supply.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "6 mW",
+        "technology": "0.35um RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD=1.8V and Vbias=0.6V, Vov ~ 0.2V. Id = 0.5 * 270uA/V^2 * (100/0.15) * (0.2)^2 = 3.6 mA. Power = 1.8V * 3.6mA = 6.48 mW.",
+        "range": {
+          "min": "4m",
+          "typical": "6.5m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted the gate bias to match the paper's target power consumption of 6 mW."
+      },
+      "importance": "essential"
+    },
+    "center_frequency": {
+      "description": "Frequency at which the voltage gain is maximized.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "920 MHz",
+        "technology": "0.35um RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). With L=10nH and C=3pF, f = 918 MHz.",
+        "range": {
+          "min": "850M",
+          "typical": "918M",
+          "max": "950M",
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the LC tank components added in the testbench to match the paper's 920 MHz target."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Maximum AC voltage gain at the center frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "13 dB",
+        "technology": "0.35um RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/Vov = 36 mA/V. Gain ~ gm * Rload = 36m * 500 = 18 V/V = 25 dB. Taking into account input matching and parasitics, expect ~15-20 dB.",
+        "range": {
+          "min": "10",
+          "typical": "15",
+          "max": "25",
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the Q-factor of the load inductor and the chosen load resistor."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Signal-to-noise ratio degradation from input to output.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "1 dB",
+        "technology": "0.35um RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "NF is dominated by the input transistor's channel noise and induced gate noise. Sky130 0.15um devices typically achieve 1.5-2.5 dB NF at 900 MHz.",
+        "range": {
+          "min": "1.0",
+          "typical": "1.8",
+          "max": "3.0",
+          "unit": "dB"
+        },
+        "reasoning": "Modern short-channel devices have higher excess noise factors (gamma) than long-channel devices, making sub-1-dB challenging without very large devices and high-Q inductors."
+      },
+      "importance": "essential"
+    },
+    "input_return_loss": {
+      "description": "S11 parameter, measuring how well the input is matched to 50 ohms.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 dB",
+        "technology": "0.35um RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Zin = s*Ls + 1/(s*Cgs) + gm*Ls/Cgs. With Ls=1nH, Cgs~100fF, gm=36m, Re(Zin) ~ 360 ohms. Matching will be poor without further tuning.",
+        "range": {
+          "min": "2",
+          "typical": "5",
+          "max": "15",
+          "unit": "dB"
+        },
+        "reasoning": "Requires precise co-design of Ls, Lg, and device width to achieve deep matching."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, and center frequency of the LNA.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "center_frequency"
+    ],
+    "spice": "* 900-MHz CMOS LNA Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Define parameters for realistic LNA sizing (overriding original small sizes)\n.param W_xm1=100u L_xm1=0.15u\n.param W_xm2b=10u L_xm2b=0.15u\n.param W_xm2=100u L_xm2=0.15u\n\n* DUT\nXM1 N5 N2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2B VDD VDD N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2b} w={W_xm2b}\nXM2 RFOUT VDD N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Biasing and Supply\nVVDD VDD 0 1.8\nVBIAS N_BIAS 0 0.6\nRBIAS N_BIAS N2 10k\n\n* Source degeneration inductor\nLS N6 0 1nH\n\n* Load tank (10nH and 3pF -> ~918 MHz)\nLD VDD RFOUT 10nH\nCL RFOUT 0 3pF\nRL RFOUT VDD 500\n\n* RF Input with 50-ohm source\nVAC IN_SRC 0 dc 0 ac 1\nRS IN_SRC IN 50\nCIN IN N2 10pF\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 100MEG 5G\nlet gain_db = vdb(RFOUT) - vdb(IN)\nmeas ac gain_at_920M find gain_db at=920MEG\nmeas ac max_gain max gain_db\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascode Low Noise Amplifier (LNA)\",\n    \"description\": \"A 900-MHz CMOS cascode LNA with inductive source degeneration. The common-source transistor (XM1) provides gain and noise optimization, while the common-gate transistor (XM2) reduces the Miller effect and improves reverse isolation. XM2B is likely part of a bias mirror or ESD protection structure.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\"\n      ],\n      \"output\": [\n        \"RFOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\",\n        \"VDD\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N6 (via source degeneration inductor)\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Sub-1-dB NF 2.3-kV ESD-Protected 900-MHz CMOS LNA\",\n      \"figure\": \"1\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"6 mW\",\n        \"technology\": \"0.35um RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD=1.8V and Vbias=0.6V, Vov ~ 0.2V. Id = 0.5 * 270uA/V^2 * (100/0.15) * (0.2)^2 = 3.6 mA. Power = 1.8V * 3.6mA = 6.48 mW.\",\n        \"range\": {\n          \"min\": \"4m\",\n          \"typical\": \"6.5m\",\n          \"max\": \"10m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted the gate bias to match the paper's target power consumption of 6 mW.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"center_frequency\": {\n      \"description\": \"Frequency at which the voltage gain is maximized.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"920 MHz\",\n        \"technology\": \"0.35um RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). With L=10nH and C=3pF, f = 918 MHz.\",\n        \"range\": {\n          \"min\": \"850M\",\n          \"typical\": \"918M\",\n          \"max\": \"950M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the LC tank components added in the testbench to match the paper's 920 MHz target.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Maximum AC voltage gain at the center frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"13 dB\",\n        \"technology\": \"0.35um RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/Vov = 36 mA/V. Gain ~ gm * Rload = 36m * 500 = 18 V/V = 25 dB. Taking into account input matching and parasitics, expect ~15-20 dB.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"15\",\n          \"max\": \"25\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the Q-factor of the load inductor and the chosen load resistor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Signal-to-noise ratio degradation from input to output.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"1 dB\",\n        \"technology\": \"0.35um RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NF is dominated by the input transistor's channel noise and induced gate noise. Sky130 0.15um devices typically achieve 1.5-2.5 dB NF at 900 MHz.\",\n        \"range\": {\n          \"min\": \"1.0\",\n          \"typical\": \"1.8\",\n          \"max\": \"3.0\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Modern short-channel devices have higher excess noise factors (gamma) than long-channel devices, making sub-1-dB challenging without very large devices and high-Q inductors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_return_loss\": {\n      \"description\": \"S11 parameter, measuring how well the input is matched to 50 ohms.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 dB\",\n        \"technology\": \"0.35um RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zin = s*Ls + 1/(s*Cgs) + gm*Ls/Cgs. With Ls=1nH, Cgs~100fF, gm=36m, Re(Zin) ~ 360 ohms. Matching will be poor without further tuning.\",\n        \"range\": {\n          \"min\": \"2\",\n          \"typical\": \"5\",\n          \"max\": \"15\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Requires precise co-design of Ls, Lg, and device width to achieve deep matching.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, and center frequency of the LNA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"center_frequency\"\n    ],\n    \"spice\": \"* 900-MHz CMOS LNA Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Define parameters for realistic LNA sizing (overriding original small sizes)\\n.param W_xm1=100u L_xm1=0.15u\\n.param W_xm2b=10u L_xm2b=0.15u\\n.param W_xm2=100u L_xm2=0.15u\\n\\n* DUT\\nXM1 N5 N2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2B VDD VDD N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2b} w={W_xm2b}\\nXM2 RFOUT VDD N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Biasing and Supply\\nVVDD VDD 0 1.8\\nVBIAS N_BIAS 0 0.6\\nRBIAS N_BIAS N2 10k\\n\\n* Source degeneration inductor\\nLS N6 0 1nH\\n\\n* Load tank (10nH and 3pF -> ~918 MHz)\\nLD VDD RFOUT 10nH\\nCL RFOUT 0 3pF\\nRL RFOUT VDD 500\\n\\n* RF Input with 50-ohm source\\nVAC IN_SRC 0 dc 0 ac 1\\nRS IN_SRC IN 50\\nCIN IN N2 10pF\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 100MEG 5G\\nlet gain_db = vdb(RFOUT) - vdb(IN)\\nmeas ac gain_at_920M find gain_db at=920MEG\\nmeas ac max_gain max gain_db\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "933455",
+  "_case": "933455_image_1"
+}

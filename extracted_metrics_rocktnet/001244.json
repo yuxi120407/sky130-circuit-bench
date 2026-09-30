@@ -1,0 +1,146 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic D-Flip-Flop (PFD stage)",
+    "description": "A True-Single-Phase-Clock (TSPC) dynamic D-flip-flop with a hardwired D=1 input, typically used as one half of a Phase Frequency Detector (PFD) in a PLL. It outputs a low signal (QB) on the rising edge of CLK and is asynchronously reset to high by the RESET signal.",
+    "node_mapping": {
+      "input": [
+        "CLK",
+        "RESET"
+      ],
+      "output": [
+        "QB"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.5-V 900-MHz Monolithic CMOS Fast-Switching Frequency Synthesizer for Wireless Applications",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "supply_voltage": {
+      "description": "Supply voltage for the circuit",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.5",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Standard nominal supply for SKY130 1.8V devices.",
+        "range": {
+          "min": 1.7,
+          "typical": 1.8,
+          "max": 1.9,
+          "unit": "V"
+        },
+        "reasoning": "Using 1.8V as per SKY130 PDK standard for these transistors, adjusted from the paper's 1.5V."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumption of the DFF stage",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "30m",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = C_tot * V^2 * f = 35fF * (1.8V)^2 * 25.6MHz = 2.9uW",
+        "range": {
+          "min": 1e-06,
+          "typical": 3e-06,
+          "max": 1e-05,
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 30mW for the entire PLL, but this single DFF consumes much less (only dynamic switching power of a few nodes). Other PLL metrics like phase noise and VCO frequency are omitted as they cannot be measured on this sub-block."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "Operating frequency of the PFD (Reference frequency)",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "25.6m",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Set by the testbench to match the paper's reference frequency.",
+        "range": {
+          "min": 25000000.0,
+          "typical": 25600000.0,
+          "max": 26000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The paper mentions a 25.6 MHz reference frequency for the PLL, which dictates the clock rate for this PFD stage."
+      },
+      "importance": "essential"
+    },
+    "delay_clk_qb": {
+      "description": "Propagation delay from CLK rising edge to QB falling edge",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "null",
+        "technology": "null"
+      },
+      "sky130_expected": {
+        "calculation": "t_d = 0.69 * R_eq * C_load = 0.69 * 540 ohm * 20fF = 7.5ps",
+        "range": {
+          "min": 5e-12,
+          "typical": 1.5e-11,
+          "max": 5e-11,
+          "unit": "s"
+        },
+        "reasoning": "Based on the RC time constant of two series NMOS transistors (W=5u) discharging a ~20fF load capacitance."
+      },
+      "importance": "essential"
+    },
+    "delay_rst_qb": {
+      "description": "Propagation delay from RESET rising edge to QB rising edge",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "null",
+        "technology": "null"
+      },
+      "sky130_expected": {
+        "calculation": "t_d = 0.69 * (R_n3*C_N0 + R_p4*C_QB) = 0.69 * (270*15fF + 1450*20fF) = 23ps",
+        "range": {
+          "min": 1e-11,
+          "typical": 2.5e-11,
+          "max": 8e-11,
+          "unit": "s"
+        },
+        "reasoning": "Based on the RC time constant of the NMOS discharging the internal node N0, followed by the PMOS charging the output node QB."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power consumption, operating frequency (clock period), and propagation delays of the PFD DFF.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "supply_voltage",
+      "power_consumption",
+      "operating_frequency",
+      "delay_clk_qb",
+      "delay_rst_qb"
+    ],
+    "spice": "* PFD DFF Testbench\n.lib \"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 N3 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 QB N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 QB N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 RESET N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\nVVDD VDD 0 1.8\n* 25.6 MHz clock -> period = 39.0625ns\nVCLK CLK 0 PULSE(0 1.8 10n 100p 100p 10n 39.0625n)\nVRST RESET 0 PULSE(1.8 0 5n 100p 100p 20n 39.0625n)\n\nCload QB 0 10f\n\n.control\ntran 10p 100n\nlet pwr_inst = -i(VVDD)*1.8\nmeas tran power_avg avg pwr_inst from=10n to=49.0625n\nmeas tran delay_clk_qb trig v(CLK) val=0.9 rise=1 targ v(QB) val=0.9 fall=1\nmeas tran delay_rst_qb trig v(RESET) val=0.9 rise=1 targ v(QB) val=0.9 rise=1\nmeas tran vdd_val max v(VDD)\nmeas tran clk_period trig v(CLK) val=0.9 rise=1 targ v(CLK) val=0.9 rise=2\nprint power_avg delay_clk_qb delay_rst_qb vdd_val clk_period\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic D-Flip-Flop (PFD stage)\",\n    \"description\": \"A True-Single-Phase-Clock (TSPC) dynamic D-flip-flop with a hardwired D=1 input, typically used as one half of a Phase Frequency Detector (PFD) in a PLL. It outputs a low signal (QB) on the rising edge of CLK and is asynchronously reset to high by the RESET signal.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"CLK\",\n        \"RESET\"\n      ],\n      \"output\": [\n        \"QB\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.5-V 900-MHz Monolithic CMOS Fast-Switching Frequency Synthesizer for Wireless Applications\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"supply_voltage\": {\n      \"description\": \"Supply voltage for the circuit\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.5\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard nominal supply for SKY130 1.8V devices.\",\n        \"range\": {\n          \"min\": 1.7,\n          \"typical\": 1.8,\n          \"max\": 1.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Using 1.8V as per SKY130 PDK standard for these transistors, adjusted from the paper's 1.5V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the DFF stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"30m\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C_tot * V^2 * f = 35fF * (1.8V)^2 * 25.6MHz = 2.9uW\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 3e-06,\n          \"max\": 10e-06,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 30mW for the entire PLL, but this single DFF consumes much less (only dynamic switching power of a few nodes). Other PLL metrics like phase noise and VCO frequency are omitted as they cannot be measured on this sub-block.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Operating frequency of the PFD (Reference frequency)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"25.6m\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set by the testbench to match the paper's reference frequency.\",\n        \"range\": {\n          \"min\": 25000000.0,\n          \"typical\": 25600000.0,\n          \"max\": 26000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The paper mentions a 25.6 MHz reference frequency for the PLL, which dictates the clock rate for this PFD stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_clk_qb\": {\n      \"description\": \"Propagation delay from CLK rising edge to QB falling edge\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"null\",\n        \"technology\": \"null\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_d = 0.69 * R_eq * C_load = 0.69 * 540 ohm * 20fF = 7.5ps\",\n        \"range\": {\n          \"min\": 5e-12,\n          \"typical\": 15e-12,\n          \"max\": 50e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on the RC time constant of two series NMOS transistors (W=5u) discharging a ~20fF load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_rst_qb\": {\n      \"description\": \"Propagation delay from RESET rising edge to QB rising edge\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"null\",\n        \"technology\": \"null\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_d = 0.69 * (R_n3*C_N0 + R_p4*C_QB) = 0.69 * (270*15fF + 1450*20fF) = 23ps\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 25e-12,\n          \"max\": 80e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on the RC time constant of the NMOS discharging the internal node N0, followed by the PMOS charging the output node QB.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power consumption, operating frequency (clock period), and propagation delays of the PFD DFF.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"supply_voltage\",\n      \"power_consumption\",\n      \"operating_frequency\",\n      \"delay_clk_qb\",\n      \"delay_rst_qb\"\n    ],\n    \"spice\": \"* PFD DFF Testbench\\n.lib \\\"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 N3 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 QB N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 QB N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 RESET N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVVDD VDD 0 1.8\\n* 25.6 MHz clock -> period = 39.0625ns\\nVCLK CLK 0 PULSE(0 1.8 10n 100p 100p 10n 39.0625n)\\nVRST RESET 0 PULSE(1.8 0 5n 100p 100p 20n 39.0625n)\\n\\nCload QB 0 10f\\n\\n.control\\ntran 10p 100n\\nlet pwr_inst = -i(VVDD)*1.8\\nmeas tran power_avg avg pwr_inst from=10n to=49.0625n\\nmeas tran delay_clk_qb trig v(CLK) val=0.9 rise=1 targ v(QB) val=0.9 fall=1\\nmeas tran delay_rst_qb trig v(RESET) val=0.9 rise=1 targ v(QB) val=0.9 rise=1\\nmeas tran vdd_val max v(VDD)\\nmeas tran clk_period trig v(CLK) val=0.9 rise=1 targ v(CLK) val=0.9 rise=2\\nprint power_avg delay_clk_qb delay_rst_qb vdd_val clk_period\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "991384",
+  "_case": "991384_image_9"
+}

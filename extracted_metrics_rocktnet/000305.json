@@ -1,0 +1,136 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Operational Transconductance Amplifier (OTA)",
+    "description": "A highly linear continuous-time OTA based on complementary differential pairs. It features source degeneration using MOS transistors operating in the triode region to boost transconductance and improve linearity, serving as the core of a 7th-order linear phase filter.",
+    "node_mapping": {
+      "input": [
+        "VIP",
+        "VIN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VCMFB",
+        "VB2",
+        "VT_P",
+        "VT_N",
+        "VCM"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 60-mW 200-MHz Continuous-Time Seventh-Order Linear Phase Filter With On-Chip Automatic Tuning System",
+      "figure": "OTA schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "58 dB (Dynamic range, gain not explicitly stated but implied high)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gm * Rout. With complementary pairs, Gm is doubled. Rout is the parallel combination of NMOS and PMOS output resistance.",
+        "range": {
+          "min": 30,
+          "typical": 45,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "In 130nm, intrinsic gain is lower than 0.35um, typically 40-50dB for a single stage without cascodes."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity gain bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "200 MHz (Filter 3dB frequency)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gm / (2 * pi * C_load). Assuming Gm ~ 1mS and C_load = 1pF.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 500000000.0,
+          "max": 2000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "To achieve a 200MHz filter, the OTA UGBW must be significantly higher, typically >500MHz. SKY130 is faster than 0.35um, so >1GHz is achievable."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "180 + phase(Vout_diff) at UGBW",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard stability requirement for OTAs in filter applications."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the OTA",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "60 mW (Total for 7th order filter)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_VDD * 1.8V. Filter has ~7 biquads/integrators, so one OTA is ~1/10th of total power.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.003,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Scaled from the 60mW total filter power, expecting a few mW per OTA."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, unity gain bandwidth, phase margin, and transient response of the OTA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "ugbw",
+      "phase_margin",
+      "vout_max",
+      "vout_min"
+    ],
+    "spice": "* OTA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmrp=5u L_xmrp=0.5u\n.param W_xm2_r=5u L_xm2_r=0.5u\n.param W_xm1_r=5u L_xm1_r=0.5u\n.param W_xm1_l=5u L_xm1_l=0.5u\n.param W_xmnb_l=5u L_xmnb_l=0.5u\n.param W_xm2_l=5u L_xm2_l=0.5u\n.param W_xmpb_l=5u L_xmpb_l=0.5u\n.param W_xmnb_r=5u L_xmnb_r=0.5u\n.param W_xmrn_r=5u L_xmrn_r=0.5u\n.param W_xmpb_r=5u L_xmpb_r=0.5u\n.param W_xmrn_l=5u L_xmrn_l=0.5u\n\nXMRP N6 VT_P N9 VDD sky130_fd_pr__pfet_01v8 l={L_xmrp} w={W_xmrp}\nXM2_R OUTP VIN N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm2_r} w={W_xm2_r}\nXM1_R OUTP VIN N5 VSS sky130_fd_pr__nfet_01v8 l={L_xm1_r} w={W_xm1_r}\nXM1_L OUTN VIP N2 VSS sky130_fd_pr__nfet_01v8 l={L_xm1_l} w={W_xm1_l}\nXMNB_L N2 VCMFB VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmnb_l} w={W_xmnb_l}\nXM2_L OUTN VIP N9 VDD sky130_fd_pr__pfet_01v8 l={L_xm2_l} w={W_xm2_l}\nXMPB_L N9 VB2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpb_l} w={W_xmpb_l}\nXMNB_R N5 VCMFB VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmnb_r} w={W_xmnb_r}\nXMRN_R VCM VT_N N5 VSS sky130_fd_pr__nfet_01v8 l={L_xmrn_r} w={W_xmrn_r}\nXMPB_R N6 VB2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpb_r} w={W_xmpb_r}\nXMRN_L VCM VT_N N2 VSS sky130_fd_pr__nfet_01v8 l={L_xmrn_l} w={W_xmrn_l}\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\n\nVVB2 VB2 0 0.9\nVVT_P VT_P 0 0.9\nVVT_N VT_N 0 0.9\nVVCM VCM 0 0.9\n\n* Ideal CMFB to hold output common-mode at 0.9V\nB_CMFB VCMFB 0 V=0.9+(V(OUTP)+V(OUTN)-1.8)*10\n\n* Inputs with DC, AC, and Transient Sine Wave\nVVIP VIP 0 DC 0.9 AC 0.5 SIN(0.9 0.25 100MEG)\nVVIN VIN 0 DC 0.9 AC -0.5 SIN(0.9 -0.25 100MEG)\n\n* Load Capacitors\nCL1 OUTP 0 1p\nCL2 OUTN 0 1p\nR_diff OUTP OUTN 1G\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1k 10G\nlet vout_diff = v(OUTP) - v(OUTN)\nlet gain_db = 20*log10(mag(vout_diff))\nlet phase = 180/PI * cph(vout_diff)\nlet pm = 180 + phase\n\nmeas ac dc_gain find gain_db at=1k\nmeas ac ugbw when gain_db=0 fall=1\nmeas ac phase_margin find pm when gain_db=0 fall=1\n\ntran 10p 50n\nmeas tran vout_max max v(OUTP)\nmeas tran vout_min min v(OUTP)\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"A highly linear continuous-time OTA based on complementary differential pairs. It features source degeneration using MOS transistors operating in the triode region to boost transconductance and improve linearity, serving as the core of a 7th-order linear phase filter.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIP\",\n        \"VIN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VCMFB\",\n        \"VB2\",\n        \"VT_P\",\n        \"VT_N\",\n        \"VCM\"\n      ],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 60-mW 200-MHz Continuous-Time Seventh-Order Linear Phase Filter With On-Chip Automatic Tuning System\",\n      \"figure\": \"OTA schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"58 dB (Dynamic range, gain not explicitly stated but implied high)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm * Rout. With complementary pairs, Gm is doubled. Rout is the parallel combination of NMOS and PMOS output resistance.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 45,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"In 130nm, intrinsic gain is lower than 0.35um, typically 40-50dB for a single stage without cascodes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity gain bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"200 MHz (Filter 3dB frequency)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm / (2 * pi * C_load). Assuming Gm ~ 1mS and C_load = 1pF.\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 500e6,\n          \"max\": 2e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"To achieve a 200MHz filter, the OTA UGBW must be significantly higher, typically >500MHz. SKY130 is faster than 0.35um, so >1GHz is achievable.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"180 + phase(Vout_diff) at UGBW\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard stability requirement for OTAs in filter applications.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the OTA\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"60 mW (Total for 7th order filter)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_VDD * 1.8V. Filter has ~7 biquads/integrators, so one OTA is ~1/10th of total power.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 3e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled from the 60mW total filter power, expecting a few mW per OTA.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, unity gain bandwidth, phase margin, and transient response of the OTA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"ugbw\",\n      \"phase_margin\",\n      \"vout_max\",\n      \"vout_min\"\n    ],\n    \"spice\": \"* OTA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmrp=5u L_xmrp=0.5u\\n.param W_xm2_r=5u L_xm2_r=0.5u\\n.param W_xm1_r=5u L_xm1_r=0.5u\\n.param W_xm1_l=5u L_xm1_l=0.5u\\n.param W_xmnb_l=5u L_xmnb_l=0.5u\\n.param W_xm2_l=5u L_xm2_l=0.5u\\n.param W_xmpb_l=5u L_xmpb_l=0.5u\\n.param W_xmnb_r=5u L_xmnb_r=0.5u\\n.param W_xmrn_r=5u L_xmrn_r=0.5u\\n.param W_xmpb_r=5u L_xmpb_r=0.5u\\n.param W_xmrn_l=5u L_xmrn_l=0.5u\\n\\nXMRP N6 VT_P N9 VDD sky130_fd_pr__pfet_01v8 l={L_xmrp} w={W_xmrp}\\nXM2_R OUTP VIN N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm2_r} w={W_xm2_r}\\nXM1_R OUTP VIN N5 VSS sky130_fd_pr__nfet_01v8 l={L_xm1_r} w={W_xm1_r}\\nXM1_L OUTN VIP N2 VSS sky130_fd_pr__nfet_01v8 l={L_xm1_l} w={W_xm1_l}\\nXMNB_L N2 VCMFB VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmnb_l} w={W_xmnb_l}\\nXM2_L OUTN VIP N9 VDD sky130_fd_pr__pfet_01v8 l={L_xm2_l} w={W_xm2_l}\\nXMPB_L N9 VB2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpb_l} w={W_xmpb_l}\\nXMNB_R N5 VCMFB VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmnb_r} w={W_xmnb_r}\\nXMRN_R VCM VT_N N5 VSS sky130_fd_pr__nfet_01v8 l={L_xmrn_r} w={W_xmrn_r}\\nXMPB_R N6 VB2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpb_r} w={W_xmpb_r}\\nXMRN_L VCM VT_N N2 VSS sky130_fd_pr__nfet_01v8 l={L_xmrn_l} w={W_xmrn_l}\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\n\\nVVB2 VB2 0 0.9\\nVVT_P VT_P 0 0.9\\nVVT_N VT_N 0 0.9\\nVVCM VCM 0 0.9\\n\\n* Ideal CMFB to hold output common-mode at 0.9V\\nB_CMFB VCMFB 0 V=0.9+(V(OUTP)+V(OUTN)-1.8)*10\\n\\n* Inputs with DC, AC, and Transient Sine Wave\\nVVIP VIP 0 DC 0.9 AC 0.5 SIN(0.9 0.25 100MEG)\\nVVIN VIN 0 DC 0.9 AC -0.5 SIN(0.9 -0.25 100MEG)\\n\\n* Load Capacitors\\nCL1 OUTP 0 1p\\nCL2 OUTN 0 1p\\nR_diff OUTP OUTN 1G\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1k 10G\\nlet vout_diff = v(OUTP) - v(OUTN)\\nlet gain_db = 20*log10(mag(vout_diff))\\nlet phase = 180/PI * cph(vout_diff)\\nlet pm = 180 + phase\\n\\nmeas ac dc_gain find gain_db at=1k\\nmeas ac ugbw when gain_db=0 fall=1\\nmeas ac phase_margin find pm when gain_db=0 fall=1\\n\\ntran 10p 50n\\nmeas tran vout_max max v(OUTP)\\nmeas tran vout_min min v(OUTP)\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1175502",
+  "_case": "1175502_image_2"
+}

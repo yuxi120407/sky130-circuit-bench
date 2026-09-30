@@ -1,0 +1,114 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Sense Current Recovery / Bitline Clamping Circuit",
+    "description": "A differential amplifier with positive feedback used in virtual-ground flash memory to counteract side-leakage current. It injects recovery current into the bitline when the bitline voltage is above a reference, maintaining the high state for programmed cells.",
+    "node_mapping": {
+      "input": [
+        "BITLINE",
+        "CASREF",
+        "CAS_BIAS",
+        "INI_CHGB",
+        "INI_CHG",
+        "ENB"
+      ],
+      "output": [
+        "A",
+        "SAIN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "CASREF",
+        "CAS_BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Virtual-Ground Sensing Techniques for a 49-ns/200-MHz Access Time 1.8-V 256-Mb 2-Bit-per-Cell Flash Memory",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Power": {
+      "description": "Total DC power consumption of the circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current from XM6 (W=5u, L=0.5u, Vgs=0.7V) is approx 100uA. Total power = 1.8V * 100uA = 180uW. With added testbench loads, approx 300uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0003,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Based on standard SKY130 NMOS current at given bias."
+      },
+      "importance": "essential"
+    },
+    "Trip_Voltage": {
+      "description": "Bitline voltage at which the amplifier switches state",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by CASREF, which is set to 0.9V in the testbench.",
+        "range": {
+          "min": 0.8,
+          "typical": 0.9,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "The differential pair balances when BITLINE roughly equals CASREF."
+      },
+      "importance": "essential"
+    },
+    "Response_Time": {
+      "description": "Delay from bitline dropping below reference to the feedback turning off",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "7 ns",
+        "technology": "1.8V Flash"
+      },
+      "sky130_expected": {
+        "calculation": "RC delay of node A. With 10k load and ~50fF parasitic capacitance, tau = 0.5ns. Delay should be around 1-5ns.",
+        "range": {
+          "min": 1e-09,
+          "typical": 3e-09,
+          "max": 1e-08,
+          "unit": "s"
+        },
+        "reasoning": "Matches the order of magnitude of the paper's 7ns timing metric, adjusted for a simplified testbench load."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC trip point, transient response time, and power consumption of the sense current recovery circuit.",
+    "analyses": [
+      "DC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "Power",
+      "Trip_Voltage",
+      "Response_Time"
+    ],
+    "spice": "* Sense Current Recovery Circuit Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\n* DUT\nXM8 N4 INI_CHGB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM7 N6 ENB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM6 N0 CAS_BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM5 BITLINE INI_CHG GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM2 B CASREF N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 A BITLINE N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM4 BITLINE A N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM3 SAIN A BITLINE GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* Testbench Loads\nRA A VDD 10k\nRB B VDD 10k\nRSAIN SAIN GND 10k\n\n* Bias and Supply Sources\nVVDD VDD 0 1.8\nVCAS_BIAS CAS_BIAS 0 0.7\nVCASREF CASREF 0 0.9\nVINI_CHGB INI_CHGB 0 0\nVINI_CHG INI_CHG 0 0\nVENB ENB 0 0\n\n* Stimulus\nVBITLINE_IN BITLINE_IN 0 PULSE(1.8 0 5n 1n 1n 20n 50n)\nRBITLINE BITLINE_IN BITLINE 1k\n\n.control\n* DC Analysis for Trip Point\ndc VBITLINE_IN 0 1.8 0.01\nmeas dc trip_voltage find v(BITLINE) when v(A)=0.9 cross=1\n\n* Transient Analysis for Response Time\ntran 0.1n 50n\nmeas tran response_time trig v(BITLINE) val=0.9 fall=1 targ v(A) val=0.9 cross=1\n\n* Operating Point for Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Sense Current Recovery / Bitline Clamping Circuit\",\n    \"description\": \"A differential amplifier with positive feedback used in virtual-ground flash memory to counteract side-leakage current. It injects recovery current into the bitline when the bitline voltage is above a reference, maintaining the high state for programmed cells.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"BITLINE\",\n        \"CASREF\",\n        \"CAS_BIAS\",\n        \"INI_CHGB\",\n        \"INI_CHG\",\n        \"ENB\"\n      ],\n      \"output\": [\n        \"A\",\n        \"SAIN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"CASREF\",\n        \"CAS_BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Virtual-Ground Sensing Techniques for a 49-ns/200-MHz Access Time 1.8-V 256-Mb 2-Bit-per-Cell Flash Memory\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Power\": {\n      \"description\": \"Total DC power consumption of the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current from XM6 (W=5u, L=0.5u, Vgs=0.7V) is approx 100uA. Total power = 1.8V * 100uA = 180uW. With added testbench loads, approx 300uW.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 300e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on standard SKY130 NMOS current at given bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Trip_Voltage\": {\n      \"description\": \"Bitline voltage at which the amplifier switches state\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by CASREF, which is set to 0.9V in the testbench.\",\n        \"range\": {\n          \"min\": 0.8,\n          \"typical\": 0.9,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The differential pair balances when BITLINE roughly equals CASREF.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Response_Time\": {\n      \"description\": \"Delay from bitline dropping below reference to the feedback turning off\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"7 ns\",\n        \"technology\": \"1.8V Flash\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"RC delay of node A. With 10k load and ~50fF parasitic capacitance, tau = 0.5ns. Delay should be around 1-5ns.\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 3e-9,\n          \"max\": 10e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Matches the order of magnitude of the paper's 7ns timing metric, adjusted for a simplified testbench load.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC trip point, transient response time, and power consumption of the sense current recovery circuit.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"Power\",\n      \"Trip_Voltage\",\n      \"Response_Time\"\n    ],\n    \"spice\": \"* Sense Current Recovery Circuit Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\n* DUT\\nXM8 N4 INI_CHGB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM7 N6 ENB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM6 N0 CAS_BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM5 BITLINE INI_CHG GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM2 B CASREF N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 A BITLINE N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM4 BITLINE A N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM3 SAIN A BITLINE GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Testbench Loads\\nRA A VDD 10k\\nRB B VDD 10k\\nRSAIN SAIN GND 10k\\n\\n* Bias and Supply Sources\\nVVDD VDD 0 1.8\\nVCAS_BIAS CAS_BIAS 0 0.7\\nVCASREF CASREF 0 0.9\\nVINI_CHGB INI_CHGB 0 0\\nVINI_CHG INI_CHG 0 0\\nVENB ENB 0 0\\n\\n* Stimulus\\nVBITLINE_IN BITLINE_IN 0 PULSE(1.8 0 5n 1n 1n 20n 50n)\\nRBITLINE BITLINE_IN BITLINE 1k\\n\\n.control\\n* DC Analysis for Trip Point\\ndc VBITLINE_IN 0 1.8 0.01\\nmeas dc trip_voltage find v(BITLINE) when v(A)=0.9 cross=1\\n\\n* Transient Analysis for Response Time\\ntran 0.1n 50n\\nmeas tran response_time trig v(BITLINE) val=0.9 fall=1 targ v(A) val=0.9 cross=1\\n\\n* Operating Point for Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1347332",
+  "_case": "1347332_image_8"
+}

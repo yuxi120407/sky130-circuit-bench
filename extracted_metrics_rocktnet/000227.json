@@ -1,0 +1,101 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC tank / resonator",
+    "description": "A parallel RLC circuit driven by a current source. In the context of the paper, this typically models parasitic resonances in the power distribution network (PDN) or substrate coupling paths in mixed-signal ICs.",
+    "node_mapping": {
+      "input": [
+        "VDD"
+      ],
+      "output": [
+        "VDD"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "Methodology and Experimental Verification for Substrate Noise Reduction in CMOS Mixed-Signal ICs With Synchronous Digital Circuits",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "resonance_frequency": {
+      "description": "The frequency at which the parallel LC network resonates, resulting in maximum impedance and zero phase shift.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_res = 1 / (2 * pi * sqrt(L * C)). With L=2.533nH and C=10pF, f_res = 1 GHz.",
+        "range": {
+          "min": "900M",
+          "typical": "1G",
+          "max": "1.1G",
+          "unit": "Hz"
+        },
+        "reasoning": "Targeted to match the 1 GHz operating/oscillation frequency reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "peak_impedance": {
+      "description": "The maximum AC impedance of the network, occurring at the resonance frequency.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "At resonance, the reactive components L and C cancel out, leaving only the parallel resistance RP.",
+        "range": {
+          "min": "40",
+          "typical": "50",
+          "max": "60",
+          "unit": "ohm"
+        },
+        "reasoning": "Set to 50 ohms as a representative value for parasitic damping in a PDN or substrate model."
+      },
+      "importance": "essential"
+    },
+    "quality_factor": {
+      "description": "The Q factor of the resonator, defined as the ratio of resonance frequency to the -3dB bandwidth.",
+      "unit": "dimensionless",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Q = R * sqrt(C/L) = 50 * sqrt(10pF / 2.533nH) \u2248 3.14",
+        "range": {
+          "min": "2",
+          "typical": "3.14",
+          "max": "5",
+          "unit": ""
+        },
+        "reasoning": "A low Q factor is typical for parasitic resonances in power and substrate networks due to significant resistive damping."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure the impedance profile, resonance frequency, peak impedance, and Q factor of the parallel RLC tank.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "resonance_frequency",
+      "peak_impedance",
+      "quality_factor"
+    ],
+    "spice": "* RLC Tank / PDN Impedance Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param R_val=50\n.param L_val=2.533n\n.param C_val=10p\n\n* DUT Netlist\nIsupply VDD VSS dc 0 ac 1\nRP VSS VDD {R_val}\nLP VSS VDD {L_val}\nCP VSS VDD {C_val}\n\n* Stimulus & Biasing\nVVSS VSS 0 0\n\n.control\nac dec 100 10Meg 10Gig\n\n* Calculate impedance magnitude and phase\nlet z_mag = abs(v(VDD))\nlet phase = 180/PI * cph(v(VDD))\n\n* Measure peak impedance and resonance frequency\nmeas ac z_max max z_mag\nmeas ac f_res when phase=0 fall=1\n\n* Calculate -3dB bandwidth and Q factor\nlet z_3db = z_max / 1.41421356\nmeas ac f_low when z_mag=z_3db rise=1\nmeas ac f_high when z_mag=z_3db fall=1\nlet bw = f_high - f_low\nlet q_factor = f_res / bw\n\nprint z_max f_res bw q_factor\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC tank / resonator\",\n    \"description\": \"A parallel RLC circuit driven by a current source. In the context of the paper, this typically models parasitic resonances in the power distribution network (PDN) or substrate coupling paths in mixed-signal ICs.\",\n    \"node_mapping\": {\n      \"input\": [\"VDD\"],\n      \"output\": [\"VDD\"],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\"VSS\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Methodology and Experimental Verification for Substrate Noise Reduction in CMOS Mixed-Signal ICs With Synchronous Digital Circuits\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"resonance_frequency\": {\n      \"description\": \"The frequency at which the parallel LC network resonates, resulting in maximum impedance and zero phase shift.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_res = 1 / (2 * pi * sqrt(L * C)). With L=2.533nH and C=10pF, f_res = 1 GHz.\",\n        \"range\": { \"min\": \"900M\", \"typical\": \"1G\", \"max\": \"1.1G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Targeted to match the 1 GHz operating/oscillation frequency reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"peak_impedance\": {\n      \"description\": \"The maximum AC impedance of the network, occurring at the resonance frequency.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At resonance, the reactive components L and C cancel out, leaving only the parallel resistance RP.\",\n        \"range\": { \"min\": \"40\", \"typical\": \"50\", \"max\": \"60\", \"unit\": \"ohm\" },\n        \"reasoning\": \"Set to 50 ohms as a representative value for parasitic damping in a PDN or substrate model.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quality_factor\": {\n      \"description\": \"The Q factor of the resonator, defined as the ratio of resonance frequency to the -3dB bandwidth.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q = R * sqrt(C/L) = 50 * sqrt(10pF / 2.533nH) \u2248 3.14\",\n        \"range\": { \"min\": \"2\", \"typical\": \"3.14\", \"max\": \"5\", \"unit\": \"\" },\n        \"reasoning\": \"A low Q factor is typical for parasitic resonances in power and substrate networks due to significant resistive damping.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure the impedance profile, resonance frequency, peak impedance, and Q factor of the parallel RLC tank.\",\n    \"analyses\": [\"AC\"],\n    \"metrics_measured\": [\"resonance_frequency\", \"peak_impedance\", \"quality_factor\"],\n    \"spice\": \"* RLC Tank / PDN Impedance Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param R_val=50\\n.param L_val=2.533n\\n.param C_val=10p\\n\\n* DUT Netlist\\nIsupply VDD VSS dc 0 ac 1\\nRP VSS VDD {R_val}\\nLP VSS VDD {L_val}\\nCP VSS VDD {C_val}\\n\\n* Stimulus & Biasing\\nVVSS VSS 0 0\\n\\n.control\\nac dec 100 10Meg 10Gig\\n\\n* Calculate impedance magnitude and phase\\nlet z_mag = abs(v(VDD))\\nlet phase = 180/PI * cph(v(VDD))\\n\\n* Measure peak impedance and resonance frequency\\nmeas ac z_max max z_mag\\nmeas ac f_res when phase=0 fall=1\\n\\n* Calculate -3dB bandwidth and Q factor\\nlet z_3db = z_max / 1.41421356\\nmeas ac f_low when z_mag=z_3db rise=1\\nmeas ac f_high when z_mag=z_3db fall=1\\nlet bw = f_high - f_low\\nlet q_factor = f_res / bw\\n\\nprint z_max f_res bw q_factor\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1046080",
+  "_case": "1046080_image_3"
+}

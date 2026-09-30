@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Variable Gain Amplifier (VGA)",
+    "description": "An RF variable gain amplifier that uses a current-controlled bias network to adjust the transconductance of a common-source amplifier with a cascode output stage.",
+    "node_mapping": {
+      "input": [
+        "RFi"
+      ],
+      "output": [
+        "RFo"
+      ],
+      "supply": [
+        "VDD",
+        "N4"
+      ],
+      "bias": [
+        "Vbias",
+        "I1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Variable Gain Amplifier With 50-dB Control Range for 900-MHz Applications",
+      "figure": "1",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Maximum AC voltage gain at the operating frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "28 dB",
+        "technology": "BiCMOS 24 GHz"
+      },
+      "sky130_expected": {
+        "calculation": "gm3 * R3. With I_ctrl=1mA, gm3 ~ 16mS, R3=500 ohm -> Gain ~ 8 V/V = 18 dB.",
+        "range": {
+          "min": 10,
+          "typical": 18,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "Adapted to 1.8V CMOS, the gain will be slightly lower than the 2.8V BiCMOS original due to lower supply headroom and gm/Id efficiency."
+      },
+      "importance": "essential"
+    },
+    "gain_control_range": {
+      "description": "The range over which the gain can be adjusted by varying the control current.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "50 dB",
+        "technology": "BiCMOS 24 GHz"
+      },
+      "sky130_expected": {
+        "calculation": "Difference between max gain (I_ctrl=1mA) and min gain (I_ctrl=10uA).",
+        "range": {
+          "min": 20,
+          "typical": 30,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "CMOS square-law provides less transconductance variation over the same current range compared to BJT exponential law, reducing the control range."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "The target frequency for the RF amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "900 MHz",
+        "technology": "BiCMOS 24 GHz"
+      },
+      "sky130_expected": {
+        "calculation": "Set by the testbench AC source.",
+        "range": {
+          "min": 800000000.0,
+          "typical": 900000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The circuit is broadband enough to operate at 900 MHz in SKY130."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the amplifier.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "84 mW (30 mA @ 2.8V)",
+        "technology": "BiCMOS 24 GHz"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * (I_ctrl + I_M2 + I_M3). 1.8V * (1mA + 1mA + 1.5mA) = 6.3 mW.",
+        "range": {
+          "min": 0.002,
+          "typical": 0.0063,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for 1.8V CMOS operation and smaller device sizes in the testbench."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain at 900 MHz, bandwidth, and transient output swing of the VGA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "operating_frequency",
+      "output_swing"
+    ],
+    "spice": "* VGA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param I_ctrl = 1m\n\n* DUT (NPNs replaced with SKY130 NMOS)\nI1 VDD RFi {I_ctrl}\nR3 RFo N4 500\nR2 VDD N0 500\nR1 N5 GND 600\nM5 RFo Vbias N1 GND sky130_fd_pr__nfet_01v8 w=50u l=0.15u\nM2 N0 RFi N5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM1 RFi RFi N5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM3 N1 N5 GND GND sky130_fd_pr__nfet_01v8 w=50u l=0.15u\nC1 N4 GND 10p\nC2 N0 GND 10p\n\n* Fix floating N4 (AC ground in original, needs DC path)\nV_N4 N4 0 1.8\n\n* Sources\nVVDD VDD 0 1.8\nVVBIAS Vbias 0 1.2\n\n* AC Input\nCin RFin RFi 10p\nVac RFin 0 dc 0 ac 1 sin(0 10m 900Meg)\n\n.control\n  op\n  let power = -i(VVDD) * 1.8 - i(V_N4) * 1.8\n  print power\n\n  ac dec 50 10Meg 10Gig\n  let gain_db = vdb(RFo)\n  let phase = 180/PI * cph(v(RFo))\n  meas ac max_gain MAX gain_db\n  meas ac gain_900mhz find gain_db at=900Meg\n  meas ac phase_900mhz find phase at=900Meg\n  meas ac bw_0db when gain_db=0 fall=1\n\n  tran 10p 5n\n  meas tran vout_max max v(RFo) from=2n to=5n\n  meas tran vout_min min v(RFo) from=2n to=5n\n  let vout_pp = vout_max - vout_min\n  print vout_pp\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Variable Gain Amplifier (VGA)\",\n    \"description\": \"An RF variable gain amplifier that uses a current-controlled bias network to adjust the transconductance of a common-source amplifier with a cascode output stage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RFi\"\n      ],\n      \"output\": [\n        \"RFo\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"N4\"\n      ],\n      \"bias\": [\n        \"Vbias\",\n        \"I1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Variable Gain Amplifier With 50-dB Control Range for 900-MHz Applications\",\n      \"figure\": \"1\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Maximum AC voltage gain at the operating frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"28 dB\",\n        \"technology\": \"BiCMOS 24 GHz\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm3 * R3. With I_ctrl=1mA, gm3 ~ 16mS, R3=500 ohm -> Gain ~ 8 V/V = 18 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 18,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Adapted to 1.8V CMOS, the gain will be slightly lower than the 2.8V BiCMOS original due to lower supply headroom and gm/Id efficiency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_control_range\": {\n      \"description\": \"The range over which the gain can be adjusted by varying the control current.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"50 dB\",\n        \"technology\": \"BiCMOS 24 GHz\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Difference between max gain (I_ctrl=1mA) and min gain (I_ctrl=10uA).\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 30,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"CMOS square-law provides less transconductance variation over the same current range compared to BJT exponential law, reducing the control range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"The target frequency for the RF amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"900 MHz\",\n        \"technology\": \"BiCMOS 24 GHz\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set by the testbench AC source.\",\n        \"range\": {\n          \"min\": 800e6,\n          \"typical\": 900e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The circuit is broadband enough to operate at 900 MHz in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the amplifier.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"84 mW (30 mA @ 2.8V)\",\n        \"technology\": \"BiCMOS 24 GHz\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * (I_ctrl + I_M2 + I_M3). 1.8V * (1mA + 1mA + 1.5mA) = 6.3 mW.\",\n        \"range\": {\n          \"min\": 2e-3,\n          \"typical\": 6.3e-3,\n          \"max\": 15e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down for 1.8V CMOS operation and smaller device sizes in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain at 900 MHz, bandwidth, and transient output swing of the VGA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"operating_frequency\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* VGA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param I_ctrl = 1m\\n\\n* DUT (NPNs replaced with SKY130 NMOS)\\nI1 VDD RFi {I_ctrl}\\nR3 RFo N4 500\\nR2 VDD N0 500\\nR1 N5 GND 600\\nM5 RFo Vbias N1 GND sky130_fd_pr__nfet_01v8 w=50u l=0.15u\\nM2 N0 RFi N5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM1 RFi RFi N5 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM3 N1 N5 GND GND sky130_fd_pr__nfet_01v8 w=50u l=0.15u\\nC1 N4 GND 10p\\nC2 N0 GND 10p\\n\\n* Fix floating N4 (AC ground in original, needs DC path)\\nV_N4 N4 0 1.8\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVVBIAS Vbias 0 1.2\\n\\n* AC Input\\nCin RFin RFi 10p\\nVac RFin 0 dc 0 ac 1 sin(0 10m 900Meg)\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8 - i(V_N4) * 1.8\\n  print power\\n\\n  ac dec 50 10Meg 10Gig\\n  let gain_db = vdb(RFo)\\n  let phase = 180/PI * cph(v(RFo))\\n  meas ac max_gain MAX gain_db\\n  meas ac gain_900mhz find gain_db at=900Meg\\n  meas ac phase_900mhz find phase at=900Meg\\n  meas ac bw_0db when gain_db=0 fall=1\\n\\n  tran 10p 5n\\n  meas tran vout_max max v(RFo) from=2n to=5n\\n  meas tran vout_min min v(RFo) from=2n to=5n\\n  let vout_pp = vout_max - vout_min\\n  print vout_pp\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1028096",
+  "_case": "1028096_image_1"
+}

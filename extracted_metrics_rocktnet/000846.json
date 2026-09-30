@@ -1,0 +1,187 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switch / Inductive Load Driver",
+    "description": "A single NMOS transistor acting as a switch for an inductive or resistive load. It represents the basic configuration of the driver circuit before the active feedback mechanism (described in the paper) is added.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Novel Active Feedback Flyback With Only 100-mV Inductive Overshoot for a Standard Low-Voltage CMOS Inductive Load Driver, in a Single-Chip Controller for 73 Relays in a POTS/ADSL",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Ron": {
+      "description": "On-resistance of the NMOS switch",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "Standard Low-Voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ron = 1 / (un*Cox * W/L * (VGS - Vth)) = 1 / (270u * 10 * (1.8 - 0.42))",
+        "range": {
+          "min": 200,
+          "typical": 268,
+          "max": 350,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using the square law model for the linear region with SKY130 parameters."
+      },
+      "importance": "essential"
+    },
+    "Vth": {
+      "description": "Threshold voltage of the NMOS",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Standard threshold for sky130_fd_pr__nfet_01v8",
+        "range": {
+          "min": 0.35,
+          "typical": 0.42,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Typical Vth for this process node."
+      },
+      "importance": "recommended"
+    },
+    "Ileak": {
+      "description": "Leakage current when the switch is off",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Subthreshold leakage at VGS=0",
+        "range": {
+          "min": 1e-12,
+          "typical": 1e-10,
+          "max": 1e-09,
+          "unit": "A"
+        },
+        "reasoning": "Typical off-state leakage for a 5um/0.5um device in SKY130."
+      },
+      "importance": "essential"
+    },
+    "t_turn_on": {
+      "description": "Turn-on delay time",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "RC time constant of load and parasitic capacitance",
+        "range": {
+          "min": 1e-11,
+          "typical": 1e-10,
+          "max": 1e-09,
+          "unit": "s"
+        },
+        "reasoning": "Very fast switching expected with a 1k ohm test load and small parasitic C."
+      },
+      "importance": "recommended"
+    },
+    "Inductive_Overshoot": {
+      "description": "Voltage overshoot above VDD when switching off an inductive load",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 mV",
+        "technology": "Standard Low-Voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this bare netlist",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "V"
+        },
+        "reasoning": "Without the active feedback circuit described in the paper, an inductive load would cause a massive voltage spike limited only by device breakdown. Thus, it cannot be meaningfully estimated for this bare switch."
+      },
+      "importance": "essential"
+    },
+    "Efficiency": {
+      "description": "Power efficiency of the driver",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10%",
+        "technology": "Standard Low-Voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P_load / P_total",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 20,
+          "unit": "%"
+        },
+        "reasoning": "Efficiency depends heavily on the load and switching frequency. The paper reports 10%."
+      },
+      "importance": "optional"
+    },
+    "Power_Dissipation": {
+      "description": "Total power dissipation",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1 W",
+        "technology": "Standard Low-Voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V * I",
+        "range": {
+          "min": 0.001,
+          "typical": 0.003,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Depends on the actual relay load used. For a 1k test load at 1.8V, power is much lower (~3.2mW) than the 1W reported for the full relay array."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure on-resistance, threshold voltage, leakage current, and switching times of the NMOS switch using a resistive load.",
+    "analyses": [
+      "DC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "Ron",
+      "Vth",
+      "Ileak",
+      "t_turn_on",
+      "t_turn_off"
+    ],
+    "spice": "* NMOS Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n\nXM1 N1 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\nVVDD VDD 0 1.8\nRL VDD N1_R 1k\nVID N1_R N1 0\nVIN IN 0 DC 0 PULSE(0 1.8 1n 0.1n 0.1n 10n 20n)\n\n.control\n* 1. OP for leakage current\nop\nlet ileak = i(VID)\nprint ileak\n\n* 2. DC Sweep for Vth and Ron\ndc VIN 0 1.8 0.01\nlet ron = v(N1) / i(VID)\nmeas dc Ron_val find ron at=1.8\nmeas dc Vth_val when i(VID)=1uA\n\n* 3. Transient for switching times\ntran 0.01n 30n\nmeas tran t_turn_on trig v(IN) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\nmeas tran t_turn_off trig v(IN) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\n\nquit\n.endc\n\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switch / Inductive Load Driver\",\n    \"description\": \"A single NMOS transistor acting as a switch for an inductive or resistive load. It represents the basic configuration of the driver circuit before the active feedback mechanism (described in the paper) is added.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"N1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Novel Active Feedback Flyback With Only 100-mV Inductive Overshoot for a Standard Low-Voltage CMOS Inductive Load Driver, in a Single-Chip Controller for 73 Relays in a POTS/ADSL\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Ron\": {\n      \"description\": \"On-resistance of the NMOS switch\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"Standard Low-Voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron = 1 / (un*Cox * W/L * (VGS - Vth)) = 1 / (270u * 10 * (1.8 - 0.42))\",\n        \"range\": { \"min\": 200, \"typical\": 268, \"max\": 350, \"unit\": \"ohm\" },\n        \"reasoning\": \"Calculated using the square law model for the linear region with SKY130 parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Vth\": {\n      \"description\": \"Threshold voltage of the NMOS\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard threshold for sky130_fd_pr__nfet_01v8\",\n        \"range\": { \"min\": 0.35, \"typical\": 0.42, \"max\": 0.5, \"unit\": \"V\" },\n        \"reasoning\": \"Typical Vth for this process node.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Ileak\": {\n      \"description\": \"Leakage current when the switch is off\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Subthreshold leakage at VGS=0\",\n        \"range\": { \"min\": 1e-12, \"typical\": 1e-10, \"max\": 1e-9, \"unit\": \"A\" },\n        \"reasoning\": \"Typical off-state leakage for a 5um/0.5um device in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_turn_on\": {\n      \"description\": \"Turn-on delay time\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"RC time constant of load and parasitic capacitance\",\n        \"range\": { \"min\": 1e-11, \"typical\": 1e-10, \"max\": 1e-9, \"unit\": \"s\" },\n        \"reasoning\": \"Very fast switching expected with a 1k ohm test load and small parasitic C.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Inductive_Overshoot\": {\n      \"description\": \"Voltage overshoot above VDD when switching off an inductive load\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 mV\",\n        \"technology\": \"Standard Low-Voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this bare netlist\",\n        \"range\": { \"min\": null, \"typical\": null, \"max\": null, \"unit\": \"V\" },\n        \"reasoning\": \"Without the active feedback circuit described in the paper, an inductive load would cause a massive voltage spike limited only by device breakdown. Thus, it cannot be meaningfully estimated for this bare switch.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Efficiency\": {\n      \"description\": \"Power efficiency of the driver\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10%\",\n        \"technology\": \"Standard Low-Voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_load / P_total\",\n        \"range\": { \"min\": 5, \"typical\": 10, \"max\": 20, \"unit\": \"%\" },\n        \"reasoning\": \"Efficiency depends heavily on the load and switching frequency. The paper reports 10%.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Power_Dissipation\": {\n      \"description\": \"Total power dissipation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1 W\",\n        \"technology\": \"Standard Low-Voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V * I\",\n        \"range\": { \"min\": 0.001, \"typical\": 0.003, \"max\": 0.01, \"unit\": \"W\" },\n        \"reasoning\": \"Depends on the actual relay load used. For a 1k test load at 1.8V, power is much lower (~3.2mW) than the 1W reported for the full relay array.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure on-resistance, threshold voltage, leakage current, and switching times of the NMOS switch using a resistive load.\",\n    \"analyses\": [\"DC\", \"Tran\", \"OP\"],\n    \"metrics_measured\": [\"Ron\", \"Vth\", \"Ileak\", \"t_turn_on\", \"t_turn_off\"],\n    \"spice\": \"* NMOS Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM1 N1 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVVDD VDD 0 1.8\\nRL VDD N1_R 1k\\nVID N1_R N1 0\\nVIN IN 0 DC 0 PULSE(0 1.8 1n 0.1n 0.1n 10n 20n)\\n\\n.control\\n* 1. OP for leakage current\\nop\\nlet ileak = i(VID)\\nprint ileak\\n\\n* 2. DC Sweep for Vth and Ron\\ndc VIN 0 1.8 0.01\\nlet ron = v(N1) / i(VID)\\nmeas dc Ron_val find ron at=1.8\\nmeas dc Vth_val when i(VID)=1uA\\n\\n* 3. Transient for switching times\\ntran 0.01n 30n\\nmeas tran t_turn_on trig v(IN) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\\nmeas tran t_turn_off trig v(IN) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\\n\\nquit\\n.endc\\n\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1458999",
+  "_case": "1458999_image_2_a"
+}

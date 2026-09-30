@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Phase Interpolator / Clock Mixer",
+    "description": "A phase interpolator circuit used to adjust the clock phase in a high-speed DRAM interface. It mixes multiple input clock phases using parallel differential pairs with diode-connected loads to generate a fine-adjusted output clock phase, minimizing repeater latency.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_2",
+        "LABEL_NET_4",
+        "LABEL_NET_5",
+        "LABEL_NET_6"
+      ],
+      "output": [
+        "N0",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_1",
+        "LABEL_NET_7"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 3.6-Gb/s Point-to-Point Heterogeneous-Voltage-Capable DRAM Interface for Capacity-Scalable Memory Subsystems",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Average power dissipated by the phase interpolator circuit during active clock mixing.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "80 mW (Total per DRAM I/O)",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Tail currents are set by VBP and VBN. Assuming ~1mA per tail current source (W/L=5/0.5), total current is ~2mA. Power = 1.8V * 2mA = 3.6 mW.",
+        "range": {
+          "min": "1m",
+          "typical": "3.6m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "The 80 mW reported in the paper is for the entire I/O block. A single phase interpolator sub-block will consume a fraction of this, typically a few milliwatts."
+      }
+    },
+    "propagation_delay": {
+      "description": "Time delay from the input clock crossing 50% VDD to the output clock crossing 50% VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "29.7 ps",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay is determined by the RC time constant at the output nodes. With diode-connected loads, resistance is ~1/gm. C_load is parasitic capacitance of the wide transistors.",
+        "range": {
+          "min": "20p",
+          "typical": "45p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Expected to be in the tens of picoseconds range, aligning with the 29.7 ps and 46.7 ps jitter/delay figures reported in the paper for 3.6 Gb/s operation."
+      }
+    },
+    "output_voltage_swing": {
+      "description": "Peak-to-peak voltage swing at the output nodes (N0, N2).",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Outputs are clamped by diode-connected NMOS to GND and PMOS to VDD. Max voltage ~ VDD - |Vthp| (1.8 - 0.42 = 1.38V). Min voltage ~ Vthn (0.42V). Swing = 1.38 - 0.42 = 0.96V.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.9",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "Current Mode Logic (CML) style phase interpolators use low-swing signaling to achieve high speeds (3.6 Gb/s). The diode loads naturally limit the swing to roughly VDD - 2*Vth."
+      }
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the propagation delay, output voltage swing, and average power consumption of the phase interpolator when driven by 1 GHz clock signals.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "propagation_delay",
+      "output_voltage_swing"
+    ],
+    "spice": "* Phase Interpolator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm15=5u L_xm15=0.5u\n.param W_xm16=5u L_xm16=0.5u\n.param W_xm17=5u L_xm17=0.5u\n.param W_xm18=5u L_xm18=0.5u\n\nVVDD VDD 0 1.8\n* Biases to keep tail current sources in saturation\nVLABEL_NET_1 LABEL_NET_1 0 0.4\nVLABEL_NET_7 LABEL_NET_7 0 1.2\n\n* 1 GHz differential clock inputs\nVclk clk 0 PULSE(0 1.8 0 50p 50p 450p 1n)\nVclkb clkb 0 PULSE(1.8 0 0 50p 50p 450p 1n)\n\n* Connect inputs to clock phases\nR0 clk LABEL_NET_0 1\nR2 clk LABEL_NET_2 1\nR6 clk LABEL_NET_6 1\nR4 clkb LABEL_NET_4 1\nR5 clkb LABEL_NET_5 1\n\n* DUT\nXM1 N0 N0 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N2 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N5 LABEL_NET_0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N4 LABEL_NET_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 LABEL_NET_2 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 VDD N6 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 LABEL_NET_3 LABEL_NET_4 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N8 LABEL_NET_5 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N2 N2 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N2 N2 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N2 N2 LABEL_NET_3 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\nXM13 N7 LABEL_NET_6 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM14 N6 LABEL_NET_7 GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\nXM15 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\nXM16 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm16} w={W_xm16}\nXM17 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\nXM18 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm18} w={W_xm18}\n\n.control\ntran 10p 5n\n\n* Measure propagation delay from input clock to output N2\nmeas tran t_delay trig v(clk) val=0.9 rise=1 targ v(N2) val=0.9 fall=1\n\n* Measure output voltage swing\nmeas tran v_max max v(N2)\nmeas tran v_min min v(N2)\nlet v_swing = v_max - v_min\nprint v_swing\n\n* Measure average power consumption\nlet power = -i(VVDD)*1.8\nmeas tran avg_power avg power\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Phase Interpolator / Clock Mixer\",\n    \"description\": \"A phase interpolator circuit used to adjust the clock phase in a high-speed DRAM interface. It mixes multiple input clock phases using parallel differential pairs with diode-connected loads to generate a fine-adjusted output clock phase, minimizing repeater latency.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_4\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_6\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_1\",\n        \"LABEL_NET_7\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 3.6-Gb/s Point-to-Point Heterogeneous-Voltage-Capable DRAM Interface for Capacity-Scalable Memory Subsystems\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Average power dissipated by the phase interpolator circuit during active clock mixing.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"80 mW (Total per DRAM I/O)\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail currents are set by VBP and VBN. Assuming ~1mA per tail current source (W/L=5/0.5), total current is ~2mA. Power = 1.8V * 2mA = 3.6 mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"3.6m\",\n          \"max\": \"10m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 80 mW reported in the paper is for the entire I/O block. A single phase interpolator sub-block will consume a fraction of this, typically a few milliwatts.\"\n      }\n    },\n    \"propagation_delay\": {\n      \"description\": \"Time delay from the input clock crossing 50% VDD to the output clock crossing 50% VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"29.7 ps\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is determined by the RC time constant at the output nodes. With diode-connected loads, resistance is ~1/gm. C_load is parasitic capacitance of the wide transistors.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"45p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Expected to be in the tens of picoseconds range, aligning with the 29.7 ps and 46.7 ps jitter/delay figures reported in the paper for 3.6 Gb/s operation.\"\n      }\n    },\n    \"output_voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output nodes (N0, N2).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Outputs are clamped by diode-connected NMOS to GND and PMOS to VDD. Max voltage ~ VDD - |Vthp| (1.8 - 0.42 = 1.38V). Min voltage ~ Vthn (0.42V). Swing = 1.38 - 0.42 = 0.96V.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.9\",\n          \"max\": \"1.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Current Mode Logic (CML) style phase interpolators use low-swing signaling to achieve high speeds (3.6 Gb/s). The diode loads naturally limit the swing to roughly VDD - 2*Vth.\"\n      }\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the propagation delay, output voltage swing, and average power consumption of the phase interpolator when driven by 1 GHz clock signals.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"propagation_delay\",\n      \"output_voltage_swing\"\n    ],\n    \"spice\": \"* Phase Interpolator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm15=5u L_xm15=0.5u\\n.param W_xm16=5u L_xm16=0.5u\\n.param W_xm17=5u L_xm17=0.5u\\n.param W_xm18=5u L_xm18=0.5u\\n\\nVVDD VDD 0 1.8\\n* Biases to keep tail current sources in saturation\\nVLABEL_NET_1 LABEL_NET_1 0 0.4\\nVLABEL_NET_7 LABEL_NET_7 0 1.2\\n\\n* 1 GHz differential clock inputs\\nVclk clk 0 PULSE(0 1.8 0 50p 50p 450p 1n)\\nVclkb clkb 0 PULSE(1.8 0 0 50p 50p 450p 1n)\\n\\n* Connect inputs to clock phases\\nR0 clk LABEL_NET_0 1\\nR2 clk LABEL_NET_2 1\\nR6 clk LABEL_NET_6 1\\nR4 clkb LABEL_NET_4 1\\nR5 clkb LABEL_NET_5 1\\n\\n* DUT\\nXM1 N0 N0 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N2 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N5 LABEL_NET_0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N4 LABEL_NET_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 LABEL_NET_2 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 VDD N6 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 LABEL_NET_3 LABEL_NET_4 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N8 LABEL_NET_5 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N2 N2 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N2 N2 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N2 N2 LABEL_NET_3 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 N7 LABEL_NET_6 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM14 N6 LABEL_NET_7 GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\\nXM15 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\\nXM16 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm16} w={W_xm16}\\nXM17 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\\nXM18 N0 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm18} w={W_xm18}\\n\\n.control\\ntran 10p 5n\\n\\n* Measure propagation delay from input clock to output N2\\nmeas tran t_delay trig v(clk) val=0.9 rise=1 targ v(N2) val=0.9 fall=1\\n\\n* Measure output voltage swing\\nmeas tran v_max max v(N2)\\nmeas tran v_min min v(N2)\\nlet v_swing = v_max - v_min\\nprint v_swing\\n\\n* Measure average power consumption\\nlet power = -i(VVDD)*1.8\\nmeas tran avg_power avg power\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1375007",
+  "_case": "1375007_image_12"
+}

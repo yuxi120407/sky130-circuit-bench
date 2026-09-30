@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Pair (Gain Stage)",
+    "description": "A basic NMOS differential pair used as a fundamental gain stage or buffer. In the context of the paper's limiting amplifier and laser driver, this likely forms the core of one of the cascaded gain stages before inductive peaking or active feedback is applied.",
+    "node_mapping": {
+      "input": [
+        "N0",
+        "LABEL_NET_2"
+      ],
+      "output": [
+        "VOUT_P",
+        "VOUT_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "10-Gb/s Limiting Amplifier and Laser/Modulator Driver in 0.18-m CMOS Technology",
+      "figure": "Extracted Sub-circuit",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Differential AC voltage gain of the stage",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "50 dB (for the entire cascaded amplifier)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 2mA tail current and 1kOhm load resistors: gm = sqrt(2 * 270uA/V^2 * (5/0.5) * 1mA) = 2.32 mA/V. Gain = gm * RL = 2.32mA/V * 1kOhm = 2.32 V/V = 7.3 dB.",
+        "range": {
+          "min": 5,
+          "typical": 7.3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated for a single stage. The 50 dB reported in the paper is for the entire multi-stage limiting amplifier."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the gain stage",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "9.4 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * RL * CL). Assuming CL ~ 10fF (parasitic self-loading), BW = 1 / (2 * pi * 1k * 10fF) = 15.9 GHz.",
+        "range": {
+          "min": 10000000000.0,
+          "typical": 16000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth depends heavily on the load capacitance. Without explicit load capacitors or subsequent stages, it is limited only by the intrinsic parasitic capacitance of the transistors."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "150 mW (entire amplifier)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * ISS = 1.8V * 2mA = 3.6 mW.",
+        "range": {
+          "min": 0.003,
+          "typical": 0.0036,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "Based on the assumed 2mA tail current required to bias this single differential pair."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the differential pair measuring DC power, AC differential gain, -3dB bandwidth, and transient output swing.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "bandwidth",
+      "power_consumption"
+    ],
+    "spice": "* Differential Pair Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 VOUT_N LABEL_NET_2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VOUT_P N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Biasing and Loads\nVVDD VDD 0 1.8\nRL1 VDD VOUT_N 1k\nRL2 VDD VOUT_P 1k\nISS N1 0 2m\n\n* Input Signals (Common mode = 0.9V)\nVVIN_P N0 0 DC 0.9 AC 0.5 0 SIN(0.9 0.1 100MEG 0 0)\nVVIN_N LABEL_NET_2 0 DC 0.9 AC 0.5 180 SIN(0.9 -0.1 100MEG 0 0)\n\n* VCVS to calculate differential output for AC analysis\nE1 VOUT_DIFF 0 VOUT_P VOUT_N 1.0\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 100 1MEG 100G\n  let gain_db = vdb(VOUT_DIFF)\n  meas ac dc_gain find gain_db at=1MEG\n  let gain_db_3db = dc_gain - 3\n  meas ac bw when gain_db=$&gain_db_3db fall=1\n\n  * Transient Analysis\n  tran 10p 20n\n  meas tran vout_p_max max v(VOUT_P)\n  meas tran vout_p_min min v(VOUT_P)\n  let vout_p_swing = vout_p_max - vout_p_min\n  print vout_p_swing\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Pair (Gain Stage)\",\n    \"description\": \"A basic NMOS differential pair used as a fundamental gain stage or buffer. In the context of the paper's limiting amplifier and laser driver, this likely forms the core of one of the cascaded gain stages before inductive peaking or active feedback is applied.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\",\n        \"LABEL_NET_2\"\n      ],\n      \"output\": [\n        \"VOUT_P\",\n        \"VOUT_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"10-Gb/s Limiting Amplifier and Laser/Modulator Driver in 0.18-m CMOS Technology\",\n      \"figure\": \"Extracted Sub-circuit\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Differential AC voltage gain of the stage\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"50 dB (for the entire cascaded amplifier)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 2mA tail current and 1kOhm load resistors: gm = sqrt(2 * 270uA/V^2 * (5/0.5) * 1mA) = 2.32 mA/V. Gain = gm * RL = 2.32mA/V * 1kOhm = 2.32 V/V = 7.3 dB.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 7.3,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated for a single stage. The 50 dB reported in the paper is for the entire multi-stage limiting amplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the gain stage\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"9.4 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * RL * CL). Assuming CL ~ 10fF (parasitic self-loading), BW = 1 / (2 * pi * 1k * 10fF) = 15.9 GHz.\",\n        \"range\": {\n          \"min\": 10e9,\n          \"typical\": 16e9,\n          \"max\": 20e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth depends heavily on the load capacitance. Without explicit load capacitors or subsequent stages, it is limited only by the intrinsic parasitic capacitance of the transistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"150 mW (entire amplifier)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * ISS = 1.8V * 2mA = 3.6 mW.\",\n        \"range\": {\n          \"min\": 3e-3,\n          \"typical\": 3.6e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the assumed 2mA tail current required to bias this single differential pair.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the differential pair measuring DC power, AC differential gain, -3dB bandwidth, and transient output swing.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Differential Pair Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 VOUT_N LABEL_NET_2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VOUT_P N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Biasing and Loads\\nVVDD VDD 0 1.8\\nRL1 VDD VOUT_N 1k\\nRL2 VDD VOUT_P 1k\\nISS N1 0 2m\\n\\n* Input Signals (Common mode = 0.9V)\\nVVIN_P N0 0 DC 0.9 AC 0.5 0 SIN(0.9 0.1 100MEG 0 0)\\nVVIN_N LABEL_NET_2 0 DC 0.9 AC 0.5 180 SIN(0.9 -0.1 100MEG 0 0)\\n\\n* VCVS to calculate differential output for AC analysis\\nE1 VOUT_DIFF 0 VOUT_P VOUT_N 1.0\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 100 1MEG 100G\\n  let gain_db = vdb(VOUT_DIFF)\\n  meas ac dc_gain find gain_db at=1MEG\\n  let gain_db_3db = dc_gain - 3\\n  meas ac bw when gain_db=$&gain_db_3db fall=1\\n\\n  * Transient Analysis\\n  tran 10p 20n\\n  meas tran vout_p_max max v(VOUT_P)\\n  meas tran vout_p_min min v(VOUT_P)\\n  let vout_p_swing = vout_p_max - vout_p_min\\n  print vout_p_swing\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1253861",
+  "_case": "1253861_image_9"
+}

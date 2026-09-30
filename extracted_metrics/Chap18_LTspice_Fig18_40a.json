@@ -1,0 +1,150 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 18.40(a)",
+    "page": "547",
+    "circuit_type": "NMOS Bootstrapped Inverter",
+    "description": "An inverter constructed entirely of NMOS transistors that uses a bootstrap capacitor (Mc) to drive the gate of the pull-up transistor (Mpu) above VDD. This allows the output to swing fully to VDD without suffering a threshold voltage drop during active switching."
+  },
+  "step2_metrics": {
+    "v_oh_static": {
+      "description": "Static output high voltage when the input is inactive (held low) for a long time.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text discussion: 'if the input must be active else the high output voltage is only VDD - 2VTHN'"
+      },
+      "equation": {
+        "formula": "V_{OH,static} = VDD - 2V_{THN}",
+        "explanation": "Without active switching to couple the boot node higher, the diode Md precharges the boot node to VDD - VTHN. The pull-up transistor Mpu acts as a source follower, dropping another VTHN to the output.",
+        "assumptions": "Input is held low, circuit has reached steady state, ignoring subthreshold leakage."
+      },
+      "sky130_expected": {
+        "calculation": "1.8V - 2 * 0.42V = 0.96V",
+        "range": {
+          "min": 0.7,
+          "typical": 0.96,
+          "max": 1.1,
+          "unit": "V"
+        },
+        "reasoning": "Body effect on both Md and Mpu will increase their effective threshold voltages, likely pushing the actual static VOH slightly lower than the nominal 0.96V calculation."
+      },
+      "importance": "essential"
+    },
+    "v_boot_min": {
+      "description": "Minimum precharge voltage of the boot node.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text discussion: 'ensure that the boot node doesn't drop below VDD - VTHN'"
+      },
+      "equation": {
+        "formula": "V_{boot,min} = VDD - V_{THN}",
+        "explanation": "The diode-connected transistor Md forward biases to precharge the boot node when it drops below VDD - VTHN.",
+        "assumptions": "Output is low, allowing the boot node to settle to its precharge level."
+      },
+      "sky130_expected": {
+        "calculation": "1.8V - 0.42V = 1.38V",
+        "range": {
+          "min": 1.1,
+          "typical": 1.38,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Due to the body effect (source of Md is at ~1.38V while bulk is at 0V), the VTH of Md will be higher than 0.42V, meaning the actual precharge voltage will be closer to 1.1V - 1.2V."
+      },
+      "importance": "essential"
+    },
+    "v_boot_max": {
+      "description": "Maximum voltage of the boot node during active switching.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text discussion: 'Mc, is used as a capacitor to boot the gate of Mpu above VDD'"
+      },
+      "equation": {
+        "formula": "V_{boot,max} \\approx V_{boot,min} + VDD",
+        "explanation": "When the output transitions from 0V to VDD, the capacitor Mc couples this voltage step directly to the boot node.",
+        "assumptions": "Capacitance of Mc is much larger than the parasitic capacitance at the boot node."
+      },
+      "sky130_expected": {
+        "calculation": "1.38V + 1.8V = 3.18V",
+        "range": {
+          "min": 2.5,
+          "typical": 3.18,
+          "max": 3.4,
+          "unit": "V"
+        },
+        "reasoning": "Charge sharing with parasitic capacitances at the boot node will attenuate the ideal voltage step, resulting in a peak slightly lower than 3.18V."
+      },
+      "importance": "essential"
+    },
+    "v_oh_dynamic": {
+      "description": "Dynamic output high voltage during active switching.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text discussion: 'turn fully on and drive the output to VDD'"
+      },
+      "equation": {
+        "formula": "V_{OH,dynamic} = VDD",
+        "explanation": "Because the boot node is pushed well above VDD + VTHN, the pull-up transistor Mpu operates in the linear region and can pull the output all the way to VDD.",
+        "assumptions": "V_{boot,max} > VDD + V_{THN,Mpu}."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8V",
+        "range": {
+          "min": 1.7,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "As long as the bootstrap capacitor is sized correctly, the gate of Mpu is driven high enough to pass the full VDD level without a threshold drop."
+      },
+      "importance": "essential"
+    },
+    "v_ol": {
+      "description": "Output low voltage when the input is high.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "546",
+        "reference": "Text discussion: 'Mpu, is made 4 times longer than the pull-down device, Mpd, so that the output voltage can swing closer to ground.'"
+      },
+      "equation": {
+        "formula": "V_{OL} \\approx VDD \\frac{R_{on,Mpd}}{R_{on,Mpd} + R_{on,Mpu}}",
+        "explanation": "When the input is high, both Mpu and Mpd are conducting. The output voltage is determined by the resistive voltage divider formed by the two transistors. Making Mpu longer increases its resistance, lowering VOL.",
+        "assumptions": "Mpd is in linear region, Mpu is in saturation or linear depending on boot node voltage."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming L_pu = 4*L_pd, R_pu is roughly 4x R_pd. V_OL ~ 1.8V * (1 / (1 + 4)) = 0.36V. (Actual value will be lower because Mpu gate is only at VDD-VTHN, making it even weaker).",
+        "range": {
+          "min": 0.05,
+          "typical": 0.15,
+          "max": 0.4,
+          "unit": "V"
+        },
+        "reasoning": "The ratioed logic design ensures VOL is low enough to be recognized as a valid logic '0' by subsequent stages."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure both static and dynamic performance of the bootstrapped inverter. The input is held low to measure static VOH and precharge levels, then pulsed high to measure VOL, and finally pulsed low to measure dynamic VOH and peak boot voltage.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_oh_static",
+      "v_boot_min",
+      "v_boot_max",
+      "v_oh_dynamic",
+      "v_ol"
+    ],
+    "spice": "* NMOS Bootstrapped Inverter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Sizing based on Fig 18.40(a) ratios (Mpu is 4x longer, Mc is large)\n.param W_xmpd=1.5 L_xmpd=0.15\n.param W_xmpu=1.5 L_xmpu=0.6\n.param W_xmc=1.5 L_xmc=1.5\n.param W_xmd=1.5 L_xmd=0.15\n\n* DUT\nxmpd out in 0 0 sky130_fd_pr__nfet_01v8 w={W_xmpd} l={L_xmpd}\nVDD VDD 0 1.8\nxmc out boot out 0 sky130_fd_pr__nfet_01v8 w={W_xmc} l={L_xmc}\nxmpu VDD boot out 0 sky130_fd_pr__nfet_01v8 w={W_xmpu} l={L_xmpu}\nxmd VDD VDD boot 0 sky130_fd_pr__nfet_01v8 w={W_xmd} l={L_xmd}\nCload out 0 1e-14\n\n* Stimulus: \n* 0 to 200ns: Input=0 (Allows circuit to settle to static state)\n* 200ns to 300ns: Input=1.8V (Measures VOL and boot precharge)\n* 300ns to 400ns: Input=0V (Measures dynamic VOH and boot peak)\nVin in 0 PWL(0 0 200n 0 201n 1.8 300n 1.8 301n 0 400n 0)\n\n.control\ntran 1n 400n uic\n\n* Measure static metrics (before switching)\nmeas tran v_oh_static find v(out) at=190n\nmeas tran v_boot_static find v(boot) at=190n\n\n* Measure metrics when input is high (output low)\nmeas tran v_ol min v(out) from=210n to=290n\nmeas tran v_boot_min min v(boot) from=210n to=290n\n\n* Measure dynamic metrics when input goes low (output driven high)\nmeas tran v_oh_dynamic max v(out) from=310n to=390n\nmeas tran v_boot_max max v(boot) from=310n to=390n\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 18.40(a)\",\n    \"page\": \"547\",\n    \"circuit_type\": \"NMOS Bootstrapped Inverter\",\n    \"description\": \"An inverter constructed entirely of NMOS transistors that uses a bootstrap capacitor (Mc) to drive the gate of the pull-up transistor (Mpu) above VDD. This allows the output to swing fully to VDD without suffering a threshold voltage drop during active switching.\"\n  },\n  \"step2_metrics\": {\n    \"v_oh_static\": {\n      \"description\": \"Static output high voltage when the input is inactive (held low) for a long time.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text discussion: 'if the input must be active else the high output voltage is only VDD - 2VTHN'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{OH,static} = VDD - 2V_{THN}\",\n        \"explanation\": \"Without active switching to couple the boot node higher, the diode Md precharges the boot node to VDD - VTHN. The pull-up transistor Mpu acts as a source follower, dropping another VTHN to the output.\",\n        \"assumptions\": \"Input is held low, circuit has reached steady state, ignoring subthreshold leakage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.8V - 2 * 0.42V = 0.96V\",\n        \"range\": {\n          \"min\": 0.7,\n          \"typical\": 0.96,\n          \"max\": 1.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Body effect on both Md and Mpu will increase their effective threshold voltages, likely pushing the actual static VOH slightly lower than the nominal 0.96V calculation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_boot_min\": {\n      \"description\": \"Minimum precharge voltage of the boot node.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text discussion: 'ensure that the boot node doesn't drop below VDD - VTHN'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{boot,min} = VDD - V_{THN}\",\n        \"explanation\": \"The diode-connected transistor Md forward biases to precharge the boot node when it drops below VDD - VTHN.\",\n        \"assumptions\": \"Output is low, allowing the boot node to settle to its precharge level.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.8V - 0.42V = 1.38V\",\n        \"range\": {\n          \"min\": 1.1,\n          \"typical\": 1.38,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Due to the body effect (source of Md is at ~1.38V while bulk is at 0V), the VTH of Md will be higher than 0.42V, meaning the actual precharge voltage will be closer to 1.1V - 1.2V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_boot_max\": {\n      \"description\": \"Maximum voltage of the boot node during active switching.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text discussion: 'Mc, is used as a capacitor to boot the gate of Mpu above VDD'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{boot,max} \\\\approx V_{boot,min} + VDD\",\n        \"explanation\": \"When the output transitions from 0V to VDD, the capacitor Mc couples this voltage step directly to the boot node.\",\n        \"assumptions\": \"Capacitance of Mc is much larger than the parasitic capacitance at the boot node.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.38V + 1.8V = 3.18V\",\n        \"range\": {\n          \"min\": 2.5,\n          \"typical\": 3.18,\n          \"max\": 3.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Charge sharing with parasitic capacitances at the boot node will attenuate the ideal voltage step, resulting in a peak slightly lower than 3.18V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_oh_dynamic\": {\n      \"description\": \"Dynamic output high voltage during active switching.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text discussion: 'turn fully on and drive the output to VDD'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{OH,dynamic} = VDD\",\n        \"explanation\": \"Because the boot node is pushed well above VDD + VTHN, the pull-up transistor Mpu operates in the linear region and can pull the output all the way to VDD.\",\n        \"assumptions\": \"V_{boot,max} > VDD + V_{THN,Mpu}.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8V\",\n        \"range\": {\n          \"min\": 1.7,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"As long as the bootstrap capacitor is sized correctly, the gate of Mpu is driven high enough to pass the full VDD level without a threshold drop.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_ol\": {\n      \"description\": \"Output low voltage when the input is high.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"546\",\n        \"reference\": \"Text discussion: 'Mpu, is made 4 times longer than the pull-down device, Mpd, so that the output voltage can swing closer to ground.'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{OL} \\\\approx VDD \\\\frac{R_{on,Mpd}}{R_{on,Mpd} + R_{on,Mpu}}\",\n        \"explanation\": \"When the input is high, both Mpu and Mpd are conducting. The output voltage is determined by the resistive voltage divider formed by the two transistors. Making Mpu longer increases its resistance, lowering VOL.\",\n        \"assumptions\": \"Mpd is in linear region, Mpu is in saturation or linear depending on boot node voltage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming L_pu = 4*L_pd, R_pu is roughly 4x R_pd. V_OL ~ 1.8V * (1 / (1 + 4)) = 0.36V. (Actual value will be lower because Mpu gate is only at VDD-VTHN, making it even weaker).\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.15,\n          \"max\": 0.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The ratioed logic design ensures VOL is low enough to be recognized as a valid logic '0' by subsequent stages.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure both static and dynamic performance of the bootstrapped inverter. The input is held low to measure static VOH and precharge levels, then pulsed high to measure VOL, and finally pulsed low to measure dynamic VOH and peak boot voltage.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_oh_static\",\n      \"v_boot_min\",\n      \"v_boot_max\",\n      \"v_oh_dynamic\",\n      \"v_ol\"\n    ],\n    \"spice\": \"* NMOS Bootstrapped Inverter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Sizing based on Fig 18.40(a) ratios (Mpu is 4x longer, Mc is large)\\n.param W_xmpd=1.5 L_xmpd=0.15\\n.param W_xmpu=1.5 L_xmpu=0.6\\n.param W_xmc=1.5 L_xmc=1.5\\n.param W_xmd=1.5 L_xmd=0.15\\n\\n* DUT\\nxmpd out in 0 0 sky130_fd_pr__nfet_01v8 w={W_xmpd} l={L_xmpd}\\nVDD VDD 0 1.8\\nxmc out boot out 0 sky130_fd_pr__nfet_01v8 w={W_xmc} l={L_xmc}\\nxmpu VDD boot out 0 sky130_fd_pr__nfet_01v8 w={W_xmpu} l={L_xmpu}\\nxmd VDD VDD boot 0 sky130_fd_pr__nfet_01v8 w={W_xmd} l={L_xmd}\\nCload out 0 1e-14\\n\\n* Stimulus: \\n* 0 to 200ns: Input=0 (Allows circuit to settle to static state)\\n* 200ns to 300ns: Input=1.8V (Measures VOL and boot precharge)\\n* 300ns to 400ns: Input=0V (Measures dynamic VOH and boot peak)\\nVin in 0 PWL(0 0 200n 0 201n 1.8 300n 1.8 301n 0 400n 0)\\n\\n.control\\ntran 1n 400n uic\\n\\n* Measure static metrics (before switching)\\nmeas tran v_oh_static find v(out) at=190n\\nmeas tran v_boot_static find v(boot) at=190n\\n\\n* Measure metrics when input is high (output low)\\nmeas tran v_ol min v(out) from=210n to=290n\\nmeas tran v_boot_min min v(boot) from=210n to=290n\\n\\n* Measure dynamic metrics when input goes low (output driven high)\\nmeas tran v_oh_dynamic max v(out) from=310n to=390n\\nmeas tran v_boot_max max v(boot) from=310n to=390n\\n\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Multiple-input boost circuit / Negative voltage generator",
+    "description": "A capacitive voltage combiner using MOS capacitors (XM2-XM4) and a diode-connected NMOS (XM1) for DC restoration. It generates a negative voltage spike at the output (VO) when the inputs transition from high to low, which is used to dynamically drive the bulk terminal of other devices in Bulk Input Differential Logic (BIDL).",
+    "node_mapping": {
+      "input": [
+        "V1",
+        "V2",
+        "V3"
+      ],
+      "output": [
+        "VO"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Design and Application of CMOS Bulk Input Scheme",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "v_out_min": {
+      "description": "Minimum output voltage (negative boost voltage) achieved during the low phase of the inputs.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Coupling ratio = C_inputs / (C_inputs + C_xm1) = 75fF / 100fF = 0.75. Voltage swing = 1.8V * 0.75 = 1.35V. V_max is clamped at Vth (~0.5V). V_min = V_max - Swing = 0.5V - 1.35V = -0.85V.",
+        "range": {
+          "min": -1.2,
+          "typical": -0.85,
+          "max": -0.5,
+          "unit": "V"
+        },
+        "reasoning": "Depends on exact parasitic capacitances and the threshold voltage of the diode-connected NMOS."
+      },
+      "importance": "essential"
+    },
+    "v_out_max": {
+      "description": "Maximum output voltage, clamped by the diode-connected NMOS.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Clamped by XM1 (diode-connected NMOS to GND). V_max \u2248 Vth of NMOS.",
+        "range": {
+          "min": 0.3,
+          "typical": 0.5,
+          "max": 0.7,
+          "unit": "V"
+        },
+        "reasoning": "Vth of sky130 NMOS is around 0.42V, but can be slightly higher due to dynamic overshoot before the diode fully turns on."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Dynamic power consumption of the boost circuit at 1 GHz.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "6 mW (for whole synthesizer)",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "P = f * C_eq * V^2. C_eq \u2248 20-50fF. P \u2248 1GHz * 30fF * 1.8V^2 \u2248 100uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.0001,
+          "max": 0.0003,
+          "unit": "W"
+        },
+        "reasoning": "Power is dominated by charging and discharging the MOS capacitors at the 1 GHz operating frequency."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the negative boost voltage and power consumption with 1 GHz input pulses.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_out_min",
+      "v_out_max",
+      "power"
+    ],
+    "spice": "* Multiple-Input Boost Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 VO VO GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VO V1 VO VO sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VO V2 VO VO sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VO V3 VO VO sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* 1 GHz input pulses\nV1 V1 GND PULSE(0 1.8 0 50p 50p 450p 1n)\nV2 V2 GND PULSE(0 1.8 0 50p 50p 450p 1n)\nV3 V3 GND PULSE(0 1.8 0 50p 50p 450p 1n)\n\n.control\ntran 10p 20n\n\n* Measure min and max output voltages in steady state\nmeas tran v_out_min min v(VO) from=10n to=20n\nmeas tran v_out_max max v(VO) from=10n to=20n\n\n* Calculate dynamic power consumption\nlet pwr1 = -i(V1)*v(V1)\nlet pwr2 = -i(V2)*v(V2)\nlet pwr3 = -i(V3)*v(V3)\nlet pwr_total = pwr1 + pwr2 + pwr3\nmeas tran avg_power avg pwr_total from=10n to=20n\n\nprint v_out_min v_out_max avg_power\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Multiple-input boost circuit / Negative voltage generator\",\n    \"description\": \"A capacitive voltage combiner using MOS capacitors (XM2-XM4) and a diode-connected NMOS (XM1) for DC restoration. It generates a negative voltage spike at the output (VO) when the inputs transition from high to low, which is used to dynamically drive the bulk terminal of other devices in Bulk Input Differential Logic (BIDL).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"V1\",\n        \"V2\",\n        \"V3\"\n      ],\n      \"output\": [\n        \"VO\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Design and Application of CMOS Bulk Input Scheme\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"v_out_min\": {\n      \"description\": \"Minimum output voltage (negative boost voltage) achieved during the low phase of the inputs.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Coupling ratio = C_inputs / (C_inputs + C_xm1) = 75fF / 100fF = 0.75. Voltage swing = 1.8V * 0.75 = 1.35V. V_max is clamped at Vth (~0.5V). V_min = V_max - Swing = 0.5V - 1.35V = -0.85V.\",\n        \"range\": {\n          \"min\": -1.2,\n          \"typical\": -0.85,\n          \"max\": -0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on exact parasitic capacitances and the threshold voltage of the diode-connected NMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_out_max\": {\n      \"description\": \"Maximum output voltage, clamped by the diode-connected NMOS.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Clamped by XM1 (diode-connected NMOS to GND). V_max \u2248 Vth of NMOS.\",\n        \"range\": {\n          \"min\": 0.3,\n          \"typical\": 0.5,\n          \"max\": 0.7,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Vth of sky130 NMOS is around 0.42V, but can be slightly higher due to dynamic overshoot before the diode fully turns on.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Dynamic power consumption of the boost circuit at 1 GHz.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"6 mW (for whole synthesizer)\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = f * C_eq * V^2. C_eq \u2248 20-50fF. P \u2248 1GHz * 30fF * 1.8V^2 \u2248 100uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 100e-6,\n          \"max\": 300e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Power is dominated by charging and discharging the MOS capacitors at the 1 GHz operating frequency.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the negative boost voltage and power consumption with 1 GHz input pulses.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_out_min\",\n      \"v_out_max\",\n      \"power\"\n    ],\n    \"spice\": \"* Multiple-Input Boost Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 VO VO GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VO V1 VO VO sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VO V2 VO VO sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VO V3 VO VO sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* 1 GHz input pulses\\nV1 V1 GND PULSE(0 1.8 0 50p 50p 450p 1n)\\nV2 V2 GND PULSE(0 1.8 0 50p 50p 450p 1n)\\nV3 V3 GND PULSE(0 1.8 0 50p 50p 450p 1n)\\n\\n.control\\ntran 10p 20n\\n\\n* Measure min and max output voltages in steady state\\nmeas tran v_out_min min v(VO) from=10n to=20n\\nmeas tran v_out_max max v(VO) from=10n to=20n\\n\\n* Calculate dynamic power consumption\\nlet pwr1 = -i(V1)*v(V1)\\nlet pwr2 = -i(V2)*v(V2)\\nlet pwr3 = -i(V3)*v(V3)\\nlet pwr_total = pwr1 + pwr2 + pwr3\\nmeas tran avg_power avg pwr_total from=10n to=20n\\n\\nprint v_out_min v_out_max avg_power\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1317054",
+  "_case": "1317054_image_6"
+}

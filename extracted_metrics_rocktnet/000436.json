@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Limiting Driver (Gain Cell)",
+    "description": "This circuit is a differential pair with a tail current source, likely acting as a gain cell in a distributed limiting driver architecture. Note that in the extracted netlist, both input transistors (XM1, XM2) have their drains connected to the same output node (OUTN), which may be an extraction artifact from the original schematic, causing differential AC signals to cancel out.",
+    "node_mapping": {
+      "input": [
+        "DINP",
+        "DINN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VOA"
+      ],
+      "ground": [
+        "GND",
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 3-V Fully Differential Distributed Limiting Driver for 40-Gb/s Optical Transmission Systems",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the driver cell.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A (Total chip power not explicitly isolated to this cell)",
+        "technology": "SiGe HBT / AlGaAs-InGaAs pHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current ~ 2mA based on W/L=5/0.5 and VOA=0.8V. Power = 1.8V * 2mA = 3.6mW.",
+        "range": {
+          "min": "1e-3",
+          "typical": "3.6e-3",
+          "max": "10e-3",
+          "unit": "W"
+        },
+        "reasoning": "Scaled for a single cell in 1.8V SKY130 process."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Differential AC voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 dB",
+        "technology": "SiGe HBT / AlGaAs-InGaAs pHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "Due to the netlist topology (both drains to OUTN), the fundamental AC currents cancel out, resulting in near-zero gain. If corrected to a true diff pair, gm * Rload ~ 2mS * 50 = 0.1 (-20dB).",
+        "range": {
+          "min": "-60",
+          "typical": "-40",
+          "max": "-20",
+          "unit": "dB"
+        },
+        "reasoning": "Expected to be very low due to signal cancellation at OUTN in the provided netlist."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Operating frequency / bandwidth of the driver.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "50 GHz",
+        "technology": "SiGe HBT / AlGaAs-InGaAs pHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "RC time constant at OUTN: R=50 ohm, C ~ 10fF. BW = 1 / (2*pi*R*C) ~ 300 GHz. Practically limited by transistor ft.",
+        "range": {
+          "min": "10e9",
+          "typical": "40e9",
+          "max": "100e9",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 ft is around 40-50GHz, so bandwidth will be limited by device speed."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak differential output voltage swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.0 Vpp",
+        "technology": "SiGe HBT / AlGaAs-InGaAs pHEMT"
+      },
+      "sky130_expected": {
+        "calculation": "With 2mA tail current and 50 ohm load, max swing is 100mV. Due to cancellation, it will be much lower.",
+        "range": {
+          "min": "0",
+          "typical": "0.01",
+          "max": "0.1",
+          "unit": "V"
+        },
+        "reasoning": "Signal cancellation at OUTN reduces the swing significantly in this specific netlist."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, bandwidth, and transient output swing of the driver cell.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth",
+      "output_swing"
+    ],
+    "spice": "* Limiting Driver Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 OUTN DINN N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUTN DINP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 VOA VSS GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTN OUTN OUTP GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVOA VOA 0 0.8\n\n* 50-ohm loads as described in the paper\nR_OUTP VDD OUTP 50\nR_OUTN VDD OUTN 50\n\n* Differential Inputs (10 GHz sine wave for transient)\nV_DINP DINP 0 dc 0.9 ac 1 sin(0.9 0.2 10G 0 0 0)\nV_DINN DINN 0 dc 0.9 ac 1 180 sin(0.9 0.2 10G 0 0 180)\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VVDD)*1.8\nprint power\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 10 1M 100G\nlet out_diff_mag = mag(v(OUTP) - v(OUTN))\nlet gain_db = 20*log10(out_diff_mag)\nmeas ac max_gain max gain_db\nmeas ac gain_1G find gain_db at=1G\nmeas ac gain_50G find gain_db at=50G\n\n* 3. Transient Analysis for Output Swing\ntran 1p 500p\nlet vout_diff = v(OUTP) - v(OUTN)\nmeas tran vout_diff_max max vout_diff\nmeas tran vout_diff_min min vout_diff\nlet swing = vout_diff_max - vout_diff_min\nprint swing\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Limiting Driver (Gain Cell)\",\n    \"description\": \"This circuit is a differential pair with a tail current source, likely acting as a gain cell in a distributed limiting driver architecture. Note that in the extracted netlist, both input transistors (XM1, XM2) have their drains connected to the same output node (OUTN), which may be an extraction artifact from the original schematic, causing differential AC signals to cancel out.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"DINP\",\n        \"DINN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VOA\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 3-V Fully Differential Distributed Limiting Driver for 40-Gb/s Optical Transmission Systems\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the driver cell.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A (Total chip power not explicitly isolated to this cell)\",\n        \"technology\": \"SiGe HBT / AlGaAs-InGaAs pHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current ~ 2mA based on W/L=5/0.5 and VOA=0.8V. Power = 1.8V * 2mA = 3.6mW.\",\n        \"range\": {\n          \"min\": \"1e-3\",\n          \"typical\": \"3.6e-3\",\n          \"max\": \"10e-3\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled for a single cell in 1.8V SKY130 process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Differential AC voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 dB\",\n        \"technology\": \"SiGe HBT / AlGaAs-InGaAs pHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Due to the netlist topology (both drains to OUTN), the fundamental AC currents cancel out, resulting in near-zero gain. If corrected to a true diff pair, gm * Rload ~ 2mS * 50 = 0.1 (-20dB).\",\n        \"range\": {\n          \"min\": \"-60\",\n          \"typical\": \"-40\",\n          \"max\": \"-20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Expected to be very low due to signal cancellation at OUTN in the provided netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Operating frequency / bandwidth of the driver.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"50 GHz\",\n        \"technology\": \"SiGe HBT / AlGaAs-InGaAs pHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"RC time constant at OUTN: R=50 ohm, C ~ 10fF. BW = 1 / (2*pi*R*C) ~ 300 GHz. Practically limited by transistor ft.\",\n        \"range\": {\n          \"min\": \"10e9\",\n          \"typical\": \"40e9\",\n          \"max\": \"100e9\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 ft is around 40-50GHz, so bandwidth will be limited by device speed.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.0 Vpp\",\n        \"technology\": \"SiGe HBT / AlGaAs-InGaAs pHEMT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With 2mA tail current and 50 ohm load, max swing is 100mV. Due to cancellation, it will be much lower.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"0.01\",\n          \"max\": \"0.1\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Signal cancellation at OUTN reduces the swing significantly in this specific netlist.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, bandwidth, and transient output swing of the driver cell.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* Limiting Driver Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 OUTN DINN N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUTN DINP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 VOA VSS GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTN OUTN OUTP GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVOA VOA 0 0.8\\n\\n* 50-ohm loads as described in the paper\\nR_OUTP VDD OUTP 50\\nR_OUTN VDD OUTN 50\\n\\n* Differential Inputs (10 GHz sine wave for transient)\\nV_DINP DINP 0 dc 0.9 ac 1 sin(0.9 0.2 10G 0 0 0)\\nV_DINN DINN 0 dc 0.9 ac 1 180 sin(0.9 0.2 10G 0 0 180)\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VVDD)*1.8\\nprint power\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 10 1M 100G\\nlet out_diff_mag = mag(v(OUTP) - v(OUTN))\\nlet gain_db = 20*log10(out_diff_mag)\\nmeas ac max_gain max gain_db\\nmeas ac gain_1G find gain_db at=1G\\nmeas ac gain_50G find gain_db at=50G\\n\\n* 3. Transient Analysis for Output Swing\\ntran 1p 500p\\nlet vout_diff = v(OUTP) - v(OUTN)\\nmeas tran vout_diff_max max vout_diff\\nmeas tran vout_diff_min min vout_diff\\nlet swing = vout_diff_max - vout_diff_min\\nprint swing\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1225789",
+  "_case": "1225789_image_9"
+}

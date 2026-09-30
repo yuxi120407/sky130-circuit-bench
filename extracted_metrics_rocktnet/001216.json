@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual Adaptive Regulated Cascode Photoreceptor (Logarithmic Transimpedance Amplifier)",
+    "description": "An analog VLSI circuit that converts photocurrents into logarithmic voltages. It uses regulated cascodes to pin the photodiode voltages, improving bandwidth at low light levels. The left and right halves use different amplifier topologies (NMOS source follower vs PMOS current mirror) to regulate the input nodes.",
+    "node_mapping": {
+      "input": [
+        "N2",
+        "N3"
+      ],
+      "output": [
+        "N1",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An ASIC for Hartmann\u2013Shack Wavefront Detection",
+      "figure": "1",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption at 1nA input current.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "10 nW",
+        "technology": "200 nm"
+      },
+      "sky130_expected": {
+        "calculation": "I_total * VDD = (~50nA + 2nA) * 1.8V",
+        "range": {
+          "min": 1e-08,
+          "typical": 1e-07,
+          "max": 1e-06,
+          "unit": "W"
+        },
+        "reasoning": "Right side consumes 2nA (1nA input + 1nA mirror). Left side consumes 1nA input + ~50nA for the NMOS amplifier. Total current ~52nA at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB frequency of the transimpedance gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "100 Hz",
+        "technology": "200 nm"
+      },
+      "sky130_expected": {
+        "calculation": "gm_diode / (2*pi*Cload) = (1nA/36mV) / (2*pi*2.3pF)",
+        "range": {
+          "min": 100,
+          "typical": 1900,
+          "max": 10000,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is limited by the output PMOS diode impedance and the 2.3pF load capacitance."
+      },
+      "importance": "essential"
+    },
+    "transimpedance_gain": {
+      "description": "Low-frequency AC transimpedance gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(1 / gm_diode) = 20 * log10(36mV / 1nA)",
+        "range": {
+          "min": 140,
+          "typical": 151,
+          "max": 160,
+          "unit": "dB"
+        },
+        "reasoning": "Small-signal resistance of the diode-connected PMOS at 1nA is roughly 36 M\u03a9."
+      },
+      "importance": "recommended"
+    },
+    "log_slope": {
+      "description": "Output voltage change for a decade change in input current (1nA to 10nA).",
+      "unit": "V/decade",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "n * Ut * ln(10) = 1.4 * 26mV * 2.3",
+        "range": {
+          "min": 0.06,
+          "typical": 0.083,
+          "max": 0.1,
+          "unit": "V/decade"
+        },
+        "reasoning": "Subthreshold slope of the PMOS diode determines the logarithmic conversion factor."
+      },
+      "importance": "essential"
+    },
+    "input_voltage": {
+      "description": "Regulated DC voltage at the input nodes (N2, N3).",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Vgs of NMOS at 1nA",
+        "range": {
+          "min": 0.3,
+          "typical": 0.5,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "The regulated cascode pins the input node to a voltage near the threshold of the amplifier NMOS."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power, bandwidth, transimpedance gain, and logarithmic slope of the dual photoreceptor.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "bandwidth",
+      "transimpedance_gain",
+      "log_slope",
+      "input_voltage"
+    ],
+    "spice": "* Dual Regulated Cascode Photoreceptor Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\nXM1 N5 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N4 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 N5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 N4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N4 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 VDD N1 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\nVVDD VDD 0 1.8\nIin_left N2 0 DC 1n AC 1 PULSE(1n 10n 10m 1m 1m 40m 100m)\nIin_right N3 0 DC 1n AC 1 PULSE(1n 10n 10m 1m 1m 40m 100m)\n\nCload_left N1 0 2.3p\nCload_right N0 0 2.3p\n\n.control\n* DC Operating Point\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(N1) v(N0) v(N2) v(N3)\n\n* AC Analysis\nac dec 10 0.1 1Meg\nlet gain_left = vdb(N1)\nlet gain_right = vdb(N0)\nmeas ac dc_gain_left find gain_left at=1\nmeas ac dc_gain_right find gain_right at=1\nmeas ac bw_left when gain_left='dc_gain_left - 3' fall=1\nmeas ac bw_right when gain_right='dc_gain_right - 3' fall=1\n\n* Transient Analysis for Log Slope\ntran 100u 100m\nmeas tran v1_base find v(N1) at=5m\nmeas tran v1_pulse find v(N1) at=30m\nlet log_slope_left = v1_base - v1_pulse\nprint log_slope_left\n\nmeas tran v0_base find v(N0) at=5m\nmeas tran v0_pulse find v(N0) at=30m\nlet log_slope_right = v0_base - v0_pulse\nprint log_slope_right\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual Adaptive Regulated Cascode Photoreceptor (Logarithmic Transimpedance Amplifier)\",\n    \"description\": \"An analog VLSI circuit that converts photocurrents into logarithmic voltages. It uses regulated cascodes to pin the photodiode voltages, improving bandwidth at low light levels. The left and right halves use different amplifier topologies (NMOS source follower vs PMOS current mirror) to regulate the input nodes.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\",\n        \"N3\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An ASIC for Hartmann\u2013Shack Wavefront Detection\",\n      \"figure\": \"1\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption at 1nA input current.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"10 nW\",\n        \"technology\": \"200 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total * VDD = (~50nA + 2nA) * 1.8V\",\n        \"range\": {\n          \"min\": 1e-08,\n          \"typical\": 1e-07,\n          \"max\": 1e-06,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Right side consumes 2nA (1nA input + 1nA mirror). Left side consumes 1nA input + ~50nA for the NMOS amplifier. Total current ~52nA at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB frequency of the transimpedance gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"100 Hz\",\n        \"technology\": \"200 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm_diode / (2*pi*Cload) = (1nA/36mV) / (2*pi*2.3pF)\",\n        \"range\": {\n          \"min\": 100,\n          \"typical\": 1900,\n          \"max\": 10000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is limited by the output PMOS diode impedance and the 2.3pF load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transimpedance_gain\": {\n      \"description\": \"Low-frequency AC transimpedance gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(1 / gm_diode) = 20 * log10(36mV / 1nA)\",\n        \"range\": {\n          \"min\": 140,\n          \"typical\": 151,\n          \"max\": 160,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Small-signal resistance of the diode-connected PMOS at 1nA is roughly 36 M\u03a9.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"log_slope\": {\n      \"description\": \"Output voltage change for a decade change in input current (1nA to 10nA).\",\n      \"unit\": \"V/decade\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"n * Ut * ln(10) = 1.4 * 26mV * 2.3\",\n        \"range\": {\n          \"min\": 0.06,\n          \"typical\": 0.083,\n          \"max\": 0.1,\n          \"unit\": \"V/decade\"\n        },\n        \"reasoning\": \"Subthreshold slope of the PMOS diode determines the logarithmic conversion factor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_voltage\": {\n      \"description\": \"Regulated DC voltage at the input nodes (N2, N3).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs of NMOS at 1nA\",\n        \"range\": {\n          \"min\": 0.3,\n          \"typical\": 0.5,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The regulated cascode pins the input node to a voltage near the threshold of the amplifier NMOS.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power, bandwidth, transimpedance gain, and logarithmic slope of the dual photoreceptor.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"bandwidth\",\n      \"transimpedance_gain\",\n      \"log_slope\",\n      \"input_voltage\"\n    ],\n    \"spice\": \"* Dual Regulated Cascode Photoreceptor Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\nXM1 N5 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N4 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 N5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 N4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N4 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 VDD N1 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\nVVDD VDD 0 1.8\\nIin_left N2 0 DC 1n AC 1 PULSE(1n 10n 10m 1m 1m 40m 100m)\\nIin_right N3 0 DC 1n AC 1 PULSE(1n 10n 10m 1m 1m 40m 100m)\\n\\nCload_left N1 0 2.3p\\nCload_right N0 0 2.3p\\n\\n.control\\n* DC Operating Point\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(N1) v(N0) v(N2) v(N3)\\n\\n* AC Analysis\\nac dec 10 0.1 1Meg\\nlet gain_left = vdb(N1)\\nlet gain_right = vdb(N0)\\nmeas ac dc_gain_left find gain_left at=1\\nmeas ac dc_gain_right find gain_right at=1\\nmeas ac bw_left when gain_left='dc_gain_left - 3' fall=1\\nmeas ac bw_right when gain_right='dc_gain_right - 3' fall=1\\n\\n* Transient Analysis for Log Slope\\ntran 100u 100m\\nmeas tran v1_base find v(N1) at=5m\\nmeas tran v1_pulse find v(N1) at=30m\\nlet log_slope_left = v1_base - v1_pulse\\nprint log_slope_left\\n\\nmeas tran v0_base find v(N0) at=5m\\nmeas tran v0_pulse find v(N0) at=30m\\nlet log_slope_right = v0_base - v0_pulse\\nprint log_slope_right\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "982423",
+  "_case": "982423_image_12"
+}

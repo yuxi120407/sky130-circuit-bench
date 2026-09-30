@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Frequency Comparator / Phase-Frequency Detector Latch",
+    "description": "This circuit is a frequency comparator latch typically used in VCO-based ADCs. It compares the frequencies of two input clocks (CLKP and CLKN) by using them to drive switched-capacitor networks that discharge internal integration nodes (N1, N3). A cross-coupled latch resolves the state based on which node discharges faster, while CLKN also acts as an asymmetric reset signal via XM11.",
+    "node_mapping": {
+      "input": [
+        "CLKP",
+        "CLKN"
+      ],
+      "output": [
+        "N5",
+        "N11",
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.45V 100-Channel Neural-Recording IC with Sub-\u03bcW/Channel Consumption in 0.18\u03bcm CMOS",
+      "figure": "Not specified",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Average power consumption of the comparator during continuous clocking",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "sub-\u03bcW (2 \u03bcW per channel)",
+        "technology": "0.18\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "P = C_tot * VDD^2 * f_clk. With VDD=1.8V, C_tot \u2248 50fF, and f=100MHz, P \u2248 50e-15 * 1.8^2 * 100e6 = 16.2\u03bcW",
+        "range": {
+          "min": "5u",
+          "typical": "15u",
+          "max": "50u",
+          "unit": "W"
+        },
+        "reasoning": "Power will be significantly higher than the paper's reported sub-\u03bcW value because we are simulating at VDD=1.8V instead of 0.45V, and power scales quadratically with VDD."
+      },
+      "importance": "essential"
+    },
+    "v_n1_drop": {
+      "description": "Minimum voltage reached on the integration node N1 due to the switched-capacitor discharge",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the voltage divider between the pull-up PMOS (XML7) R_ON and the equivalent SC resistance (1/(f*C)). V_N1 \u2248 VDD * R_SC / (R_ON + R_SC)",
+        "range": {
+          "min": "0.1",
+          "typical": "1.0",
+          "max": "1.7",
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on the input frequency of CLKP. Higher frequencies will cause a larger voltage drop."
+      },
+      "importance": "recommended"
+    },
+    "reset_delay": {
+      "description": "Time from CLKN falling edge to N11 falling edge (reset state)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "t_d = C_N11 * VDD / I_discharge. With C_N11 \u2248 10fF and I \u2248 1mA, t_d \u2248 18ps",
+        "range": {
+          "min": "10p",
+          "typical": "50p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Standard logic gate delay for SKY130 at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Maximum voltage swing of the combined output node VOUT",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.45V",
+        "technology": "0.18\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "VOUT is driven by PMOS pass transistors connected to N5 and N11, which swing rail-to-rail.",
+        "range": {
+          "min": "1.7",
+          "typical": "1.8",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "At VDD=1.8V, the output should reach very close to the supply rail."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power consumption, integration node voltage drops, and reset delay by applying a 10MHz reference clock to CLKN and a 100MHz variable clock to CLKP.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "v_n1_drop",
+      "reset_delay",
+      "output_swing"
+    ],
+    "spice": "* Frequency Comparator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xml8=5u L_xml8=0.5u\n.param W_xmr5=5u L_xmr5=0.5u\n.param W_xmr6=5u L_xmr6=0.5u\n.param W_xml7=5u L_xml7=0.5u\n.param W_xmr3=5u L_xmr3=0.5u\n.param W_xml3=5u L_xml3=0.5u\n.param W_xml1=5u L_xml1=0.5u\n.param W_xmr8=5u L_xmr8=0.5u\n.param W_xmr2=5u L_xmr2=0.5u\n.param W_xml5=5u L_xml5=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xml2=5u L_xml2=0.5u\n.param W_xmr4=5u L_xmr4=0.5u\n.param W_xml4=5u L_xml4=0.5u\n.param W_xml6=5u L_xml6=0.5u\n.param W_xml9=5u L_xml9=0.5u\n.param W_xmr7=5u L_xmr7=0.5u\n.param W_xmr9=5u L_xmr9=0.5u\n\nVVDD VDD 0 1.8\nVGND GND 0 0\n\n* Clocks: CLKN is reset/reference (10MHz), CLKP is fast input (100MHz)\nVCLKP CLKP 0 PULSE(0 1.8 0 100p 100p 4.9n 10n)\nVCLKN CLKN 0 PULSE(0 1.8 0 100p 100p 49.9n 100n)\n\n* DUT\nXML8 N5 N11 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xml8} w={W_xml8}\nXMR5 N8 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xmr5} w={W_xmr5}\nXMR6 N11 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xmr6} w={W_xmr6}\nXML7 N1 N11 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xml7} w={W_xml7}\nXMR3 N12 CLKN GND GND sky130_fd_pr__nfet_01v8 l={L_xmr3} w={W_xmr3}\nXML3 N14 CLKP GND GND sky130_fd_pr__nfet_01v8 l={L_xml3} w={W_xml3}\nXML1 N14 CLKP GND GND sky130_fd_pr__nfet_01v8 l={L_xml1} w={W_xml1}\nXMR8 N11 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmr8} w={W_xmr8}\nXMR2 N12 CLKN N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmr2} w={W_xmr2}\nXML5 N13 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xml5} w={W_xml5}\nXM11 N8 CLKN N11 VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXML2 N14 CLKP N1 VDD sky130_fd_pr__pfet_01v8 l={L_xml2} w={W_xml2}\nXMR4 N8 N3 N11 VDD sky130_fd_pr__pfet_01v8 l={L_xmr4} w={W_xmr4}\nXML4 N13 N1 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xml4} w={W_xml4}\nXML6 N5 N13 GND GND sky130_fd_pr__nfet_01v8 l={L_xml6} w={W_xml6}\nXML9 VOUT N11 N5 N5 sky130_fd_pr__pfet_01v8 l={L_xml9} w={W_xml9}\nXMR7 N3 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmr7} w={W_xmr7}\nXMR9 VOUT N5 N11 N11 sky130_fd_pr__pfet_01v8 l={L_xmr9} w={W_xmr9}\n\n* Load for VOUT to prevent floating states\nC_vout VOUT 0 10f\nR_vout VOUT 0 100MEG\n\n.control\ntran 100p 200n\n\n* Measure Power\nmeas tran pwr avg i(VVDD)\nlet power_uw = -pwr * 1.8 * 1e6\nprint power_uw\n\n* Measure Integration Node Drops\nmeas tran v_n1_min min v(N1)\nmeas tran v_n3_min min v(N3)\n\n* Measure Output Swing\nmeas tran v_out_max max v(VOUT)\nmeas tran v_out_min min v(VOUT)\n\n* Measure Reset Delay\nmeas tran delay_reset trig v(CLKN) val=0.9 fall=1 targ v(N11) val=0.9 fall=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Frequency Comparator / Phase-Frequency Detector Latch\",\n    \"description\": \"This circuit is a frequency comparator latch typically used in VCO-based ADCs. It compares the frequencies of two input clocks (CLKP and CLKN) by using them to drive switched-capacitor networks that discharge internal integration nodes (N1, N3). A cross-coupled latch resolves the state based on which node discharges faster, while CLKN also acts as an asymmetric reset signal via XM11.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"CLKP\",\n        \"CLKN\"\n      ],\n      \"output\": [\n        \"N5\",\n        \"N11\",\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.45V 100-Channel Neural-Recording IC with Sub-\u03bcW/Channel Consumption in 0.18\u03bcm CMOS\",\n      \"figure\": \"Not specified\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the comparator during continuous clocking\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"sub-\u03bcW (2 \u03bcW per channel)\",\n        \"technology\": \"0.18\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C_tot * VDD^2 * f_clk. With VDD=1.8V, C_tot \u2248 50fF, and f=100MHz, P \u2248 50e-15 * 1.8^2 * 100e6 = 16.2\u03bcW\",\n        \"range\": {\n          \"min\": \"5u\",\n          \"typical\": \"15u\",\n          \"max\": \"50u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Power will be significantly higher than the paper's reported sub-\u03bcW value because we are simulating at VDD=1.8V instead of 0.45V, and power scales quadratically with VDD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_n1_drop\": {\n      \"description\": \"Minimum voltage reached on the integration node N1 due to the switched-capacitor discharge\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the voltage divider between the pull-up PMOS (XML7) R_ON and the equivalent SC resistance (1/(f*C)). V_N1 \u2248 VDD * R_SC / (R_ON + R_SC)\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"1.0\",\n          \"max\": \"1.7\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on the input frequency of CLKP. Higher frequencies will cause a larger voltage drop.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"reset_delay\": {\n      \"description\": \"Time from CLKN falling edge to N11 falling edge (reset state)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_d = C_N11 * VDD / I_discharge. With C_N11 \u2248 10fF and I \u2248 1mA, t_d \u2248 18ps\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"50p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard logic gate delay for SKY130 at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Maximum voltage swing of the combined output node VOUT\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.45V\",\n        \"technology\": \"0.18\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VOUT is driven by PMOS pass transistors connected to N5 and N11, which swing rail-to-rail.\",\n        \"range\": {\n          \"min\": \"1.7\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"At VDD=1.8V, the output should reach very close to the supply rail.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power consumption, integration node voltage drops, and reset delay by applying a 10MHz reference clock to CLKN and a 100MHz variable clock to CLKP.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"v_n1_drop\",\n      \"reset_delay\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* Frequency Comparator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xml8=5u L_xml8=0.5u\\n.param W_xmr5=5u L_xmr5=0.5u\\n.param W_xmr6=5u L_xmr6=0.5u\\n.param W_xml7=5u L_xml7=0.5u\\n.param W_xmr3=5u L_xmr3=0.5u\\n.param W_xml3=5u L_xml3=0.5u\\n.param W_xml1=5u L_xml1=0.5u\\n.param W_xmr8=5u L_xmr8=0.5u\\n.param W_xmr2=5u L_xmr2=0.5u\\n.param W_xml5=5u L_xml5=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xml2=5u L_xml2=0.5u\\n.param W_xmr4=5u L_xmr4=0.5u\\n.param W_xml4=5u L_xml4=0.5u\\n.param W_xml6=5u L_xml6=0.5u\\n.param W_xml9=5u L_xml9=0.5u\\n.param W_xmr7=5u L_xmr7=0.5u\\n.param W_xmr9=5u L_xmr9=0.5u\\n\\nVVDD VDD 0 1.8\\nVGND GND 0 0\\n\\n* Clocks: CLKN is reset/reference (10MHz), CLKP is fast input (100MHz)\\nVCLKP CLKP 0 PULSE(0 1.8 0 100p 100p 4.9n 10n)\\nVCLKN CLKN 0 PULSE(0 1.8 0 100p 100p 49.9n 100n)\\n\\n* DUT\\nXML8 N5 N11 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xml8} w={W_xml8}\\nXMR5 N8 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xmr5} w={W_xmr5}\\nXMR6 N11 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xmr6} w={W_xmr6}\\nXML7 N1 N11 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xml7} w={W_xml7}\\nXMR3 N12 CLKN GND GND sky130_fd_pr__nfet_01v8 l={L_xmr3} w={W_xmr3}\\nXML3 N14 CLKP GND GND sky130_fd_pr__nfet_01v8 l={L_xml3} w={W_xml3}\\nXML1 N14 CLKP GND GND sky130_fd_pr__nfet_01v8 l={L_xml1} w={W_xml1}\\nXMR8 N11 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmr8} w={W_xmr8}\\nXMR2 N12 CLKN N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmr2} w={W_xmr2}\\nXML5 N13 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xml5} w={W_xml5}\\nXM11 N8 CLKN N11 VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXML2 N14 CLKP N1 VDD sky130_fd_pr__pfet_01v8 l={L_xml2} w={W_xml2}\\nXMR4 N8 N3 N11 VDD sky130_fd_pr__pfet_01v8 l={L_xmr4} w={W_xmr4}\\nXML4 N13 N1 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xml4} w={W_xml4}\\nXML6 N5 N13 GND GND sky130_fd_pr__nfet_01v8 l={L_xml6} w={W_xml6}\\nXML9 VOUT N11 N5 N5 sky130_fd_pr__pfet_01v8 l={L_xml9} w={W_xml9}\\nXMR7 N3 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmr7} w={W_xmr7}\\nXMR9 VOUT N5 N11 N11 sky130_fd_pr__pfet_01v8 l={L_xmr9} w={W_xmr9}\\n\\n* Load for VOUT to prevent floating states\\nC_vout VOUT 0 10f\\nR_vout VOUT 0 100MEG\\n\\n.control\\ntran 100p 200n\\n\\n* Measure Power\\nmeas tran pwr avg i(VVDD)\\nlet power_uw = -pwr * 1.8 * 1e6\\nprint power_uw\\n\\n* Measure Integration Node Drops\\nmeas tran v_n1_min min v(N1)\\nmeas tran v_n3_min min v(N3)\\n\\n* Measure Output Swing\\nmeas tran v_out_max max v(VOUT)\\nmeas tran v_out_min min v(VOUT)\\n\\n* Measure Reset Delay\\nmeas tran delay_reset trig v(CLKN) val=0.9 fall=1 targ v(N11) val=0.9 fall=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6487739",
+  "_case": "6487739_image_3_b"
+}

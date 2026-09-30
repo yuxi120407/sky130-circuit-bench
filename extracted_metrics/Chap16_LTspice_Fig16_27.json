@@ -1,0 +1,173 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 16.26",
+    "page": "448",
+    "circuit_type": "Clocked Sense Amplifier",
+    "description": "A clocked sense amplifier used in memory circuits to detect and amplify small voltage differences. It consists of a cross-coupled inverter latch (M1-M4) activated by a tail NMOS (MS3) and isolated from the input lines by PMOS switches (MS1, MS2) when the clock goes high."
+  },
+  "step2_metrics": {
+    "word_line_delay": {
+      "description": "Propagation delay through a distributed RC word line in a memory array.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "443",
+        "reference": "Eq 16.9"
+      },
+      "equation": {
+        "formula": "td = (number of columns) * (WL/tox * eox + Cparasitic) * (number of columns) * Rgate",
+        "explanation": "Estimates the RC delay of a polysilicon word line based on gate capacitance, parasitic capacitance, and gate resistance across all columns.",
+        "assumptions": "Assumes a distributed RC network modeled as a lumped equivalent for delay estimation."
+      },
+      "sky130_expected": {
+        "calculation": "Using text values for a 512-column array: td = 512 * (400aF + 100aF) * 512 * 4 ohms = 512 * 500e-18 * 2048 = 524.28 ps.",
+        "range": {
+          "min": "100p",
+          "typical": "500p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on array size (number of columns) and specific parasitic extraction, but typically falls in the hundreds of picoseconds for a 512-bit block."
+      },
+      "importance": "optional"
+    },
+    "capacitor_charge": {
+      "description": "The charge stored on the memory bit capacitor when writing a logic 1 or 0.",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "446",
+        "reference": "Discussion on VDD/2 common plate"
+      },
+      "equation": {
+        "formula": "Q = (VDD/2) * Cmbit",
+        "explanation": "Charge stored when the common node is tied to VDD/2 to minimize oxide stress.",
+        "assumptions": "Assumes full VDD or GND is written to the cell."
+      },
+      "sky130_expected": {
+        "calculation": "For SKY130 VDD = 1.8V, assuming a typical DRAM cell capacitance Cmbit = 30fF: Q = (1.8V / 2) * 30fF = 0.9V * 30e-15 F = 27 fC.",
+        "range": {
+          "min": "10f",
+          "typical": "27f",
+          "max": "50f",
+          "unit": "C"
+        },
+        "reasoning": "Cell capacitance is typically engineered to be around 20-40fF to ensure reliable sensing against bitline parasitics."
+      },
+      "importance": "optional"
+    },
+    "latching_delay": {
+      "description": "Time required for the sense amplifier outputs to reach valid logic levels after the clock goes high.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "448",
+        "reference": "Figure 16.27"
+      },
+      "equation": {
+        "formula": "t_latch \u2248 (C_L / g_m) * ln(\u0394V_out / \u0394V_in)",
+        "explanation": "Delay is proportional to the load capacitance and inversely proportional to the transconductance of the cross-coupled pair, scaled by the required voltage swing ratio.",
+        "assumptions": "Assumes linear small-signal operation during the initial regenerative phase."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming CL = 10fF, gm = 100uA/V, \u0394Vin = 100mV, \u0394Vout = 1.8V: t_latch \u2248 (10e-15 / 100e-6) * ln(1.8 / 0.1) \u2248 100ps * 2.89 \u2248 289 ps.",
+        "range": {
+          "min": "100p",
+          "typical": "300p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "In a 130nm process at 1.8V, regenerative feedback is fast, typically resolving in a few hundred picoseconds depending on the initial input differential."
+      },
+      "importance": "essential"
+    },
+    "clock_feedthrough_noise": {
+      "description": "Voltage glitch injected into the input nodes due to capacitive coupling from the clock signal.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "449",
+        "reference": "Figure 16.28"
+      },
+      "equation": {
+        "formula": "V_noise \u2248 V_clock * (C_gd / (C_gd + C_source))",
+        "explanation": "Voltage divider formed by the gate-drain overlap capacitance of the isolation switches and the source impedance/capacitance.",
+        "assumptions": "Assumes a finite source impedance (e.g., 10k ohms as mentioned in the text) or finite bitline capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming V_clock = 1.8V, C_gd = 0.5fF, C_source = 10fF: V_noise \u2248 1.8 * (0.5 / 10.5) \u2248 85 mV.",
+        "range": {
+          "min": "10m",
+          "typical": "50m",
+          "max": "150m",
+          "unit": "V"
+        },
+        "reasoning": "The text notes ~50mV for their specific sizing. In SKY130, depending on the W/L of MS1/MS2, it will likely be in the 50-100mV range."
+      },
+      "importance": "recommended"
+    },
+    "average_current": {
+      "description": "Average current drawn from the VDD supply during continuous clocking operation.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "450",
+        "reference": "Figure 16.29"
+      },
+      "equation": {
+        "formula": "I_avg = (1/T) * \u222b i_VDD(t) dt",
+        "explanation": "Integrates the dynamic switching current and any short-circuit contention current over a clock period.",
+        "assumptions": "Assumes continuous periodic clocking and valid input differentials."
+      },
+      "sky130_expected": {
+        "calculation": "Text states 50uA average for their technology. For SKY130 at 1.8V, dynamic power P = f * C * V^2. With f=100MHz, C=20fF, I_avg \u2248 100e6 * 20e-15 * 1.8 = 3.6uA purely dynamic, plus contention current which dominates, bringing it closer to 20-50uA.",
+        "range": {
+          "min": "10u",
+          "typical": "50u",
+          "max": "150u",
+          "unit": "A"
+        },
+        "reasoning": "Heavily dependent on clock frequency and the duration of the contention phase during switching."
+      },
+      "importance": "essential"
+    },
+    "contention_current": {
+      "description": "Peak short-circuit current flowing from VDD to ground when both PMOS and NMOS devices are momentarily conducting during state transition.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "450",
+        "reference": "Discussion on Contention Current"
+      },
+      "equation": {
+        "formula": "I_peak \u2248 (k_n / 2) * (VDD/2 - V_thn)^2",
+        "explanation": "Approximates the saturation current of the NMOS/PMOS devices when the output nodes cross at approximately VDD/2.",
+        "assumptions": "Assumes symmetric switching and that inputs are close enough to cause a metastable-like crossover."
+      },
+      "sky130_expected": {
+        "calculation": "Using SKY130 NMOS un*Cox = 270uA/V^2, Vth = 0.42V, W/L = 2/0.15 \u2248 13.3. k_n = 270u * 13.3 = 3.6mA/V^2. I_peak \u2248 (3.6m / 2) * (0.9 - 0.42)^2 = 1.8m * 0.2304 \u2248 414 uA.",
+        "range": {
+          "min": "100u",
+          "typical": "400u",
+          "max": "1m",
+          "unit": "A"
+        },
+        "reasoning": "Peak current can be quite high (hundreds of microamps) but only lasts for a very short duration (tens of picoseconds)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure latching delay, average power consumption, and peak contention current of the clocked sense amplifier.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "latching_delay",
+      "average_current",
+      "contention_current"
+    ],
+    "spice": "* Clocked Sense Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the parameterized netlist\n.param W_xm1=2 L_xm1=0.15\n.param W_xm11=2 L_xm11=0.15\n.param W_xm2=2 L_xm2=0.15\n.param W_xm3=2 L_xm3=0.15\n.param W_xm4=2 L_xm4=0.15\n.param W_xm5=2 L_xm5=0.15\n.param W_xm6=2 L_xm6=0.15\n\n* DUT (Directly pasted from prompt)\nxm1 N001 clock 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm11 Outm clock Inm VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm2 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 Inp clock Outp VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 Outm Outp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 Outp Outm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nVinm Inm 0 500m\n\n* Stimulus\n* Clock pulse: 0 to 1.8V, 10ns period, 5ns width\nVclock clock 0 PULSE(0 1.8 5n 0.1n 0.1n 4.8n 10n)\n* Inp pulse: 0.4V to 0.6V to create an imbalance against Inm (0.5V)\nVinp Inp 0 PULSE(0.4 0.6 0 0.1n 0.1n 15n 30n)\n\n* Load capacitance to simulate realistic sensing conditions\nCload_p Outp 0 10f\nCload_m Outm 0 10f\n\n.control\n* Run transient analysis for 3 clock cycles\ntran 10p 30n\n\n* 1. Measure Latching Delay (Time from clock high to Outp reaching 90% of VDD)\nmeas tran delay_rise trig v(clock) val=0.9 rise=1 targ v(Outp) val=1.62 rise=1\n\n* 2. Measure Average Current (from VDD source)\n* Note: ngspice current through voltage source is negative when supplying power\nmeas tran avg_current_raw avg i(VDD)\nlet avg_current = -avg_current_raw\nlet avg_power = avg_current * 1.8\nprint avg_current\nprint avg_power\n\n* 3. Measure Peak Contention Current\n* Minimum value of i(VDD) corresponds to maximum current supplied\nmeas tran peak_current_raw min i(VDD)\nlet peak_contention_current = -peak_current_raw\nprint peak_contention_current\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 16.26\",\n    \"page\": \"448\",\n    \"circuit_type\": \"Clocked Sense Amplifier\",\n    \"description\": \"A clocked sense amplifier used in memory circuits to detect and amplify small voltage differences. It consists of a cross-coupled inverter latch (M1-M4) activated by a tail NMOS (MS3) and isolated from the input lines by PMOS switches (MS1, MS2) when the clock goes high.\"\n  },\n  \"step2_metrics\": {\n    \"word_line_delay\": {\n      \"description\": \"Propagation delay through a distributed RC word line in a memory array.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"443\",\n        \"reference\": \"Eq 16.9\"\n      },\n      \"equation\": {\n        \"formula\": \"td = (number of columns) * (WL/tox * eox + Cparasitic) * (number of columns) * Rgate\",\n        \"explanation\": \"Estimates the RC delay of a polysilicon word line based on gate capacitance, parasitic capacitance, and gate resistance across all columns.\",\n        \"assumptions\": \"Assumes a distributed RC network modeled as a lumped equivalent for delay estimation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using text values for a 512-column array: td = 512 * (400aF + 100aF) * 512 * 4 ohms = 512 * 500e-18 * 2048 = 524.28 ps.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"500p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on array size (number of columns) and specific parasitic extraction, but typically falls in the hundreds of picoseconds for a 512-bit block.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"capacitor_charge\": {\n      \"description\": \"The charge stored on the memory bit capacitor when writing a logic 1 or 0.\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"446\",\n        \"reference\": \"Discussion on VDD/2 common plate\"\n      },\n      \"equation\": {\n        \"formula\": \"Q = (VDD/2) * Cmbit\",\n        \"explanation\": \"Charge stored when the common node is tied to VDD/2 to minimize oxide stress.\",\n        \"assumptions\": \"Assumes full VDD or GND is written to the cell.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For SKY130 VDD = 1.8V, assuming a typical DRAM cell capacitance Cmbit = 30fF: Q = (1.8V / 2) * 30fF = 0.9V * 30e-15 F = 27 fC.\",\n        \"range\": {\n          \"min\": \"10f\",\n          \"typical\": \"27f\",\n          \"max\": \"50f\",\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Cell capacitance is typically engineered to be around 20-40fF to ensure reliable sensing against bitline parasitics.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"latching_delay\": {\n      \"description\": \"Time required for the sense amplifier outputs to reach valid logic levels after the clock goes high.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"448\",\n        \"reference\": \"Figure 16.27\"\n      },\n      \"equation\": {\n        \"formula\": \"t_latch \u2248 (C_L / g_m) * ln(\u0394V_out / \u0394V_in)\",\n        \"explanation\": \"Delay is proportional to the load capacitance and inversely proportional to the transconductance of the cross-coupled pair, scaled by the required voltage swing ratio.\",\n        \"assumptions\": \"Assumes linear small-signal operation during the initial regenerative phase.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming CL = 10fF, gm = 100uA/V, \u0394Vin = 100mV, \u0394Vout = 1.8V: t_latch \u2248 (10e-15 / 100e-6) * ln(1.8 / 0.1) \u2248 100ps * 2.89 \u2248 289 ps.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"300p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"In a 130nm process at 1.8V, regenerative feedback is fast, typically resolving in a few hundred picoseconds depending on the initial input differential.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"clock_feedthrough_noise\": {\n      \"description\": \"Voltage glitch injected into the input nodes due to capacitive coupling from the clock signal.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"449\",\n        \"reference\": \"Figure 16.28\"\n      },\n      \"equation\": {\n        \"formula\": \"V_noise \u2248 V_clock * (C_gd / (C_gd + C_source))\",\n        \"explanation\": \"Voltage divider formed by the gate-drain overlap capacitance of the isolation switches and the source impedance/capacitance.\",\n        \"assumptions\": \"Assumes a finite source impedance (e.g., 10k ohms as mentioned in the text) or finite bitline capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming V_clock = 1.8V, C_gd = 0.5fF, C_source = 10fF: V_noise \u2248 1.8 * (0.5 / 10.5) \u2248 85 mV.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"50m\",\n          \"max\": \"150m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The text notes ~50mV for their specific sizing. In SKY130, depending on the W/L of MS1/MS2, it will likely be in the 50-100mV range.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"average_current\": {\n      \"description\": \"Average current drawn from the VDD supply during continuous clocking operation.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"450\",\n        \"reference\": \"Figure 16.29\"\n      },\n      \"equation\": {\n        \"formula\": \"I_avg = (1/T) * \u222b i_VDD(t) dt\",\n        \"explanation\": \"Integrates the dynamic switching current and any short-circuit contention current over a clock period.\",\n        \"assumptions\": \"Assumes continuous periodic clocking and valid input differentials.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Text states 50uA average for their technology. For SKY130 at 1.8V, dynamic power P = f * C * V^2. With f=100MHz, C=20fF, I_avg \u2248 100e6 * 20e-15 * 1.8 = 3.6uA purely dynamic, plus contention current which dominates, bringing it closer to 20-50uA.\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"50u\",\n          \"max\": \"150u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Heavily dependent on clock frequency and the duration of the contention phase during switching.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"contention_current\": {\n      \"description\": \"Peak short-circuit current flowing from VDD to ground when both PMOS and NMOS devices are momentarily conducting during state transition.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"450\",\n        \"reference\": \"Discussion on Contention Current\"\n      },\n      \"equation\": {\n        \"formula\": \"I_peak \u2248 (k_n / 2) * (VDD/2 - V_thn)^2\",\n        \"explanation\": \"Approximates the saturation current of the NMOS/PMOS devices when the output nodes cross at approximately VDD/2.\",\n        \"assumptions\": \"Assumes symmetric switching and that inputs are close enough to cause a metastable-like crossover.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using SKY130 NMOS un*Cox = 270uA/V^2, Vth = 0.42V, W/L = 2/0.15 \u2248 13.3. k_n = 270u * 13.3 = 3.6mA/V^2. I_peak \u2248 (3.6m / 2) * (0.9 - 0.42)^2 = 1.8m * 0.2304 \u2248 414 uA.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"400u\",\n          \"max\": \"1m\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Peak current can be quite high (hundreds of microamps) but only lasts for a very short duration (tens of picoseconds).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure latching delay, average power consumption, and peak contention current of the clocked sense amplifier.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"latching_delay\",\n      \"average_current\",\n      \"contention_current\"\n    ],\n    \"spice\": \"* Clocked Sense Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm1=2 L_xm1=0.15\\n.param W_xm11=2 L_xm11=0.15\\n.param W_xm2=2 L_xm2=0.15\\n.param W_xm3=2 L_xm3=0.15\\n.param W_xm4=2 L_xm4=0.15\\n.param W_xm5=2 L_xm5=0.15\\n.param W_xm6=2 L_xm6=0.15\\n\\n* DUT (Directly pasted from prompt)\\nxm1 N001 clock 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm11 Outm clock Inm VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm2 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 Inp clock Outp VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 Outm Outp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 Outp Outm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nVinm Inm 0 500m\\n\\n* Stimulus\\n* Clock pulse: 0 to 1.8V, 10ns period, 5ns width\\nVclock clock 0 PULSE(0 1.8 5n 0.1n 0.1n 4.8n 10n)\\n* Inp pulse: 0.4V to 0.6V to create an imbalance against Inm (0.5V)\\nVinp Inp 0 PULSE(0.4 0.6 0 0.1n 0.1n 15n 30n)\\n\\n* Load capacitance to simulate realistic sensing conditions\\nCload_p Outp 0 10f\\nCload_m Outm 0 10f\\n\\n.control\\n* Run transient analysis for 3 clock cycles\\ntran 10p 30n\\n\\n* 1. Measure Latching Delay (Time from clock high to Outp reaching 90% of VDD)\\nmeas tran delay_rise trig v(clock) val=0.9 rise=1 targ v(Outp) val=1.62 rise=1\\n\\n* 2. Measure Average Current (from VDD source)\\n* Note: ngspice current through voltage source is negative when supplying power\\nmeas tran avg_current_raw avg i(VDD)\\nlet avg_current = -avg_current_raw\\nlet avg_power = avg_current * 1.8\\nprint avg_current\\nprint avg_power\\n\\n* 3. Measure Peak Contention Current\\n* Minimum value of i(VDD) corresponds to maximum current supplied\\nmeas tran peak_current_raw min i(VDD)\\nlet peak_contention_current = -peak_current_raw\\nprint peak_contention_current\\n\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

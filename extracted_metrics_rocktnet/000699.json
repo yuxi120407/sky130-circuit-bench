@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Analog Summing Amplifier",
+    "description": "A 4-input analog summing amplifier used to realize an analog implementation of an FM differential equation at baseband. It uses four parallel common-source NMOS transistors to convert input voltages to currents, which are summed and converted back to a voltage by an NMOS enhancement (diode-connected) load.",
+    "node_mapping": {
+      "input": [
+        "IN1",
+        "IN2",
+        "IN3",
+        "IN4"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Analog GFSK Modulator in 0.35-um CMOS",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "VOUT_DC": {
+      "description": "DC Output Voltage at the operating point",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Equating the sum of currents from XM1-XM4 (in linear region due to high Vgs=0.9V and low Vds) to the current of the diode-connected XM5 load. 4 * un*Cox*(W/L)*[(Vgs-Vth)*VOUT - 0.5*VOUT^2] = 0.5*un*Cox*(W/L)*(VDD-VOUT-Vth5)^2. Solving with VDD=1.8V gives VOUT ~ 0.3V.",
+        "range": {
+          "min": 0.2,
+          "typical": 0.3,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the ratio of the pull-down network strength to the pull-up load strength."
+      },
+      "importance": "essential"
+    },
+    "Gain": {
+      "description": "Small-Signal Voltage Gain from one input to output",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Av = -gm1 / (gm5 + gds_total). gm1 ~ 0.8mS, gm5 ~ 2.4mS, gds_total ~ 1.9mS. Av ~ -0.8 / 4.3 = -0.18 V/V, which is ~ -15 dB.",
+        "range": {
+          "min": -20,
+          "typical": -15,
+          "max": -10,
+          "unit": "dB"
+        },
+        "reasoning": "The circuit acts as an attenuating summer, which is common in baseband analog processing to prevent clipping when summing multiple large signals."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.5 MHz (baseband filter/signal)",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "f3dB = Gout / (2*pi*Cout). With Gout ~ 4.3mS and Cout ~ 50fF, f3dB ~ 13 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 13000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Very wideband due to the low impedance of the diode-connected load (1/gm5). It easily covers the required baseband frequencies (160kHz - 1.5MHz)."
+      },
+      "importance": "essential"
+    },
+    "Power": {
+      "description": "DC Power Consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "600 uA at 3V (1.8 mW)",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. I_total ~ 1.1mA. P = 1.8V * 1.1mA = 1.98mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.002,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "Matches the paper's reported 600uA from a 3V supply (1.8mW) for the modulator core."
+      },
+      "importance": "essential"
+    },
+    "THD": {
+      "description": "Total Harmonic Distortion for a 0.1V amplitude input",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1% to 3%",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Non-linearity of the NMOS transistors in the linear region introduces harmonics. For a 0.1V swing on a 0.9V bias, THD is typically low.",
+        "range": {
+          "min": 0.1,
+          "typical": 1.0,
+          "max": 5.0,
+          "unit": "%"
+        },
+        "reasoning": "The paper reports 1% and 3% metrics which likely correspond to modulation error or THD."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, small-signal gain, bandwidth, and THD of the analog summing amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "VOUT_DC",
+      "Power",
+      "Gain",
+      "Bandwidth",
+      "THD"
+    ],
+    "spice": "* Analog Summing Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\nXM2 VOUT IN1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VOUT IN2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUT IN3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM1 VOUT IN4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM5 VDD VDD VOUT GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\nVVDD VDD 0 1.8\nVIN1 IN1 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\nVIN2 IN2 0 DC 0.9 AC 0\nVIN3 IN3 0 DC 0.9 AC 0\nVIN4 IN4 0 DC 0.9 AC 0\n\nCload VOUT 0 50f\n\n.control\n* Operating Point\nop\nprint v(VOUT)\nlet pwr = -i(VVDD) * 1.8\nprint pwr\n\n* AC Analysis\nac dec 10 1k 100G\nlet gain_db = vdb(VOUT)\nmeas ac midband_gain find gain_db at=100k\nmeas ac gain_10G find gain_db at=10G\n\n* Transient Analysis for THD\ntran 10n 5u\nmeas tran vout_pk2pk pp v(VOUT)\nfourier 1MEG v(VOUT)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Analog Summing Amplifier\",\n    \"description\": \"A 4-input analog summing amplifier used to realize an analog implementation of an FM differential equation at baseband. It uses four parallel common-source NMOS transistors to convert input voltages to currents, which are summed and converted back to a voltage by an NMOS enhancement (diode-connected) load.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN1\",\n        \"IN2\",\n        \"IN3\",\n        \"IN4\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Analog GFSK Modulator in 0.35-um CMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"VOUT_DC\": {\n      \"description\": \"DC Output Voltage at the operating point\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Equating the sum of currents from XM1-XM4 (in linear region due to high Vgs=0.9V and low Vds) to the current of the diode-connected XM5 load. 4 * un*Cox*(W/L)*[(Vgs-Vth)*VOUT - 0.5*VOUT^2] = 0.5*un*Cox*(W/L)*(VDD-VOUT-Vth5)^2. Solving with VDD=1.8V gives VOUT ~ 0.3V.\",\n        \"range\": {\n          \"min\": 0.2,\n          \"typical\": 0.3,\n          \"max\": 0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the ratio of the pull-down network strength to the pull-up load strength.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Gain\": {\n      \"description\": \"Small-Signal Voltage Gain from one input to output\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Av = -gm1 / (gm5 + gds_total). gm1 ~ 0.8mS, gm5 ~ 2.4mS, gds_total ~ 1.9mS. Av ~ -0.8 / 4.3 = -0.18 V/V, which is ~ -15 dB.\",\n        \"range\": {\n          \"min\": -20,\n          \"typical\": -15,\n          \"max\": -10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The circuit acts as an attenuating summer, which is common in baseband analog processing to prevent clipping when summing multiple large signals.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.5 MHz (baseband filter/signal)\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f3dB = Gout / (2*pi*Cout). With Gout ~ 4.3mS and Cout ~ 50fF, f3dB ~ 13 GHz.\",\n        \"range\": {\n          \"min\": 1000000000.0,\n          \"typical\": 13000000000.0,\n          \"max\": 20000000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Very wideband due to the low impedance of the diode-connected load (1/gm5). It easily covers the required baseband frequencies (160kHz - 1.5MHz).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power\": {\n      \"description\": \"DC Power Consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"600 uA at 3V (1.8 mW)\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. I_total ~ 1.1mA. P = 1.8V * 1.1mA = 1.98mW.\",\n        \"range\": {\n          \"min\": 0.001,\n          \"typical\": 0.002,\n          \"max\": 0.005,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Matches the paper's reported 600uA from a 3V supply (1.8mW) for the modulator core.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"THD\": {\n      \"description\": \"Total Harmonic Distortion for a 0.1V amplitude input\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1% to 3%\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Non-linearity of the NMOS transistors in the linear region introduces harmonics. For a 0.1V swing on a 0.9V bias, THD is typically low.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 1.0,\n          \"max\": 5.0,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"The paper reports 1% and 3% metrics which likely correspond to modulation error or THD.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, small-signal gain, bandwidth, and THD of the analog summing amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"VOUT_DC\",\n      \"Power\",\n      \"Gain\",\n      \"Bandwidth\",\n      \"THD\"\n    ],\n    \"spice\": \"* Analog Summing Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\nXM2 VOUT IN1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VOUT IN2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUT IN3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM1 VOUT IN4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM5 VDD VDD VOUT GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\nVVDD VDD 0 1.8\\nVIN1 IN1 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\nVIN2 IN2 0 DC 0.9 AC 0\\nVIN3 IN3 0 DC 0.9 AC 0\\nVIN4 IN4 0 DC 0.9 AC 0\\n\\nCload VOUT 0 50f\\n\\n.control\\n* Operating Point\\nop\\nprint v(VOUT)\\nlet pwr = -i(VVDD) * 1.8\\nprint pwr\\n\\n* AC Analysis\\nac dec 10 1k 100G\\nlet gain_db = vdb(VOUT)\\nmeas ac midband_gain find gain_db at=100k\\nmeas ac gain_10G find gain_db at=10G\\n\\n* Transient Analysis for THD\\ntran 10n 5u\\nmeas tran vout_pk2pk pp v(VOUT)\\nfourier 1MEG v(VOUT)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362837",
+  "_case": "1362837_image_6"
+}

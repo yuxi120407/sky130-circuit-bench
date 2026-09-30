@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current Mode Logic (CML) Master-Slave D-Flip-Flop",
+    "description": "A high-speed CML D-flip-flop used in the shift register of a PRBS generator. It features a unique self-biasing network where the common-mode voltage of the emitter follower outputs is extracted via resistors to set the tail current.",
+    "node_mapping": {
+      "input": [
+        "D",
+        "DN",
+        "CLK",
+        "CLKN"
+      ],
+      "output": [
+        "Q",
+        "QN",
+        "Qx",
+        "QxN"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "N_BIAS_M",
+        "N_BIAS_S"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "100-Gb/s 27 1 and 54-Gb/s 211 1 PRBS Generators in SiGe Bipolar Technology",
+      "figure": "Schematic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total power dissipated by the D-flip-flop.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.9 W (for entire PRBS generator)",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD=1.8V, assuming a tail current of ~3mA per branch to achieve high speed. There are 4 main current branches (2 for master, 2 for slave including the self-bias diode-connected transistors). Total current ~12mA. Power = 1.8V * 12mA = 21.6mW.",
+        "range": {
+          "min": "15m",
+          "typical": "22m",
+          "max": "30m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down from the full PRBS generator power to a single DFF stage, adjusted for 1.8V CMOS operation."
+      },
+      "importance": "essential"
+    },
+    "clock_to_q_delay": {
+      "description": "Time delay from the falling edge of the clock to the corresponding transition at the Q output.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1 ps to 5 ps",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Delay is dominated by the RC time constant at the latch nodes. With R_load = 200 ohms and C_parasitic ~ 50fF, tau = 10ps. Delay is typically 2-3 tau.",
+        "range": {
+          "min": "15p",
+          "typical": "25p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "CMOS in 130nm is significantly slower than the advanced SiGe bipolar process used in the paper, resulting in higher delay."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak single-ended voltage swing at the output.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 mV",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_load. For I_tail = 3mA and R_load = 200 ohms, Swing = 600mV.",
+        "range": {
+          "min": "0.4",
+          "typical": "0.6",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "CMOS CML typically requires larger voltage swings than bipolar ECL to fully switch the differential pairs due to higher Vdsat and lower transconductance."
+      },
+      "importance": "essential"
+    },
+    "rise_time": {
+      "description": "20% to 80% rise time of the differential output signal.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.5 ps",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Rise time ~ 2.2 * R_load * C_load = 2.2 * 200 * 50fF = 22ps.",
+        "range": {
+          "min": "15p",
+          "typical": "22p",
+          "max": "40p",
+          "unit": "s"
+        },
+        "reasoning": "Limited by the RC bandwidth of the 130nm CMOS process nodes."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure power consumption, voltage swing, clock-to-Q delay, and rise time of the CML DFF. The NPN transistors have been mapped to SKY130 NMOS devices with the bulk tied to VEE to adapt the bipolar netlist for CMOS simulation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "swing",
+      "delay",
+      "t_rise"
+    ],
+    "spice": "* CML DFF Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param R_load=200 R_cm=5k R_tail=100\n.param W_sw=10u L_sw=0.15u\n.param W_ef=10u L_ef=0.15u\n.param W_tail=20u L_tail=0.5u\n\nVCC VCC 0 1.8\nVEE VEE 0 0\n\n* 2 GHz Clock\nVCLK CLK 0 PULSE(0.7 1.3 0 20p 20p 230p 500p)\nVCLKN CLKN 0 PULSE(1.3 0.7 0 20p 20p 230p 500p)\n\n* 1 GHz Data\nVD D 0 PULSE(0.7 1.3 0p 20p 20p 480p 1000p)\nVDN DN 0 PULSE(1.3 0.7 0p 20p 20p 480p 1000p)\n\n* Modified netlist: NPNs replaced with SKY130 NMOS (bulk tied to VEE)\nR10 VCC N_C1 {R_load}\nR9 VCC N_C2 {R_load}\nR14 VCC N_C3 {R_load}\nR11 VCC N_C4 {R_load}\nR8 QxN N_BIAS_M {R_cm}\nR1 Qx N_BIAS_M {R_cm}\nR12 Q N_BIAS_S {R_cm}\nR2 QN N_BIAS_S {R_cm}\nR6 N_E_TAIL1 VEE {R_tail}\nR3 N_E_TAIL2 VEE {R_tail}\nR4 N_E_TAIL3 VEE {R_tail}\nR13 N_E_TAIL4 VEE {R_tail}\nM20 VCC N_C1 QxN VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\nM11 VCC N_C2 Qx VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\nM15 N_C1 D N_E1 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM12 N_C2 DN N_E1 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM13 N_C2 QxN N_E2 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM3 N_C1 Qx N_E2 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM10 N_E1 CLK N_TAIL_M VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM16 N_E2 CLKN N_TAIL_M VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM1 N_TAIL_M N_BIAS_M N_E_TAIL1 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nM4 N_BIAS_M N_BIAS_M N_E_TAIL2 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nM19 VCC N_C3 Q VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\nM7 VCC N_C4 QN VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\nM14 N_C3 Qx N_E3 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM9 N_C4 QxN N_E3 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM17 N_C4 Q N_E4 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM6 N_C3 QN N_E4 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM18 N_E3 CLKN N_TAIL_S VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM8 N_E4 CLK N_TAIL_S VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\nM2 N_TAIL_S N_BIAS_S N_E_TAIL3 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nM5 N_BIAS_S N_BIAS_S N_E_TAIL4 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\n\n.control\ntran 5p 4n\n\n* 1. Power Consumption\nmeas tran I_vdd avg i(VCC) from=2n to=4n\nlet power = -I_vdd * 1.8\nprint power\n\n* 2. Single-ended Voltage Swing\nmeas tran v_max max v(Q) from=2n to=4n\nmeas tran v_min min v(Q) from=2n to=4n\nlet swing = v_max - v_min\nprint swing\n\n* 3. Clock-to-Q Delay (measured differentially at the 5th clock falling edge)\nmeas tran t_clk_fall trig v(CLK, CLKN) val=0 fall=5\nmeas tran t_q_rise trig v(Q, QN) val=0 rise=3\nlet delay = t_q_rise - t_clk_fall\nprint delay\n\n* 4. Rise Time (20% to 80% of a ~1.2V differential swing)\nmeas tran t_rise trig v(Q, QN) val=-0.3 rise=3 targ v(Q, QN) val=0.3 rise=3\nprint t_rise\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current Mode Logic (CML) Master-Slave D-Flip-Flop\",\n    \"description\": \"A high-speed CML D-flip-flop used in the shift register of a PRBS generator. It features a unique self-biasing network where the common-mode voltage of the emitter follower outputs is extracted via resistors to set the tail current.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"D\",\n        \"DN\",\n        \"CLK\",\n        \"CLKN\"\n      ],\n      \"output\": [\n        \"Q\",\n        \"QN\",\n        \"Qx\",\n        \"QxN\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"N_BIAS_M\",\n        \"N_BIAS_S\"\n      ],\n      \"ground\": [\n        \"VEE\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"100-Gb/s 27 1 and 54-Gb/s 211 1 PRBS Generators in SiGe Bipolar Technology\",\n      \"figure\": \"Schematic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the D-flip-flop.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.9 W (for entire PRBS generator)\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD=1.8V, assuming a tail current of ~3mA per branch to achieve high speed. There are 4 main current branches (2 for master, 2 for slave including the self-bias diode-connected transistors). Total current ~12mA. Power = 1.8V * 12mA = 21.6mW.\",\n        \"range\": {\n          \"min\": \"15m\",\n          \"typical\": \"22m\",\n          \"max\": \"30m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down from the full PRBS generator power to a single DFF stage, adjusted for 1.8V CMOS operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"clock_to_q_delay\": {\n      \"description\": \"Time delay from the falling edge of the clock to the corresponding transition at the Q output.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1 ps to 5 ps\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is dominated by the RC time constant at the latch nodes. With R_load = 200 ohms and C_parasitic ~ 50fF, tau = 10ps. Delay is typically 2-3 tau.\",\n        \"range\": {\n          \"min\": \"15p\",\n          \"typical\": \"25p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"CMOS in 130nm is significantly slower than the advanced SiGe bipolar process used in the paper, resulting in higher delay.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak single-ended voltage swing at the output.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 mV\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_load. For I_tail = 3mA and R_load = 200 ohms, Swing = 600mV.\",\n        \"range\": {\n          \"min\": \"0.4\",\n          \"typical\": \"0.6\",\n          \"max\": \"0.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CMOS CML typically requires larger voltage swings than bipolar ECL to fully switch the differential pairs due to higher Vdsat and lower transconductance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rise_time\": {\n      \"description\": \"20% to 80% rise time of the differential output signal.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.5 ps\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rise time ~ 2.2 * R_load * C_load = 2.2 * 200 * 50fF = 22ps.\",\n        \"range\": {\n          \"min\": \"15p\",\n          \"typical\": \"22p\",\n          \"max\": \"40p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Limited by the RC bandwidth of the 130nm CMOS process nodes.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure power consumption, voltage swing, clock-to-Q delay, and rise time of the CML DFF. The NPN transistors have been mapped to SKY130 NMOS devices with the bulk tied to VEE to adapt the bipolar netlist for CMOS simulation.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"swing\",\n      \"delay\",\n      \"t_rise\"\n    ],\n    \"spice\": \"* CML DFF Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param R_load=200 R_cm=5k R_tail=100\\n.param W_sw=10u L_sw=0.15u\\n.param W_ef=10u L_ef=0.15u\\n.param W_tail=20u L_tail=0.5u\\n\\nVCC VCC 0 1.8\\nVEE VEE 0 0\\n\\n* 2 GHz Clock\\nVCLK CLK 0 PULSE(0.7 1.3 0 20p 20p 230p 500p)\\nVCLKN CLKN 0 PULSE(1.3 0.7 0 20p 20p 230p 500p)\\n\\n* 1 GHz Data\\nVD D 0 PULSE(0.7 1.3 0p 20p 20p 480p 1000p)\\nVDN DN 0 PULSE(1.3 0.7 0p 20p 20p 480p 1000p)\\n\\n* Modified netlist: NPNs replaced with SKY130 NMOS (bulk tied to VEE)\\nR10 VCC N_C1 {R_load}\\nR9 VCC N_C2 {R_load}\\nR14 VCC N_C3 {R_load}\\nR11 VCC N_C4 {R_load}\\nR8 QxN N_BIAS_M {R_cm}\\nR1 Qx N_BIAS_M {R_cm}\\nR12 Q N_BIAS_S {R_cm}\\nR2 QN N_BIAS_S {R_cm}\\nR6 N_E_TAIL1 VEE {R_tail}\\nR3 N_E_TAIL2 VEE {R_tail}\\nR4 N_E_TAIL3 VEE {R_tail}\\nR13 N_E_TAIL4 VEE {R_tail}\\nM20 VCC N_C1 QxN VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\\nM11 VCC N_C2 Qx VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\\nM15 N_C1 D N_E1 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM12 N_C2 DN N_E1 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM13 N_C2 QxN N_E2 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM3 N_C1 Qx N_E2 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM10 N_E1 CLK N_TAIL_M VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM16 N_E2 CLKN N_TAIL_M VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM1 N_TAIL_M N_BIAS_M N_E_TAIL1 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nM4 N_BIAS_M N_BIAS_M N_E_TAIL2 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nM19 VCC N_C3 Q VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\\nM7 VCC N_C4 QN VEE sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\\nM14 N_C3 Qx N_E3 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM9 N_C4 QxN N_E3 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM17 N_C4 Q N_E4 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM6 N_C3 QN N_E4 VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM18 N_E3 CLKN N_TAIL_S VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM8 N_E4 CLK N_TAIL_S VEE sky130_fd_pr__nfet_01v8 w={W_sw} l={L_sw}\\nM2 N_TAIL_S N_BIAS_S N_E_TAIL3 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nM5 N_BIAS_S N_BIAS_S N_E_TAIL4 VEE sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\n\\n.control\\ntran 5p 4n\\n\\n* 1. Power Consumption\\nmeas tran I_vdd avg i(VCC) from=2n to=4n\\nlet power = -I_vdd * 1.8\\nprint power\\n\\n* 2. Single-ended Voltage Swing\\nmeas tran v_max max v(Q) from=2n to=4n\\nmeas tran v_min min v(Q) from=2n to=4n\\nlet swing = v_max - v_min\\nprint swing\\n\\n* 3. Clock-to-Q Delay (measured differentially at the 5th clock falling edge)\\nmeas tran t_clk_fall trig v(CLK, CLKN) val=0 fall=5\\nmeas tran t_q_rise trig v(Q, QN) val=0 rise=3\\nlet delay = t_q_rise - t_clk_fall\\nprint delay\\n\\n* 4. Rise Time (20% to 80% of a ~1.2V differential swing)\\nmeas tran t_rise trig v(Q, QN) val=-0.3 rise=3 targ v(Q, QN) val=0.3 rise=3\\nprint t_rise\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1506903",
+  "_case": "1506903_image_4"
+}

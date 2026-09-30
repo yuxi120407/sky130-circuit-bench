@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor Sampling Switch / Pass Gate",
+    "description": "This circuit is a sampling switch used in an RF switched-capacitor downconversion filter. It consists of a parallel transistor switch (likely intended as a CMOS transmission gate, though extracted as two NMOS) and a dummy transistor (T3) to cancel charge injection and clock feedthrough.",
+    "node_mapping": {
+      "input": [
+        "clk_B"
+      ],
+      "output": [
+        "clk_i"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ],
+      "clock": [
+        "edge_i_minus_1",
+        "edge_i_minus_1_bar",
+        "edge_i_bar"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.4-GHz RF Sampling Receiver Front-End in 0.18-um CMOS",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "insertion_loss": {
+      "description": "Signal attenuation through the switch when it is in the ON state.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 dB (overall filter gain)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "An ideal switch has 0 dB loss. With a 100fF load and finite Ron, low-frequency loss is negligible.",
+        "range": {
+          "min": -0.5,
+          "typical": 0.0,
+          "max": 0.1,
+          "unit": "dB"
+        },
+        "reasoning": "At low frequencies, the capacitive load draws no steady-state current, resulting in ~0 dB loss."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB cutoff frequency of the switch in the ON state.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.484 GHz (operating frequency)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ron = 1 / (un*Cox * W/L * (Vgs-Vth)) = 1 / (270e-6 * 6.67 * 1.38) = ~400 ohms. f_3dB = 1 / (2*pi*Ron*Cload). For Cload=100fF, f_3dB = 1 / (2*pi*400*100e-15) = 3.9 GHz.",
+        "range": {
+          "min": 2000000000.0,
+          "typical": 4000000000.0,
+          "max": 8000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Must exceed the 2.4 GHz RF sampling frequency to avoid attenuating the input signal."
+      },
+      "importance": "essential"
+    },
+    "charge_injection": {
+      "description": "Voltage glitch on the output capacitor when the switch turns off.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Q_ch = W*L*Cox*(Vgs-Vth). Dummy transistor T3 absorbs half of this charge. Residual error = dQ / Cload.",
+        "range": {
+          "min": -0.05,
+          "typical": 0.01,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Dummy compensation significantly reduces the glitch, keeping it within a few millivolts."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures insertion loss, bandwidth, and transient switching characteristics of the sampling switch.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "insertion_loss",
+      "bw_3db",
+      "v_glitch_max",
+      "v_glitch_min"
+    ],
+    "spice": "* RF Sampling Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_n=1u L_n=0.15u\n\n* DUT (Using M instead of T for ngspice compatibility)\nM3 clk_i edge_i_bar clk_i GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM1 clk_i edge_i_minus_1_bar clk_B GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\nM2 clk_B edge_i_minus_1 clk_i GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\n\n* Biasing and Inputs\nVdd vdd GND 1.8\nVin clk_B GND dc 0.9 ac 1\n\n* Clocks (Set up to force switch OFF during transient for charge injection measurement)\nVclk edge_i_minus_1 GND dc 1.8 pulse(1.8 0 2n 10p 10p 4n 10n)\nVclk_b edge_i_minus_1_bar GND dc 1.8 pulse(1.8 0 2n 10p 10p 4n 10n)\nVclk_dummy edge_i_bar GND dc 0 pulse(0 1.8 2n 10p 10p 4n 10n)\n\n* Load Capacitor\nCload clk_i GND 100f\n\n.control\n* AC Analysis (Switch is ON due to DC 1.8V on clocks)\nop\nac dec 100 1Meg 10Gig\nlet gain_db = vdb(clk_i)\nmeas ac insertion_loss find gain_db at=10Meg\nmeas ac bw_3db when gain_db=-3 fall=1\n\n* Transient Analysis (Switch turns OFF at 2ns)\ntran 1p 5n\nmeas tran v_steady find v(clk_i) at=1.9n\nmeas tran v_glitch_max max v(clk_i) from=1.9n to=3n\nmeas tran v_glitch_min min v(clk_i) from=1.9n to=3n\n\nlet max_error = v_glitch_max - v_steady\nlet min_error = v_steady - v_glitch_min\nprint max_error min_error\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor Sampling Switch / Pass Gate\",\n    \"description\": \"This circuit is a sampling switch used in an RF switched-capacitor downconversion filter. It consists of a parallel transistor switch (likely intended as a CMOS transmission gate, though extracted as two NMOS) and a dummy transistor (T3) to cancel charge injection and clock feedthrough.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"clk_B\"\n      ],\n      \"output\": [\n        \"clk_i\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"clock\": [\n        \"edge_i_minus_1\",\n        \"edge_i_minus_1_bar\",\n        \"edge_i_bar\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.4-GHz RF Sampling Receiver Front-End in 0.18-um CMOS\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"insertion_loss\": {\n      \"description\": \"Signal attenuation through the switch when it is in the ON state.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 dB (overall filter gain)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"An ideal switch has 0 dB loss. With a 100fF load and finite Ron, low-frequency loss is negligible.\",\n        \"range\": {\n          \"min\": -0.5,\n          \"typical\": 0.0,\n          \"max\": 0.1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"At low frequencies, the capacitive load draws no steady-state current, resulting in ~0 dB loss.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the switch in the ON state.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.484 GHz (operating frequency)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron = 1 / (un*Cox * W/L * (Vgs-Vth)) = 1 / (270e-6 * 6.67 * 1.38) = ~400 ohms. f_3dB = 1 / (2*pi*Ron*Cload). For Cload=100fF, f_3dB = 1 / (2*pi*400*100e-15) = 3.9 GHz.\",\n        \"range\": {\n          \"min\": 2e9,\n          \"typical\": 4e9,\n          \"max\": 8e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Must exceed the 2.4 GHz RF sampling frequency to avoid attenuating the input signal.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"charge_injection\": {\n      \"description\": \"Voltage glitch on the output capacitor when the switch turns off.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q_ch = W*L*Cox*(Vgs-Vth). Dummy transistor T3 absorbs half of this charge. Residual error = dQ / Cload.\",\n        \"range\": {\n          \"min\": -0.05,\n          \"typical\": 0.01,\n          \"max\": 0.05,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Dummy compensation significantly reduces the glitch, keeping it within a few millivolts.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures insertion loss, bandwidth, and transient switching characteristics of the sampling switch.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"insertion_loss\",\n      \"bw_3db\",\n      \"v_glitch_max\",\n      \"v_glitch_min\"\n    ],\n    \"spice\": \"* RF Sampling Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_n=1u L_n=0.15u\\n\\n* DUT (Using M instead of T for ngspice compatibility)\\nM3 clk_i edge_i_bar clk_i GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM1 clk_i edge_i_minus_1_bar clk_B GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\nM2 clk_B edge_i_minus_1 clk_i GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\n\\n* Biasing and Inputs\\nVdd vdd GND 1.8\\nVin clk_B GND dc 0.9 ac 1\\n\\n* Clocks (Set up to force switch OFF during transient for charge injection measurement)\\nVclk edge_i_minus_1 GND dc 1.8 pulse(1.8 0 2n 10p 10p 4n 10n)\\nVclk_b edge_i_minus_1_bar GND dc 1.8 pulse(1.8 0 2n 10p 10p 4n 10n)\\nVclk_dummy edge_i_bar GND dc 0 pulse(0 1.8 2n 10p 10p 4n 10n)\\n\\n* Load Capacitor\\nCload clk_i GND 100f\\n\\n.control\\n* AC Analysis (Switch is ON due to DC 1.8V on clocks)\\nop\\nac dec 100 1Meg 10Gig\\nlet gain_db = vdb(clk_i)\\nmeas ac insertion_loss find gain_db at=10Meg\\nmeas ac bw_3db when gain_db=-3 fall=1\\n\\n* Transient Analysis (Switch turns OFF at 2ns)\\ntran 1p 5n\\nmeas tran v_steady find v(clk_i) at=1.9n\\nmeas tran v_glitch_max max v(clk_i) from=1.9n to=3n\\nmeas tran v_glitch_min min v(clk_i) from=1.9n to=3n\\n\\nlet max_error = v_glitch_max - v_steady\\nlet min_error = v_steady - v_glitch_min\\nprint max_error min_error\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1435604",
+  "_case": "1435604_image_11"
+}

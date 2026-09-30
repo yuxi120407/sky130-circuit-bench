@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Positive Feedback Latch / Spike Generator",
+    "description": "This circuit acts as the comparator and spike generator in an Address-Event Representation (AER) integrate-and-fire pixel. It monitors the integration node (N0) and uses positive feedback to generate a sharp output spike (N2) while accelerating the discharge of the integration node when the threshold is crossed.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0"
+      ],
+      "ground": [
+        "GND",
+        "N1"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Biomorphic Digital Image Sensor",
+      "figure": "Extracted from schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "max_gain_db": {
+      "description": "Maximum small-signal voltage gain during the comparator transition.",
+      "unit": "dB",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "48.9 dB",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Intrinsic gain of the XM3/XM1 inverter stage. gm * (ro3 || ro1). For L=0.5um, intrinsic gain is typically 20-40 V/V.",
+        "range": {
+          "min": 25,
+          "typical": 35,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "Matches typical single-stage inverter gain in 130nm process."
+      },
+      "importance": "recommended"
+    },
+    "trip_voltage": {
+      "description": "The input voltage at N0 where the comparator flips and N2 crosses VLABEL/2.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "V_trip \u2248 V_LABEL_NET_0 - |Vthp| = 0.9V - 0.42V = 0.48V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.48,
+          "max": 0.55,
+          "unit": "V"
+        },
+        "reasoning": "XM3 turns on when its Vgs exceeds the threshold voltage."
+      },
+      "importance": "essential"
+    },
+    "t_delay": {
+      "description": "Rise time of the output spike at N2 (10% to 90% of VLABEL).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3 ns",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_D3 \u2248 57uA. dV/dt = I/C = 57uA / 10fF = 5.7 V/ns. Rise time for 0.72V swing is ~0.13 ns.",
+        "range": {
+          "min": 1e-10,
+          "typical": 5e-10,
+          "max": 3e-09,
+          "unit": "s"
+        },
+        "reasoning": "SKY130 is much faster than the original 0.6um process, leading to sub-nanosecond rise times for small load capacitances."
+      },
+      "importance": "essential"
+    },
+    "energy_spike": {
+      "description": "Energy consumed from the threshold bias supply to generate one spike.",
+      "unit": "J",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.06 pJ",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "E = C * V^2 + E_short_circuit. For 10fF load and 0.9V swing, E_cap = 8.1 fJ. Total energy ~10-20 fJ.",
+        "range": {
+          "min": 5e-15,
+          "typical": 1.5e-14,
+          "max": 5e-14,
+          "unit": "J"
+        },
+        "reasoning": "Lower supply voltage (0.9V vs 1V) and smaller parasitic capacitances in 130nm reduce the energy per spike compared to the 0.6um paper."
+      },
+      "importance": "essential"
+    },
+    "pwr_stat": {
+      "description": "Static power consumption in the reset/integration state before firing.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "40 uW (array)",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "When N0 is high, XM3 is completely off. Power is dominated by subthreshold leakage.",
+        "range": {
+          "min": 1e-15,
+          "typical": 1e-12,
+          "max": 1e-09,
+          "unit": "W"
+        },
+        "reasoning": "Static power for a single pixel latch is just leakage current."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the DC transfer characteristics (gain, trip voltage) and transient spike generation (delay, energy) of the AER pixel latch.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "max_gain_db",
+      "trip_voltage",
+      "t_delay",
+      "energy_spike",
+      "pwr_stat"
+    ],
+    "spice": "* Testbench for Biomorphic Digital Image Sensor Latch\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\n* DUT\nXM1 N2 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N2 N0 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Supplies\nVVDD VDD 0 1.8\nVLABEL LABEL_NET_0 0 0.9\n\n* Input Drive for DC Sweep (Disconnected during Tran)\nVN0_src N0_src 0 1.8\n.model sw_ideal sw vt=0.5 vh=0.1 ron=1 roff=1e12\nS1 N0_src N0 sw_ctrl 0 sw_ideal\nVctrl sw_ctrl 0 dc 1 pwl(0 1 1n 1 2n 0)\n\n* Transient Integration Components (Photodiode emulation)\nCN0 N0 0 50f\nIN0 N0 0 dc 100n\nCN2 N2 0 10f\n\n.control\n* 1. DC Analysis\ndc VN0_src 0.9 0 -0.001\nlet gain_mag = abs(deriv(v(N2)))\nlet gain_db = 20 * log10(gain_mag + 1e-15)\nmeas dc max_gain_db max gain_db\nmeas dc trip_voltage find v(N0) when v(N2)=0.45\n\n* 2. Transient Analysis\ntran 1n 2u\nmeas tran t_rise_start trig v(N2) val=0.09 rise=1\nmeas tran t_rise_end trig v(N2) val=0.81 rise=1\nlet t_delay = t_rise_end - t_rise_start\nprint t_delay\n\nlet pwr_label = -i(VLABEL) * 0.9\nmeas tran energy_spike integ pwr_label\n\nlet pwr_vdd = -i(VVDD) * 1.8\nmeas tran energy_vdd integ pwr_vdd\n\nmeas tran pwr_stat find pwr_label at=0.5n\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Positive Feedback Latch / Spike Generator\",\n    \"description\": \"This circuit acts as the comparator and spike generator in an Address-Event Representation (AER) integrate-and-fire pixel. It monitors the integration node (N0) and uses positive feedback to generate a sharp output spike (N2) while accelerating the discharge of the integration node when the threshold is crossed.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\"\n      ],\n      \"output\": [\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N1\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Biomorphic Digital Image Sensor\",\n      \"figure\": \"Extracted from schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"max_gain_db\": {\n      \"description\": \"Maximum small-signal voltage gain during the comparator transition.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"48.9 dB\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Intrinsic gain of the XM3/XM1 inverter stage. gm * (ro3 || ro1). For L=0.5um, intrinsic gain is typically 20-40 V/V.\",\n        \"range\": {\n          \"min\": 25,\n          \"typical\": 35,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Matches typical single-stage inverter gain in 130nm process.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"trip_voltage\": {\n      \"description\": \"The input voltage at N0 where the comparator flips and N2 crosses VLABEL/2.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_trip \u2248 V_LABEL_NET_0 - |Vthp| = 0.9V - 0.42V = 0.48V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.48,\n          \"max\": 0.55,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"XM3 turns on when its Vgs exceeds the threshold voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_delay\": {\n      \"description\": \"Rise time of the output spike at N2 (10% to 90% of VLABEL).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3 ns\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_D3 \u2248 57uA. dV/dt = I/C = 57uA / 10fF = 5.7 V/ns. Rise time for 0.72V swing is ~0.13 ns.\",\n        \"range\": {\n          \"min\": 1e-10,\n          \"typical\": 5e-10,\n          \"max\": 3e-09,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 is much faster than the original 0.6um process, leading to sub-nanosecond rise times for small load capacitances.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"energy_spike\": {\n      \"description\": \"Energy consumed from the threshold bias supply to generate one spike.\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.06 pJ\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"E = C * V^2 + E_short_circuit. For 10fF load and 0.9V swing, E_cap = 8.1 fJ. Total energy ~10-20 fJ.\",\n        \"range\": {\n          \"min\": 5e-15,\n          \"typical\": 1.5e-14,\n          \"max\": 5e-14,\n          \"unit\": \"J\"\n        },\n        \"reasoning\": \"Lower supply voltage (0.9V vs 1V) and smaller parasitic capacitances in 130nm reduce the energy per spike compared to the 0.6um paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"pwr_stat\": {\n      \"description\": \"Static power consumption in the reset/integration state before firing.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"40 uW (array)\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When N0 is high, XM3 is completely off. Power is dominated by subthreshold leakage.\",\n        \"range\": {\n          \"min\": 1e-15,\n          \"typical\": 1e-12,\n          \"max\": 1e-09,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Static power for a single pixel latch is just leakage current.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the DC transfer characteristics (gain, trip voltage) and transient spike generation (delay, energy) of the AER pixel latch.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"max_gain_db\",\n      \"trip_voltage\",\n      \"t_delay\",\n      \"energy_spike\",\n      \"pwr_stat\"\n    ],\n    \"spice\": \"* Testbench for Biomorphic Digital Image Sensor Latch\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\n* DUT\\nXM1 N2 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N2 N0 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Supplies\\nVVDD VDD 0 1.8\\nVLABEL LABEL_NET_0 0 0.9\\n\\n* Input Drive for DC Sweep (Disconnected during Tran)\\nVN0_src N0_src 0 1.8\\n.model sw_ideal sw vt=0.5 vh=0.1 ron=1 roff=1e12\\nS1 N0_src N0 sw_ctrl 0 sw_ideal\\nVctrl sw_ctrl 0 dc 1 pwl(0 1 1n 1 2n 0)\\n\\n* Transient Integration Components (Photodiode emulation)\\nCN0 N0 0 50f\\nIN0 N0 0 dc 100n\\nCN2 N2 0 10f\\n\\n.control\\n* 1. DC Analysis\\ndc VN0_src 0.9 0 -0.001\\nlet gain_mag = abs(deriv(v(N2)))\\nlet gain_db = 20 * log10(gain_mag + 1e-15)\\nmeas dc max_gain_db max gain_db\\nmeas dc trip_voltage find v(N0) when v(N2)=0.45\\n\\n* 2. Transient Analysis\\ntran 1n 2u\\nmeas tran t_rise_start trig v(N2) val=0.09 rise=1\\nmeas tran t_rise_end trig v(N2) val=0.81 rise=1\\nlet t_delay = t_rise_end - t_rise_start\\nprint t_delay\\n\\nlet pwr_label = -i(VLABEL) * 0.9\\nmeas tran energy_spike integ pwr_label\\n\\nlet pwr_vdd = -i(VVDD) * 1.8\\nmeas tran energy_vdd integ pwr_vdd\\n\\nmeas tran pwr_stat find pwr_label at=0.5n\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1175509",
+  "_case": "1175509_image_10"
+}

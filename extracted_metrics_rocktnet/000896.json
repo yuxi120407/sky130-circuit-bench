@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "2:1 Multiplexer / Selector Latch (CML/ECL)",
+    "description": "A high-speed current-mode logic (CML) 2:1 multiplexer used in a PRBS generator. It selects between two differential data inputs (D1/D1N and D2/D2N) based on a differential clock signal (CLK/CLKN) to serialize data.",
+    "node_mapping": {
+      "input": [
+        "CLK",
+        "CLKN",
+        "D1",
+        "D1N",
+        "D2",
+        "D2N"
+      ],
+      "output": [
+        "Q",
+        "QN"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "Iout"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "100-Gb/s 27 1 and 54-Gb/s 211 1 PRBS Generators in SiGe Bipolar Technology",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total power dissipated by the multiplexer circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1.9 W",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "VCC * I_total. Tail current is ~1mA, plus 8 emitter followers drawing ~0.5mA each. Total current ~5mA. 5mA * 1.8V = 9mW.",
+        "range": {
+          "min": "5m",
+          "typical": "10m",
+          "max": "20m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down from the full PRBS generator (which contains many latches) and adapted for 1.8V CMOS instead of high-current SiGe."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "Maximum clock frequency for reliable data multiplexing.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 GHz",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "f_max ~ 1 / (5 * tau). tau = R_load * C_parasitic. R=500 ohm, C=50fF -> tau=25ps. f_max ~ 8 GHz.",
+        "range": {
+          "min": "1G",
+          "typical": "5G",
+          "max": "10G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 130nm CMOS is significantly slower than the specialized SiGe HBTs used in the paper."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Time delay from clock edge to output data transition.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.5 ps",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Delay is dominated by the RC time constant of the output nodes and internal parasitic capacitances. ~2-3 gate delays.",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "CMOS 130nm has higher parasitic capacitance and lower transconductance than SiGe HBTs."
+      },
+      "importance": "essential"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak single-ended output voltage swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 mV",
+        "technology": "SiGe Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail * R_load. 1mA * 500 ohms = 500mV single-ended swing.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.5",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "CML in CMOS typically uses larger swings (300-600mV) to overcome higher Vth variations compared to bipolar."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify 2:1 multiplexing function and measure delay, swing, and power. The original bipolar transistors are mapped to SKY130 NMOS devices to emulate CML logic.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "propagation_delay",
+      "voltage_swing"
+    ],
+    "spice": "* 2:1 MUX Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Supplies\nVCC VCC 0 1.8\nVEE VEE 0 0\n\n* Inputs (1 GHz Clock, 500 MHz Data)\nVCLK CLK 0 pulse(1.4 1.8 0 20p 20p 480p 1n)\nVCLKN CLKN 0 pulse(1.8 1.4 0 20p 20p 480p 1n)\nVD1 D1 0 pulse(1.4 1.8 0 20p 20p 980p 2n)\nVD1N D1N 0 pulse(1.8 1.4 0 20p 20p 980p 2n)\nVD2 D2 0 pulse(1.8 1.4 0 20p 20p 980p 2n)\nVD2N D2N 0 pulse(1.4 1.8 0 20p 20p 980p 2n)\n\n* Modified Netlist (Q -> M, npn/pnp -> sky130_fd_pr__nfet_01v8)\nR1 N16 VEE 100\nR2 N5 VEE 100\nR3 VCC Iout 500\nR4 Iout N11 500\nM1 N11 N11 N16 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM2 VCC N12 N4 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nR5 VCC Q 500\nR6 VCC QN 500\nR7 N8 VEE 2k\nM3 N3 N11 N5 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nR8 N4 VEE 2k\nR9 N1 VEE 2k\nR10 N14 VEE 2k\nM4 VCC D1N N0 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nR11 N6 VEE 2k\nM5 N19 N15 N3 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nR12 N15 VEE 2k\nM6 VCC N18 N12 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nR13 N12 VEE 2k\nM7 QN N8 N7 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nR14 N0 VEE 2k\nM8 VCC CLK N14 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM9 VCC N14 N15 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM10 VCC D1 N1 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM11 QN N0 N19 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nM12 VCC D2N N8 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM13 VCC D2 N6 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM14 Q N6 N7 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nR15 Iout Iout 1\nM15 Q N1 N19 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\n* Note: Q16 was extracted as PNP, but must be NPN (NFET) to form a proper diff pair with M5.\nM16 N7 N4 N3 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\nR16 N18 CLKN 1\n\n* Control block\n.control\ntran 10p 5n\n\nmeas tran v_max max v(q)\nmeas tran v_min min v(q)\nlet swing = v_max - v_min\nprint swing\n\n* Measure delay from CLK rising edge to Q falling edge (D1 is high, so Q pulls low)\nmeas tran t_delay trig v(clk) val=1.6 rise=2 targ v(q) val=1.6 fall=1\n\nop\nlet power = -i(VCC) * 1.8\nprint power\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"2:1 Multiplexer / Selector Latch (CML/ECL)\",\n    \"description\": \"A high-speed current-mode logic (CML) 2:1 multiplexer used in a PRBS generator. It selects between two differential data inputs (D1/D1N and D2/D2N) based on a differential clock signal (CLK/CLKN) to serialize data.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"CLK\",\n        \"CLKN\",\n        \"D1\",\n        \"D1N\",\n        \"D2\",\n        \"D2N\"\n      ],\n      \"output\": [\n        \"Q\",\n        \"QN\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"Iout\"\n      ],\n      \"ground\": [\n        \"VEE\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"100-Gb/s 27 1 and 54-Gb/s 211 1 PRBS Generators in SiGe Bipolar Technology\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the multiplexer circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1.9 W\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VCC * I_total. Tail current is ~1mA, plus 8 emitter followers drawing ~0.5mA each. Total current ~5mA. 5mA * 1.8V = 9mW.\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"10m\",\n          \"max\": \"20m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down from the full PRBS generator (which contains many latches) and adapted for 1.8V CMOS instead of high-current SiGe.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Maximum clock frequency for reliable data multiplexing.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 GHz\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_max ~ 1 / (5 * tau). tau = R_load * C_parasitic. R=500 ohm, C=50fF -> tau=25ps. f_max ~ 8 GHz.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"5G\",\n          \"max\": \"10G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 130nm CMOS is significantly slower than the specialized SiGe HBTs used in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Time delay from clock edge to output data transition.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.5 ps\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is dominated by the RC time constant of the output nodes and internal parasitic capacitances. ~2-3 gate delays.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"CMOS 130nm has higher parasitic capacitance and lower transconductance than SiGe HBTs.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak single-ended output voltage swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 mV\",\n        \"technology\": \"SiGe Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail * R_load. 1mA * 500 ohms = 500mV single-ended swing.\",\n        \"range\": {\n          \"min\": \"0.2\",\n          \"typical\": \"0.5\",\n          \"max\": \"0.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CML in CMOS typically uses larger swings (300-600mV) to overcome higher Vth variations compared to bipolar.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify 2:1 multiplexing function and measure delay, swing, and power. The original bipolar transistors are mapped to SKY130 NMOS devices to emulate CML logic.\",\n    \"analyses\": [\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"propagation_delay\",\n      \"voltage_swing\"\n    ],\n    \"spice\": \"* 2:1 MUX Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Supplies\\nVCC VCC 0 1.8\\nVEE VEE 0 0\\n\\n* Inputs (1 GHz Clock, 500 MHz Data)\\nVCLK CLK 0 pulse(1.4 1.8 0 20p 20p 480p 1n)\\nVCLKN CLKN 0 pulse(1.8 1.4 0 20p 20p 480p 1n)\\nVD1 D1 0 pulse(1.4 1.8 0 20p 20p 980p 2n)\\nVD1N D1N 0 pulse(1.8 1.4 0 20p 20p 980p 2n)\\nVD2 D2 0 pulse(1.8 1.4 0 20p 20p 980p 2n)\\nVD2N D2N 0 pulse(1.4 1.8 0 20p 20p 980p 2n)\\n\\n* Modified Netlist (Q -> M, npn/pnp -> sky130_fd_pr__nfet_01v8)\\nR1 N16 VEE 100\\nR2 N5 VEE 100\\nR3 VCC Iout 500\\nR4 Iout N11 500\\nM1 N11 N11 N16 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM2 VCC N12 N4 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nR5 VCC Q 500\\nR6 VCC QN 500\\nR7 N8 VEE 2k\\nM3 N3 N11 N5 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nR8 N4 VEE 2k\\nR9 N1 VEE 2k\\nR10 N14 VEE 2k\\nM4 VCC D1N N0 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nR11 N6 VEE 2k\\nM5 N19 N15 N3 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nR12 N15 VEE 2k\\nM6 VCC N18 N12 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nR13 N12 VEE 2k\\nM7 QN N8 N7 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nR14 N0 VEE 2k\\nM8 VCC CLK N14 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM9 VCC N14 N15 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM10 VCC D1 N1 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM11 QN N0 N19 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nM12 VCC D2N N8 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM13 VCC D2 N6 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM14 Q N6 N7 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nR15 Iout Iout 1\\nM15 Q N1 N19 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\n* Note: Q16 was extracted as PNP, but must be NPN (NFET) to form a proper diff pair with M5.\\nM16 N7 N4 N3 0 sky130_fd_pr__nfet_01v8 w=20u l=0.15u\\nR16 N18 CLKN 1\\n\\n* Control block\\n.control\\ntran 10p 5n\\n\\nmeas tran v_max max v(q)\\nmeas tran v_min min v(q)\\nlet swing = v_max - v_min\\nprint swing\\n\\n* Measure delay from CLK rising edge to Q falling edge (D1 is high, so Q pulls low)\\nmeas tran t_delay trig v(clk) val=1.6 rise=2 targ v(q) val=1.6 fall=1\\n\\nop\\nlet power = -i(VCC) * 1.8\\nprint power\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1506903",
+  "_case": "1506903_image_5"
+}

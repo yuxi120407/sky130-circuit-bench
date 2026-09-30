@@ -1,0 +1,202 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 23.13",
+    "page": "754",
+    "circuit_type": "Beta-Multiplier Voltage Reference (BMR) with Error Amplifier and Start-Up Circuit",
+    "description": "A self-biased beta-multiplier voltage reference where an opamp (MA1-MA4) forces the drain voltages of M1 and M2 equal, with start-up circuit (MSU1-MSU3) and bypass capacitor MCP."
+  },
+  "step2_metrics": {
+    "vref_nominal": {
+      "description": "Nominal reference output voltage at room temperature (25 C) and nominal VDD (1.8 V)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "754",
+        "reference": "Fig. 23.13 & Eq. (23.18)"
+      },
+      "equation": {
+        "formula": "VREF = VGS1 = VTHN + sqrt(2 * IREF / beta_1)",
+        "explanation": "The operational amplifier enforces VREF = Vbiasn = VGS1. The reference voltage equals the gate-source voltage of M1.",
+        "assumptions": "M1 is in saturation, opamp has high open-loop gain to enforce virtual short between inputs."
+      },
+      "sky130_expected": {
+        "calculation": "With W1/L1 = 10u/2u = 5, beta_1 = un*Cox*(W1/L1) = 270u * 5 = 1.35 mA/V^2. With K = (W2/L2)/(W1/L1) = 4, IREF = (2/(R^2*beta_1))*(1 - 1/sqrt(K))^2 = (2 / (5500^2 * 1.35m)) * (0.5)^2 = 12.24 uA. Vov1 = sqrt(2 * 12.24u / 1.35m) = 0.135 V. VREF = VTHN + Vov1 = 0.42 V + 0.135 V = 0.555 V.",
+        "range": {
+          "min": 0.5,
+          "typical": 0.56,
+          "max": 0.65,
+          "unit": "V"
+        },
+        "reasoning": "Standard NMOS threshold in SKY130 is ~0.42 V with ~135 mV overdrive at 12 uA bias."
+      },
+      "importance": "essential"
+    },
+    "temperature_coefficient": {
+      "description": "Temperature coefficient of the reference voltage (TCV_REF) over 0 C to 100 C",
+      "unit": "V/us",
+      "analysis_type": "DC",
+      "source": {
+        "page": "754",
+        "reference": "Eq. (23.16) - (23.18) & Fig. 23.14"
+      },
+      "equation": {
+        "formula": "TCV_REF = (1 / VREF) * (d VREF / d T)",
+        "explanation": "Calculates the fractional variation of VREF over temperature. As described in Example 23.3, VREF shifts ~40 mV over 100 C change (-400 uV/C or -800 ppm/C).",
+        "assumptions": "Resistor TCR = 2000 ppm/C, long-channel temperature dependence of mobility and threshold."
+      },
+      "sky130_expected": {
+        "calculation": "Targeting dVREF/dT around -400 uV/C to -700 uV/C; for VREF = 0.56 V, TCV_REF = (-500 uV/C) / 0.56 V = -892 ppm/C. Total delta VREF over 100 C is approximately 40 mV to 60 mV.",
+        "range": {
+          "min": -1500,
+          "typical": -800,
+          "max": -300,
+          "unit": "ppm/C"
+        },
+        "reasoning": "Consistent with textbook simulation result showing ~40 mV drop over 0 to 100 C."
+      },
+      "importance": "essential"
+    },
+    "line_regulation": {
+      "description": "Sensitivity of reference voltage to power supply voltage changes (dVREF / dVDD) in the operating region",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "754",
+        "reference": "Fig. 23.14"
+      },
+      "equation": {
+        "formula": "Line_Reg = delta(VREF) / delta(VDD)",
+        "explanation": "Measures how constant VREF remains once VDD exceeds the minimum saturation headroom.",
+        "assumptions": "Evaluated in the flat region between VDD = 1.2 V and 1.8 V."
+      },
+      "sky130_expected": {
+        "calculation": "Due to the high open-loop gain of the differential error amplifier (MA1-MA4), drain voltages are forced equal, suppressing channel-length modulation. Delta VREF over 1.2 V to 1.8 V is typically < 10 mV, giving Line_Reg < 15 mV/V.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.005,
+          "max": 0.02,
+          "unit": "V/V"
+        },
+        "reasoning": "The self-biased amplifier provides high PSRR/line regulation compared to unassisted BMR."
+      },
+      "importance": "essential"
+    },
+    "vdd_min": {
+      "description": "Minimum supply voltage for reference output to stabilize",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "754",
+        "reference": "Fig. 23.14"
+      },
+      "equation": {
+        "formula": "VDD_min = VREF + |Vov,p| + |VTHP|",
+        "explanation": "Supply voltage at which the PMOS current mirror (M3, M4) enters the saturation region.",
+        "assumptions": "M3/M4 have |VTHP| ~ 0.42 V and overdrive ~ 0.15 V."
+      },
+      "sky130_expected": {
+        "calculation": "VREF ~ 0.56 V, |Vov,p| ~ 0.15 V, |VTHP| ~ 0.42 V => VDD_min ~ 0.56 + 0.15 + 0.42 = 1.13 V.",
+        "range": {
+          "min": 0.9,
+          "typical": 1.1,
+          "max": 1.3,
+          "unit": "V"
+        },
+        "reasoning": "Below 1.1 V, the PMOS mirrors drop into triode and reference collapses toward 0 V."
+      },
+      "importance": "recommended"
+    },
+    "iref_branch": {
+      "description": "Quiescent bias current per branch (M1 and M2 branches)",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "754",
+        "reference": "Eq. (23.16)"
+      },
+      "equation": {
+        "formula": "IREF = (2 / (R^2 * beta_1)) * (1 - 1/sqrt(K))^2",
+        "equation": "beta_1 = KPn * (W1/L1), K = (W2/L2)/(W1/L1) = 4, R = 5.5 kohm."
+      },
+      "sky130_expected": {
+        "calculation": "IREF = (2 / (5500^2 * 1.35e-3)) * (1 - 0.5)^2 = 12.24 uA.",
+        "range": {
+          "min": 8e-06,
+          "typical": 1.2e-05,
+          "max": 1.8e-05,
+          "unit": "A"
+        },
+        "reasoning": "Long-channel quadratic model predicts ~12.2 uA with R=5.5k."
+      },
+      "importance": "recommended"
+    },
+    "amplifier_offset": {
+      "description": "Error amplifier differential input voltage offset |VREF - Vbiasn|",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "750",
+        "reference": "Fig. 23.7 & Sec. 23.1.3"
+      },
+      "equation": {
+        "formula": "V_offset = |V(VREF) - V(Vbiasn)|",
+        "explanation": "The amplifier forces drain voltages equal to guarantee equal branch currents.",
+        "assumptions": "Balanced differential pair MA1-MA2 and mirror MA3-MA4."
+      },
+      "sky130_expected": {
+        "calculation": "Finite open-loop gain A_OL ~ 30 dB (31.6) results in an offset V_offset = delta_Vbiasp / A_OL < 5 mV.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.001,
+          "max": 0.01,
+          "unit": "V"
+        },
+        "reasoning": "Matched differential pair ensures low input-referred systematic offset."
+      },
+      "importance": "recommended"
+    },
+    "startup_margin": {
+      "description": "Gate-to-source voltage of startup transistor MSU3 in normal operation",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "753",
+        "reference": "Fig. 23.11 discussion"
+      },
+      "equation": {
+        "formula": "VGS_MSU3 = V(N002) - V(Vbiasn)",
+        "explanation": "In normal operating mode, MSU3 must be completely turned off to avoid corrupting reference current.",
+        "assumptions": "MSU1 pulls down node N002 below Vbiasn."
+      },
+      "sky130_expected": {
+        "calculation": "MSU1 (10/2) is turned on by Vbiasn (~0.56 V). MSU2 is a long PMOS (10/20) diode load. V(N002) is pulled down near ground (< 0.1 V), giving VGS_MSU3 = V(N002) - Vbiasn ~ 0.05 - 0.56 = -0.51 V < 0.",
+        "range": {
+          "min": -0.8,
+          "typical": -0.5,
+          "max": -0.1,
+          "unit": "V"
+        },
+        "reasoning": "Negative VGS guarantees MSU3 is strongly cut off during normal operation."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Comprehensive ngspice testbench for Baker Fig. 23.13 BMR voltage reference measuring nominal VREF, temperature performance, line regulation, minimum supply headroom, branch currents, and startup circuit state.",
+    "analyses": [
+      "DC operating point across temperatures",
+      "DC supply sweep"
+    ],
+    "metrics_measured": [
+      "vref_nominal",
+      "temperature_coefficient",
+      "line_regulation",
+      "vdd_min",
+      "iref_branch",
+      "amplifier_offset",
+      "startup_margin"
+    ],
+    "spice": "* Baker Fig 23.13 Beta-Multiplier Voltage Reference Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter definitions from Fig. 23.13\n.param W_xmsu1=10u  L_xmsu1=2u\n.param W_xmsu2=10u  L_xmsu2=20u\n.param W_xmsu3=10u  L_xmsu3=1u\n.param W_xm3t=100u  L_xm3t=2u\n.param W_xm4t=100u  L_xm4t=2u\n.param W_xm2=40u    L_xm2=2u\n.param W_xm1=10u    L_xm1=2u\n.param W_xma1=10u   L_xma1=2u\n.param W_xma2=10u   L_xma2=2u\n.param W_xma3=100u  L_xma3=2u\n.param W_xma4=100u  L_xma4=2u\n.param W_xm3=100u   L_xm3=100u\n\n* Supply Voltage\nVDD VDD 0 1.8\n\n* Circuit Netlist (DUT)\nxmsu1 N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\nxmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\nxmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\nxm3t Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3t} l={L_xm3t}\nxm4t VREF Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4t} l={L_xm4t}\nxm2 VREF VREF N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nR1 N003 0 5500.0\nxma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\nxma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\nxma1 N001 VREF 0 0 sky130_fd_pr__nfet_01v8 w={W_xma1} l={L_xma1}\nxma2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xma2} l={L_xma2}\nxm3 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n\n.control\n* 1. Operating Point at T = 25 C\nset temp = 25\nop\nlet vref_25 = v(VREF)\nlet vbiasn_25 = v(Vbiasn)\nlet v_off = abs(vref_25 - vbiasn_25)\nlet iref = v(N003) / 5500.0\nlet vgs_msu3 = v(N002) - v(Vbiasn)\n\nprint vref_25\nprint v_off\nprint iref\nprint vgs_msu3\n\n* 2. Operating Point at T = 0 C and T = 100 C for Temperature Coefficient\nset temp = 0\nop\nlet vref_0 = v(VREF)\n\nset temp = 100\nop\nlet vref_100 = v(VREF)\n\nlet delta_vref_temp = vref_100 - vref_0\nlet tc_ppm = (delta_vref_temp / (100.0 * vref_25)) * 1e6\nprint vref_0 vref_100 delta_vref_temp tc_ppm\n\n* 3. DC Supply Sweep from 0 to 1.8 V at T = 25 C\nset temp = 25\ndc VDD 0 1.8 0.01\n\nmeas dc vref_at_1p2 find v(VREF) at=1.2\nmeas dc vref_at_1p8 find v(VREF) at=1.8\nlet line_reg = (vref_at_1p8 - vref_at_1p2) / 0.6\nprint line_reg\n\nmeas dc vdd_min when v(VREF)=0.5 rise=1\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 23.13\",\n    \"page\": \"754\",\n    \"circuit_type\": \"Beta-Multiplier Voltage Reference (BMR) with Error Amplifier and Start-Up Circuit\",\n    \"description\": \"A self-biased beta-multiplier voltage reference where an opamp (MA1-MA4) forces the drain voltages of M1 and M2 equal, with start-up circuit (MSU1-MSU3) and bypass capacitor MCP.\"\n  },\n  \"step2_metrics\": {\n    \"vref_nominal\": {\n      \"description\": \"Nominal reference output voltage at room temperature (25 C) and nominal VDD (1.8 V)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"754\", \"reference\": \"Fig. 23.13 & Eq. (23.18)\" },\n      \"equation\": {\n        \"formula\": \"VREF = VGS1 = VTHN + sqrt(2 * IREF / beta_1)\",\n        \"explanation\": \"The operational amplifier enforces VREF = Vbiasn = VGS1. The reference voltage equals the gate-source voltage of M1.\",\n        \"assumptions\": \"M1 is in saturation, opamp has high open-loop gain to enforce virtual short between inputs.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W1/L1 = 10u/2u = 5, beta_1 = un*Cox*(W1/L1) = 270u * 5 = 1.35 mA/V^2. With K = (W2/L2)/(W1/L1) = 4, IREF = (2/(R^2*beta_1))*(1 - 1/sqrt(K))^2 = (2 / (5500^2 * 1.35m)) * (0.5)^2 = 12.24 uA. Vov1 = sqrt(2 * 12.24u / 1.35m) = 0.135 V. VREF = VTHN + Vov1 = 0.42 V + 0.135 V = 0.555 V.\",\n        \"range\": { \"min\": 0.50, \"typical\": 0.56, \"max\": 0.65, \"unit\": \"V\" },\n        \"reasoning\": \"Standard NMOS threshold in SKY130 is ~0.42 V with ~135 mV overdrive at 12 uA bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"temperature_coefficient\": {\n      \"description\": \"Temperature coefficient of the reference voltage (TCV_REF) over 0 C to 100 C\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"754\", \"reference\": \"Eq. (23.16) - (23.18) & Fig. 23.14\" },\n      \"equation\": {\n        \"formula\": \"TCV_REF = (1 / VREF) * (d VREF / d T)\",\n        \"explanation\": \"Calculates the fractional variation of VREF over temperature. As described in Example 23.3, VREF shifts ~40 mV over 100 C change (-400 uV/C or -800 ppm/C).\",\n        \"assumptions\": \"Resistor TCR = 2000 ppm/C, long-channel temperature dependence of mobility and threshold.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Targeting dVREF/dT around -400 uV/C to -700 uV/C; for VREF = 0.56 V, TCV_REF = (-500 uV/C) / 0.56 V = -892 ppm/C. Total delta VREF over 100 C is approximately 40 mV to 60 mV.\",\n        \"range\": { \"min\": -1500, \"typical\": -800, \"max\": -300, \"unit\": \"ppm/C\" },\n        \"reasoning\": \"Consistent with textbook simulation result showing ~40 mV drop over 0 to 100 C.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"line_regulation\": {\n      \"description\": \"Sensitivity of reference voltage to power supply voltage changes (dVREF / dVDD) in the operating region\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"754\", \"reference\": \"Fig. 23.14\" },\n      \"equation\": {\n        \"formula\": \"Line_Reg = delta(VREF) / delta(VDD)\",\n        \"explanation\": \"Measures how constant VREF remains once VDD exceeds the minimum saturation headroom.\",\n        \"assumptions\": \"Evaluated in the flat region between VDD = 1.2 V and 1.8 V.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Due to the high open-loop gain of the differential error amplifier (MA1-MA4), drain voltages are forced equal, suppressing channel-length modulation. Delta VREF over 1.2 V to 1.8 V is typically < 10 mV, giving Line_Reg < 15 mV/V.\",\n        \"range\": { \"min\": 0.0001, \"typical\": 0.005, \"max\": 0.02, \"unit\": \"V/V\" },\n        \"reasoning\": \"The self-biased amplifier provides high PSRR/line regulation compared to unassisted BMR.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vdd_min\": {\n      \"description\": \"Minimum supply voltage for reference output to stabilize\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"754\", \"reference\": \"Fig. 23.14\" },\n      \"equation\": {\n        \"formula\": \"VDD_min = VREF + |Vov,p| + |VTHP|\",\n        \"explanation\": \"Supply voltage at which the PMOS current mirror (M3, M4) enters the saturation region.\",\n        \"assumptions\": \"M3/M4 have |VTHP| ~ 0.42 V and overdrive ~ 0.15 V.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VREF ~ 0.56 V, |Vov,p| ~ 0.15 V, |VTHP| ~ 0.42 V => VDD_min ~ 0.56 + 0.15 + 0.42 = 1.13 V.\",\n        \"range\": { \"min\": 0.9, \"typical\": 1.1, \"max\": 1.3, \"unit\": \"V\" },\n        \"reasoning\": \"Below 1.1 V, the PMOS mirrors drop into triode and reference collapses toward 0 V.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"iref_branch\": {\n      \"description\": \"Quiescent bias current per branch (M1 and M2 branches)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"754\", \"reference\": \"Eq. (23.16)\" },\n      \"equation\": {\n        \"formula\": \"IREF = (2 / (R^2 * beta_1)) * (1 - 1/sqrt(K))^2\",\n        \"equation\": \"beta_1 = KPn * (W1/L1), K = (W2/L2)/(W1/L1) = 4, R = 5.5 kohm.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"IREF = (2 / (5500^2 * 1.35e-3)) * (1 - 0.5)^2 = 12.24 uA.\",\n        \"range\": { \"min\": 8e-6, \"typical\": 1.2e-5, \"max\": 1.8e-5, \"unit\": \"A\" },\n        \"reasoning\": \"Long-channel quadratic model predicts ~12.2 uA with R=5.5k.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"amplifier_offset\": {\n      \"description\": \"Error amplifier differential input voltage offset |VREF - Vbiasn|\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"750\", \"reference\": \"Fig. 23.7 & Sec. 23.1.3\" },\n      \"equation\": {\n        \"formula\": \"V_offset = |V(VREF) - V(Vbiasn)|\",\n        \"explanation\": \"The amplifier forces drain voltages equal to guarantee equal branch currents.\",\n        \"assumptions\": \"Balanced differential pair MA1-MA2 and mirror MA3-MA4.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Finite open-loop gain A_OL ~ 30 dB (31.6) results in an offset V_offset = delta_Vbiasp / A_OL < 5 mV.\",\n        \"range\": { \"min\": 0.0, \"typical\": 0.001, \"max\": 0.01, \"unit\": \"V\" },\n        \"reasoning\": \"Matched differential pair ensures low input-referred systematic offset.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"startup_margin\": {\n      \"description\": \"Gate-to-source voltage of startup transistor MSU3 in normal operation\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"753\", \"reference\": \"Fig. 23.11 discussion\" },\n      \"equation\": {\n        \"formula\": \"VGS_MSU3 = V(N002) - V(Vbiasn)\",\n        \"explanation\": \"In normal operating mode, MSU3 must be completely turned off to avoid corrupting reference current.\",\n        \"assumptions\": \"MSU1 pulls down node N002 below Vbiasn.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"MSU1 (10/2) is turned on by Vbiasn (~0.56 V). MSU2 is a long PMOS (10/20) diode load. V(N002) is pulled down near ground (< 0.1 V), giving VGS_MSU3 = V(N002) - Vbiasn ~ 0.05 - 0.56 = -0.51 V < 0.\",\n        \"range\": { \"min\": -0.8, \"typical\": -0.5, \"max\": -0.1, \"unit\": \"V\" },\n        \"reasoning\": \"Negative VGS guarantees MSU3 is strongly cut off during normal operation.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Comprehensive ngspice testbench for Baker Fig. 23.13 BMR voltage reference measuring nominal VREF, temperature performance, line regulation, minimum supply headroom, branch currents, and startup circuit state.\",\n    \"analyses\": [\"DC operating point across temperatures\", \"DC supply sweep\"],\n    \"metrics_measured\": [\n      \"vref_nominal\",\n      \"temperature_coefficient\",\n      \"line_regulation\",\n      \"vdd_min\",\n      \"iref_branch\",\n      \"amplifier_offset\",\n      \"startup_margin\"\n    ],\n    \"spice\": \"* Baker Fig 23.13 Beta-Multiplier Voltage Reference Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter definitions from Fig. 23.13\\n.param W_xmsu1=10u  L_xmsu1=2u\\n.param W_xmsu2=10u  L_xmsu2=20u\\n.param W_xmsu3=10u  L_xmsu3=1u\\n.param W_xm3t=100u  L_xm3t=2u\\n.param W_xm4t=100u  L_xm4t=2u\\n.param W_xm2=40u    L_xm2=2u\\n.param W_xm1=10u    L_xm1=2u\\n.param W_xma1=10u   L_xma1=2u\\n.param W_xma2=10u   L_xma2=2u\\n.param W_xma3=100u  L_xma3=2u\\n.param W_xma4=100u  L_xma4=2u\\n.param W_xm3=100u   L_xm3=100u\\n\\n* Supply Voltage\\nVDD VDD 0 1.8\\n\\n* Circuit Netlist (DUT)\\nxmsu1 N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\nxmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\nxmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\nxm3t Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3t} l={L_xm3t}\\nxm4t VREF Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4t} l={L_xm4t}\\nxm2 VREF VREF N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nR1 N003 0 5500.0\\nxma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\nxma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\nxma1 N001 VREF 0 0 sky130_fd_pr__nfet_01v8 w={W_xma1} l={L_xma1}\\nxma2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xma2} l={L_xma2}\\nxm3 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n\\n.control\\n* 1. Operating Point at T = 25 C\\nset temp = 25\\nop\\nlet vref_25 = v(VREF)\\nlet vbiasn_25 = v(Vbiasn)\\nlet v_off = abs(vref_25 - vbiasn_25)\\nlet iref = v(N003) / 5500.0\\nlet vgs_msu3 = v(N002) - v(Vbiasn)\\n\\nprint vref_25\\nprint v_off\\nprint iref\\nprint vgs_msu3\\n\\n* 2. Operating Point at T = 0 C and T = 100 C for Temperature Coefficient\\nset temp = 0\\nop\\nlet vref_0 = v(VREF)\\n\\nset temp = 100\\nop\\nlet vref_100 = v(VREF)\\n\\nlet delta_vref_temp = vref_100 - vref_0\\nlet tc_ppm = (delta_vref_temp / (100.0 * vref_25)) * 1e6\\nprint vref_0 vref_100 delta_vref_temp tc_ppm\\n\\n* 3. DC Supply Sweep from 0 to 1.8 V at T = 25 C\\nset temp = 25\\ndc VDD 0 1.8 0.01\\n\\nmeas dc vref_at_1p2 find v(VREF) at=1.2\\nmeas dc vref_at_1p8 find v(VREF) at=1.8\\nlet line_reg = (vref_at_1p8 - vref_at_1p2) / 0.6\\nprint line_reg\\n\\nmeas dc vdd_min when v(VREF)=0.5 rise=1\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

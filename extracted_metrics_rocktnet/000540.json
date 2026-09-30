@@ -1,0 +1,104 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Ring Oscillator (Parasitic Capacitance Model)",
+    "description": "The provided netlist represents the parasitic capacitance model of a MOSFET. In the context of the paper, this model is used to derive an analytical equation for the oscillation frequency of a ring oscillator by accounting for time-varying parasitics.",
+    "node_mapping": {
+      "input": [
+        "G"
+      ],
+      "output": [
+        "D"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "S",
+        "B"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Analytical Equation for the Oscillation Frequency of High-Frequency Ring Oscillators",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "The fundamental frequency at which the ring oscillator toggles.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "8% (Note: This value from the abstract refers to the analytical model's average error, not the frequency itself)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Period = 2 * N * td. For a 3-stage oscillator in SKY130 (L=0.15um), intrinsic td is ~20ps. With the added 5fF parasitic capacitors from the DUT loading the stages, td increases to ~50ps. Freq = 1 / (2 * 3 * 50ps) ~= 3.3 GHz.",
+        "range": {
+          "min": 2000000000.0,
+          "typical": 3500000000.0,
+          "max": 6000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Frequency is highly dependent on the assumed values for the parasitic capacitors and the sizing of the ring oscillator's driving transistors."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power drawn from the supply during steady-state oscillation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = C_tot * VDD^2 * f. Estimated total switching capacitance C_tot ~= 50fF, VDD = 1.8V, f = 3.5GHz. P = 50e-15 * 3.24 * 3.5e9 = 567uW.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.0006,
+          "max": 0.0015,
+          "unit": "W"
+        },
+        "reasoning": "Dynamic power dominates in ring oscillators and scales linearly with frequency and quadratically with supply voltage."
+      },
+      "importance": "essential"
+    },
+    "peak_to_peak_voltage": {
+      "description": "The maximum voltage swing of the oscillator nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "500 mV (Likely a low-voltage supply test case mentioned in the paper)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Standard CMOS ring oscillators swing rail-to-rail unless the frequency approaches the transit frequency (fT) of the technology.",
+        "range": {
+          "min": 1.6,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "At a 1.8V supply in SKY130, a 3.5 GHz oscillator will achieve nearly full rail-to-rail swing."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis of a 3-stage ring oscillator that incorporates the provided parasitic capacitance model as a load to measure oscillation frequency, power consumption, and voltage swing.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "power_consumption",
+      "peak_to_peak_voltage"
+    ],
+    "spice": "* Ring Oscillator with Parasitic Model\n.lib \"${SKY130_PDK}\" tt\n\n.param VDD_VAL=1.8\nVdd VDD 0 {VDD_VAL}\n\n* 3-stage ring oscillator\nXinv1 G D VDD 0 inv\nXinv2 D n3 VDD 0 inv\nXinv3 n3 G VDD 0 inv\n\n.subckt inv in out vdd gnd\nXMp out in vdd vdd sky130_fd_pr__pfet_01v8 w=2u l=0.15u\nXMn out in gnd gnd sky130_fd_pr__nfet_01v8 w=1u l=0.15u\n.ends\n\n* Connect S and B to ground for the DUT\nV_S S 0 0\nV_B B 0 0\n\n* DUT (Parasitic Capacitances - 5fF values added to make valid SPICE)\nCgs G S 5f\nCgd G D 5f\nCdb D B 5f\nCgb G B 5f\nCsb S B 5f\n\n* Initial conditions to kickstart oscillation\n.ic v(G)=0 v(D)=1.8 v(n3)=0\n\n.control\ntran 5p 10n\n\n* Measure Oscillation Frequency (using 10th and 11th cycles for steady state)\nmeas tran t1 trig v(G) val=0.9 rise=10 targ v(G) val=0.9 rise=11\nlet freq = 1 / t1\nprint freq\n\n* Measure Power Consumption\nmeas tran pwr_avg avg i(Vdd) from=5n to=10n\nlet power = -pwr_avg * 1.8\nprint power\n\n* Measure Peak-to-Peak Voltage\nmeas tran vmax max v(G) from=5n to=10n\nmeas tran vmin min v(G) from=5n to=10n\nlet vpp = vmax - vmin\nprint vpp\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Ring Oscillator (Parasitic Capacitance Model)\",\n    \"description\": \"The provided netlist represents the parasitic capacitance model of a MOSFET. In the context of the paper, this model is used to derive an analytical equation for the oscillation frequency of a ring oscillator by accounting for time-varying parasitics.\",\n    \"node_mapping\": {\n      \"input\": [\"G\"],\n      \"output\": [\"D\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"S\", \"B\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Analytical Equation for the Oscillation Frequency of High-Frequency Ring Oscillators\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"The fundamental frequency at which the ring oscillator toggles.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"8% (Note: This value from the abstract refers to the analytical model's average error, not the frequency itself)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Period = 2 * N * td. For a 3-stage oscillator in SKY130 (L=0.15um), intrinsic td is ~20ps. With the added 5fF parasitic capacitors from the DUT loading the stages, td increases to ~50ps. Freq = 1 / (2 * 3 * 50ps) ~= 3.3 GHz.\",\n        \"range\": {\n          \"min\": 2e9,\n          \"typical\": 3.5e9,\n          \"max\": 6e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Frequency is highly dependent on the assumed values for the parasitic capacitors and the sizing of the ring oscillator's driving transistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power drawn from the supply during steady-state oscillation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C_tot * VDD^2 * f. Estimated total switching capacitance C_tot ~= 50fF, VDD = 1.8V, f = 3.5GHz. P = 50e-15 * 3.24 * 3.5e9 = 567uW.\",\n        \"range\": {\n          \"min\": 3e-4,\n          \"typical\": 6e-4,\n          \"max\": 1.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dynamic power dominates in ring oscillators and scales linearly with frequency and quadratically with supply voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"peak_to_peak_voltage\": {\n      \"description\": \"The maximum voltage swing of the oscillator nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"500 mV (Likely a low-voltage supply test case mentioned in the paper)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard CMOS ring oscillators swing rail-to-rail unless the frequency approaches the transit frequency (fT) of the technology.\",\n        \"range\": {\n          \"min\": 1.6,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"At a 1.8V supply in SKY130, a 3.5 GHz oscillator will achieve nearly full rail-to-rail swing.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis of a 3-stage ring oscillator that incorporates the provided parasitic capacitance model as a load to measure oscillation frequency, power consumption, and voltage swing.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"oscillation_frequency\",\n      \"power_consumption\",\n      \"peak_to_peak_voltage\"\n    ],\n    \"spice\": \"* Ring Oscillator with Parasitic Model\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param VDD_VAL=1.8\\nVdd VDD 0 {VDD_VAL}\\n\\n* 3-stage ring oscillator\\nXinv1 G D VDD 0 inv\\nXinv2 D n3 VDD 0 inv\\nXinv3 n3 G VDD 0 inv\\n\\n.subckt inv in out vdd gnd\\nXMp out in vdd vdd sky130_fd_pr__pfet_01v8 w=2u l=0.15u\\nXMn out in gnd gnd sky130_fd_pr__nfet_01v8 w=1u l=0.15u\\n.ends\\n\\n* Connect S and B to ground for the DUT\\nV_S S 0 0\\nV_B B 0 0\\n\\n* DUT (Parasitic Capacitances - 5fF values added to make valid SPICE)\\nCgs G S 5f\\nCgd G D 5f\\nCdb D B 5f\\nCgb G B 5f\\nCsb S B 5f\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(G)=0 v(D)=1.8 v(n3)=0\\n\\n.control\\ntran 5p 10n\\n\\n* Measure Oscillation Frequency (using 10th and 11th cycles for steady state)\\nmeas tran t1 trig v(G) val=0.9 rise=10 targ v(G) val=0.9 rise=11\\nlet freq = 1 / t1\\nprint freq\\n\\n* Measure Power Consumption\\nmeas tran pwr_avg avg i(Vdd) from=5n to=10n\\nlet power = -pwr_avg * 1.8\\nprint power\\n\\n* Measure Peak-to-Peak Voltage\\nmeas tran vmax max v(G) from=5n to=10n\\nmeas tran vmin min v(G) from=5n to=10n\\nlet vpp = vmax - vmin\\nprint vpp\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1269932",
+  "_case": "1269932_image_2"
+}

@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Tank with Substrate Parasitics",
+    "description": "A passive LC resonator circuit including parasitic oxide capacitance and substrate resistance. It is used to model the core resonator of a VCO and its substrate noise coupling paths.",
+    "node_mapping": {
+      "input": [
+        "N1",
+        "N2"
+      ],
+      "output": [
+        "N1",
+        "N2"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Performance Degradation of LC-Tank VCOs by Impact of Digital Switching Noise in Lightly Doped Substrates",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "resonant_frequency": {
+      "description": "The frequency at which the LC tank resonates (impedance phase crosses zero).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3.5 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_res = 1 / (2 * pi * sqrt(L * C)) = 1 / (2 * pi * sqrt(1.2nH * 2.5pF))",
+        "range": {
+          "min": "2.8G",
+          "typical": "2.9G",
+          "max": "3.0G",
+          "unit": "Hz"
+        },
+        "reasoning": "Based on the reported L=1.2nH and C=2.5pF, the theoretical resonance is ~2.9 GHz. The paper's 3.5 GHz might imply a smaller effective capacitance in the actual VCO core."
+      },
+      "importance": "essential"
+    },
+    "quality_factor": {
+      "description": "The Q-factor of the tank, determined by the substrate parasitic losses and any inherent inductor resistance.",
+      "unit": "dimensionless",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Q = f_res / BW_3dB",
+        "range": {
+          "min": "10",
+          "typical": "100",
+          "max": "500",
+          "unit": ""
+        },
+        "reasoning": "Without explicit inductor series resistance in the provided netlist, the Q is dominated by the substrate network (Cox and Rsub), leading to a relatively high Q in this isolated testbench."
+      },
+      "importance": "essential"
+    },
+    "peak_impedance": {
+      "description": "The maximum differential impedance of the tank at resonance.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Z_max = Q * sqrt(L/C)",
+        "range": {
+          "min": "1k",
+          "typical": "5k",
+          "max": "20k",
+          "unit": "ohm"
+        },
+        "reasoning": "Depends heavily on the parasitic losses. With Q~100 and sqrt(L/C)~22 ohms, Z_max is in the low kOhm range."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the resonant frequency, peak impedance, and Q-factor of the LC tank by injecting an AC current and measuring the differential voltage.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "resonant_frequency",
+      "peak_impedance",
+      "quality_factor"
+    ],
+    "spice": "* LC Tank with Substrate Parasitics Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param L_val=1.2n Cp_val=2.5p Cox_val=100f Rsub_val=50\n\n* DUT\nCp N1 N2 {Cp_val}\nL N1 N2 {L_val}\nCox_L N1 Vi_L {Cox_val}\nCox_R N2 Vi_R {Cox_val}\nRsub_L Vi_L GND {Rsub_val}\nRsub_R Vi_R GND {Rsub_val}\n\n* DC bias to prevent floating nodes\nRdc1 N1 GND 1G\nRdc2 N2 GND 1G\n\n* AC Current Source for impedance measurement\nI1 N2 N1 AC 1\n\n.control\nac lin 10000 1G 5G\nlet vdiff = v(N1) - v(N2)\nlet zmag = mag(vdiff)\nlet phase = 180/PI * cph(vdiff)\n\nmeas ac zmax max zmag\nmeas ac fres when phase=0 fall=1\nmeas ac f_low when phase=45 fall=1\nmeas ac f_high when phase=-45 fall=1\n\nlet q_factor = fres / (f_high - f_low)\nprint fres zmax q_factor\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Tank with Substrate Parasitics\",\n    \"description\": \"A passive LC resonator circuit including parasitic oxide capacitance and substrate resistance. It is used to model the core resonator of a VCO and its substrate noise coupling paths.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Performance Degradation of LC-Tank VCOs by Impact of Digital Switching Noise in Lightly Doped Substrates\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"resonant_frequency\": {\n      \"description\": \"The frequency at which the LC tank resonates (impedance phase crosses zero).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3.5 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_res = 1 / (2 * pi * sqrt(L * C)) = 1 / (2 * pi * sqrt(1.2nH * 2.5pF))\",\n        \"range\": {\n          \"min\": \"2.8G\",\n          \"typical\": \"2.9G\",\n          \"max\": \"3.0G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Based on the reported L=1.2nH and C=2.5pF, the theoretical resonance is ~2.9 GHz. The paper's 3.5 GHz might imply a smaller effective capacitance in the actual VCO core.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quality_factor\": {\n      \"description\": \"The Q-factor of the tank, determined by the substrate parasitic losses and any inherent inductor resistance.\",\n      \"unit\": \"dimensionless\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q = f_res / BW_3dB\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"100\",\n          \"max\": \"500\",\n          \"unit\": \"\"\n        },\n        \"reasoning\": \"Without explicit inductor series resistance in the provided netlist, the Q is dominated by the substrate network (Cox and Rsub), leading to a relatively high Q in this isolated testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"peak_impedance\": {\n      \"description\": \"The maximum differential impedance of the tank at resonance.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Z_max = Q * sqrt(L/C)\",\n        \"range\": {\n          \"min\": \"1k\",\n          \"typical\": \"5k\",\n          \"max\": \"20k\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Depends heavily on the parasitic losses. With Q~100 and sqrt(L/C)~22 ohms, Z_max is in the low kOhm range.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the resonant frequency, peak impedance, and Q-factor of the LC tank by injecting an AC current and measuring the differential voltage.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"resonant_frequency\",\n      \"peak_impedance\",\n      \"quality_factor\"\n    ],\n    \"spice\": \"* LC Tank with Substrate Parasitics Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param L_val=1.2n Cp_val=2.5p Cox_val=100f Rsub_val=50\\n\\n* DUT\\nCp N1 N2 {Cp_val}\\nL N1 N2 {L_val}\\nCox_L N1 Vi_L {Cox_val}\\nCox_R N2 Vi_R {Cox_val}\\nRsub_L Vi_L GND {Rsub_val}\\nRsub_R Vi_R GND {Rsub_val}\\n\\n* DC bias to prevent floating nodes\\nRdc1 N1 GND 1G\\nRdc2 N2 GND 1G\\n\\n* AC Current Source for impedance measurement\\nI1 N2 N1 AC 1\\n\\n.control\\nac lin 10000 1G 5G\\nlet vdiff = v(N1) - v(N2)\\nlet zmag = mag(vdiff)\\nlet phase = 180/PI * cph(vdiff)\\n\\nmeas ac zmax max zmag\\nmeas ac fres when phase=0 fall=1\\nmeas ac f_low when phase=45 fall=1\\nmeas ac f_high when phase=-45 fall=1\\n\\nlet q_factor = fres / (f_high - f_low)\\nprint fres zmax q_factor\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1458990",
+  "_case": "1458990_image_5"
+}

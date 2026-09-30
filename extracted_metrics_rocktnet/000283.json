@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "AC Coupling Network / Passive Filter",
+    "description": "A passive AC coupling network typically used between RF amplifier stages to block DC offsets while passing high-frequency signals. It models the inter-stage coupling and parasitic capacitances to evaluate the tradeoff between bandwidth and midband loss as discussed in the paper.",
+    "node_mapping": {
+      "input": [
+        "Vin2"
+      ],
+      "output": [
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "Vo1"
+      ],
+      "bias": [
+        "Vbias"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "DC-Coupled IF Stage Design for a 900-MHz ISM Receiver",
+      "figure": "Fig. 2 (implied)",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "midband_loss": {
+      "description": "Insertion loss of the AC coupling network in the passband.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the voltage divider of coupling capacitors and load/bias resistors. With Cc=100pF and C2=100pF, impedance is low at 10MHz, resulting in minimal loss.",
+        "range": {
+          "min": -3,
+          "typical": -0.5,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Large coupling capacitors (100pF) provide very low impedance at RF/IF frequencies, minimizing midband loss."
+      },
+      "importance": "essential"
+    },
+    "lower_cutoff_frequency": {
+      "description": "High-pass -3dB corner frequency.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_c = 1 / (2 * pi * R * C). With R~1k and C~50pF (series combination of C2 and Cc), f_c is around 3MHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 3000000.0,
+          "max": 10000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the RC time constant of the coupling capacitors and the bias/load resistors."
+      },
+      "importance": "essential"
+    },
+    "upper_cutoff_frequency": {
+      "description": "Low-pass -3dB corner frequency due to parasitics.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by parasitic capacitance C1 (1pF) and load resistor RL1 (1k). f_c = 1 / (2 * pi * 1k * 1pF) = 159MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 159000000.0,
+          "max": 500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Parasitic capacitance to ground creates a low-pass filter effect at very high frequencies."
+      },
+      "importance": "essential"
+    },
+    "coupling_capacitance": {
+      "description": "Value of the coupling capacitor used in the network.",
+      "unit": "F",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "100 pF",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Directly parameterized in the testbench.",
+        "range": {
+          "min": 1e-11,
+          "typical": 1e-10,
+          "max": 1e-09,
+          "unit": "F"
+        },
+        "reasoning": "The paper explicitly mentions 100 pF for the coupling capacitor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the AC response (midband loss, lower and upper cutoff frequencies) and transient response of the AC coupling network.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "midband_loss",
+      "lower_cutoff_frequency",
+      "upper_cutoff_frequency"
+    ],
+    "spice": "* AC Coupling Network Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param R_b=10k R_L1=1k C_c=100p C_2=100p C_1=1p\n\n* DUT\nRb N1 Vbias {R_b}\nRL1 N0 Vo1 {R_L1}\nCc N0 N1 {C_c}\nC2 N1 Vin2 {C_2}\nC1 N0 GND {C_1}\n\n* Sources\nVVO1 Vo1 0 DC 1.8\nVVBIAS Vbias 0 DC 0.75\nVVIN2 Vin2 0 DC 0.9 AC 1 SIN(0.9 0.1 10MEG 0 0)\n\n.control\n* AC Analysis\nac dec 100 10k 10G\nlet gain_n0 = vdb(N0)\nlet gain_n1 = vdb(N1)\n\nmeas ac midband_gain_n0 find gain_n0 at=10MEG\nmeas ac max_gain_n0 max gain_n0\nlet f3db_target = max_gain_n0 - 3\nmeas ac f3db_lower when gain_n0=f3db_target rise=1\nmeas ac f3db_upper when gain_n0=f3db_target fall=1\n\n* Transient Analysis\ntran 100p 200n\nmeas tran v_max_n0 max v(N0)\nmeas tran v_min_n0 min v(N0)\nlet v_pp_n0 = v_max_n0 - v_min_n0\nprint v_pp_n0\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"AC Coupling Network / Passive Filter\",\n    \"description\": \"A passive AC coupling network typically used between RF amplifier stages to block DC offsets while passing high-frequency signals. It models the inter-stage coupling and parasitic capacitances to evaluate the tradeoff between bandwidth and midband loss as discussed in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\"Vin2\"],\n      \"output\": [\"N0\", \"N1\"],\n      \"supply\": [\"Vo1\"],\n      \"bias\": [\"Vbias\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"DC-Coupled IF Stage Design for a 900-MHz ISM Receiver\",\n      \"figure\": \"Fig. 2 (implied)\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"midband_loss\": {\n      \"description\": \"Insertion loss of the AC coupling network in the passband.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the voltage divider of coupling capacitors and load/bias resistors. With Cc=100pF and C2=100pF, impedance is low at 10MHz, resulting in minimal loss.\",\n        \"range\": { \"min\": -3, \"typical\": -0.5, \"max\": 0, \"unit\": \"dB\" },\n        \"reasoning\": \"Large coupling capacitors (100pF) provide very low impedance at RF/IF frequencies, minimizing midband loss.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"lower_cutoff_frequency\": {\n      \"description\": \"High-pass -3dB corner frequency.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_c = 1 / (2 * pi * R * C). With R~1k and C~50pF (series combination of C2 and Cc), f_c is around 3MHz.\",\n        \"range\": { \"min\": 1e6, \"typical\": 3e6, \"max\": 10e6, \"unit\": \"Hz\" },\n        \"reasoning\": \"Determined by the RC time constant of the coupling capacitors and the bias/load resistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"upper_cutoff_frequency\": {\n      \"description\": \"Low-pass -3dB corner frequency due to parasitics.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by parasitic capacitance C1 (1pF) and load resistor RL1 (1k). f_c = 1 / (2 * pi * 1k * 1pF) = 159MHz.\",\n        \"range\": { \"min\": 100e6, \"typical\": 159e6, \"max\": 500e6, \"unit\": \"Hz\" },\n        \"reasoning\": \"Parasitic capacitance to ground creates a low-pass filter effect at very high frequencies.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"coupling_capacitance\": {\n      \"description\": \"Value of the coupling capacitor used in the network.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"100 pF\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Directly parameterized in the testbench.\",\n        \"range\": { \"min\": 10e-12, \"typical\": 100e-12, \"max\": 1e-9, \"unit\": \"F\" },\n        \"reasoning\": \"The paper explicitly mentions 100 pF for the coupling capacitor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the AC response (midband loss, lower and upper cutoff frequencies) and transient response of the AC coupling network.\",\n    \"analyses\": [\"AC\", \"Tran\"],\n    \"metrics_measured\": [\"midband_loss\", \"lower_cutoff_frequency\", \"upper_cutoff_frequency\"],\n    \"spice\": \"* AC Coupling Network Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param R_b=10k R_L1=1k C_c=100p C_2=100p C_1=1p\\n\\n* DUT\\nRb N1 Vbias {R_b}\\nRL1 N0 Vo1 {R_L1}\\nCc N0 N1 {C_c}\\nC2 N1 Vin2 {C_2}\\nC1 N0 GND {C_1}\\n\\n* Sources\\nVVO1 Vo1 0 DC 1.8\\nVVBIAS Vbias 0 DC 0.75\\nVVIN2 Vin2 0 DC 0.9 AC 1 SIN(0.9 0.1 10MEG 0 0)\\n\\n.control\\n* AC Analysis\\nac dec 100 10k 10G\\nlet gain_n0 = vdb(N0)\\nlet gain_n1 = vdb(N1)\\n\\nmeas ac midband_gain_n0 find gain_n0 at=10MEG\\nmeas ac max_gain_n0 max gain_n0\\nlet f3db_target = max_gain_n0 - 3\\nmeas ac f3db_lower when gain_n0=f3db_target rise=1\\nmeas ac f3db_upper when gain_n0=f3db_target fall=1\\n\\n* Transient Analysis\\ntran 100p 200n\\nmeas tran v_max_n0 max v(N0)\\nmeas tran v_min_n0 min v(N0)\\nlet v_pp_n0 = v_max_n0 - v_min_n0\\nprint v_pp_n0\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1158790",
+  "_case": "1158790_image_3"
+}

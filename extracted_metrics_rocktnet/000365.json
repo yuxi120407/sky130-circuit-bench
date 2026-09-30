@@ -1,0 +1,123 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive Loop Filter for Phase-Locked Loop (PLL)",
+    "description": "A 3rd-order passive low-pass filter used in a charge-pump PLL to convert charge pump current pulses into a smooth DC control voltage for the VCO. It features an integrating capacitor (C1) with a zero-setting resistor (R1), and additional high-frequency poles (C2, R3, C3) to suppress reference spurs.",
+    "node_mapping": {
+      "input": [
+        "IIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.4-GHz Monolithic Fractional-N Frequency Synthesizer With Robust Phase-Switching Prescaler and Loop Capacitance Multiplier",
+      "figure": "1",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Transimpedance_10kHz": {
+      "description": "Low-frequency transimpedance magnitude, dominated by the integrating capacitor.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "At 10kHz, Z ~ 1/(2*pi*10kHz*1nF) = 15.9 kOhm. 20*log10(15900) = 84 dB.",
+        "range": {
+          "min": 80,
+          "typical": 84,
+          "max": 88,
+          "unit": "dB"
+        },
+        "reasoning": "Based on typical 1nF effective integrating capacitance for a 250kHz loop bandwidth."
+      },
+      "importance": "essential"
+    },
+    "Transimpedance_250kHz": {
+      "description": "Transimpedance magnitude at the expected loop bandwidth (250 kHz).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "250 kHz (loop bandwidth)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "At 250kHz, Z is dominated by R1 (6.3k) and attenuated slightly by the poles. Z ~ 6kOhm -> 75 dB.",
+        "range": {
+          "min": 70,
+          "typical": 75,
+          "max": 80,
+          "unit": "dB"
+        },
+        "reasoning": "Sets the open-loop gain crossover frequency in conjunction with charge pump current and VCO Kvco."
+      },
+      "importance": "essential"
+    },
+    "Phase_250kHz": {
+      "description": "Phase shift of the filter at the loop bandwidth, critical for PLL phase margin.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Integrator (-90) + Zero at 25kHz (+84) - Poles at 1MHz (-28) = -34 degrees.",
+        "range": {
+          "min": -45,
+          "typical": -34,
+          "max": -20,
+          "unit": "degrees"
+        },
+        "reasoning": "A phase shift of -34 degrees from the filter leaves 180 - 90(VCO) - 34 = 56 degrees of phase margin, which is optimal for loop stability."
+      },
+      "importance": "essential"
+    },
+    "Transient_Ripple": {
+      "description": "Peak-to-peak voltage ripple on the VCO control line due to charge pump pulses.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "For a 100uA pulse of 0.5us duration into C2=25pF and C3=25pF, ripple is smoothed by the R3-C3 filter.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.01,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Ripple must be minimized to reduce fractional and reference spurs in the synthesizer output."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the AC transimpedance, phase response, and transient ripple of the PLL loop filter.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "z_mag_10k",
+      "z_mag_250k",
+      "phase_250k",
+      "vout_ripple"
+    ],
+    "spice": "* PLL Loop Filter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Component values for ~250kHz loop bandwidth\n.param R1_val=6.3k C1_val=1n C2_val=25p R3_val=6.3k C3_val=25p\n\n* DUT: Loop Filter\nR1 IIN N1 {R1_val}\nC1 N1 GND {C1_val}\nC2 IIN GND {C2_val}\nR3 IIN VOUT {R3_val}\nC3 VOUT GND {C3_val}\n\n* Ground definition\nVgnd GND 0 DC 0\n\n* DC path to ground to prevent floating nodes during OP/AC\nR_dc IIN 0 1T\n\n* Input source: AC current for transimpedance, Pulse for transient\n* Simulating a 100uA charge pump pulse\nI_in 0 IIN DC 0 AC 1 PULSE(0 100u 1u 1n 1n 0.5u 2u)\n\n.control\n* AC Analysis\nac dec 100 1k 10Meg\nlet z_mag_db = vdb(VOUT)\nlet z_phase = 180/PI * cph(v(VOUT))\n\nmeas ac z_mag_10k find z_mag_db at=10k\nmeas ac z_mag_250k find z_mag_db at=250k\nmeas ac phase_250k find z_phase at=250k\n\n* Transient Analysis\ntran 10n 5u\nmeas tran vout_max max v(VOUT)\nmeas tran vout_min min v(VOUT)\nlet vout_ripple = vout_max - vout_min\nprint vout_ripple\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive Loop Filter for Phase-Locked Loop (PLL)\",\n    \"description\": \"A 3rd-order passive low-pass filter used in a charge-pump PLL to convert charge pump current pulses into a smooth DC control voltage for the VCO. It features an integrating capacitor (C1) with a zero-setting resistor (R1), and additional high-frequency poles (C2, R3, C3) to suppress reference spurs.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IIN\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.4-GHz Monolithic Fractional-N Frequency Synthesizer With Robust Phase-Switching Prescaler and Loop Capacitance Multiplier\",\n      \"figure\": \"1\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Transimpedance_10kHz\": {\n      \"description\": \"Low-frequency transimpedance magnitude, dominated by the integrating capacitor.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At 10kHz, Z ~ 1/(2*pi*10kHz*1nF) = 15.9 kOhm. 20*log10(15900) = 84 dB.\",\n        \"range\": {\n          \"min\": 80,\n          \"typical\": 84,\n          \"max\": 88,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on typical 1nF effective integrating capacitance for a 250kHz loop bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transimpedance_250kHz\": {\n      \"description\": \"Transimpedance magnitude at the expected loop bandwidth (250 kHz).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"250 kHz (loop bandwidth)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At 250kHz, Z is dominated by R1 (6.3k) and attenuated slightly by the poles. Z ~ 6kOhm -> 75 dB.\",\n        \"range\": {\n          \"min\": 70,\n          \"typical\": 75,\n          \"max\": 80,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Sets the open-loop gain crossover frequency in conjunction with charge pump current and VCO Kvco.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_250kHz\": {\n      \"description\": \"Phase shift of the filter at the loop bandwidth, critical for PLL phase margin.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Integrator (-90) + Zero at 25kHz (+84) - Poles at 1MHz (-28) = -34 degrees.\",\n        \"range\": {\n          \"min\": -45,\n          \"typical\": -34,\n          \"max\": -20,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"A phase shift of -34 degrees from the filter leaves 180 - 90(VCO) - 34 = 56 degrees of phase margin, which is optimal for loop stability.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transient_Ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple on the VCO control line due to charge pump pulses.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 100uA pulse of 0.5us duration into C2=25pF and C3=25pF, ripple is smoothed by the R3-C3 filter.\",\n        \"range\": {\n          \"min\": 0.001,\n          \"typical\": 0.01,\n          \"max\": 0.05,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ripple must be minimized to reduce fractional and reference spurs in the synthesizer output.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the AC transimpedance, phase response, and transient ripple of the PLL loop filter.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"z_mag_10k\",\n      \"z_mag_250k\",\n      \"phase_250k\",\n      \"vout_ripple\"\n    ],\n    \"spice\": \"* PLL Loop Filter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Component values for ~250kHz loop bandwidth\\n.param R1_val=6.3k C1_val=1n C2_val=25p R3_val=6.3k C3_val=25p\\n\\n* DUT: Loop Filter\\nR1 IIN N1 {R1_val}\\nC1 N1 GND {C1_val}\\nC2 IIN GND {C2_val}\\nR3 IIN VOUT {R3_val}\\nC3 VOUT GND {C3_val}\\n\\n* Ground definition\\nVgnd GND 0 DC 0\\n\\n* DC path to ground to prevent floating nodes during OP/AC\\nR_dc IIN 0 1T\\n\\n* Input source: AC current for transimpedance, Pulse for transient\\n* Simulating a 100uA charge pump pulse\\nI_in 0 IIN DC 0 AC 1 PULSE(0 100u 1u 1n 1n 0.5u 2u)\\n\\n.control\\n* AC Analysis\\nac dec 100 1k 10Meg\\nlet z_mag_db = vdb(VOUT)\\nlet z_phase = 180/PI * cph(v(VOUT))\\n\\nmeas ac z_mag_10k find z_mag_db at=10k\\nmeas ac z_mag_250k find z_mag_db at=250k\\nmeas ac phase_250k find z_phase at=250k\\n\\n* Transient Analysis\\ntran 10n 5u\\nmeas tran vout_max max v(VOUT)\\nmeas tran vout_min min v(VOUT)\\nlet vout_ripple = vout_max - vout_min\\nprint vout_ripple\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1201988",
+  "_case": "1201988_image_5"
+}

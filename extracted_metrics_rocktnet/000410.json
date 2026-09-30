@@ -1,0 +1,114 @@
+{
+  "step1_analysis": {
+    "circuit_type": "High-Speed Level Shifter / Latch",
+    "description": "A robust multi-phase level shifter using a cross-coupled PMOS latch and PMOS cascodes to translate low-voltage control signals to a high-voltage floating domain for a Class-D audio amplifier.",
+    "node_mapping": {
+      "input": [
+        "SET",
+        "RESET",
+        "PRECHARGE",
+        "DISCHARGE"
+      ],
+      "output": [
+        "S_C",
+        "R_C",
+        "D_C",
+        "P_C"
+      ],
+      "supply": [
+        "V_BOOT",
+        "VDD"
+      ],
+      "bias": [
+        "V_OUT"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Integrated 200-W Class-D Audio Amplifier",
+      "figure": "Unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "tdelay_set": {
+      "description": "Propagation delay from SET input to P_C output rising",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "70 ns (total system delay)",
+        "technology": "SOI-based BCD"
+      },
+      "sky130_expected": {
+        "calculation": "2 gate delays (NMOS pull-down + PMOS pull-up). With W=5u, L=0.5u, Cload=10fF, delay ~ (C*V)/I ~ (10fF * 1.8V) / 1mA ~ 18ps. Adding parasitic and cascode delay, expect ~100-500ps.",
+        "range": {
+          "min": "100p",
+          "typical": "250p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "Sky130 1.8V devices are much faster than the high-voltage BCD devices used in the original paper."
+      },
+      "importance": "essential"
+    },
+    "vmin_sc": {
+      "description": "Minimum voltage at the cascode source node (S_C)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "When NMOS pulls drain to 0V, PMOS cascode (gate at 0V) turns off when source drops to |Vth| + body effect. |Vth0| = 0.42V, with Vsb ~ -1V, |Vth| ~ 0.7V.",
+        "range": {
+          "min": "0.4",
+          "typical": "0.7",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Demonstrates the cascode protection mechanism limiting the voltage swing on the low-voltage NMOS drains."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumption of the level shifter",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power P = f * C * V^2. f=10MHz, C~100fF, V=1.8V. P ~ 3.2uW. Plus short-circuit current during transitions.",
+        "range": {
+          "min": "1u",
+          "typical": "10u",
+          "max": "50u",
+          "unit": "W"
+        },
+        "reasoning": "Low power consumption is expected as it only drives small internal latch nodes."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure propagation delay, cascode voltage limiting, and power consumption of the level shifter.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "tdelay_set",
+      "tdelay_pre",
+      "vmin_sc",
+      "vmax_sc",
+      "power_consumption"
+    ],
+    "spice": "* Testbench for Level Shifter\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\nXM8 R_C P_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM13 D_C R_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM7 S_C D_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM14 P_C S_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\nXM5 S_B V_OUT S_C VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 R_B V_OUT R_C VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM11 D_B V_OUT D_C VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM12 P_B V_OUT P_C VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM3 S_B SET GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 R_B RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM10 P_B PRECHARGE GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM9 D_B DISCHARGE GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\nVVDD VDD 0 1.8\nVBOOT V_BOOT 0 1.8\nVOUT V_OUT 0 0\nVSET SET 0 PULSE(0 1.8 10n 0.1n 0.1n 5n 100n)\nVRESET RESET 0 PULSE(0 1.8 10n 0.1n 0.1n 5n 100n)\nVPRE PRECHARGE 0 PULSE(0 1.8 60n 0.1n 0.1n 5n 100n)\nVDIS DISCHARGE 0 PULSE(0 1.8 60n 0.1n 0.1n 5n 100n)\n\nC1 S_C 0 10f\nC2 R_C 0 10f\nC3 D_C 0 10f\nC4 P_C 0 10f\n\n.control\ntran 0.1n 200n\nmeas tran tdelay_pre trig v(precharge) val=0.9 rise=1 targ v(r_c) val=0.9 rise=1\nmeas tran tdelay_set trig v(set) val=0.9 rise=2 targ v(p_c) val=0.9 rise=2\nmeas tran vmin_sc min v(s_c)\nmeas tran vmax_sc max v(s_c)\nmeas tran avg_i_vboot avg i(VBOOT)\nmeas tran avg_i_vdd avg i(VVDD)\nlet power = -(avg_i_vboot + avg_i_vdd) * 1.8\nprint power\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"High-Speed Level Shifter / Latch\",\n    \"description\": \"A robust multi-phase level shifter using a cross-coupled PMOS latch and PMOS cascodes to translate low-voltage control signals to a high-voltage floating domain for a Class-D audio amplifier.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"SET\",\n        \"RESET\",\n        \"PRECHARGE\",\n        \"DISCHARGE\"\n      ],\n      \"output\": [\n        \"S_C\",\n        \"R_C\",\n        \"D_C\",\n        \"P_C\"\n      ],\n      \"supply\": [\n        \"V_BOOT\",\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"V_OUT\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Integrated 200-W Class-D Audio Amplifier\",\n      \"figure\": \"Unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"tdelay_set\": {\n      \"description\": \"Propagation delay from SET input to P_C output rising\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"70 ns (total system delay)\",\n        \"technology\": \"SOI-based BCD\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2 gate delays (NMOS pull-down + PMOS pull-up). With W=5u, L=0.5u, Cload=10fF, delay ~ (C*V)/I ~ (10fF * 1.8V) / 1mA ~ 18ps. Adding parasitic and cascode delay, expect ~100-500ps.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"250p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Sky130 1.8V devices are much faster than the high-voltage BCD devices used in the original paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vmin_sc\": {\n      \"description\": \"Minimum voltage at the cascode source node (S_C)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When NMOS pulls drain to 0V, PMOS cascode (gate at 0V) turns off when source drops to |Vth| + body effect. |Vth0| = 0.42V, with Vsb ~ -1V, |Vth| ~ 0.7V.\",\n        \"range\": {\n          \"min\": \"0.4\",\n          \"typical\": \"0.7\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Demonstrates the cascode protection mechanism limiting the voltage swing on the low-voltage NMOS drains.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the level shifter\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power P = f * C * V^2. f=10MHz, C~100fF, V=1.8V. P ~ 3.2uW. Plus short-circuit current during transitions.\",\n        \"range\": {\n          \"min\": \"1u\",\n          \"typical\": \"10u\",\n          \"max\": \"50u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Low power consumption is expected as it only drives small internal latch nodes.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure propagation delay, cascode voltage limiting, and power consumption of the level shifter.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"tdelay_set\",\n      \"tdelay_pre\",\n      \"vmin_sc\",\n      \"vmax_sc\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Testbench for Level Shifter\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\nXM8 R_C P_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM13 D_C R_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM7 S_C D_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM14 P_C S_C V_BOOT VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\\nXM5 S_B V_OUT S_C VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 R_B V_OUT R_C VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM11 D_B V_OUT D_C VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 P_B V_OUT P_C VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM3 S_B SET GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 R_B RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM10 P_B PRECHARGE GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM9 D_B DISCHARGE GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\nVVDD VDD 0 1.8\\nVBOOT V_BOOT 0 1.8\\nVOUT V_OUT 0 0\\nVSET SET 0 PULSE(0 1.8 10n 0.1n 0.1n 5n 100n)\\nVRESET RESET 0 PULSE(0 1.8 10n 0.1n 0.1n 5n 100n)\\nVPRE PRECHARGE 0 PULSE(0 1.8 60n 0.1n 0.1n 5n 100n)\\nVDIS DISCHARGE 0 PULSE(0 1.8 60n 0.1n 0.1n 5n 100n)\\n\\nC1 S_C 0 10f\\nC2 R_C 0 10f\\nC3 D_C 0 10f\\nC4 P_C 0 10f\\n\\n.control\\ntran 0.1n 200n\\nmeas tran tdelay_pre trig v(precharge) val=0.9 rise=1 targ v(r_c) val=0.9 rise=1\\nmeas tran tdelay_set trig v(set) val=0.9 rise=2 targ v(p_c) val=0.9 rise=2\\nmeas tran vmin_sc min v(s_c)\\nmeas tran vmax_sc max v(s_c)\\nmeas tran avg_i_vboot avg i(VBOOT)\\nmeas tran avg_i_vdd avg i(VVDD)\\nlet power = -(avg_i_vboot + avg_i_vdd) * 1.8\\nprint power\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1208469",
+  "_case": "1208469_image_13"
+}

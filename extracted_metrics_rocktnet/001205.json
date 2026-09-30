@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Gilbert Cell Multiplier / DFE Tap",
+    "description": "A PMOS-based Gilbert cell used as an analog tap multiplier in a Decision-Feedback Equalizer (DFE). It multiplies a differential analog tap weight (VIN_P/N) by a differential digital decision (DI/DI_BAR) to produce a differential output current (IOUT_P/N) that is summed at the DFE summing node.",
+    "node_mapping": {
+      "input": [
+        "VIN_P",
+        "VIN_N",
+        "DI",
+        "DI_BAR"
+      ],
+      "output": [
+        "IOUT_P",
+        "IOUT_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBB"
+      ],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Adaptive Analog Noise-Predictive Decision-Feedback Equalizer",
+      "figure": "Not specified",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption of the multiplier cell.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "130 mW (entire NPDFE)",
+        "technology": "2V supply (likely 0.18um or 0.25um)"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 0.5 * up*Cox * W/L * (VDD - VBB - |Vth|)^2 = 0.5 * 50u * 10 * (1.8 - 0.99 - 0.42)^2 = 38 uA. Power = 38 uA * 1.8 V = 68.4 uW.",
+        "range": {
+          "min": "50u",
+          "typical": "68u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the tail current source bias and SKY130 PMOS parameters. This is a single sub-block, so power is a small fraction of the total 130 mW."
+      },
+      "importance": "essential"
+    },
+    "gm": {
+      "description": "Transconductance from analog input to differential output current.",
+      "unit": "A/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Gm = 2 * I_tail / Vov = 2 * 19uA / 0.27V = 140 uA/V.",
+        "range": {
+          "min": "100u",
+          "typical": "140u",
+          "max": "200u",
+          "unit": "A/V"
+        },
+        "reasoning": "Based on differential pair small-signal parameters. Determines the tap weight scaling factor."
+      },
+      "importance": "essential"
+    },
+    "delay": {
+      "description": "Switching delay from digital decision input to output current zero-crossing.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "800 MHz data rate (1.25 ns UI)",
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by load RC time constant and switch transistor transit time. With 1k ohm load and ~50fF parasitic capacitance, tau = 50ps.",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Must be significantly less than 1 UI (1.25 ns) to meet DFE feedback timing constraints."
+      },
+      "importance": "essential"
+    },
+    "iout_swing": {
+      "description": "Maximum differential output current swing.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Limited by the tail current, which is approximately 38 uA.",
+        "range": {
+          "min": "30u",
+          "typical": "38u",
+          "max": "50u",
+          "unit": "A"
+        },
+        "reasoning": "The entire tail current is steered to one side when fully switched by the digital decision."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, transconductance (Gm) via DC sweep, and switching delay via transient analysis.",
+    "analyses": [
+      "OP",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "gm",
+      "delay",
+      "iout_swing"
+    ],
+    "spice": "* Testbench for DFE Tap Multiplier\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\n* DUT\nXM1 N_L VIN_P N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N_R VIN_N N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 IOUT_P DI_BAR N_L VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 IOUT_P DI N_R VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N_TAIL VBB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 IOUT_N DI_BAR N_R VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 IOUT_N DI N_L VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\n\n* Loads (to convert current to voltage for measurement)\nRL1 IOUT_P 0 1k\nRL2 IOUT_N 0 1k\n\n* Sources\nVVDD VDD 0 1.8\nVVBB VBB 0 0.99\n\n* Analog Inputs (Tap Weight)\nVVIN_CM VIN_CM 0 0.9\nE_VIN_P VIN_P VIN_CM VIN_DIFF 0 0.5\nE_VIN_N VIN_N VIN_CM VIN_DIFF 0 -0.5\nVVIN_DIFF VIN_DIFF 0 DC 0.2\n\n* Digital Inputs (Decision)\n* DC values are used during DC sweep, PULSE is used during Tran\nVDI DI 0 DC 0 PULSE(0 1.8 0 50p 50p 1n 2n)\nVDI_BAR DI_BAR 0 DC 1.8 PULSE(1.8 0 0 50p 50p 1n 2n)\n\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n.control\n  * 1. Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  \n  * 2. DC Sweep for Gm\n  * Sweeps analog input while digital decision is held constant (DI=0, DI_BAR=1.8)\n  dc VVIN_DIFF -0.5 0.5 0.01\n  let iout_diff = (v(IOUT_P) - v(IOUT_N)) / 1k\n  let gm_array = deriv(iout_diff)\n  meas dc gm_max max gm_array\n  meas dc gm_0 find gm_array at=0\n  \n  * 3. Transient for Delay and Output Swing\n  * Pulses digital decision while analog input is held constant (VIN_DIFF=0.2V)\n  tran 10p 4n\n  let vout_diff = v(IOUT_P) - v(IOUT_N)\n  let iout_diff_tran = vout_diff / 1k\n  \n  * Measure switching delay\n  meas tran delay_rise trig v(DI) val=0.9 rise=1 targ vout_diff val=0 fall=1\n  meas tran delay_fall trig v(DI) val=0.9 fall=1 targ vout_diff val=0 rise=1\n  \n  * Measure output current swing\n  meas tran iout_diff_max max iout_diff_tran\n  meas tran iout_diff_min min iout_diff_tran\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Gilbert Cell Multiplier / DFE Tap\",\n    \"description\": \"A PMOS-based Gilbert cell used as an analog tap multiplier in a Decision-Feedback Equalizer (DFE). It multiplies a differential analog tap weight (VIN_P/N) by a differential digital decision (DI/DI_BAR) to produce a differential output current (IOUT_P/N) that is summed at the DFE summing node.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_P\",\n        \"VIN_N\",\n        \"DI\",\n        \"DI_BAR\"\n      ],\n      \"output\": [\n        \"IOUT_P\",\n        \"IOUT_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBB\"\n      ],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Adaptive Analog Noise-Predictive Decision-Feedback Equalizer\",\n      \"figure\": \"Not specified\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption of the multiplier cell.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"130 mW (entire NPDFE)\",\n        \"technology\": \"2V supply (likely 0.18um or 0.25um)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 0.5 * up*Cox * W/L * (VDD - VBB - |Vth|)^2 = 0.5 * 50u * 10 * (1.8 - 0.99 - 0.42)^2 = 38 uA. Power = 38 uA * 1.8 V = 68.4 uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"68u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the tail current source bias and SKY130 PMOS parameters. This is a single sub-block, so power is a small fraction of the total 130 mW.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gm\": {\n      \"description\": \"Transconductance from analog input to differential output current.\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gm = 2 * I_tail / Vov = 2 * 19uA / 0.27V = 140 uA/V.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"140u\",\n          \"max\": \"200u\",\n          \"unit\": \"A/V\"\n        },\n        \"reasoning\": \"Based on differential pair small-signal parameters. Determines the tap weight scaling factor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay\": {\n      \"description\": \"Switching delay from digital decision input to output current zero-crossing.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"800 MHz data rate (1.25 ns UI)\",\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by load RC time constant and switch transistor transit time. With 1k ohm load and ~50fF parasitic capacitance, tau = 50ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Must be significantly less than 1 UI (1.25 ns) to meet DFE feedback timing constraints.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"iout_swing\": {\n      \"description\": \"Maximum differential output current swing.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Limited by the tail current, which is approximately 38 uA.\",\n        \"range\": {\n          \"min\": \"30u\",\n          \"typical\": \"38u\",\n          \"max\": \"50u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"The entire tail current is steered to one side when fully switched by the digital decision.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, transconductance (Gm) via DC sweep, and switching delay via transient analysis.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"gm\",\n      \"delay\",\n      \"iout_swing\"\n    ],\n    \"spice\": \"* Testbench for DFE Tap Multiplier\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\n* DUT\\nXM1 N_L VIN_P N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N_R VIN_N N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 IOUT_P DI_BAR N_L VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 IOUT_P DI N_R VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N_TAIL VBB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 IOUT_N DI_BAR N_R VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 IOUT_N DI N_L VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Loads (to convert current to voltage for measurement)\\nRL1 IOUT_P 0 1k\\nRL2 IOUT_N 0 1k\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVVBB VBB 0 0.99\\n\\n* Analog Inputs (Tap Weight)\\nVVIN_CM VIN_CM 0 0.9\\nE_VIN_P VIN_P VIN_CM VIN_DIFF 0 0.5\\nE_VIN_N VIN_N VIN_CM VIN_DIFF 0 -0.5\\nVVIN_DIFF VIN_DIFF 0 DC 0.2\\n\\n* Digital Inputs (Decision)\\n* DC values are used during DC sweep, PULSE is used during Tran\\nVDI DI 0 DC 0 PULSE(0 1.8 0 50p 50p 1n 2n)\\nVDI_BAR DI_BAR 0 DC 1.8 PULSE(1.8 0 0 50p 50p 1n 2n)\\n\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n.control\\n  * 1. Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  \\n  * 2. DC Sweep for Gm\\n  * Sweeps analog input while digital decision is held constant (DI=0, DI_BAR=1.8)\\n  dc VVIN_DIFF -0.5 0.5 0.01\\n  let iout_diff = (v(IOUT_P) - v(IOUT_N)) / 1k\\n  let gm_array = deriv(iout_diff)\\n  meas dc gm_max max gm_array\\n  meas dc gm_0 find gm_array at=0\\n  \\n  * 3. Transient for Delay and Output Swing\\n  * Pulses digital decision while analog input is held constant (VIN_DIFF=0.2V)\\n  tran 10p 4n\\n  let vout_diff = v(IOUT_P) - v(IOUT_N)\\n  let iout_diff_tran = vout_diff / 1k\\n  \\n  * Measure switching delay\\n  meas tran delay_rise trig v(DI) val=0.9 rise=1 targ vout_diff val=0 fall=1\\n  meas tran delay_fall trig v(DI) val=0.9 fall=1 targ vout_diff val=0 rise=1\\n  \\n  * Measure output current swing\\n  meas tran iout_diff_max max iout_diff_tran\\n  meas tran iout_diff_min min iout_diff_tran\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "982416",
+  "_case": "982416_image_8"
+}

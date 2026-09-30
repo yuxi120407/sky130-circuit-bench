@@ -1,0 +1,150 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.9",
+    "page": "494",
+    "circuit_type": "Switched-capacitor charge-injection circuit with MOSFET swing limiter",
+    "description": "Figure 17.9 shows the switched-capacitor feedback circuit with PMOS transistors M1\u2013M3 and an added regulated PMOS device M4 whose gate is tied to VREF and body tied to source to eliminate body effect, fixing the voltage swing across Ccup to VDD - VREF - |VTHP|. In this simulation netlist (Example 17.3, page 494\u2013496), M3's gate is tied to ground (always enabled) to characterize charge transfer into the bit line as simulated in Figures 17.12 and 17.13."
+  },
+  "step2_metrics": {
+    "charge_per_packet": {
+      "description": "Charge dumped from Ccup into the bit line per clock cycle",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "493",
+        "reference": "Eq. (17.12)"
+      },
+      "equation": {
+        "formula": "Qcup = Ccup * (VDD - VREF - |VTHP|)",
+        "explanation": "When M2 and M3 turn on, charge transfers to M4 until M4's source drops to VREF + |VTHP|, where M4 shuts off, fixing the net potential change across Ccup.",
+        "assumptions": "M4 shuts off cleanly when VSG reaches |VTHP|; bitline voltage Vbit < VREF + |VTHP|."
+      },
+      "sky130_expected": {
+        "calculation": "With Ccup = 100 fF, VDD = 1.8 V, VREF = 0.5 V, and PMOS |VTHP| = 0.42 V: Qcup = 100 fF * (1.8 V - 0.5 V - 0.42 V) = 100 fF * 0.88 V = 88 fC (8.8e-14 C).",
+        "range": {
+          "min": "7.0e-14",
+          "typical": "8.8e-14",
+          "max": "1.1e-13",
+          "unit": "C"
+        },
+        "reasoning": "Depends on threshold voltage variation and subthreshold conduction of M4 before complete shutoff."
+      },
+      "importance": "essential"
+    },
+    "vbit_max_limit": {
+      "description": "Maximum bit-line voltage to maintain charge independence and prevent M4 saturation loss",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "493",
+        "reference": "Eq. (17.13)"
+      },
+      "equation": {
+        "formula": "Vbit,max < VREF + |VTHP|",
+        "explanation": "To ensure M4 remains out of deep triode and shuts off cleanly when charge transfer is complete, the bit line voltage must stay below VREF + |VTHP|.",
+        "assumptions": "M4 operates with source reaching VREF + |VTHP|."
+      },
+      "sky130_expected": {
+        "calculation": "Vbit,max < 0.5 V + 0.42 V = 0.92 V.",
+        "range": {
+          "min": "0.85",
+          "typical": "0.92",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Determined directly by VREF = 0.5 V plus the PMOS threshold voltage |VTHP| = 0.42 V."
+      },
+      "importance": "essential"
+    },
+    "vref_upper_bound": {
+      "description": "Upper allowable limit for VREF to ensure non-zero charge transfer",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "495",
+        "reference": "Eq. (17.15)"
+      },
+      "equation": {
+        "formula": "VREF < VDD - |VTHP|",
+        "explanation": "If VREF >= VDD - |VTHP|, M4 can never turn on to discharge Ccup, resulting in zero transferred charge.",
+        "assumptions": "Capacitor precharges to VDD during phi1."
+      },
+      "sky130_expected": {
+        "calculation": "VREF,max = 1.8 V - 0.42 V = 1.38 V.",
+        "range": {
+          "min": "1.30",
+          "typical": "1.38",
+          "max": "1.45",
+          "unit": "V"
+        },
+        "reasoning": "Based on VDD = 1.8 V and PMOS threshold voltage |VTHP| = 0.42 V."
+      },
+      "importance": "recommended"
+    },
+    "peak_current": {
+      "description": "Peak discharge current into Vbit during dumping phase",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "495",
+        "reference": "Fig. 17.11c and Fig. 17.12"
+      },
+      "equation": {
+        "formula": "I_peak \u2248 (VDD - Vbit) / R_on",
+        "explanation": "Peak current pulse observed through the bit line source immediately after phi2 goes low.",
+        "assumptions": "Switches M1\u2013M3 and M4 are fully turned on at the start of phi2 low."
+      },
+      "sky130_expected": {
+        "calculation": "With on-resistance of series PMOS switches ~10 k\u03a9\u201330 k\u03a9 and initial voltage drop ~0.8 V\u20131.2 V, peak current is approximately 20 \u00b5A to 60 \u00b5A.",
+        "range": {
+          "min": "1.0e-5",
+          "typical": "3.5e-5",
+          "max": "1.0e-4",
+          "unit": "A"
+        },
+        "reasoning": "Controlled by device sizing (W/L) of M1, M2, M3, and M4 in the conduction path."
+      },
+      "importance": "recommended"
+    },
+    "residual_settling_current": {
+      "description": "Current flowing through Vbit immediately before phi2 shuts off (incomplete settling check)",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "496",
+        "reference": "Fig. 17.13"
+      },
+      "equation": {
+        "formula": "I_settle = I(Vbit) at t = t_phi2_fall_end",
+        "explanation": "Measures whether charge pouring has completed before switch M2 shuts off; non-zero value indicates incomplete settling.",
+        "assumptions": "Evaluated at the trailing edge of the phi2 active phase."
+      },
+      "sky130_expected": {
+        "calculation": "Ideally near zero (< 1 \u00b5A) if the clock pulse width (e.g., 3 ns - 5 ns) is much greater than the RC discharge time constant.",
+        "range": {
+          "min": "0.0",
+          "typical": "5.0e-7",
+          "max": "3.0e-6",
+          "unit": "A"
+        },
+        "reasoning": "Residual parasitic discharge from nodes N002 and N003 as discussed on page 496."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench with non-overlapping clocks phi1 and phi2 running at 100 MHz (period T = 10 ns) dumping charge into Vbit (set to 0.4 V). Measures charge per packet Qcup, peak current, and residual current before phi2 turns off.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "charge_per_packet",
+      "peak_current",
+      "residual_settling_current",
+      "vbit_max_limit",
+      "vref_upper_bound"
+    ],
+    "spice": "* Testbench for Switched-Capacitor Charge Injection (Baker Fig 17.9 / 17.10 / 17.12)\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm3=2u L_xm3=0.15u\n.param W_xm1=2u L_xm1=0.15u\n.param W_xm2=2u L_xm2=0.15u\n.param W_xm4=5u L_xm4=0.15u\n\n* DUT\nVDD VDD 0 1.8\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nxm2 N003 0 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nC1 N001 0 1e-13\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nVREF VREF 0 500m\n\n* Bitline voltage source (fixed at 0.4V within valid range < VREF + Vthp)\nVbit vbit 0 0.4\n\n* Non-overlapping clocks: period = 10ns\n* phi1 is low from 0.5ns to 4.5ns (precharge Ccup to VDD)\nVphi1 phi1 0 PULSE(1.8 0 0.5n 0.1n 0.1n 4.0n 10n)\n* phi2 is low from 5.5ns to 9.5ns (dump charge into bit line)\nVphi2 phi2 0 PULSE(1.8 0 5.5n 0.1n 0.1n 4.0n 10n)\n\n.tran 10p 50n 25n\n\n.control\nrun\n\n* Current into bit line is -i(Vbit)\nlet ibit = -i(Vbit)\n\n* Peak dumping current during a dump cycle (e.g., between 35ns and 40ns)\nmeas tran i_peak max ibit from=35n to=40n\n\n* Settling current right before phi2 shuts off at t=39.5ns\nmeas tran i_settle find ibit at=39.4n\n\n* Integrated charge delivered in one period (from t=35ns to 45ns)\nmeas tran q_cup integ ibit from=35n to=45n\n\n* Output limits check\nlet vbit_max = 0.5 + 0.42\nlet vref_max = 1.8 - 0.42\nprint i_peak i_settle q_cup vbit_max vref_max\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.9\",\n    \"page\": \"494\",\n    \"circuit_type\": \"Switched-capacitor charge-injection circuit with MOSFET swing limiter\",\n    \"description\": \"Figure 17.9 shows the switched-capacitor feedback circuit with PMOS transistors M1\u2013M3 and an added regulated PMOS device M4 whose gate is tied to VREF and body tied to source to eliminate body effect, fixing the voltage swing across Ccup to VDD - VREF - |VTHP|. In this simulation netlist (Example 17.3, page 494\u2013496), M3's gate is tied to ground (always enabled) to characterize charge transfer into the bit line as simulated in Figures 17.12 and 17.13.\"\n  },\n  \"step2_metrics\": {\n    \"charge_per_packet\": {\n      \"description\": \"Charge dumped from Ccup into the bit line per clock cycle\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"493\", \"reference\": \"Eq. (17.12)\" },\n      \"equation\": {\n        \"formula\": \"Qcup = Ccup * (VDD - VREF - |VTHP|)\",\n        \"explanation\": \"When M2 and M3 turn on, charge transfers to M4 until M4's source drops to VREF + |VTHP|, where M4 shuts off, fixing the net potential change across Ccup.\",\n        \"assumptions\": \"M4 shuts off cleanly when VSG reaches |VTHP|; bitline voltage Vbit < VREF + |VTHP|.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With Ccup = 100 fF, VDD = 1.8 V, VREF = 0.5 V, and PMOS |VTHP| = 0.42 V: Qcup = 100 fF * (1.8 V - 0.5 V - 0.42 V) = 100 fF * 0.88 V = 88 fC (8.8e-14 C).\",\n        \"range\": { \"min\": \"7.0e-14\", \"typical\": \"8.8e-14\", \"max\": \"1.1e-13\", \"unit\": \"C\" },\n        \"reasoning\": \"Depends on threshold voltage variation and subthreshold conduction of M4 before complete shutoff.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vbit_max_limit\": {\n      \"description\": \"Maximum bit-line voltage to maintain charge independence and prevent M4 saturation loss\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"493\", \"reference\": \"Eq. (17.13)\" },\n      \"equation\": {\n        \"formula\": \"Vbit,max < VREF + |VTHP|\",\n        \"explanation\": \"To ensure M4 remains out of deep triode and shuts off cleanly when charge transfer is complete, the bit line voltage must stay below VREF + |VTHP|.\",\n        \"assumptions\": \"M4 operates with source reaching VREF + |VTHP|.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vbit,max < 0.5 V + 0.42 V = 0.92 V.\",\n        \"range\": { \"min\": \"0.85\", \"typical\": \"0.92\", \"max\": \"1.0\", \"unit\": \"V\" },\n        \"reasoning\": \"Determined directly by VREF = 0.5 V plus the PMOS threshold voltage |VTHP| = 0.42 V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vref_upper_bound\": {\n      \"description\": \"Upper allowable limit for VREF to ensure non-zero charge transfer\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"495\", \"reference\": \"Eq. (17.15)\" },\n      \"equation\": {\n        \"formula\": \"VREF < VDD - |VTHP|\",\n        \"explanation\": \"If VREF >= VDD - |VTHP|, M4 can never turn on to discharge Ccup, resulting in zero transferred charge.\",\n        \"assumptions\": \"Capacitor precharges to VDD during phi1.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VREF,max = 1.8 V - 0.42 V = 1.38 V.\",\n        \"range\": { \"min\": \"1.30\", \"typical\": \"1.38\", \"max\": \"1.45\", \"unit\": \"V\" },\n        \"reasoning\": \"Based on VDD = 1.8 V and PMOS threshold voltage |VTHP| = 0.42 V.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"peak_current\": {\n      \"description\": \"Peak discharge current into Vbit during dumping phase\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"495\", \"reference\": \"Fig. 17.11c and Fig. 17.12\" },\n      \"equation\": {\n        \"formula\": \"I_peak \u2248 (VDD - Vbit) / R_on\",\n        \"explanation\": \"Peak current pulse observed through the bit line source immediately after phi2 goes low.\",\n        \"assumptions\": \"Switches M1\u2013M3 and M4 are fully turned on at the start of phi2 low.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With on-resistance of series PMOS switches ~10 k\u03a9\u201330 k\u03a9 and initial voltage drop ~0.8 V\u20131.2 V, peak current is approximately 20 \u00b5A to 60 \u00b5A.\",\n        \"range\": { \"min\": \"1.0e-5\", \"typical\": \"3.5e-5\", \"max\": \"1.0e-4\", \"unit\": \"A\" },\n        \"reasoning\": \"Controlled by device sizing (W/L) of M1, M2, M3, and M4 in the conduction path.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"residual_settling_current\": {\n      \"description\": \"Current flowing through Vbit immediately before phi2 shuts off (incomplete settling check)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"496\", \"reference\": \"Fig. 17.13\" },\n      \"equation\": {\n        \"formula\": \"I_settle = I(Vbit) at t = t_phi2_fall_end\",\n        \"explanation\": \"Measures whether charge pouring has completed before switch M2 shuts off; non-zero value indicates incomplete settling.\",\n        \"assumptions\": \"Evaluated at the trailing edge of the phi2 active phase.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideally near zero (< 1 \u00b5A) if the clock pulse width (e.g., 3 ns - 5 ns) is much greater than the RC discharge time constant.\",\n        \"range\": { \"min\": \"0.0\", \"typical\": \"5.0e-7\", \"max\": \"3.0e-6\", \"unit\": \"A\" },\n        \"reasoning\": \"Residual parasitic discharge from nodes N002 and N003 as discussed on page 496.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench with non-overlapping clocks phi1 and phi2 running at 100 MHz (period T = 10 ns) dumping charge into Vbit (set to 0.4 V). Measures charge per packet Qcup, peak current, and residual current before phi2 turns off.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"charge_per_packet\", \"peak_current\", \"residual_settling_current\", \"vbit_max_limit\", \"vref_upper_bound\"],\n    \"spice\": \"* Testbench for Switched-Capacitor Charge Injection (Baker Fig 17.9 / 17.10 / 17.12)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm3=2u L_xm3=0.15u\\n.param W_xm1=2u L_xm1=0.15u\\n.param W_xm2=2u L_xm2=0.15u\\n.param W_xm4=5u L_xm4=0.15u\\n\\n* DUT\\nVDD VDD 0 1.8\\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 N003 0 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nC1 N001 0 1e-13\\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nVREF VREF 0 500m\\n\\n* Bitline voltage source (fixed at 0.4V within valid range < VREF + Vthp)\\nVbit vbit 0 0.4\\n\\n* Non-overlapping clocks: period = 10ns\\n* phi1 is low from 0.5ns to 4.5ns (precharge Ccup to VDD)\\nVphi1 phi1 0 PULSE(1.8 0 0.5n 0.1n 0.1n 4.0n 10n)\\n* phi2 is low from 5.5ns to 9.5ns (dump charge into bit line)\\nVphi2 phi2 0 PULSE(1.8 0 5.5n 0.1n 0.1n 4.0n 10n)\\n\\n.tran 10p 50n 25n\\n\\n.control\\nrun\\n\\n* Current into bit line is -i(Vbit)\\nlet ibit = -i(Vbit)\\n\\n* Peak dumping current during a dump cycle (e.g., between 35ns and 40ns)\\nmeas tran i_peak max ibit from=35n to=40n\\n\\n* Settling current right before phi2 shuts off at t=39.5ns\\nmeas tran i_settle find ibit at=39.4n\\n\\n* Integrated charge delivered in one period (from t=35ns to 45ns)\\nmeas tran q_cup integ ibit from=35n to=45n\\n\\n* Output limits check\\nlet vbit_max = 0.5 + 0.42\\nlet vref_max = 1.8 - 0.42\\nprint i_peak i_settle q_cup vbit_max vref_max\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

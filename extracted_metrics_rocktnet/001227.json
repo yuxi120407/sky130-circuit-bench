@@ -1,0 +1,125 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current Mirror",
+    "description": "A PMOS current mirror with a 1:2 current ratio, likely used for biasing or as part of a PTAT current reference in the ADC.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 40-A/Channel Compensated 18-Channel Strain Gauge Measurement System for Stress Monitoring in Dental Implants",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "current_ratio": {
+      "description": "Ratio of output current to input current (Iout/Iin).",
+      "unit": "A/A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.7um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The circuit has 4 PMOS devices at the output (XM1, XM2, XM4, XM5) and 2 diode-connected PMOS devices at the input (XM3, XM6), all with identical W/L=5u/0.5u. Ratio = 4/2 = 2.",
+        "range": {
+          "min": 1.9,
+          "typical": 2.0,
+          "max": 2.1,
+          "unit": "A/A"
+        },
+        "reasoning": "Determined by the geometric ratio of the transistors."
+      },
+      "importance": "essential"
+    },
+    "output_resistance": {
+      "description": "Small-signal output resistance (Rout) of the current mirror.",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.7um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Rout = 1 / (lambda * Iout). With VIN=0.9V, Vov = 1.8 - 0.9 - 0.42 = 0.48V. Iin = 0.5 * 50u * 20 * 0.48^2 = 115uA. Iout = 230uA. Rout = 1 / (0.1 * 230uA) = 43.4 kOhm.",
+        "range": {
+          "min": 30000,
+          "typical": 43000,
+          "max": 60000,
+          "unit": "ohm"
+        },
+        "reasoning": "Depends on channel length modulation (lambda) and bias current."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the current mirror.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "41uW (total chip)",
+        "technology": "0.7um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * (Iin + Iout) = 1.8V * (115uA + 230uA) = 621 uW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.000621,
+          "max": 0.0008,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the expected currents at VIN=0.9V bias. Higher than paper's total chip power because VIN=0.9V forces a large current."
+      },
+      "importance": "essential"
+    },
+    "compliance_voltage": {
+      "description": "Maximum output voltage before the output transistors leave saturation (current drops by 5%).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.7um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vmax = VDD - |Vov| = 1.8V - 0.48V = 1.32V.",
+        "range": {
+          "min": 1.2,
+          "typical": 1.32,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Ensures the output PMOS devices remain in saturation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure current ratio, output resistance, power consumption, and compliance voltage of the PMOS current mirror.",
+    "analyses": [
+      "OP",
+      "DC"
+    ],
+    "metrics_measured": [
+      "current_ratio",
+      "output_resistance",
+      "power_consumption",
+      "compliance_voltage"
+    ],
+    "spice": "* PMOS Current Mirror Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 IN IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 IN IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\nVVDD VDD 0 1.8\nVIN IN 0 DC 0.9\nVOUT OUT 0 DC 0.9\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  op\n  let i_in = i(VIN)\n  let i_out = i(VOUT)\n  let current_ratio = i_out / i_in\n  let power = -i(VVDD) * 1.8\n  print i_in i_out current_ratio power\n\n  dc VOUT 0 1.8 0.01\n  let i_out_dc = i(VOUT)\n  let rout = 1 / deriv(i_out_dc)\n  meas dc rout_at_0v9 find rout at=0.9\n  meas dc iout_nom find i_out_dc at=0.9\n  let iout_95 = iout_nom * 0.95\n  meas dc v_compliance when i_out_dc=\"$&iout_95\"\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current Mirror\",\n    \"description\": \"A PMOS current mirror with a 1:2 current ratio, likely used for biasing or as part of a PTAT current reference in the ADC.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"OUT\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 40-A/Channel Compensated 18-Channel Strain Gauge Measurement System for Stress Monitoring in Dental Implants\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"current_ratio\": {\n      \"description\": \"Ratio of output current to input current (Iout/Iin).\",\n      \"unit\": \"A/A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.7um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The circuit has 4 PMOS devices at the output (XM1, XM2, XM4, XM5) and 2 diode-connected PMOS devices at the input (XM3, XM6), all with identical W/L=5u/0.5u. Ratio = 4/2 = 2.\",\n        \"range\": { \"min\": 1.9, \"typical\": 2.0, \"max\": 2.1, \"unit\": \"A/A\" },\n        \"reasoning\": \"Determined by the geometric ratio of the transistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal output resistance (Rout) of the current mirror.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.7um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = 1 / (lambda * Iout). With VIN=0.9V, Vov = 1.8 - 0.9 - 0.42 = 0.48V. Iin = 0.5 * 50u * 20 * 0.48^2 = 115uA. Iout = 230uA. Rout = 1 / (0.1 * 230uA) = 43.4 kOhm.\",\n        \"range\": { \"min\": 30000, \"typical\": 43000, \"max\": 60000, \"unit\": \"ohm\" },\n        \"reasoning\": \"Depends on channel length modulation (lambda) and bias current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the current mirror.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"41uW (total chip)\",\n        \"technology\": \"0.7um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * (Iin + Iout) = 1.8V * (115uA + 230uA) = 621 uW.\",\n        \"range\": { \"min\": 500e-6, \"typical\": 621e-6, \"max\": 800e-6, \"unit\": \"W\" },\n        \"reasoning\": \"Calculated based on the expected currents at VIN=0.9V bias. Higher than paper's total chip power because VIN=0.9V forces a large current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"compliance_voltage\": {\n      \"description\": \"Maximum output voltage before the output transistors leave saturation (current drops by 5%).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.7um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vmax = VDD - |Vov| = 1.8V - 0.48V = 1.32V.\",\n        \"range\": { \"min\": 1.2, \"typical\": 1.32, \"max\": 1.5, \"unit\": \"V\" },\n        \"reasoning\": \"Ensures the output PMOS devices remain in saturation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure current ratio, output resistance, power consumption, and compliance voltage of the PMOS current mirror.\",\n    \"analyses\": [\"OP\", \"DC\"],\n    \"metrics_measured\": [\"current_ratio\", \"output_resistance\", \"power_consumption\", \"compliance_voltage\"],\n    \"spice\": \"* PMOS Current Mirror Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 IN IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 IN IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVVDD VDD 0 1.8\\nVIN IN 0 DC 0.9\\nVOUT OUT 0 DC 0.9\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  op\\n  let i_in = i(VIN)\\n  let i_out = i(VOUT)\\n  let current_ratio = i_out / i_in\\n  let power = -i(VVDD) * 1.8\\n  print i_in i_out current_ratio power\\n\\n  dc VOUT 0 1.8 0.01\\n  let i_out_dc = i(VOUT)\\n  let rout = 1 / deriv(i_out_dc)\\n  meas dc rout_at_0v9 find rout at=0.9\\n  meas dc iout_nom find i_out_dc at=0.9\\n  let iout_95 = iout_nom * 0.95\\n  meas dc v_compliance when i_out_dc=\\\"$&iout_95\\\"\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "987080",
+  "_case": "987080_image_6"
+}

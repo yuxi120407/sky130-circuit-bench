@@ -1,0 +1,171 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual-band Low-Noise Amplifier (LNA)",
+    "description": "A cascode low-noise amplifier utilizing resistive shunt-shunt feedback for wideband input matching without external components. It features an interstage peaking network (R1, C2) between the common-emitter/source stage and the cascode stage to enhance high-frequency gain.",
+    "node_mapping": {
+      "input": [
+        "n1"
+      ],
+      "output": [
+        "n0"
+      ],
+      "supply": [
+        "n3"
+      ],
+      "bias": [
+        "label_net_0"
+      ],
+      "ground": [
+        "n5",
+        "label_net_1"
+      ]
+    },
+    "paper_reference": {
+      "title": "A dual band low-noise amplifier (LNA) with matched inputs and outputs",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Gain_900MHz": {
+      "description": "Forward voltage gain (S21) at 900 MHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "17 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Gain ~ gm * (Rload || Rsrc). With gm=168mS and effective load of 33 ohms, Gain = 5.6 V/V = 15 dB.",
+        "range": {
+          "min": 10,
+          "typical": 14,
+          "max": 18,
+          "unit": "dB"
+        },
+        "reasoning": "CMOS gm is typically lower than SiGe BJT for the same current, so gain might be slightly lower unless bias current is increased."
+      },
+      "importance": "essential"
+    },
+    "Gain_1900MHz": {
+      "description": "Forward voltage gain (S21) at 1.9 GHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "15 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to 900MHz but reduced by parasitic capacitances rolling off the gain.",
+        "range": {
+          "min": 8,
+          "typical": 12,
+          "max": 16,
+          "unit": "dB"
+        },
+        "reasoning": "High frequency gain rolls off due to device parasitics in 130nm CMOS."
+      },
+      "importance": "essential"
+    },
+    "NF_900MHz": {
+      "description": "Noise Figure at 900 MHz",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "< 1.2 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "F = 1 + Rsrc/R2 + (gamma / (gm * Rsrc)) * (1 + Rsrc/R2)^2. F = 1 + 0.1 + (1.5 / 8.4) * 1.21 = 1.31 -> 1.17 dB.",
+        "range": {
+          "min": 1.0,
+          "typical": 1.5,
+          "max": 2.5,
+          "unit": "dB"
+        },
+        "reasoning": "CMOS gamma is higher than BJT, so NF will likely be slightly worse than the SiGe implementation."
+      },
+      "importance": "essential"
+    },
+    "NF_1900MHz": {
+      "description": "Noise Figure at 1.9 GHz",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "< 1.5 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "F increases with frequency due to reduced gain and higher noise contributions from subsequent stages.",
+        "range": {
+          "min": 1.2,
+          "typical": 1.8,
+          "max": 3.0,
+          "unit": "dB"
+        },
+        "reasoning": "Expected to be slightly higher than 900MHz NF due to gain roll-off."
+      },
+      "importance": "essential"
+    },
+    "S11": {
+      "description": "Input return loss (matching)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "< -10 dB (matched to 50 ohms)",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Zin = (R2 + Zload) / (1 + gm*Zload) = 80 ohms. S11 = (80-50)/(80+50) = 0.23 -> -12.7 dB.",
+        "range": {
+          "min": -20,
+          "typical": -12,
+          "max": -8,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the feedback resistor R2 and transconductance gm."
+      },
+      "importance": "essential"
+    },
+    "Power": {
+      "description": "DC Power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "5 mA at 2.7-3.6V (13.5 mW)",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * Idd = 1.8V * 15mA = 27 mW.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.027,
+          "max": 0.05,
+          "unit": "W"
+        },
+        "reasoning": "To achieve similar gain and NF in 130nm CMOS, higher bias current is typically required compared to SiGe."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure LNA Gain (S21), Input Match (S11), Noise Figure, and Power Consumption.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Noise"
+    ],
+    "metrics_measured": [
+      "Gain_900MHz",
+      "Gain_1900MHz",
+      "S11",
+      "NF_900MHz",
+      "NF_1900MHz",
+      "Power"
+    ],
+    "spice": "* Dual-Band LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=100u L_xm1=0.15u\n.param W_xm2=200u L_xm2=0.15u\n\n* DUT (Adapted for SKY130 CMOS)\nM1 n0 label_net_0 n2 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nM2 n4 n1 label_net_1 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nR1 n2 n4 20\nR2 n1 n4 500\nC1 n3 n5 10p\nC2 n2 n4 2p\nC3 n0 n5 1p\nR3 n0 n3 100\n\n* Biasing and Supplies\nVdd n3 0 1.8\nVss n5 0 0\nVss2 label_net_1 0 0\nVbias label_net_0 0 1.2\n\n* RF Input (AC coupled, 50 ohm source)\nVac in 0 dc 0 ac 2\nRsrc in n1_ac 50\nCin n1_ac n1 10p\n\n* RF Output (AC coupled, 50 ohm load)\nCout n0 out_ac 10p\nRload out_ac 0 50\n\n.control\n* DC Operating Point for Power\nop\nlet power = -i(Vdd) * 1.8\nprint power\n\n* AC Analysis for Gain and S11\nac dec 50 100MEG 10G\nlet gain_db = vdb(out_ac)\nmeas ac max_gain max gain_db\nmeas ac gain_900m find gain_db at=900MEG\nmeas ac gain_1900m find gain_db at=1.9G\n\n* S11 approximation: V(n1_ac) should be 1V if perfectly matched (since Vac=2V and Rsrc=50).\n* Reflection coefficient Gamma = (Zin - 50)/(Zin + 50) = V(n1_ac) - 1\nlet s11_mag = mag(v(n1_ac) - 1)\nlet s11_db = 20 * log10(s11_mag)\nmeas ac s11_900m find s11_db at=900MEG\nmeas ac s11_1900m find s11_db at=1.9G\n\n* Noise Analysis\nnoise v(out_ac) Vac dec 10 100MEG 10G\nsetplot noise1\n* Calculate Noise Figure in dB (4*k*T*50 at 298.15K is ~8.23e-19)\nlet nf_db = 10 * log10(inoise_spectrum^2 / 8.23e-19)\nmeas noise nf_900m find nf_db at=900MEG\nmeas noise nf_1900m find nf_db at=1.9G\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual-band Low-Noise Amplifier (LNA)\",\n    \"description\": \"A cascode low-noise amplifier utilizing resistive shunt-shunt feedback for wideband input matching without external components. It features an interstage peaking network (R1, C2) between the common-emitter/source stage and the cascode stage to enhance high-frequency gain.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n1\"\n      ],\n      \"output\": [\n        \"n0\"\n      ],\n      \"supply\": [\n        \"n3\"\n      ],\n      \"bias\": [\n        \"label_net_0\"\n      ],\n      \"ground\": [\n        \"n5\",\n        \"label_net_1\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A dual band low-noise amplifier (LNA) with matched inputs and outputs\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Gain_900MHz\": {\n      \"description\": \"Forward voltage gain (S21) at 900 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"17 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain ~ gm * (Rload || Rsrc). With gm=168mS and effective load of 33 ohms, Gain = 5.6 V/V = 15 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 14,\n          \"max\": 18,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"CMOS gm is typically lower than SiGe BJT for the same current, so gain might be slightly lower unless bias current is increased.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Gain_1900MHz\": {\n      \"description\": \"Forward voltage gain (S21) at 1.9 GHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"15 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to 900MHz but reduced by parasitic capacitances rolling off the gain.\",\n        \"range\": {\n          \"min\": 8,\n          \"typical\": 12,\n          \"max\": 16,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"High frequency gain rolls off due to device parasitics in 130nm CMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"NF_900MHz\": {\n      \"description\": \"Noise Figure at 900 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"< 1.2 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"F = 1 + Rsrc/R2 + (gamma / (gm * Rsrc)) * (1 + Rsrc/R2)^2. F = 1 + 0.1 + (1.5 / 8.4) * 1.21 = 1.31 -> 1.17 dB.\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.5,\n          \"max\": 2.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"CMOS gamma is higher than BJT, so NF will likely be slightly worse than the SiGe implementation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"NF_1900MHz\": {\n      \"description\": \"Noise Figure at 1.9 GHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"< 1.5 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"F increases with frequency due to reduced gain and higher noise contributions from subsequent stages.\",\n        \"range\": {\n          \"min\": 1.2,\n          \"typical\": 1.8,\n          \"max\": 3.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Expected to be slightly higher than 900MHz NF due to gain roll-off.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"S11\": {\n      \"description\": \"Input return loss (matching)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"< -10 dB (matched to 50 ohms)\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zin = (R2 + Zload) / (1 + gm*Zload) = 80 ohms. S11 = (80-50)/(80+50) = 0.23 -> -12.7 dB.\",\n        \"range\": {\n          \"min\": -20,\n          \"typical\": -12,\n          \"max\": -8,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the feedback resistor R2 and transconductance gm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power\": {\n      \"description\": \"DC Power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"5 mA at 2.7-3.6V (13.5 mW)\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * Idd = 1.8V * 15mA = 27 mW.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.027,\n          \"max\": 0.05,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"To achieve similar gain and NF in 130nm CMOS, higher bias current is typically required compared to SiGe.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure LNA Gain (S21), Input Match (S11), Noise Figure, and Power Consumption.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Noise\"\n    ],\n    \"metrics_measured\": [\n      \"Gain_900MHz\",\n      \"Gain_1900MHz\",\n      \"S11\",\n      \"NF_900MHz\",\n      \"NF_1900MHz\",\n      \"Power\"\n    ],\n    \"spice\": \"* Dual-Band LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=100u L_xm1=0.15u\\n.param W_xm2=200u L_xm2=0.15u\\n\\n* DUT (Adapted for SKY130 CMOS)\\nM1 n0 label_net_0 n2 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nM2 n4 n1 label_net_1 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nR1 n2 n4 20\\nR2 n1 n4 500\\nC1 n3 n5 10p\\nC2 n2 n4 2p\\nC3 n0 n5 1p\\nR3 n0 n3 100\\n\\n* Biasing and Supplies\\nVdd n3 0 1.8\\nVss n5 0 0\\nVss2 label_net_1 0 0\\nVbias label_net_0 0 1.2\\n\\n* RF Input (AC coupled, 50 ohm source)\\nVac in 0 dc 0 ac 2\\nRsrc in n1_ac 50\\nCin n1_ac n1 10p\\n\\n* RF Output (AC coupled, 50 ohm load)\\nCout n0 out_ac 10p\\nRload out_ac 0 50\\n\\n.control\\n* DC Operating Point for Power\\nop\\nlet power = -i(Vdd) * 1.8\\nprint power\\n\\n* AC Analysis for Gain and S11\\nac dec 50 100MEG 10G\\nlet gain_db = vdb(out_ac)\\nmeas ac max_gain max gain_db\\nmeas ac gain_900m find gain_db at=900MEG\\nmeas ac gain_1900m find gain_db at=1.9G\\n\\n* S11 approximation: V(n1_ac) should be 1V if perfectly matched (since Vac=2V and Rsrc=50).\\n* Reflection coefficient Gamma = (Zin - 50)/(Zin + 50) = V(n1_ac) - 1\\nlet s11_mag = mag(v(n1_ac) - 1)\\nlet s11_db = 20 * log10(s11_mag)\\nmeas ac s11_900m find s11_db at=900MEG\\nmeas ac s11_1900m find s11_db at=1.9G\\n\\n* Noise Analysis\\nnoise v(out_ac) Vac dec 10 100MEG 10G\\nsetplot noise1\\n* Calculate Noise Figure in dB (4*k*T*50 at 298.15K is ~8.23e-19)\\nlet nf_db = 10 * log10(inoise_spectrum^2 / 8.23e-19)\\nmeas noise nf_900m find nf_db at=900MEG\\nmeas noise nf_1900m find nf_db at=1.9G\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "933471",
+  "_case": "933471_image_2"
+}

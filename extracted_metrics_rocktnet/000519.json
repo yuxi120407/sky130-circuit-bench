@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current-Steering Pair (Common-Gate Stage)",
+    "description": "A pair of NMOS transistors acting as a common-gate current-steering stage, typically used in variable gain amplifiers or mixers. The RF input is applied at the sources, and the current is steered to the drain based on the gate control voltage.",
+    "node_mapping": {
+      "input": [
+        "VOUT_P",
+        "VOUT_N"
+      ],
+      "output": [
+        "VCC"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N6"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Nonlinear Analysis of Noise in Current-Steering Variable Gain Amplifiers",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "AC voltage gain from the source inputs to the drain output.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "54 dB (for full amplifier)",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vgs = 1.8V - 0.9V = 0.9V. Vov = 0.9 - 0.42 = 0.48V. Id = 0.5 * 270u * 10 * 0.48^2 = 311 uA per transistor. gm = 2*Id/Vov = 1.29 mA/V per transistor. Total gm = 2.58 mA/V. Gain = gm * R_LOAD = 2.58m * 500 = 1.29 V/V = 2.2 dB.",
+        "range": {
+          "min": 0,
+          "typical": 2.2,
+          "max": 5,
+          "unit": "dB"
+        },
+        "reasoning": "The sub-circuit is a single stage with a 500 ohm load, so the gain is much lower than the full multi-stage amplifier reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB cutoff frequency of the stage.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "850 MHz",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant at the drain node. With R_LOAD=500 and parasitic capacitance ~50fF, BW = 1 / (2*pi*R*C) > 5 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 130nm NMOS has high fT, easily exceeding the 850 MHz cable TV band when driving a small resistive load."
+      },
+      "importance": "essential"
+    },
+    "DC Power": {
+      "description": "Total DC power consumption of the stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1 V supply",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Total current = 2 * 311 uA = 622 uA. Power = 1.8V * 622uA = 1.12 mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.0011,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply and the specific bias conditions applied in the testbench."
+      },
+      "importance": "essential"
+    },
+    "Transient Output Swing": {
+      "description": "Peak-to-peak voltage swing at the output node.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 dBm output power",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Input amplitude is 0.1V. Gain is 1.29 V/V. Output amplitude = 0.129V. Peak-to-peak = 0.258V.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.25,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Based on the transient input stimulus of 0.1V amplitude and the calculated stage gain."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, bandwidth, and transient output swing of the current-steering pair.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Voltage Gain",
+      "DC Power",
+      "Transient Output Swing"
+    ],
+    "spice": "* Current-Steering Pair Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 VCC N6 VOUT_P GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VCC N6 VOUT_N GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\nVDD VDD 0 DC 1.8\nR_LOAD VDD VCC 500\nVN6 N6 0 DC 1.8\n\nVVIN_POS VOUT_P 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\nVVIN_NEG VOUT_N 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\n\n.control\nop\nlet power = -i(VDD) * 1.8\nprint power\nprint v(VCC)\n\nac dec 10 1k 10G\nlet gain_db = vdb(VCC)\nmeas ac gain_1mhz find gain_db at=1MEG\nmeas ac gain_1ghz find gain_db at=1G\n\ntran 1n 5u\nmeas tran vout_max max v(VCC)\nmeas tran vout_min min v(VCC)\nlet vout_pp = vout_max - vout_min\nprint vout_pp\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current-Steering Pair (Common-Gate Stage)\",\n    \"description\": \"A pair of NMOS transistors acting as a common-gate current-steering stage, typically used in variable gain amplifiers or mixers. The RF input is applied at the sources, and the current is steered to the drain based on the gate control voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VOUT_P\",\n        \"VOUT_N\"\n      ],\n      \"output\": [\n        \"VCC\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N6\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Nonlinear Analysis of Noise in Current-Steering Variable Gain Amplifiers\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"AC voltage gain from the source inputs to the drain output.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"54 dB (for full amplifier)\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs = 1.8V - 0.9V = 0.9V. Vov = 0.9 - 0.42 = 0.48V. Id = 0.5 * 270u * 10 * 0.48^2 = 311 uA per transistor. gm = 2*Id/Vov = 1.29 mA/V per transistor. Total gm = 2.58 mA/V. Gain = gm * R_LOAD = 2.58m * 500 = 1.29 V/V = 2.2 dB.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 2.2,\n          \"max\": 5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The sub-circuit is a single stage with a 500 ohm load, so the gain is much lower than the full multi-stage amplifier reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the stage.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"850 MHz\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant at the drain node. With R_LOAD=500 and parasitic capacitance ~50fF, BW = 1 / (2*pi*R*C) > 5 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 5e9,\n          \"max\": 10e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 130nm NMOS has high fT, easily exceeding the 850 MHz cable TV band when driving a small resistive load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"DC Power\": {\n      \"description\": \"Total DC power consumption of the stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1 V supply\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current = 2 * 311 uA = 622 uA. Power = 1.8V * 622uA = 1.12 mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 1.1e-3,\n          \"max\": 2e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply and the specific bias conditions applied in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transient Output Swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output node.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 dBm output power\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input amplitude is 0.1V. Gain is 1.29 V/V. Output amplitude = 0.129V. Peak-to-peak = 0.258V.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.25,\n          \"max\": 0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on the transient input stimulus of 0.1V amplitude and the calculated stage gain.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, bandwidth, and transient output swing of the current-steering pair.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Voltage Gain\",\n      \"DC Power\",\n      \"Transient Output Swing\"\n    ],\n    \"spice\": \"* Current-Steering Pair Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 VCC N6 VOUT_P GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VCC N6 VOUT_N GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVDD VDD 0 DC 1.8\\nR_LOAD VDD VCC 500\\nVN6 N6 0 DC 1.8\\n\\nVVIN_POS VOUT_P 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\nVVIN_NEG VOUT_N 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\n\\n.control\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\nprint v(VCC)\\n\\nac dec 10 1k 10G\\nlet gain_db = vdb(VCC)\\nmeas ac gain_1mhz find gain_db at=1MEG\\nmeas ac gain_1ghz find gain_db at=1G\\n\\ntran 1n 5u\\nmeas tran vout_max max v(VCC)\\nmeas tran vout_min min v(VCC)\\nlet vout_pp = vout_max - vout_min\\nprint vout_pp\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1263655",
+  "_case": "1263655_image_6"
+}

@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Operational Transconductance Amplifier (OTA)",
+    "description": "A fully symmetric differential OTA with a replica bias circuit (XM1_N, XM2_N, XM3_N) to set the output common-mode voltage. Although the paper metadata labels it as a VCO, the topology is clearly an OTA, likely used as the core building block for the 100-MHz bandpass filter mentioned in the title.",
+    "node_mapping": {
+      "input": [
+        "VIN_PLUS",
+        "VIN_MINUS"
+      ],
+      "output": [
+        "VOUT_PLUS",
+        "VOUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Enhanced Adaptive Q-Tuning Scheme for a 100-MHz Fully Symmetric OTA-Based Bandpass Filter",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low-frequency differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 dB",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm * Rout. gm \u2248 1 mS, Rout \u2248 32 kOhm -> Gain \u2248 32 V/V = 30 dB.",
+        "range": {
+          "min": 25,
+          "typical": 30,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "Single-stage OTA gain is limited by the intrinsic gain of the transistors (gm/gds). In SKY130 at L=0.5u, 30-40 dB is typical."
+      },
+      "importance": "essential"
+    },
+    "GBW": {
+      "description": "Unity gain bandwidth.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "100 MHz (filter center frequency)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm / (2 * pi * CL). gm \u2248 1 mS, CL = 100 fF -> GBW \u2248 1.5 GHz.",
+        "range": {
+          "min": 500000000.0,
+          "typical": 1000000000.0,
+          "max": 2000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "To support a 100 MHz filter, the OTA GBW must be significantly higher, typically > 500 MHz."
+      },
+      "importance": "essential"
+    },
+    "Phase_Margin": {
+      "description": "Phase margin for stability.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by non-dominant poles.",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "A single-stage OTA with a dominant load capacitor typically has >60 degrees phase margin."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power dissipation.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "3 mW",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I_total = 1.8V * (311uA + 155uA) \u2248 0.84 mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.001,
+          "max": 0.003,
+          "unit": "W"
+        },
+        "reasoning": "Based on the bias current required to achieve the necessary gm for high-frequency operation."
+      },
+      "importance": "essential"
+    },
+    "Slew_Rate": {
+      "description": "Maximum rate of change of the output voltage.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "I_tail / CL = 311 uA / 100 fF = 3.11 V/ns = 3110 V/us.",
+        "range": {
+          "min": 1000,
+          "typical": 3000,
+          "max": 5000,
+          "unit": "V/us"
+        },
+        "reasoning": "High slew rate is expected due to the large tail current and small load capacitance (100fF)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for fully symmetric OTA. Uses 100Meg resistors for DC common-mode feedback to stabilize the operating point, and 1F capacitors to couple AC and Transient signals without disturbing the DC bias. Note: W_xm3_n is adjusted to 2.5u to properly balance the replica bias current with the differential pair.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "gbw",
+      "pm",
+      "sr_rise",
+      "sr_fall",
+      "power"
+    ],
+    "spice": "* Fully Symmetric OTA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Note: W_xm3_n is set to 2.5u (half of W_xm3) so the replica branch carries I_tail/2.\n* This current is mirrored 1:1 by the PMOS loads (XM2_1, XM2_2), perfectly balancing\n* the differential pair which sinks I_tail/2 per branch.\n.param W_xm1_n=5u L_xm1_n=0.5u\n.param W_xm3_n=2.5u L_xm3_n=0.5u\n.param W_xm1_2=5u L_xm1_2=0.5u\n.param W_xm1_1=5u L_xm1_1=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm2_2=5u L_xm2_2=0.5u\n.param W_xm2_n=5u L_xm2_n=0.5u\n.param W_xm2_1=5u L_xm2_1=0.5u\n\nVVDD VDD 0 1.8\nVBIAS1 BIAS1 0 0.8\n\n* DUT\nXM1_N N2 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1_n} w={W_xm1_n}\nXM3_N N1 BIAS1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3_n} w={W_xm3_n}\nXM1_2 VOUT_PLUS VIN_MINUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1_2} w={W_xm1_2}\nXM1_1 VOUT_MINUS VIN_PLUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1_1} w={W_xm1_1}\nXM3 N4 BIAS1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM2_2 VOUT_PLUS N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2_2} w={W_xm2_2}\nXM2_N N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2_n} w={W_xm2_n}\nXM2_1 VOUT_MINUS N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2_1} w={W_xm2_1}\n\n* DC feedback for self-biasing (sets output CM to equilibrium)\nRfb1 VOUT_PLUS VIN_MINUS 100Meg\nRfb2 VOUT_MINUS VIN_PLUS 100Meg\n\n* AC/Tran coupling\nCac1 IN_P VIN_PLUS 1\nCac2 IN_M VIN_MINUS 1\n\n* Input sources\nV_IN_P IN_P 0 DC 0 AC 0.5 PULSE(-0.1 0.1 1n 100p 100p 10n 20n)\nV_IN_M IN_M 0 DC 0 AC -0.5 PULSE(0.1 -0.1 1n 100p 100p 10n 20n)\n\n* Load capacitance\nCL1 VOUT_PLUS 0 100f\nCL2 VOUT_MINUS 0 100f\n\n* Differential output\nE_diff VOUT_DIFF 0 VOUT_PLUS VOUT_MINUS 1\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1Meg 10Gig\nlet gain_db = vdb(VOUT_DIFF)\nlet phase = 180/PI * cph(v(VOUT_DIFF))\nmeas ac dc_gain max gain_db\nmeas ac gbw when gain_db=0 fall=1\nmeas ac phase_at_gbw find phase when gain_db=0 fall=1\nlet pm = phase_at_gbw + 180\nprint pm\n\ntran 10p 20n\nmeas tran vout_max max v(VOUT_DIFF)\nmeas tran vout_min min v(VOUT_DIFF)\nmeas tran t1_r when v(VOUT_DIFF)=-0.2 rise=1\nmeas tran t2_r when v(VOUT_DIFF)=0.2 rise=1\nlet sr_rise = 0.4 / (t2_r - t1_r)\nprint sr_rise\n\nmeas tran t1_f when v(VOUT_DIFF)=0.2 fall=1\nmeas tran t2_f when v(VOUT_DIFF)=-0.2 fall=1\nlet sr_fall = -0.4 / (t2_f - t1_f)\nprint sr_fall\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Operational Transconductance Amplifier (OTA)\",\n    \"description\": \"A fully symmetric differential OTA with a replica bias circuit (XM1_N, XM2_N, XM3_N) to set the output common-mode voltage. Although the paper metadata labels it as a VCO, the topology is clearly an OTA, likely used as the core building block for the 100-MHz bandpass filter mentioned in the title.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_PLUS\",\n        \"VIN_MINUS\"\n      ],\n      \"output\": [\n        \"VOUT_PLUS\",\n        \"VOUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Enhanced Adaptive Q-Tuning Scheme for a 100-MHz Fully Symmetric OTA-Based Bandpass Filter\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low-frequency differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 dB\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm * Rout. gm \u2248 1 mS, Rout \u2248 32 kOhm -> Gain \u2248 32 V/V = 30 dB.\",\n        \"range\": {\n          \"min\": 25,\n          \"typical\": 30,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Single-stage OTA gain is limited by the intrinsic gain of the transistors (gm/gds). In SKY130 at L=0.5u, 30-40 dB is typical.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"GBW\": {\n      \"description\": \"Unity gain bandwidth.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"100 MHz (filter center frequency)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm / (2 * pi * CL). gm \u2248 1 mS, CL = 100 fF -> GBW \u2248 1.5 GHz.\",\n        \"range\": {\n          \"min\": 500e6,\n          \"typical\": 1e9,\n          \"max\": 2e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"To support a 100 MHz filter, the OTA GBW must be significantly higher, typically > 500 MHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_Margin\": {\n      \"description\": \"Phase margin for stability.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by non-dominant poles.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"A single-stage OTA with a dominant load capacitor typically has >60 degrees phase margin.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power dissipation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"3 mW\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I_total = 1.8V * (311uA + 155uA) \u2248 0.84 mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 1e-3,\n          \"max\": 3e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the bias current required to achieve the necessary gm for high-frequency operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Slew_Rate\": {\n      \"description\": \"Maximum rate of change of the output voltage.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail / CL = 311 uA / 100 fF = 3.11 V/ns = 3110 V/us.\",\n        \"range\": {\n          \"min\": 1000,\n          \"typical\": 3000,\n          \"max\": 5000,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"High slew rate is expected due to the large tail current and small load capacitance (100fF).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for fully symmetric OTA. Uses 100Meg resistors for DC common-mode feedback to stabilize the operating point, and 1F capacitors to couple AC and Transient signals without disturbing the DC bias. Note: W_xm3_n is adjusted to 2.5u to properly balance the replica bias current with the differential pair.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"gbw\",\n      \"pm\",\n      \"sr_rise\",\n      \"sr_fall\",\n      \"power\"\n    ],\n    \"spice\": \"* Fully Symmetric OTA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Note: W_xm3_n is set to 2.5u (half of W_xm3) so the replica branch carries I_tail/2.\\n* This current is mirrored 1:1 by the PMOS loads (XM2_1, XM2_2), perfectly balancing\\n* the differential pair which sinks I_tail/2 per branch.\\n.param W_xm1_n=5u L_xm1_n=0.5u\\n.param W_xm3_n=2.5u L_xm3_n=0.5u\\n.param W_xm1_2=5u L_xm1_2=0.5u\\n.param W_xm1_1=5u L_xm1_1=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm2_2=5u L_xm2_2=0.5u\\n.param W_xm2_n=5u L_xm2_n=0.5u\\n.param W_xm2_1=5u L_xm2_1=0.5u\\n\\nVVDD VDD 0 1.8\\nVBIAS1 BIAS1 0 0.8\\n\\n* DUT\\nXM1_N N2 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1_n} w={W_xm1_n}\\nXM3_N N1 BIAS1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3_n} w={W_xm3_n}\\nXM1_2 VOUT_PLUS VIN_MINUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1_2} w={W_xm1_2}\\nXM1_1 VOUT_MINUS VIN_PLUS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1_1} w={W_xm1_1}\\nXM3 N4 BIAS1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM2_2 VOUT_PLUS N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2_2} w={W_xm2_2}\\nXM2_N N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2_n} w={W_xm2_n}\\nXM2_1 VOUT_MINUS N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2_1} w={W_xm2_1}\\n\\n* DC feedback for self-biasing (sets output CM to equilibrium)\\nRfb1 VOUT_PLUS VIN_MINUS 100Meg\\nRfb2 VOUT_MINUS VIN_PLUS 100Meg\\n\\n* AC/Tran coupling\\nCac1 IN_P VIN_PLUS 1\\nCac2 IN_M VIN_MINUS 1\\n\\n* Input sources\\nV_IN_P IN_P 0 DC 0 AC 0.5 PULSE(-0.1 0.1 1n 100p 100p 10n 20n)\\nV_IN_M IN_M 0 DC 0 AC -0.5 PULSE(0.1 -0.1 1n 100p 100p 10n 20n)\\n\\n* Load capacitance\\nCL1 VOUT_PLUS 0 100f\\nCL2 VOUT_MINUS 0 100f\\n\\n* Differential output\\nE_diff VOUT_DIFF 0 VOUT_PLUS VOUT_MINUS 1\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1Meg 10Gig\\nlet gain_db = vdb(VOUT_DIFF)\\nlet phase = 180/PI * cph(v(VOUT_DIFF))\\nmeas ac dc_gain max gain_db\\nmeas ac gbw when gain_db=0 fall=1\\nmeas ac phase_at_gbw find phase when gain_db=0 fall=1\\nlet pm = phase_at_gbw + 180\\nprint pm\\n\\ntran 10p 20n\\nmeas tran vout_max max v(VOUT_DIFF)\\nmeas tran vout_min min v(VOUT_DIFF)\\nmeas tran t1_r when v(VOUT_DIFF)=-0.2 rise=1\\nmeas tran t2_r when v(VOUT_DIFF)=0.2 rise=1\\nlet sr_rise = 0.4 / (t2_r - t1_r)\\nprint sr_rise\\n\\nmeas tran t1_f when v(VOUT_DIFF)=0.2 fall=1\\nmeas tran t2_f when v(VOUT_DIFF)=-0.2 fall=1\\nlet sr_fall = -0.4 / (t2_f - t1_f)\\nprint sr_fall\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1190594",
+  "_case": "1190594_image_13"
+}

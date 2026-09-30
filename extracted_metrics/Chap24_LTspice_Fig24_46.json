@@ -1,0 +1,127 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 24.40 and Fig 24.42",
+    "page": "802, 803",
+    "circuit_type": "Folded-Cascode Op-Amp with Class AB Output Buffer",
+    "description": "The netlist describes a folded-cascode OTA core (matching the topology in Fig 24.42) driving a Class AB output stage with floating current sources (matching the output stage in Fig 24.40). It is configured as a closed-loop inverting amplifier with two 10k resistors (R1, R2)."
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "DC open-loop voltage gain of the op-amp",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "793",
+        "reference": "Eq 24.35"
+      },
+      "equation": {
+        "formula": "A_OLDC = A1 * A2",
+        "explanation": "The total open-loop gain is the product of the first stage (folded cascode) gain and the second stage (class AB buffer) gain.",
+        "assumptions": "Assumes the output resistance of the first stage is not heavily loaded by the second stage."
+      },
+      "sky130_expected": {
+        "calculation": "A1 = gm1 * (R_up || R_down) \u2248 232uS * 87M\u03a9 = 86 dB. A2 = (gm_mop + gm_mon) * (ro_mop || ro_mon) \u2248 1.8mS * 100k\u03a9 = 45 dB. Total theoretical = 131 dB. Due to short channel effects in SKY130, intrinsic gain (gm*ro) is lower.",
+        "range": {
+          "min": 80,
+          "typical": 100,
+          "max": 120,
+          "unit": "dB"
+        },
+        "reasoning": "Cascode stages typically provide 60-80 dB in 130nm, and the output buffer provides an additional 20-40 dB depending on the quiescent current and loading."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency where the open-loop gain drops to 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "793",
+        "reference": "Eq 24.34"
+      },
+      "equation": {
+        "formula": "f_un = gm1 / (2 * pi * Cc)",
+        "explanation": "The unity-gain frequency is determined by the input pair's transconductance and the Miller compensation capacitor.",
+        "assumptions": "Assumes the dominant pole is set by Cc and higher-order poles are located beyond f_un."
+      },
+      "sky130_expected": {
+        "calculation": "f_un = 232uA/V / (2 * pi * 240fF) = 154 MHz",
+        "range": {
+          "min": 50000000.0,
+          "typical": 150000000.0,
+          "max": 300000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the actual bias current and W/L of the input pair, but 100-200 MHz is typical for this topology with a 240fF Cc."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "800",
+        "reference": "Eq 24.48"
+      },
+      "equation": {
+        "formula": "SR = I_tail / Cc",
+        "explanation": "Slew rate is limited by the maximum current available from the tail current source to charge/discharge the compensation capacitor.",
+        "assumptions": "Assumes the internal slew rate (charging Cc) is the limiting factor, rather than the output stage driving the load capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "SR = 20uA / 240fF = 83 V/us",
+        "range": {
+          "min": 20,
+          "typical": 80,
+          "max": 150,
+          "unit": "V/us"
+        },
+        "reasoning": "Tail current is typically in the 10-50uA range for such designs, yielding tens to low hundreds of V/us."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase difference from -180 degrees at the unity-gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "source": {
+        "page": "794",
+        "reference": "Text discussion"
+      },
+      "equation": {
+        "formula": "PM = 180 + Phase(A_OL(f_un))",
+        "explanation": "Indicates the stability of the closed-loop amplifier. A higher phase margin results in less ringing in the step response.",
+        "assumptions": "Measured in an open-loop configuration."
+      },
+      "sky130_expected": {
+        "calculation": "Designed to be > 60 degrees for good settling behavior.",
+        "range": {
+          "min": 50,
+          "typical": 70,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "The 240fF compensation capacitor is sized to push the non-dominant pole beyond f_un to achieve roughly 70 degrees PM, as stated in the text."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC power, AC open-loop gain (extracted from closed-loop), unity-gain frequency, phase margin, and transient slew rate.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "open_loop_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate"
+    ],
+    "spice": "* Testbench for Folded Cascode Op-Amp\n.lib \"${SKY130_PDK}\" tt\n\n* Include the DUT (Replace with actual netlist file if needed)\n* .include \"dut.spice\"\n\n* Biasing and sources\n* VDD is already defined in the netlist as: VDD VDD 0 1.8\nVcm vp 0 0.9\nVin_src Vin 0 dc 0.9 ac 1 pulse(0.4 1.4 10n 1n 1n 500n 1u)\n\n* Dummy params to make the parameterized netlist compile\n.param W_xm1=10 L_xm1=1 W_xm2=10 L_xm2=1 W_xm3rt=10 L_xm3rt=1 W_xm3rb=10 L_xm3rb=1\n.param W_xm3lt=10 L_xm3lt=1 W_xm3lb=10 L_xm3lb=1 W_xm10=10 L_xm10=1 W_xm12=10 L_xm12=1\n.param W_xm9=10 L_xm9=1 W_xm11=10 L_xm11=1 W_xm6l=20 L_xm6l=1 W_xm5l=20 L_xm5l=1\n.param W_xm5r=20 L_xm5r=1 W_xm6r=20 L_xm6r=1 W_xm8=20 L_xm8=1 W_xm7=20 L_xm7=1\n.param W_xmfcpl=10 L_xmfcpl=1 W_xmfcpr=10 L_xmfcpr=1 W_xmfcnr=5 L_xmfcnr=1 W_xmfcnl=5 L_xmfcnl=1\n.param W_xmop=100 L_xmop=1 W_xmon=50 L_xmon=1\n.param W_xmsu2=10 L_xmsu2=1 W_xmsu1=5 L_xmsu1=1 W_xmsu3=5 L_xmsu3=1 W_xm3=10 L_xm3=1\n.param W_xm4=10 L_xm4=1 W_xma4=10 L_xma4=1 W_xma3=10 L_xma3=1\n.param W_xm5=5 L_xm5=1 W_xm6=5 L_xm6=1 W_xma1=10 L_xma1=1 W_xma2=10 L_xma2=1\n.param W_xmsu4=5 L_xmsu4=1 W_xma5=10 L_xma5=1 W_xma6=10 L_xma6=1 W_xma7=10 L_xma7=1\n.param W_xma8=10 L_xma8=1 W_xma9=10 L_xma9=1 W_xma10=10 L_xma10=1 W_xma11=10 L_xma11=1\n.param W_xma12=10 L_xma12=1 W_xm16=5 L_xm16=1 W_xm17=5 L_xm17=1 W_xm18=5 L_xm18=1\n.param W_xm13=5 L_xm13=1 W_xm14=5 L_xm14=1 W_xm15=5 L_xm15=1\n\n.control\n  * 1. DC Operating Point\n  op\n  let power = -i(VDD) * 1.8\n  print power\n\n  * 2. AC Analysis (Extracting Open-Loop Gain from Closed-Loop)\n  ac dec 100 1 1G\n  * Open loop gain = Vout / (Vp - Vm). Since Vp is AC ground, it's Vout / (-Vm)\n  let mag_vout = mag(v(Vout))\n  let mag_vm = mag(v(vm))\n  let gain_db = 20 * log10(mag_vout / mag_vm)\n  let phase_deg = 180/PI * (cph(v(Vout)) - cph(v(vm)))\n  \n  meas ac dc_gain find gain_db at=10\n  meas ac unity_gain_freq when gain_db=0 fall=1\n  meas ac phase_at_ugf find phase_deg when gain_db=0 fall=1\n  \n  * Phase margin calculation (assuming phase_deg starts near 180 or -180 at DC)\n  let pm = phase_at_ugf\n  print pm\n\n  * 3. Transient Analysis\n  tran 1n 2u\n  meas tran slew_rate_fall deriv v(Vout) when v(Vout)=0.9 fall=1\n  meas tran slew_rate_rise deriv v(Vout) when v(Vout)=0.9 rise=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 24.40 and Fig 24.42\",\n    \"page\": \"802, 803\",\n    \"circuit_type\": \"Folded-Cascode Op-Amp with Class AB Output Buffer\",\n    \"description\": \"The netlist describes a folded-cascode OTA core (matching the topology in Fig 24.42) driving a Class AB output stage with floating current sources (matching the output stage in Fig 24.40). It is configured as a closed-loop inverting amplifier with two 10k resistors (R1, R2).\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"DC open-loop voltage gain of the op-amp\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"793\",\n        \"reference\": \"Eq 24.35\"\n      },\n      \"equation\": {\n        \"formula\": \"A_OLDC = A1 * A2\",\n        \"explanation\": \"The total open-loop gain is the product of the first stage (folded cascode) gain and the second stage (class AB buffer) gain.\",\n        \"assumptions\": \"Assumes the output resistance of the first stage is not heavily loaded by the second stage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A1 = gm1 * (R_up || R_down) \u2248 232uS * 87M\u03a9 = 86 dB. A2 = (gm_mop + gm_mon) * (ro_mop || ro_mon) \u2248 1.8mS * 100k\u03a9 = 45 dB. Total theoretical = 131 dB. Due to short channel effects in SKY130, intrinsic gain (gm*ro) is lower.\",\n        \"range\": {\n          \"min\": 80,\n          \"typical\": 100,\n          \"max\": 120,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Cascode stages typically provide 60-80 dB in 130nm, and the output buffer provides an additional 20-40 dB depending on the quiescent current and loading.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency where the open-loop gain drops to 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"793\",\n        \"reference\": \"Eq 24.34\"\n      },\n      \"equation\": {\n        \"formula\": \"f_un = gm1 / (2 * pi * Cc)\",\n        \"explanation\": \"The unity-gain frequency is determined by the input pair's transconductance and the Miller compensation capacitor.\",\n        \"assumptions\": \"Assumes the dominant pole is set by Cc and higher-order poles are located beyond f_un.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_un = 232uA/V / (2 * pi * 240fF) = 154 MHz\",\n        \"range\": {\n          \"min\": 50e6,\n          \"typical\": 150e6,\n          \"max\": 300e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the actual bias current and W/L of the input pair, but 100-200 MHz is typical for this topology with a 240fF Cc.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"800\",\n        \"reference\": \"Eq 24.48\"\n      },\n      \"equation\": {\n        \"formula\": \"SR = I_tail / Cc\",\n        \"explanation\": \"Slew rate is limited by the maximum current available from the tail current source to charge/discharge the compensation capacitor.\",\n        \"assumptions\": \"Assumes the internal slew rate (charging Cc) is the limiting factor, rather than the output stage driving the load capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = 20uA / 240fF = 83 V/us\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 80,\n          \"max\": 150,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Tail current is typically in the 10-50uA range for such designs, yielding tens to low hundreds of V/us.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase difference from -180 degrees at the unity-gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"794\",\n        \"reference\": \"Text discussion\"\n      },\n      \"equation\": {\n        \"formula\": \"PM = 180 + Phase(A_OL(f_un))\",\n        \"explanation\": \"Indicates the stability of the closed-loop amplifier. A higher phase margin results in less ringing in the step response.\",\n        \"assumptions\": \"Measured in an open-loop configuration.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Designed to be > 60 degrees for good settling behavior.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 70,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"The 240fF compensation capacitor is sized to push the non-dominant pole beyond f_un to achieve roughly 70 degrees PM, as stated in the text.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC power, AC open-loop gain (extracted from closed-loop), unity-gain frequency, phase margin, and transient slew rate.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"open_loop_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Testbench for Folded Cascode Op-Amp\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Include the DUT (Replace with actual netlist file if needed)\\n* .include \\\"dut.spice\\\"\\n\\n* Biasing and sources\\n* VDD is already defined in the netlist as: VDD VDD 0 1.8\\nVcm vp 0 0.9\\nVin_src Vin 0 dc 0.9 ac 1 pulse(0.4 1.4 10n 1n 1n 500n 1u)\\n\\n* Dummy params to make the parameterized netlist compile\\n.param W_xm1=10 L_xm1=1 W_xm2=10 L_xm2=1 W_xm3rt=10 L_xm3rt=1 W_xm3rb=10 L_xm3rb=1\\n.param W_xm3lt=10 L_xm3lt=1 W_xm3lb=10 L_xm3lb=1 W_xm10=10 L_xm10=1 W_xm12=10 L_xm12=1\\n.param W_xm9=10 L_xm9=1 W_xm11=10 L_xm11=1 W_xm6l=20 L_xm6l=1 W_xm5l=20 L_xm5l=1\\n.param W_xm5r=20 L_xm5r=1 W_xm6r=20 L_xm6r=1 W_xm8=20 L_xm8=1 W_xm7=20 L_xm7=1\\n.param W_xmfcpl=10 L_xmfcpl=1 W_xmfcpr=10 L_xmfcpr=1 W_xmfcnr=5 L_xmfcnr=1 W_xmfcnl=5 L_xmfcnl=1\\n.param W_xmop=100 L_xmop=1 W_xmon=50 L_xmon=1\\n.param W_xmsu2=10 L_xmsu2=1 W_xmsu1=5 L_xmsu1=1 W_xmsu3=5 L_xmsu3=1 W_xm3=10 L_xm3=1\\n.param W_xm4=10 L_xm4=1 W_xma4=10 L_xma4=1 W_xma3=10 L_xma3=1\\n.param W_xm5=5 L_xm5=1 W_xm6=5 L_xm6=1 W_xma1=10 L_xma1=1 W_xma2=10 L_xma2=1\\n.param W_xmsu4=5 L_xmsu4=1 W_xma5=10 L_xma5=1 W_xma6=10 L_xma6=1 W_xma7=10 L_xma7=1\\n.param W_xma8=10 L_xma8=1 W_xma9=10 L_xma9=1 W_xma10=10 L_xma10=1 W_xma11=10 L_xma11=1\\n.param W_xma12=10 L_xma12=1 W_xm16=5 L_xm16=1 W_xm17=5 L_xm17=1 W_xm18=5 L_xm18=1\\n.param W_xm13=5 L_xm13=1 W_xm14=5 L_xm14=1 W_xm15=5 L_xm15=1\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis (Extracting Open-Loop Gain from Closed-Loop)\\n  ac dec 100 1 1G\\n  * Open loop gain = Vout / (Vp - Vm). Since Vp is AC ground, it's Vout / (-Vm)\\n  let mag_vout = mag(v(Vout))\\n  let mag_vm = mag(v(vm))\\n  let gain_db = 20 * log10(mag_vout / mag_vm)\\n  let phase_deg = 180/PI * (cph(v(Vout)) - cph(v(vm)))\\n  \\n  meas ac dc_gain find gain_db at=10\\n  meas ac unity_gain_freq when gain_db=0 fall=1\\n  meas ac phase_at_ugf find phase_deg when gain_db=0 fall=1\\n  \\n  * Phase margin calculation (assuming phase_deg starts near 180 or -180 at DC)\\n  let pm = phase_at_ugf\\n  print pm\\n\\n  * 3. Transient Analysis\\n  tran 1n 2u\\n  meas tran slew_rate_fall deriv v(Vout) when v(Vout)=0.9 fall=1\\n  meas tran slew_rate_rise deriv v(Vout) when v(Vout)=0.9 rise=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

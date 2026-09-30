@@ -1,0 +1,174 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Programmable Bias Current Generator / Current DAC",
+    "description": "A 5-bit source and 5-bit sink current steering DAC used to calibrate the bias current of an IF filter. It uses binary-weighted current sources to adjust the output current at the Bias node, compensating for process variations to improve yield.",
+    "node_mapping": {
+      "input": [
+        "ctrl1",
+        "ctrl2",
+        "ctrl3",
+        "ctrl4",
+        "ctrl5",
+        "ctrl6",
+        "ctrl7",
+        "ctrl8",
+        "ctrl9",
+        "ctrl10"
+      ],
+      "output": [
+        "Bias"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "An AI-Calibrated IF Filter: A Yield Enhancement Method With Area and Power Dissipation Reductions",
+      "figure": "Generic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Power": {
+      "description": "Total power consumption of the calibration circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "39 uW",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming VDD=1.8V, to achieve 39uW, the base current Iref should be approximately 21.6uA (39uW / 1.8V).",
+        "range": {
+          "min": "30u",
+          "typical": "39u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "Matched to the paper's reported power dissipation for the calibration block."
+      },
+      "importance": "essential"
+    },
+    "I_base": {
+      "description": "Base bias current when all calibration switches are off",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Derived from power target: 39uW / 1.8V = 21.6uA",
+        "range": {
+          "min": "10u",
+          "typical": "21.6u",
+          "max": "50u",
+          "unit": "A"
+        },
+        "reasoning": "Sets the nominal operating point for the IF filter OTAs."
+      },
+      "importance": "essential"
+    },
+    "I_LSB": {
+      "description": "Current step size for the least significant bit (Ir)",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Assumed 1uA for fine-tuning capability.",
+        "range": {
+          "min": "0.1u",
+          "typical": "1u",
+          "max": "5u",
+          "unit": "A"
+        },
+        "reasoning": "Determines the calibration resolution."
+      },
+      "importance": "essential"
+    },
+    "I_max_tune": {
+      "description": "Maximum current that can be sourced or sunk for calibration",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "31 * Ir = 31 * 1uA = 31uA",
+        "range": {
+          "min": "10u",
+          "typical": "31u",
+          "max": "50u",
+          "unit": "A"
+        },
+        "reasoning": "5-bit binary weighted array (16+8+4+2+1 = 31)."
+      },
+      "importance": "essential"
+    },
+    "Filter_Frequency": {
+      "description": "Center frequency of the IF filter (system level)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "455 kHz",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this sub-block",
+        "range": {
+          "min": null,
+          "typical": "455k",
+          "max": null,
+          "unit": "Hz"
+        },
+        "reasoning": "System-level metric, cannot be measured on the DAC alone."
+      },
+      "importance": "optional"
+    },
+    "Filter_Gain": {
+      "description": "Gain of the IF filter (system level)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "30 dB",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this sub-block",
+        "range": {
+          "min": null,
+          "typical": "30",
+          "max": null,
+          "unit": "dB"
+        },
+        "reasoning": "System-level metric, cannot be measured on the DAC alone."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the base bias current, LSB step size, maximum source/sink tuning currents, and power consumption of the calibration DAC.",
+    "analyses": [
+      "OP"
+    ],
+    "metrics_measured": [
+      "i_base",
+      "i_lsb_src",
+      "i_max_src",
+      "i_max_snk",
+      "pwr_base"
+    ],
+    "spice": "* AI-Calibrated IF Filter Bias DAC Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param Ir=1u\n\n* Modified DUT for ngspice compatibility (ideal switches replaced with V-controlled switches)\nIref VDD Bias 21.6u\nI2 VDD N6 {16*Ir}\nI9 VDD N10 {8*Ir}\nI5 VDD N11 {4*Ir}\nI7 VDD N3 {2*Ir}\nI8 VDD N12 {Ir}\nI6 Bias N8 {16*Ir}\nI11 Bias N7 {8*Ir}\nI4 Bias N4 {4*Ir}\nI10 Bias N5 {2*Ir}\nI1 Bias N2 {Ir}\n\nS1 N6 Bias ctrl1 0 switch_model\nS2 N10 Bias ctrl2 0 switch_model\nS3 N11 Bias ctrl3 0 switch_model\nS4 N3 Bias ctrl4 0 switch_model\nS5 N12 Bias ctrl5 0 switch_model\nS6 N8 VSS ctrl6 0 switch_model\nS7 N7 VSS ctrl7 0 switch_model\nS8 N4 VSS ctrl8 0 switch_model\nS9 N5 VSS ctrl9 0 switch_model\nS10 N2 VSS ctrl10 0 switch_model\n\n.model switch_model SW(vt=0.9 ron=1 roff=1G)\n\n* Supplies and Bias Load\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVBias Bias 0 0.9\n\n* Control Voltages (Digital Inputs)\nVctrl1 ctrl1 0 0\nVctrl2 ctrl2 0 0\nVctrl3 ctrl3 0 0\nVctrl4 ctrl4 0 0\nVctrl5 ctrl5 0 0\nVctrl6 ctrl6 0 0\nVctrl7 ctrl7 0 0\nVctrl8 ctrl8 0 0\nVctrl9 ctrl9 0 0\nVctrl10 ctrl10 0 0\n\n.control\n  * 1. Measure Base Current and Power (All switches OFF)\n  op\n  let i_base = -i(VBias)\n  let pwr_base = -i(VVDD)*1.8\n  \n  * 2. Measure LSB Source Current (Turn on S5)\n  alter Vctrl5 = 1.8\n  op\n  let i_lsb_src = -i(VBias) - i_base\n  \n  * 3. Measure Max Source Current (Turn on S1-S5)\n  alter Vctrl1 = 1.8\n  alter Vctrl2 = 1.8\n  alter Vctrl3 = 1.8\n  alter Vctrl4 = 1.8\n  op\n  let i_max_src = -i(VBias) - i_base\n  \n  * 4. Measure Max Sink Current (Turn off S1-S5, Turn on S6-S10)\n  alter Vctrl1 = 0\n  alter Vctrl2 = 0\n  alter Vctrl3 = 0\n  alter Vctrl4 = 0\n  alter Vctrl5 = 0\n  alter Vctrl6 = 1.8\n  alter Vctrl7 = 1.8\n  alter Vctrl8 = 1.8\n  alter Vctrl9 = 1.8\n  alter Vctrl10 = 1.8\n  op\n  let i_max_snk = i_base - (-i(VBias))\n  \n  * Print Results\n  print i_base\n  print i_lsb_src\n  print i_max_src\n  print i_max_snk\n  print pwr_base\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Programmable Bias Current Generator / Current DAC\",\n    \"description\": \"A 5-bit source and 5-bit sink current steering DAC used to calibrate the bias current of an IF filter. It uses binary-weighted current sources to adjust the output current at the Bias node, compensating for process variations to improve yield.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"ctrl1\",\n        \"ctrl2\",\n        \"ctrl3\",\n        \"ctrl4\",\n        \"ctrl5\",\n        \"ctrl6\",\n        \"ctrl7\",\n        \"ctrl8\",\n        \"ctrl9\",\n        \"ctrl10\"\n      ],\n      \"output\": [\n        \"Bias\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An AI-Calibrated IF Filter: A Yield Enhancement Method With Area and Power Dissipation Reductions\",\n      \"figure\": \"Generic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Power\": {\n      \"description\": \"Total power consumption of the calibration circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"39 uW\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming VDD=1.8V, to achieve 39uW, the base current Iref should be approximately 21.6uA (39uW / 1.8V).\",\n        \"range\": {\n          \"min\": \"30u\",\n          \"typical\": \"39u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Matched to the paper's reported power dissipation for the calibration block.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_base\": {\n      \"description\": \"Base bias current when all calibration switches are off\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Derived from power target: 39uW / 1.8V = 21.6uA\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"21.6u\",\n          \"max\": \"50u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Sets the nominal operating point for the IF filter OTAs.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_LSB\": {\n      \"description\": \"Current step size for the least significant bit (Ir)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assumed 1uA for fine-tuning capability.\",\n        \"range\": {\n          \"min\": \"0.1u\",\n          \"typical\": \"1u\",\n          \"max\": \"5u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Determines the calibration resolution.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_max_tune\": {\n      \"description\": \"Maximum current that can be sourced or sunk for calibration\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"31 * Ir = 31 * 1uA = 31uA\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"31u\",\n          \"max\": \"50u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"5-bit binary weighted array (16+8+4+2+1 = 31).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Filter_Frequency\": {\n      \"description\": \"Center frequency of the IF filter (system level)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"455 kHz\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this sub-block\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": \"455k\",\n          \"max\": null,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"System-level metric, cannot be measured on the DAC alone.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Filter_Gain\": {\n      \"description\": \"Gain of the IF filter (system level)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"30 dB\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this sub-block\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": \"30\",\n          \"max\": null,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"System-level metric, cannot be measured on the DAC alone.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the base bias current, LSB step size, maximum source/sink tuning currents, and power consumption of the calibration DAC.\",\n    \"analyses\": [\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"i_base\",\n      \"i_lsb_src\",\n      \"i_max_src\",\n      \"i_max_snk\",\n      \"pwr_base\"\n    ],\n    \"spice\": \"* AI-Calibrated IF Filter Bias DAC Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param Ir=1u\\n\\n* Modified DUT for ngspice compatibility (ideal switches replaced with V-controlled switches)\\nIref VDD Bias 21.6u\\nI2 VDD N6 {16*Ir}\\nI9 VDD N10 {8*Ir}\\nI5 VDD N11 {4*Ir}\\nI7 VDD N3 {2*Ir}\\nI8 VDD N12 {Ir}\\nI6 Bias N8 {16*Ir}\\nI11 Bias N7 {8*Ir}\\nI4 Bias N4 {4*Ir}\\nI10 Bias N5 {2*Ir}\\nI1 Bias N2 {Ir}\\n\\nS1 N6 Bias ctrl1 0 switch_model\\nS2 N10 Bias ctrl2 0 switch_model\\nS3 N11 Bias ctrl3 0 switch_model\\nS4 N3 Bias ctrl4 0 switch_model\\nS5 N12 Bias ctrl5 0 switch_model\\nS6 N8 VSS ctrl6 0 switch_model\\nS7 N7 VSS ctrl7 0 switch_model\\nS8 N4 VSS ctrl8 0 switch_model\\nS9 N5 VSS ctrl9 0 switch_model\\nS10 N2 VSS ctrl10 0 switch_model\\n\\n.model switch_model SW(vt=0.9 ron=1 roff=1G)\\n\\n* Supplies and Bias Load\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVBias Bias 0 0.9\\n\\n* Control Voltages (Digital Inputs)\\nVctrl1 ctrl1 0 0\\nVctrl2 ctrl2 0 0\\nVctrl3 ctrl3 0 0\\nVctrl4 ctrl4 0 0\\nVctrl5 ctrl5 0 0\\nVctrl6 ctrl6 0 0\\nVctrl7 ctrl7 0 0\\nVctrl8 ctrl8 0 0\\nVctrl9 ctrl9 0 0\\nVctrl10 ctrl10 0 0\\n\\n.control\\n  * 1. Measure Base Current and Power (All switches OFF)\\n  op\\n  let i_base = -i(VBias)\\n  let pwr_base = -i(VVDD)*1.8\\n  \\n  * 2. Measure LSB Source Current (Turn on S5)\\n  alter Vctrl5 = 1.8\\n  op\\n  let i_lsb_src = -i(VBias) - i_base\\n  \\n  * 3. Measure Max Source Current (Turn on S1-S5)\\n  alter Vctrl1 = 1.8\\n  alter Vctrl2 = 1.8\\n  alter Vctrl3 = 1.8\\n  alter Vctrl4 = 1.8\\n  op\\n  let i_max_src = -i(VBias) - i_base\\n  \\n  * 4. Measure Max Sink Current (Turn off S1-S5, Turn on S6-S10)\\n  alter Vctrl1 = 0\\n  alter Vctrl2 = 0\\n  alter Vctrl3 = 0\\n  alter Vctrl4 = 0\\n  alter Vctrl5 = 0\\n  alter Vctrl6 = 1.8\\n  alter Vctrl7 = 1.8\\n  alter Vctrl8 = 1.8\\n  alter Vctrl9 = 1.8\\n  alter Vctrl10 = 1.8\\n  op\\n  let i_max_snk = i_base - (-i(VBias))\\n  \\n  * Print Results\\n  print i_base\\n  print i_lsb_src\\n  print i_max_src\\n  print i_max_snk\\n  print pwr_base\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1183858",
+  "_case": "1183858_image_9"
+}

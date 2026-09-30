@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Injection-Locked Frequency Divider (ILFD)",
+    "description": "A regenerative frequency divider that uses a cross-coupled NMOS pair to provide negative resistance for an LC tank, and parallel NMOS transistors to inject the input signal. It divides the input frequency by 2 by locking the oscillator to half the injection frequency.",
+    "node_mapping": {
+      "input": [
+        "VIN_P",
+        "VIN_N"
+      ],
+      "output": [
+        "VOUT_L",
+        "VOUT_R"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N_G1",
+        "N_G2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 40-GHz Frequency Divider in 0.18-m CMOS Technology",
+      "figure": "1",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "division_ratio": {
+      "description": "The ratio of the input frequency to the output frequency.",
+      "unit": "ratio",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the circuit topology (regenerative divider).",
+        "range": {
+          "min": 2,
+          "typical": 2,
+          "max": 2,
+          "unit": "ratio"
+        },
+        "reasoning": "The fundamental operation of this Miller/regenerative divider topology is divide-by-2."
+      },
+      "importance": "essential"
+    },
+    "input_frequency": {
+      "description": "The frequency of the input signal that the circuit can successfully divide.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "40 GHz",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Targeted for 10 GHz in the testbench using a 5 GHz resonant LC tank (L=1nH, C=1pF).",
+        "range": {
+          "min": "8G",
+          "typical": "10G",
+          "max": "12G",
+          "unit": "Hz"
+        },
+        "reasoning": "While the paper achieved 40 GHz in 180nm, the provided netlist has relatively long channels (L=0.5u) and small widths (W=5u). A 10 GHz input (5 GHz output) is a more realistic target for these specific transistor dimensions in SKY130."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit from the supply.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "31 mW",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail \u2248 0.5 * u_n * C_ox * (W/L) * (V_GS - V_TH)^2. For W=5u, L=0.5u, V_GS=1.0V, V_TH=0.42V: I_tail \u2248 0.5 * 270u * 10 * (0.58)^2 \u2248 0.45 mA per tail. Total current \u2248 0.9 mA. Power = 1.8V * 0.9mA = 1.62 mW.",
+        "range": {
+          "min": "1m",
+          "typical": "1.6m",
+          "max": "3m",
+          "unit": "W"
+        },
+        "reasoning": "The paper's 31 mW implies much larger transistors and higher bias currents to achieve 40 GHz. The provided netlist's small W/L ratios will consume significantly less power."
+      },
+      "importance": "essential"
+    },
+    "output_voltage_swing": {
+      "description": "Peak-to-peak voltage amplitude of the divided output signal.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_swing \u2248 I_tail * R_tank. With I_tail = 0.45 mA and R_tank = 1k ohm, single-ended swing is roughly 0.45V peak, or 0.9V peak-to-peak.",
+        "range": {
+          "min": "0.4",
+          "typical": "0.9",
+          "max": "1.5",
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on the Q-factor and parallel resistance of the LC tank used as the load."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify divide-by-2 operation at 10 GHz input frequency. Measures the output frequency, voltage swing, and average power consumption. An LC tank resonant at 5 GHz is added as the load.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "division_ratio",
+      "output_frequency",
+      "power_consumption",
+      "output_voltage_swing"
+    ],
+    "spice": "* ILFD Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 N_S1 N_G1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N_S2 N_G2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VOUT_L VIN_P N_S1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUT_L VOUT_R N_S1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VOUT_R VOUT_L N_S2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VOUT_R VIN_N N_S2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* LC Tank Loads (Resonant at ~5 GHz)\nL1 VDD VOUT_L 1n\nC1 VOUT_L 0 1p\nR1 VDD VOUT_L 1k\n\nL2 VDD VOUT_R 1n\nC2 VOUT_R 0 1p\nR2 VDD VOUT_R 1k\n\n* DC Sources\nVVDD VDD 0 1.8\nVBIAS1 N_G1 0 1.0\nVBIAS2 N_G2 0 1.0\n\n* 10 GHz Differential Input Signal\nVVIN_P VIN_P 0 DC 0.9 SIN(0.9 0.5 10G 0 0 0)\nVVIN_N VIN_N 0 DC 0.9 SIN(0.9 0.5 10G 0 0 180)\n\n.control\ntran 2p 5n\n\n* Measure output frequency (period between 10th and 11th rising edge)\nmeas tran t_period trig v(VOUT_L) val=1.8 rise=10 targ v(VOUT_L) val=1.8 rise=11\nlet fout = 1 / t_period\nprint fout\n\n* Measure output voltage swing\nmeas tran vout_max max v(VOUT_L) from=3n to=5n\nmeas tran vout_min min v(VOUT_L) from=3n to=5n\nlet vout_swing = vout_max - vout_min\nprint vout_swing\n\n* Measure power consumption\nmeas tran pwr avg i(VVDD) from=3n to=5n\nlet power = -pwr * 1.8\nprint power\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Injection-Locked Frequency Divider (ILFD)\",\n    \"description\": \"A regenerative frequency divider that uses a cross-coupled NMOS pair to provide negative resistance for an LC tank, and parallel NMOS transistors to inject the input signal. It divides the input frequency by 2 by locking the oscillator to half the injection frequency.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_P\",\n        \"VIN_N\"\n      ],\n      \"output\": [\n        \"VOUT_L\",\n        \"VOUT_R\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N_G1\",\n        \"N_G2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 40-GHz Frequency Divider in 0.18-m CMOS Technology\",\n      \"figure\": \"1\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"division_ratio\": {\n      \"description\": \"The ratio of the input frequency to the output frequency.\",\n      \"unit\": \"ratio\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the circuit topology (regenerative divider).\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 2,\n          \"max\": 2,\n          \"unit\": \"ratio\"\n        },\n        \"reasoning\": \"The fundamental operation of this Miller/regenerative divider topology is divide-by-2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_frequency\": {\n      \"description\": \"The frequency of the input signal that the circuit can successfully divide.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"40 GHz\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Targeted for 10 GHz in the testbench using a 5 GHz resonant LC tank (L=1nH, C=1pF).\",\n        \"range\": {\n          \"min\": \"8G\",\n          \"typical\": \"10G\",\n          \"max\": \"12G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"While the paper achieved 40 GHz in 180nm, the provided netlist has relatively long channels (L=0.5u) and small widths (W=5u). A 10 GHz input (5 GHz output) is a more realistic target for these specific transistor dimensions in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"31 mW\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail \u2248 0.5 * u_n * C_ox * (W/L) * (V_GS - V_TH)^2. For W=5u, L=0.5u, V_GS=1.0V, V_TH=0.42V: I_tail \u2248 0.5 * 270u * 10 * (0.58)^2 \u2248 0.45 mA per tail. Total current \u2248 0.9 mA. Power = 1.8V * 0.9mA = 1.62 mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"1.6m\",\n          \"max\": \"3m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 31 mW implies much larger transistors and higher bias currents to achieve 40 GHz. The provided netlist's small W/L ratios will consume significantly less power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage amplitude of the divided output signal.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_swing \u2248 I_tail * R_tank. With I_tail = 0.45 mA and R_tank = 1k ohm, single-ended swing is roughly 0.45V peak, or 0.9V peak-to-peak.\",\n        \"range\": {\n          \"min\": \"0.4\",\n          \"typical\": \"0.9\",\n          \"max\": \"1.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on the Q-factor and parallel resistance of the LC tank used as the load.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify divide-by-2 operation at 10 GHz input frequency. Measures the output frequency, voltage swing, and average power consumption. An LC tank resonant at 5 GHz is added as the load.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"division_ratio\",\n      \"output_frequency\",\n      \"power_consumption\",\n      \"output_voltage_swing\"\n    ],\n    \"spice\": \"* ILFD Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 N_S1 N_G1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N_S2 N_G2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VOUT_L VIN_P N_S1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUT_L VOUT_R N_S1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VOUT_R VOUT_L N_S2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VOUT_R VIN_N N_S2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* LC Tank Loads (Resonant at ~5 GHz)\\nL1 VDD VOUT_L 1n\\nC1 VOUT_L 0 1p\\nR1 VDD VOUT_L 1k\\n\\nL2 VDD VOUT_R 1n\\nC2 VOUT_R 0 1p\\nR2 VDD VOUT_R 1k\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVBIAS1 N_G1 0 1.0\\nVBIAS2 N_G2 0 1.0\\n\\n* 10 GHz Differential Input Signal\\nVVIN_P VIN_P 0 DC 0.9 SIN(0.9 0.5 10G 0 0 0)\\nVVIN_N VIN_N 0 DC 0.9 SIN(0.9 0.5 10G 0 0 180)\\n\\n.control\\ntran 2p 5n\\n\\n* Measure output frequency (period between 10th and 11th rising edge)\\nmeas tran t_period trig v(VOUT_L) val=1.8 rise=10 targ v(VOUT_L) val=1.8 rise=11\\nlet fout = 1 / t_period\\nprint fout\\n\\n* Measure output voltage swing\\nmeas tran vout_max max v(VOUT_L) from=3n to=5n\\nmeas tran vout_min min v(VOUT_L) from=3n to=5n\\nlet vout_swing = vout_max - vout_min\\nprint vout_swing\\n\\n* Measure power consumption\\nmeas tran pwr avg i(VVDD) from=3n to=5n\\nlet power = -pwr * 1.8\\nprint power\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1278577",
+  "_case": "1278577_image_8_a"
+}

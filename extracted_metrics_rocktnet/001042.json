@@ -1,0 +1,145 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Switch (Single NMOS)",
+    "description": "A single NMOS transistor acting as a series or shunt element in an RF transmit/receive (T/R) switch. It passes RF signals when the gate is biased high (ON state) and blocks them when biased low (OFF state).",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "N2"
+      ],
+      "supply": [],
+      "bias": [
+        "LABEL_NET_0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.5-m CMOS T/R Switch for 900-MHz Wireless Applications",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "insertion_loss": {
+      "description": "Signal loss through the switch in the ON state (S21) at 900 MHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0.7 dB",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ron = 1 / (un*Cox * W/L * (Vgs - Vth)) = 1 / (270e-6 * 10 * (1.8 - 0.42)) = 268 ohms. S21 = 20*log10(100 / (100 + 268)) = -11.3 dB. IL = 11.3 dB.",
+        "range": {
+          "min": 10,
+          "typical": 11.3,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "The extracted transistor has a very small width (5um) compared to a real RF switch, leading to a high ON resistance and thus high insertion loss in a 50-ohm system."
+      },
+      "importance": "essential"
+    },
+    "isolation": {
+      "description": "Signal leakage through the switch in the OFF state (S21) at 900 MHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "42 dB",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Off-state capacitance is dominated by Cgd and Cgs in series, roughly a few fF. Impedance at 900 MHz is >20 kOhm. S21 \u2248 20*log10(100 / 20k) = -46 dB. Isolation = 46 dB.",
+        "range": {
+          "min": 40,
+          "typical": 46,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "Small transistor size results in very low parasitic capacitance, providing excellent isolation at 900 MHz."
+      },
+      "importance": "essential"
+    },
+    "ron": {
+      "description": "ON resistance of the MOSFET channel.",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "Not explicitly reported, but implied < 5 ohms for 0.7dB IL",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ron = 1 / (270e-6 * (5/0.5) * (1.8 - 0.42)) = 268 ohms.",
+        "range": {
+          "min": 200,
+          "typical": 268,
+          "max": 350,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using SKY130 NMOS parameters for W=5u, L=0.5u at Vgs=1.8V."
+      },
+      "importance": "recommended"
+    },
+    "off_capacitance": {
+      "description": "Parasitic capacitance of the switch in the OFF state.",
+      "unit": "pF",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2 pF",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "C_off \u2248 Cgd + Cgs + Cdb. For W=5u, L=0.5u, this is roughly 10-20 fF.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.015,
+          "max": 0.03,
+          "unit": "pF"
+        },
+        "reasoning": "The extracted transistor is much smaller than the one in the paper, resulting in proportionally smaller parasitic capacitance."
+      },
+      "importance": "recommended"
+    },
+    "p1db": {
+      "description": "Input power at which the insertion loss increases by 1 dB.",
+      "unit": "dBm",
+      "analysis_type": "Tran/PSS",
+      "paper_reported": {
+        "value": "15 dBm",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on Vgs and Vth. For Vgs=1.8V, Vth=0.42V, the switch can handle roughly Vpeak = 1.8 - 0.42 = 1.38V before clipping. P = Vpeak^2 / (2*50) = 19 mW \u2248 12.8 dBm.",
+        "range": {
+          "min": 10,
+          "typical": 12.8,
+          "max": 15,
+          "unit": "dBm"
+        },
+        "reasoning": "Estimated based on the maximum voltage swing before the transistor starts turning off during the negative RF half-cycle."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure ON resistance, Insertion Loss (ON state), Isolation (OFF state), and OFF capacitance of the RF switch at 900 MHz.",
+    "analyses": [
+      "DC",
+      "AC"
+    ],
+    "metrics_measured": [
+      "ron",
+      "insertion_loss",
+      "isolation",
+      "off_capacitance"
+    ],
+    "spice": "* RF Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n\n* DUT\nXM1 N1 LABEL_NET_0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* Biasing and RF sources\nVsrc N1_ac 0 dc 0 ac 1\nRsrc N1_ac N1 50\nRload N2 0 50\n\n* Gate Control\nVgate LABEL_NET_0 0 1.8\n\n.control\n* 1. Measure Ron (DC)\nalter @Vgate[dc] = 1.8\nalter @Vsrc[dc] = 0.1\nop\nlet id = (v(N1_ac) - v(N1))/50\nlet ron = (v(N1) - v(N2)) / id\nprint ron\n\n* 2. Measure Insertion Loss (AC ON State)\nalter @Vsrc[dc] = 0\nac dec 50 100Meg 10Gig\nlet s21_on_db = vdb(N2) + 6.0206\nmeas ac insertion_loss_900mhz find s21_on_db at=900Meg\n\n* 3. Measure Isolation and OFF Capacitance (AC OFF State)\nalter @Vgate[dc] = 0\nac dec 50 100Meg 10Gig\nlet s21_off_db = vdb(N2) + 6.0206\nmeas ac isolation_900mhz find s21_off_db at=900Meg\n\nlet I_in = (v(N1_ac) - v(N1))/50\nlet Y_in = I_in / v(N1)\nlet C_off = imag(Y_in) / (2 * 3.14159265 * frequency)\nmeas ac off_cap_900mhz find C_off at=900Meg\n\nprint insertion_loss_900mhz isolation_900mhz off_cap_900mhz\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Switch (Single NMOS)\",\n    \"description\": \"A single NMOS transistor acting as a series or shunt element in an RF transmit/receive (T/R) switch. It passes RF signals when the gate is biased high (ON state) and blocks them when biased low (OFF state).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\"\n      ],\n      \"output\": [\n        \"N2\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"LABEL_NET_0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.5-m CMOS T/R Switch for 900-MHz Wireless Applications\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"insertion_loss\": {\n      \"description\": \"Signal loss through the switch in the ON state (S21) at 900 MHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0.7 dB\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron = 1 / (un*Cox * W/L * (Vgs - Vth)) = 1 / (270e-6 * 10 * (1.8 - 0.42)) = 268 ohms. S21 = 20*log10(100 / (100 + 268)) = -11.3 dB. IL = 11.3 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 11.3,\n          \"max\": 15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The extracted transistor has a very small width (5um) compared to a real RF switch, leading to a high ON resistance and thus high insertion loss in a 50-ohm system.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"isolation\": {\n      \"description\": \"Signal leakage through the switch in the OFF state (S21) at 900 MHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"42 dB\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Off-state capacitance is dominated by Cgd and Cgs in series, roughly a few fF. Impedance at 900 MHz is >20 kOhm. S21 \u2248 20*log10(100 / 20k) = -46 dB. Isolation = 46 dB.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 46,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Small transistor size results in very low parasitic capacitance, providing excellent isolation at 900 MHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ron\": {\n      \"description\": \"ON resistance of the MOSFET channel.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported, but implied < 5 ohms for 0.7dB IL\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron = 1 / (270e-6 * (5/0.5) * (1.8 - 0.42)) = 268 ohms.\",\n        \"range\": {\n          \"min\": 200,\n          \"typical\": 268,\n          \"max\": 350,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS parameters for W=5u, L=0.5u at Vgs=1.8V.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"off_capacitance\": {\n      \"description\": \"Parasitic capacitance of the switch in the OFF state.\",\n      \"unit\": \"pF\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2 pF\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C_off \u2248 Cgd + Cgs + Cdb. For W=5u, L=0.5u, this is roughly 10-20 fF.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.015,\n          \"max\": 0.03,\n          \"unit\": \"pF\"\n        },\n        \"reasoning\": \"The extracted transistor is much smaller than the one in the paper, resulting in proportionally smaller parasitic capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"p1db\": {\n      \"description\": \"Input power at which the insertion loss increases by 1 dB.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran/PSS\",\n      \"paper_reported\": {\n        \"value\": \"15 dBm\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on Vgs and Vth. For Vgs=1.8V, Vth=0.42V, the switch can handle roughly Vpeak = 1.8 - 0.42 = 1.38V before clipping. P = Vpeak^2 / (2*50) = 19 mW \u2248 12.8 dBm.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 12.8,\n          \"max\": 15,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Estimated based on the maximum voltage swing before the transistor starts turning off during the negative RF half-cycle.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure ON resistance, Insertion Loss (ON state), Isolation (OFF state), and OFF capacitance of the RF switch at 900 MHz.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"ron\",\n      \"insertion_loss\",\n      \"isolation\",\n      \"off_capacitance\"\n    ],\n    \"spice\": \"* RF Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n\\n* DUT\\nXM1 N1 LABEL_NET_0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Biasing and RF sources\\nVsrc N1_ac 0 dc 0 ac 1\\nRsrc N1_ac N1 50\\nRload N2 0 50\\n\\n* Gate Control\\nVgate LABEL_NET_0 0 1.8\\n\\n.control\\n* 1. Measure Ron (DC)\\nalter @Vgate[dc] = 1.8\\nalter @Vsrc[dc] = 0.1\\nop\\nlet id = (v(N1_ac) - v(N1))/50\\nlet ron = (v(N1) - v(N2)) / id\\nprint ron\\n\\n* 2. Measure Insertion Loss (AC ON State)\\nalter @Vsrc[dc] = 0\\nac dec 50 100Meg 10Gig\\nlet s21_on_db = vdb(N2) + 6.0206\\nmeas ac insertion_loss_900mhz find s21_on_db at=900Meg\\n\\n* 3. Measure Isolation and OFF Capacitance (AC OFF State)\\nalter @Vgate[dc] = 0\\nac dec 50 100Meg 10Gig\\nlet s21_off_db = vdb(N2) + 6.0206\\nmeas ac isolation_900mhz find s21_off_db at=900Meg\\n\\nlet I_in = (v(N1_ac) - v(N1))/50\\nlet Y_in = I_in / v(N1)\\nlet C_off = imag(Y_in) / (2 * 3.14159265 * frequency)\\nmeas ac off_cap_900mhz find C_off at=900Meg\\n\\nprint insertion_loss_900mhz isolation_900mhz off_cap_900mhz\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "910487",
+  "_case": "910487_image_2_a"
+}

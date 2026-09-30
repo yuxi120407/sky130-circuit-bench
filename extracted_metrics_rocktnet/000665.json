@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cherry-Hooper Amplifier",
+    "description": "A wideband amplifier topology (Cherry-Hooper) with emitter-follower feedback, typically used in optical communications for high bandwidth and low group delay distortion. Note: The provided netlist appears to be an incomplete extraction containing only passive components and independent sources, lacking the active transistors.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "vo1"
+      ],
+      "supply": [
+        "N8",
+        "N0"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Analysis and Design of HBT Cherry\u2013Hooper Amplifiers With Emitter-Follower Feedback for Optical Communications",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "Low-frequency small-signal voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "19.7 dB",
+        "technology": "47-GHz SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on transconductance and load resistors. Assuming gm ~ 10mS and Rload ~ 1kOhm.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "SKY130 CMOS has lower gm/Id compared to SiGe HBTs, so achieving the same gain might require higher power or yield slightly lower gain."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB cutoff frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "13.7 GHz",
+        "technology": "47-GHz SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by RC time constants of the Cherry-Hooper stages.",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 10000000000.0,
+          "max": 15000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 fT is around 40-50 GHz, which is comparable to the 47-GHz SiGe process, so similar bandwidths (~10 GHz) are achievable."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power dissipated by the amplifier core",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "34 mW",
+        "technology": "47-GHz SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With VDD=1.8V and I_total ~ 15mA.",
+        "range": {
+          "min": 0.02,
+          "typical": 0.03,
+          "max": 0.04,
+          "unit": "W"
+        },
+        "reasoning": "Scaled for 1.8V supply (paper used 3.3V), current might be similar to maintain gm, leading to slightly lower overall power."
+      },
+      "importance": "essential"
+    },
+    "Group Delay Distortion": {
+      "description": "Variation in group delay over the bandwidth of interest",
+      "unit": "s",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 ps",
+        "technology": "47-GHz SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Difference between max and min group delay in the passband.",
+        "range": {
+          "min": 5e-12,
+          "typical": 1.5e-11,
+          "max": 2.5e-11,
+          "unit": "s"
+        },
+        "reasoning": "Achieving Bessel-like response in CMOS might have slightly more variation due to lower intrinsic gain and parasitics."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, bandwidth, and group delay of the Cherry-Hooper amplifier. Note: Values (1k, 0) have been appended to the DUT components to prevent ngspice syntax errors due to the incomplete extraction.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Voltage Gain",
+      "Bandwidth",
+      "Group Delay"
+    ],
+    "spice": "* Cherry-Hooper Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT (Values appended to prevent syntax errors from incomplete extraction)\nV1 N4 LABEL_NET_0 0\nV2 N8 N3 0\nV3 N0 N10 0\nI1 GND N5 0\nI2 N3 N2 0\nI3 N3 N2 0\nI4 vo1 N9 0\nR1 N0 GND 1k\nR2 N2 N4 1k\nR3 N5 N8 1k\nR5 N6 N7 1k\nR4 N3 N9 1k\nR6 N2 N10 1k\nR7 N5 N6 1k\nR8 N7 GND 1k\nR9 vo1 N7 1k\nR10 N9 LABEL_NET_1 1k\n\n* Biasing and Sources\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 0.5\nVLABEL_NET_1 LABEL_NET_1 0 dc 0.9 ac -0.5\nVN8 N8 0 dc 1.8\nVN0 N0 0 dc 1.8\n\n.control\n* DC Analysis\nop\nlet power = -(i(VN8) + i(VN0)) * 1.8\nprint power\n\n* AC Analysis\nac dec 100 1M 100G\nlet gain_db = vdb(vo1)\nmeas ac low_freq_gain find gain_db at=1M\nlet gain_db_3db = low_freq_gain - 3\nmeas ac bw when gain_db=gain_db_3db fall=1\n\n* Group Delay Calculation\nlet phase_rad = cph(v(vo1))\nlet group_delay = -deriv(phase_rad) / (2 * 3.14159265359)\nmeas ac gd_1M find group_delay at=1M\n\n* Transient Analysis\ntran 1p 10n\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cherry-Hooper Amplifier\",\n    \"description\": \"A wideband amplifier topology (Cherry-Hooper) with emitter-follower feedback, typically used in optical communications for high bandwidth and low group delay distortion. Note: The provided netlist appears to be an incomplete extraction containing only passive components and independent sources, lacking the active transistors.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"vo1\"\n      ],\n      \"supply\": [\n        \"N8\",\n        \"N0\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Analysis and Design of HBT Cherry\u2013Hooper Amplifiers With Emitter-Follower Feedback for Optical Communications\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"Low-frequency small-signal voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"19.7 dB\",\n        \"technology\": \"47-GHz SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on transconductance and load resistors. Assuming gm ~ 10mS and Rload ~ 1kOhm.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SKY130 CMOS has lower gm/Id compared to SiGe HBTs, so achieving the same gain might require higher power or yield slightly lower gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB cutoff frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"13.7 GHz\",\n        \"technology\": \"47-GHz SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by RC time constants of the Cherry-Hooper stages.\",\n        \"range\": {\n          \"min\": 5e9,\n          \"typical\": 10e9,\n          \"max\": 15e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 fT is around 40-50 GHz, which is comparable to the 47-GHz SiGe process, so similar bandwidths (~10 GHz) are achievable.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power dissipated by the amplifier core\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"34 mW\",\n        \"technology\": \"47-GHz SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With VDD=1.8V and I_total ~ 15mA.\",\n        \"range\": {\n          \"min\": 20e-3,\n          \"typical\": 30e-3,\n          \"max\": 40e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled for 1.8V supply (paper used 3.3V), current might be similar to maintain gm, leading to slightly lower overall power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Group Delay Distortion\": {\n      \"description\": \"Variation in group delay over the bandwidth of interest\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 ps\",\n        \"technology\": \"47-GHz SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Difference between max and min group delay in the passband.\",\n        \"range\": {\n          \"min\": 5e-12,\n          \"typical\": 15e-12,\n          \"max\": 25e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Achieving Bessel-like response in CMOS might have slightly more variation due to lower intrinsic gain and parasitics.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, bandwidth, and group delay of the Cherry-Hooper amplifier. Note: Values (1k, 0) have been appended to the DUT components to prevent ngspice syntax errors due to the incomplete extraction.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Voltage Gain\",\n      \"Bandwidth\",\n      \"Group Delay\"\n    ],\n    \"spice\": \"* Cherry-Hooper Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT (Values appended to prevent syntax errors from incomplete extraction)\\nV1 N4 LABEL_NET_0 0\\nV2 N8 N3 0\\nV3 N0 N10 0\\nI1 GND N5 0\\nI2 N3 N2 0\\nI3 N3 N2 0\\nI4 vo1 N9 0\\nR1 N0 GND 1k\\nR2 N2 N4 1k\\nR3 N5 N8 1k\\nR5 N6 N7 1k\\nR4 N3 N9 1k\\nR6 N2 N10 1k\\nR7 N5 N6 1k\\nR8 N7 GND 1k\\nR9 vo1 N7 1k\\nR10 N9 LABEL_NET_1 1k\\n\\n* Biasing and Sources\\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 0.5\\nVLABEL_NET_1 LABEL_NET_1 0 dc 0.9 ac -0.5\\nVN8 N8 0 dc 1.8\\nVN0 N0 0 dc 1.8\\n\\n.control\\n* DC Analysis\\nop\\nlet power = -(i(VN8) + i(VN0)) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 100 1M 100G\\nlet gain_db = vdb(vo1)\\nmeas ac low_freq_gain find gain_db at=1M\\nlet gain_db_3db = low_freq_gain - 3\\nmeas ac bw when gain_db=gain_db_3db fall=1\\n\\n* Group Delay Calculation\\nlet phase_rad = cph(v(vo1))\\nlet group_delay = -deriv(phase_rad) / (2 * 3.14159265359)\\nmeas ac gd_1M find group_delay at=1M\\n\\n* Transient Analysis\\ntran 1p 10n\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1347326",
+  "_case": "1347326_image_14"
+}

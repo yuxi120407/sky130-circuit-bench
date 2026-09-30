@@ -1,0 +1,122 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 16.28",
+    "page": "449",
+    "circuit_type": "Clocked Sense Amplifier with Long-L Inverter Drivers",
+    "description": "A clocked sense amplifier driven by weak (long-L) inverters through PMOS pass transistors. This specific testbench configuration is used to simulate and measure clock feedthrough and kickback noise injected into the input nodes when the clock transitions and the latch switches states."
+  },
+  "step2_metrics": {
+    "cell_size": {
+      "description": "Area of the memory cell in the folded architecture.",
+      "unit": "um^2",
+      "analysis_type": "None",
+      "source": {
+        "page": "444",
+        "reference": "Text and Fig 16.21"
+      },
+      "equation": {
+        "formula": "Area = 8F^2",
+        "explanation": "The cell size is 8 times the square of the feature size (F), which is half the bit line pitch.",
+        "assumptions": "Assumes a folded bit line architecture with poly interconnects over field oxide."
+      },
+      "sky130_expected": {
+        "calculation": "For SKY130, the minimum feature size F is roughly 0.13um to 0.15um. Area = 8 * (0.15)^2 = 0.18 um^2.",
+        "range": {
+          "min": 0.13,
+          "typical": 0.18,
+          "max": 0.25,
+          "unit": "um^2"
+        },
+        "reasoning": "Based on the 130nm node minimum dimensions and standard 8F^2 DRAM cell layouts."
+      },
+      "importance": "optional"
+    },
+    "capacitor_charge_difference": {
+      "description": "The difference in stored charge between a logic 1 and a logic 0 in the memory cell.",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "446",
+        "reference": "Text below Fig 16.23"
+      },
+      "equation": {
+        "formula": "Delta_Q = VDD * C_mbit",
+        "explanation": "When the common node is tied to VDD/2, a logic 1 stores (VDD/2)*C_mbit and a logic 0 stores -(VDD/2)*C_mbit. The difference is VDD*C_mbit.",
+        "assumptions": "Assumes full VDD and 0V are written to the cell, and the common plate is exactly at VDD/2."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a typical trench/buried capacitor C_mbit of ~30fF and VDD = 1.8V. Delta_Q = 1.8V * 30fF = 54 fC.",
+        "range": {
+          "min": 3e-14,
+          "typical": 5.4e-14,
+          "max": 1e-13,
+          "unit": "C"
+        },
+        "reasoning": "Depends heavily on the specific DRAM capacitor technology (trench/MIM) used, which varies, but 30-50fF is standard for reliable sensing."
+      },
+      "importance": "optional"
+    },
+    "clock_feedthrough_noise": {
+      "description": "Voltage glitch on the input nodes caused by capacitive coupling from the clock signal.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "449",
+        "reference": "Fig 16.28 and text"
+      },
+      "equation": {
+        "formula": "V_feedthrough = V_clock_swing * (C_gd / (C_gd + C_node))",
+        "explanation": "The clock edge couples through the gate-drain overlap capacitance (C_gd) of the PMOS pass transistors into the input node capacitance (C_node).",
+        "assumptions": "Assumes the pass transistor is turning off and the input node is high-impedance or weakly driven."
+      },
+      "sky130_expected": {
+        "calculation": "C_ox = 8.6 fF/um^2. C_gd ~ 0.3 fF/um. For W=1um, C_gd = 0.3 fF. C_node (inverter output + latch input) ~ 3 fF. V_feedthrough = 1.8V * (0.3 / 3.3) = 163 mV.",
+        "range": {
+          "min": 0.05,
+          "typical": 0.15,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "The textbook mentions ~50mV, but with SKY130's 1.8V swing and typical parasitic ratios, 100-200mV is expected unless the driving inverters are sized up."
+      },
+      "importance": "essential"
+    },
+    "peak_switching_current": {
+      "description": "The maximum contention current drawn from VDD when the sense amplifier is clocked and switches states.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "450",
+        "reference": "Fig 16.29 and 'Contention Current' text"
+      },
+      "equation": {
+        "formula": "I_peak = (u_n * C_ox / 2) * (W/L)_n * (VDD/2 - V_thn)^2 + (u_p * C_ox / 2) * (W/L)_p * (VDD/2 - |V_thp|)^2",
+        "explanation": "When the clock goes high, both cross-coupled branches momentarily conduct, creating a direct path from VDD to ground.",
+        "assumptions": "Assumes inputs are near VDD/2 causing maximum metastability and contention."
+      },
+      "sky130_expected": {
+        "calculation": "Using NMOS un*Cox = 270uA/V^2, Vth=0.42V. At VDD/2 = 0.9V: I_n = (270/2) * 1 * (0.9 - 0.42)^2 = 135 * 0.23 = 31 uA. With both branches and PMOS contributing, total peak current is roughly 2x to 4x this value.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.00015,
+          "max": 0.0005,
+          "unit": "A"
+        },
+        "reasoning": "Matches the ~150uA peak shown in Fig 16.29, scaled for SKY130 1.8V devices."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures clock feedthrough noise on the input nodes and peak switching current from VDD during the clock rising edge.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "clock_feedthrough_noise",
+      "peak_switching_current"
+    ],
+    "spice": "* Testbench for Clocked Sense Amplifier (Fig 16.28)\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameterized W/L values\n.param W_xm1=2 L_xm1=0.15\n.param W_xm2=2 L_xm2=0.15\n.param W_xm3=2 L_xm3=0.15\n.param W_xm4=1 L_xm4=0.15\n.param W_xm5=1 L_xm5=0.15\n.param W_xm6=1 L_xm6=0.15\n.param W_xm7=1 L_xm7=1.0\n.param W_xm8=0.5 L_xm8=1.0\n.param W_xm9=1 L_xm9=1.0\n.param W_xm10=0.5 L_xm10=1.0\n.param W_xm11=1 L_xm11=0.15\n\n* Stimulus\nVclock clock 0 PULSE(0 1.8 20n 100p 100p 20n 40n)\n\n* DUT\nxm1 N001 clock 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVVDD VDD 0 1.8\nxm11 Outm clock Inm VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm2 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 Inp clock Outp VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 Outm Outp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 Outp Outm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm7 Inm 0 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 Inm 0 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxm9 Inp VDD VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\nxm10 Inp VDD 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n\n.control\ntran 10p 30n\n\n* Measure clock feedthrough on Inp (nominally 0V)\nmeas tran inp_base find v(inp) at=19.9n\nmeas tran inp_peak max v(inp) from=19.9n to=21n\nlet feedthrough_inp = inp_peak - inp_base\nprint feedthrough_inp\n\n* Measure clock feedthrough on Inm (nominally 1.8V)\nmeas tran inm_base find v(inm) at=19.9n\nmeas tran inm_peak max v(inm) from=19.9n to=21n\nlet feedthrough_inm = inm_peak - inm_base\nprint feedthrough_inm\n\n* Measure peak switching current from VDD\nmeas tran peak_idd min i(VVDD)\nlet peak_current_uA = -peak_idd * 1e6\nprint peak_current_uA\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 16.28\",\n    \"page\": \"449\",\n    \"circuit_type\": \"Clocked Sense Amplifier with Long-L Inverter Drivers\",\n    \"description\": \"A clocked sense amplifier driven by weak (long-L) inverters through PMOS pass transistors. This specific testbench configuration is used to simulate and measure clock feedthrough and kickback noise injected into the input nodes when the clock transitions and the latch switches states.\"\n  },\n  \"step2_metrics\": {\n    \"cell_size\": {\n      \"description\": \"Area of the memory cell in the folded architecture.\",\n      \"unit\": \"um^2\",\n      \"analysis_type\": \"None\",\n      \"source\": {\n        \"page\": \"444\",\n        \"reference\": \"Text and Fig 16.21\"\n      },\n      \"equation\": {\n        \"formula\": \"Area = 8F^2\",\n        \"explanation\": \"The cell size is 8 times the square of the feature size (F), which is half the bit line pitch.\",\n        \"assumptions\": \"Assumes a folded bit line architecture with poly interconnects over field oxide.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For SKY130, the minimum feature size F is roughly 0.13um to 0.15um. Area = 8 * (0.15)^2 = 0.18 um^2.\",\n        \"range\": {\n          \"min\": 0.13,\n          \"typical\": 0.18,\n          \"max\": 0.25,\n          \"unit\": \"um^2\"\n        },\n        \"reasoning\": \"Based on the 130nm node minimum dimensions and standard 8F^2 DRAM cell layouts.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"capacitor_charge_difference\": {\n      \"description\": \"The difference in stored charge between a logic 1 and a logic 0 in the memory cell.\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"446\",\n        \"reference\": \"Text below Fig 16.23\"\n      },\n      \"equation\": {\n        \"formula\": \"Delta_Q = VDD * C_mbit\",\n        \"explanation\": \"When the common node is tied to VDD/2, a logic 1 stores (VDD/2)*C_mbit and a logic 0 stores -(VDD/2)*C_mbit. The difference is VDD*C_mbit.\",\n        \"assumptions\": \"Assumes full VDD and 0V are written to the cell, and the common plate is exactly at VDD/2.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a typical trench/buried capacitor C_mbit of ~30fF and VDD = 1.8V. Delta_Q = 1.8V * 30fF = 54 fC.\",\n        \"range\": {\n          \"min\": 30e-15,\n          \"typical\": 54e-15,\n          \"max\": 100e-15,\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Depends heavily on the specific DRAM capacitor technology (trench/MIM) used, which varies, but 30-50fF is standard for reliable sensing.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"clock_feedthrough_noise\": {\n      \"description\": \"Voltage glitch on the input nodes caused by capacitive coupling from the clock signal.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"449\",\n        \"reference\": \"Fig 16.28 and text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_feedthrough = V_clock_swing * (C_gd / (C_gd + C_node))\",\n        \"explanation\": \"The clock edge couples through the gate-drain overlap capacitance (C_gd) of the PMOS pass transistors into the input node capacitance (C_node).\",\n        \"assumptions\": \"Assumes the pass transistor is turning off and the input node is high-impedance or weakly driven.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C_ox = 8.6 fF/um^2. C_gd ~ 0.3 fF/um. For W=1um, C_gd = 0.3 fF. C_node (inverter output + latch input) ~ 3 fF. V_feedthrough = 1.8V * (0.3 / 3.3) = 163 mV.\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.15,\n          \"max\": 0.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The textbook mentions ~50mV, but with SKY130's 1.8V swing and typical parasitic ratios, 100-200mV is expected unless the driving inverters are sized up.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"peak_switching_current\": {\n      \"description\": \"The maximum contention current drawn from VDD when the sense amplifier is clocked and switches states.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"450\",\n        \"reference\": \"Fig 16.29 and 'Contention Current' text\"\n      },\n      \"equation\": {\n        \"formula\": \"I_peak = (u_n * C_ox / 2) * (W/L)_n * (VDD/2 - V_thn)^2 + (u_p * C_ox / 2) * (W/L)_p * (VDD/2 - |V_thp|)^2\",\n        \"explanation\": \"When the clock goes high, both cross-coupled branches momentarily conduct, creating a direct path from VDD to ground.\",\n        \"assumptions\": \"Assumes inputs are near VDD/2 causing maximum metastability and contention.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using NMOS un*Cox = 270uA/V^2, Vth=0.42V. At VDD/2 = 0.9V: I_n = (270/2) * 1 * (0.9 - 0.42)^2 = 135 * 0.23 = 31 uA. With both branches and PMOS contributing, total peak current is roughly 2x to 4x this value.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 150e-6,\n          \"max\": 500e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Matches the ~150uA peak shown in Fig 16.29, scaled for SKY130 1.8V devices.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures clock feedthrough noise on the input nodes and peak switching current from VDD during the clock rising edge.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"clock_feedthrough_noise\",\n      \"peak_switching_current\"\n    ],\n    \"spice\": \"* Testbench for Clocked Sense Amplifier (Fig 16.28)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameterized W/L values\\n.param W_xm1=2 L_xm1=0.15\\n.param W_xm2=2 L_xm2=0.15\\n.param W_xm3=2 L_xm3=0.15\\n.param W_xm4=1 L_xm4=0.15\\n.param W_xm5=1 L_xm5=0.15\\n.param W_xm6=1 L_xm6=0.15\\n.param W_xm7=1 L_xm7=1.0\\n.param W_xm8=0.5 L_xm8=1.0\\n.param W_xm9=1 L_xm9=1.0\\n.param W_xm10=0.5 L_xm10=1.0\\n.param W_xm11=1 L_xm11=0.15\\n\\n* Stimulus\\nVclock clock 0 PULSE(0 1.8 20n 100p 100p 20n 40n)\\n\\n* DUT\\nxm1 N001 clock 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVVDD VDD 0 1.8\\nxm11 Outm clock Inm VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm2 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 Inp clock Outp VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 Outm Outp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 Outp Outm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 Inm 0 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 Inm 0 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 Inp VDD VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 Inp VDD 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n\\n.control\\ntran 10p 30n\\n\\n* Measure clock feedthrough on Inp (nominally 0V)\\nmeas tran inp_base find v(inp) at=19.9n\\nmeas tran inp_peak max v(inp) from=19.9n to=21n\\nlet feedthrough_inp = inp_peak - inp_base\\nprint feedthrough_inp\\n\\n* Measure clock feedthrough on Inm (nominally 1.8V)\\nmeas tran inm_base find v(inm) at=19.9n\\nmeas tran inm_peak max v(inm) from=19.9n to=21n\\nlet feedthrough_inm = inm_peak - inm_base\\nprint feedthrough_inm\\n\\n* Measure peak switching current from VDD\\nmeas tran peak_idd min i(VVDD)\\nlet peak_current_uA = -peak_idd * 1e6\\nprint peak_current_uA\\n\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

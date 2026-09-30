@@ -1,0 +1,110 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Pair / Transconductance Stage",
+    "description": "Two NMOS transistors that can function as a differential amplifier or the RF transconductance stage of a downconversion mixer when their sources are tied to a common tail current.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_2"
+      ],
+      "output": [
+        "N2",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N4",
+        "N6"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Direct-Conversion Receiver for the 3G WCDMA Standard",
+      "figure": "Unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain": {
+      "description": "Differential low-frequency voltage gain of the amplifier stage.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "6 dB",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/Vov. With Id=0.5mA per branch, W/L=10, Vov~0.6V, gm~1.66mS. With a 2kOhm load resistor, Gain = gm*R = 3.32 V/V = 10.4 dB.",
+        "range": {
+          "min": 5,
+          "typical": 10.4,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the chosen load resistor and tail current in the testbench."
+      },
+      "importance": "essential"
+    },
+    "Unity Gain Bandwidth": {
+      "description": "Frequency at which the differential voltage gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2170 MHz",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW ~ gm / (2 * pi * Cload). With gm=1.66mS and Cload=100fF, UGBW ~ 2.6 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 2600000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is limited by the RC time constant and parasitic capacitances at the output nodes."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power consumed by the stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "46 mA (total receiver)",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * Itail = 1.8V * 1mA = 1.8mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0018,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "Set by the 1mA tail current source added in the testbench."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure differential voltage gain, unity gain bandwidth, and power consumption of the NMOS pair.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Voltage Gain",
+      "Unity Gain Bandwidth",
+      "Power Consumption"
+    ],
+    "spice": "* Differential Pair Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N2 LABEL_NET_0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 LABEL_NET_2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Power Supply and Biasing\nVVDD VDD 0 1.8\nI_tail N_tail 0 1m\nV_tie1 N4 N_tail 0\nV_tie2 N6 N_tail 0\n\n* Loads\nR1 VDD N2 2k\nR2 VDD N1 2k\nC1 N2 0 100f\nC2 N1 0 100f\n\n* Inputs (DC bias + AC + Transient Sine)\nV_INP LABEL_NET_0 0 dc 0.9 ac 0.5 sin(0.9 0.1 100Meg)\nV_INN LABEL_NET_2 0 dc 0.9 ac -0.5 sin(0.9 -0.1 100Meg)\n\n.control\n* 1. DC Operating Point\nop\nlet power = 1.8 * (-i(VVDD))\nprint power\n\n* 2. AC Analysis\nac dec 100 1Meg 10Gig\nlet out_diff = v(N1) - v(N2)\nlet gain_mag = mag(out_diff)\nlet gain_db = 20 * log10(gain_mag)\nmeas ac dc_gain find gain_db at=1Meg\nmeas ac ugbw when gain_db=0 fall=1\n\n* 3. Transient Analysis\ntran 100p 20n\nmeas tran vout_max max v(N1)\nmeas tran vout_min min v(N1)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Pair / Transconductance Stage\",\n    \"description\": \"Two NMOS transistors that can function as a differential amplifier or the RF transconductance stage of a downconversion mixer when their sources are tied to a common tail current.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N4\",\n        \"N6\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Direct-Conversion Receiver for the 3G WCDMA Standard\",\n      \"figure\": \"Unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain\": {\n      \"description\": \"Differential low-frequency voltage gain of the amplifier stage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"6 dB\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/Vov. With Id=0.5mA per branch, W/L=10, Vov~0.6V, gm~1.66mS. With a 2kOhm load resistor, Gain = gm*R = 3.32 V/V = 10.4 dB.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 10.4,\n          \"max\": 15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen load resistor and tail current in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unity Gain Bandwidth\": {\n      \"description\": \"Frequency at which the differential voltage gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2170 MHz\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW ~ gm / (2 * pi * Cload). With gm=1.66mS and Cload=100fF, UGBW ~ 2.6 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 2.6e9,\n          \"max\": 5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is limited by the RC time constant and parasitic capacitances at the output nodes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power consumed by the stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"46 mA (total receiver)\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * Itail = 1.8V * 1mA = 1.8mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 1.8e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Set by the 1mA tail current source added in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure differential voltage gain, unity gain bandwidth, and power consumption of the NMOS pair.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Voltage Gain\",\n      \"Unity Gain Bandwidth\",\n      \"Power Consumption\"\n    ],\n    \"spice\": \"* Differential Pair Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N2 LABEL_NET_0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 LABEL_NET_2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Power Supply and Biasing\\nVVDD VDD 0 1.8\\nI_tail N_tail 0 1m\\nV_tie1 N4 N_tail 0\\nV_tie2 N6 N_tail 0\\n\\n* Loads\\nR1 VDD N2 2k\\nR2 VDD N1 2k\\nC1 N2 0 100f\\nC2 N1 0 100f\\n\\n* Inputs (DC bias + AC + Transient Sine)\\nV_INP LABEL_NET_0 0 dc 0.9 ac 0.5 sin(0.9 0.1 100Meg)\\nV_INN LABEL_NET_2 0 dc 0.9 ac -0.5 sin(0.9 -0.1 100Meg)\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet power = 1.8 * (-i(VVDD))\\nprint power\\n\\n* 2. AC Analysis\\nac dec 100 1Meg 10Gig\\nlet out_diff = v(N1) - v(N2)\\nlet gain_mag = mag(out_diff)\\nlet gain_db = 20 * log10(gain_mag)\\nmeas ac dc_gain find gain_db at=1Meg\\nmeas ac ugbw when gain_db=0 fall=1\\n\\n* 3. Transient Analysis\\ntran 100p 20n\\nmeas tran vout_max max v(N1)\\nmeas tran vout_min min v(N1)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1183872",
+  "_case": "1183872_image_3"
+}

@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor DC-DC Converter",
+    "description": "A reconfigurable switched-capacitor DC-DC converter that uses a network of switches and flying capacitors to step down or step up the input voltage. The provided netlist is a simplified, ideal-switch extraction of the converter's core switching network.",
+    "node_mapping": {
+      "input": [
+        "VIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VIN"
+      ],
+      "bias": [],
+      "ground": [
+        "N0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 93% Efficiency Reconfigurable Switched-Capacitor DC-DC Converter Using On-Chip Ferroelectric Capacitors",
+      "figure": "Generic Extraction",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "efficiency": {
+      "description": "Power conversion efficiency (Pout / Pin)",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "93%",
+        "technology": "130nm CMOS with Ferroelectric Caps"
+      },
+      "sky130_expected": {
+        "calculation": "Pout / Pin * 100",
+        "range": {
+          "min": 75,
+          "typical": 85,
+          "max": 90,
+          "unit": "%"
+        },
+        "reasoning": "Standard SKY130 MOM/MIM capacitors have higher bottom-plate parasitic capacitance (typically 5-10%) compared to the custom high-density ferroelectric capacitors used in the paper. This increases switching losses and reduces the maximum achievable efficiency."
+      },
+      "importance": "essential"
+    },
+    "output_voltage": {
+      "description": "Average DC output voltage",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.963V",
+        "technology": "130nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Average of V(VOUT) in steady state",
+        "range": {
+          "min": 0.8,
+          "typical": 0.9,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "For a 2:1 conversion ratio from a 1.8V supply, the ideal output is 0.9V. Load current and switch resistance will cause some voltage droop."
+      },
+      "importance": "essential"
+    },
+    "output_ripple": {
+      "description": "Peak-to-peak voltage ripple at the output",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly listed, but implied by 10nF load cap",
+        "technology": "130nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "max(VOUT) - min(VOUT)",
+        "range": {
+          "min": 0.01,
+          "typical": 0.05,
+          "max": 0.1,
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on load current, switching frequency (8.2MHz), and the load capacitance (10nF)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure output voltage, ripple, and power conversion efficiency of the SC converter. The original netlist syntax is adapted to use ngspice voltage-controlled switches.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "efficiency",
+      "output_voltage",
+      "output_ripple"
+    ],
+    "spice": "* Switched-Capacitor DC-DC Converter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param VDD=1.8\n.param FSW=8.2Meg\n.param TPER={1/FSW}\n.param THALF={TPER/2 - 1n}\n\n* Supply and Clocks\nVVIN VIN 0 DC {VDD}\nVphi1 phi1 0 PULSE(0 {VDD} 0 1n 1n {THALF} {TPER})\nVphi2 phi2 0 PULSE(0 {VDD} {TPER/2} 1n 1n {THALF} {TPER})\n\n* Ground reference for N0\nR_N0 N0 0 1m\n\n* Load\nRload VOUT 0 100\n\n* --- DUT ---\n* Original extracted netlist had syntax issues for ngspice switches and missing cap values:\n* S1 (VOUT VIN) switch_ideal\n* S2 (VIN VIN) switch_ideal\n* S3 (N2 VIN) switch_ideal\n* S4 (N0 VOUT) switch_ideal\n* C2 N0 VOUT\n* C1 N2 VIN\n* S5 (N0 N0) switch_ideal\n* S6 (VOUT N2) switch_ideal\n\n* Fixed DUT for simulation (added control nodes and capacitor values):\nS1 VOUT VIN phi1 0 switch_ideal\nS2 VIN VIN phi2 0 switch_ideal\nS3 N2 VIN phi1 0 switch_ideal\nS4 N0 VOUT phi2 0 switch_ideal\nC2 N0 VOUT 10n\nC1 N2 VIN 1n\nS5 N0 N0 phi1 0 switch_ideal\nS6 VOUT N2 phi2 0 switch_ideal\n\n.model switch_ideal SW(Ron=1 Roff=1Meg Vt=0.9)\n\n* Analysis\n.tran 1n 5u\n\n.control\nrun\n\n* Measure output voltage and ripple\nmeas tran vout_avg avg v(VOUT) from=3u to=5u\nmeas tran vout_max max v(VOUT) from=3u to=5u\nmeas tran vout_min min v(VOUT) from=3u to=5u\nlet vout_ripple = vout_max - vout_min\nprint vout_avg vout_ripple\n\n* Measure efficiency\nmeas tran pin_avg avg i(VVIN) from=3u to=5u\nlet pin = -pin_avg * 1.8\nlet pout = (vout_avg * vout_avg) / 100\nlet eff = (pout / pin) * 100\nprint pin pout eff\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor DC-DC Converter\",\n    \"description\": \"A reconfigurable switched-capacitor DC-DC converter that uses a network of switches and flying capacitors to step down or step up the input voltage. The provided netlist is a simplified, ideal-switch extraction of the converter's core switching network.\",\n    \"node_mapping\": {\n      \"input\": [\"VIN\"],\n      \"output\": [\"VOUT\"],\n      \"supply\": [\"VIN\"],\n      \"bias\": [],\n      \"ground\": [\"N0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 93% Efficiency Reconfigurable Switched-Capacitor DC-DC Converter Using On-Chip Ferroelectric Capacitors\",\n      \"figure\": \"Generic Extraction\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"efficiency\": {\n      \"description\": \"Power conversion efficiency (Pout / Pin)\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"93%\",\n        \"technology\": \"130nm CMOS with Ferroelectric Caps\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout / Pin * 100\",\n        \"range\": {\n          \"min\": 75,\n          \"typical\": 85,\n          \"max\": 90,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Standard SKY130 MOM/MIM capacitors have higher bottom-plate parasitic capacitance (typically 5-10%) compared to the custom high-density ferroelectric capacitors used in the paper. This increases switching losses and reduces the maximum achievable efficiency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_voltage\": {\n      \"description\": \"Average DC output voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.963V\",\n        \"technology\": \"130nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Average of V(VOUT) in steady state\",\n        \"range\": {\n          \"min\": 0.8,\n          \"typical\": 0.9,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"For a 2:1 conversion ratio from a 1.8V supply, the ideal output is 0.9V. Load current and switch resistance will cause some voltage droop.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple at the output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed, but implied by 10nF load cap\",\n        \"technology\": \"130nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"max(VOUT) - min(VOUT)\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.05,\n          \"max\": 0.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on load current, switching frequency (8.2MHz), and the load capacitance (10nF).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure output voltage, ripple, and power conversion efficiency of the SC converter. The original netlist syntax is adapted to use ngspice voltage-controlled switches.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"efficiency\",\n      \"output_voltage\",\n      \"output_ripple\"\n    ],\n    \"spice\": \"* Switched-Capacitor DC-DC Converter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param VDD=1.8\\n.param FSW=8.2Meg\\n.param TPER={1/FSW}\\n.param THALF={TPER/2 - 1n}\\n\\n* Supply and Clocks\\nVVIN VIN 0 DC {VDD}\\nVphi1 phi1 0 PULSE(0 {VDD} 0 1n 1n {THALF} {TPER})\\nVphi2 phi2 0 PULSE(0 {VDD} {TPER/2} 1n 1n {THALF} {TPER})\\n\\n* Ground reference for N0\\nR_N0 N0 0 1m\\n\\n* Load\\nRload VOUT 0 100\\n\\n* --- DUT ---\\n* Original extracted netlist had syntax issues for ngspice switches and missing cap values:\\n* S1 (VOUT VIN) switch_ideal\\n* S2 (VIN VIN) switch_ideal\\n* S3 (N2 VIN) switch_ideal\\n* S4 (N0 VOUT) switch_ideal\\n* C2 N0 VOUT\\n* C1 N2 VIN\\n* S5 (N0 N0) switch_ideal\\n* S6 (VOUT N2) switch_ideal\\n\\n* Fixed DUT for simulation (added control nodes and capacitor values):\\nS1 VOUT VIN phi1 0 switch_ideal\\nS2 VIN VIN phi2 0 switch_ideal\\nS3 N2 VIN phi1 0 switch_ideal\\nS4 N0 VOUT phi2 0 switch_ideal\\nC2 N0 VOUT 10n\\nC1 N2 VIN 1n\\nS5 N0 N0 phi1 0 switch_ideal\\nS6 VOUT N2 phi2 0 switch_ideal\\n\\n.model switch_ideal SW(Ron=1 Roff=1Meg Vt=0.9)\\n\\n* Analysis\\n.tran 1n 5u\\n\\n.control\\nrun\\n\\n* Measure output voltage and ripple\\nmeas tran vout_avg avg v(VOUT) from=3u to=5u\\nmeas tran vout_max max v(VOUT) from=3u to=5u\\nmeas tran vout_min min v(VOUT) from=3u to=5u\\nlet vout_ripple = vout_max - vout_min\\nprint vout_avg vout_ripple\\n\\n* Measure efficiency\\nmeas tran pin_avg avg i(VVIN) from=3u to=5u\\nlet pin = -pin_avg * 1.8\\nlet pout = (vout_avg * vout_avg) / 100\\nlet eff = (pout / pin) * 100\\nprint pin pout eff\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "6487776",
+  "_case": "6487776_image_2_b"
+}

@@ -1,0 +1,104 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Continuous-Time Charge Amplifier / Integrator Model",
+    "description": "This circuit is a continuous-time equivalent model of a switched-capacitor integrator, a core building block in the double-sampling extended-counting ADC described in the paper. It utilizes an operational amplifier with capacitive feedback to transfer and hold charge from the input.",
+    "node_mapping": {
+      "input": [
+        "Vin"
+      ],
+      "output": [
+        "Vout"
+      ],
+      "supply": [],
+      "bias": [
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Double-Sampling Extended-Counting ADC",
+      "figure": "Generic",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Closed_Loop_Gain": {
+      "description": "Low-frequency AC voltage gain of the charge amplifier, determined by the capacitor ratio C1/C3.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0 dB (implied for 1:1 charge transfer)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = 20 * log10(C1/C3). With C1=1pF and C3=1pF, gain is 0 dB.",
+        "range": {
+          "min": -0.1,
+          "typical": 0.0,
+          "max": 0.1,
+          "unit": "dB"
+        },
+        "reasoning": "Determined purely by passive component ratios in the macro-model."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth_3dB": {
+      "description": "The frequency at which the closed-loop gain drops by 3 dB from its low-frequency value.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 MHz (Op-amp GBW)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Closed-loop BW \u2248 GBW * (C3 / (C1 + C3 + Cp)). For GBW=40MHz and C1=C3=1pF, BW \u2248 20 MHz.",
+        "range": {
+          "min": 15000000.0,
+          "typical": 20000000.0,
+          "max": 25000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on the operational amplifier's gain-bandwidth product and the feedback factor."
+      },
+      "importance": "essential"
+    },
+    "Settling_Time": {
+      "description": "Time required for the output to settle within 1% of its final value after an input step.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 ns",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_settle \u2248 -ln(0.01) / (2 * pi * BW). For BW=20MHz, t_settle \u2248 4.6 / (1.25e8) \u2248 36 ns.",
+        "range": {
+          "min": 1e-08,
+          "typical": 3.5e-08,
+          "max": 5e-08,
+          "unit": "s"
+        },
+        "reasoning": "Settling time is inversely proportional to the closed-loop bandwidth. The paper's 15ns implies a higher effective bandwidth during the specific clock phase."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure closed-loop AC gain, -3dB bandwidth, and transient settling time of the charge amplifier using an op-amp macro-model.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Closed_Loop_Gain",
+      "Bandwidth_3dB",
+      "Settling_Time"
+    ],
+    "spice": "* Double-Sampling Extended-Counting ADC - Charge Amplifier Testbench\n\n.lib \"${SKY130_PDK}\" tt\n\n* Component Values\n.param C1_val=1p C3_val=1p Cp_val=0.1p C2_val=1p CpL_val=0.1p\n\n* DUT (Extracted Netlist)\nI1 Vin GND 0\nC1 Vin N1 {C1_val}\nCp N1 GND {Cp_val}\nC3 N1 Vout {C3_val}\n* Replaced A1 with standard subcircuit call X1\nX1 N1 GND Vout amplifier\nC2 Vout GND {C2_val}\nCpL Vout GND {CpL_val}\n\n* Op-amp Macro-model (GBW = 40MHz, DC Gain = 100dB)\n.subckt amplifier in_m in_p out\n  G1 0 int in_p in_m 1m\n  R1 int 0 100MEG\n  C1 int 0 3.98p\n  E1 out 0 int 0 1\n.ends\n\n* Stimulus\n* AC: 1V for Bode plot. Tran: 0V to 1V step for settling time.\nVVIN Vin GND DC 0 AC 1 PULSE(0 1 10n 1n 1n 40n 100n)\n\n.control\n  * 1. AC Analysis\n  ac dec 100 1k 1G\n  let gain_db = vdb(Vout)\n  \n  * Measure low frequency gain\n  meas ac low_freq_gain find gain_db at=1k\n  \n  * Measure -3dB bandwidth\n  let target_gain = low_freq_gain - 3\n  meas ac bw_3db when gain_db=target_gain fall=1\n\n  * 2. Transient Analysis\n  tran 0.1n 100n\n  \n  * Measure settling time (1% of final value)\n  * Input steps from 0 to 1V. Ideal inverting gain is -1, so output steps 0 to -1V.\n  * 1% settling means reaching -0.99V.\n  meas tran t_settle trig v(Vin) val=0.5 rise=1 targ v(Vout) val=-0.99 fall=1\n\n  print low_freq_gain bw_3db t_settle\n  quit\n.endc\n\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Continuous-Time Charge Amplifier / Integrator Model\",\n    \"description\": \"This circuit is a continuous-time equivalent model of a switched-capacitor integrator, a core building block in the double-sampling extended-counting ADC described in the paper. It utilizes an operational amplifier with capacitive feedback to transfer and hold charge from the input.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vin\"\n      ],\n      \"output\": [\n        \"Vout\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Double-Sampling Extended-Counting ADC\",\n      \"figure\": \"Generic\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Closed_Loop_Gain\": {\n      \"description\": \"Low-frequency AC voltage gain of the charge amplifier, determined by the capacitor ratio C1/C3.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0 dB (implied for 1:1 charge transfer)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = 20 * log10(C1/C3). With C1=1pF and C3=1pF, gain is 0 dB.\",\n        \"range\": {\n          \"min\": -0.1,\n          \"typical\": 0.0,\n          \"max\": 0.1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined purely by passive component ratios in the macro-model.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth_3dB\": {\n      \"description\": \"The frequency at which the closed-loop gain drops by 3 dB from its low-frequency value.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 MHz (Op-amp GBW)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Closed-loop BW \u2248 GBW * (C3 / (C1 + C3 + Cp)). For GBW=40MHz and C1=C3=1pF, BW \u2248 20 MHz.\",\n        \"range\": {\n          \"min\": 15e6,\n          \"typical\": 20e6,\n          \"max\": 25e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends on the operational amplifier's gain-bandwidth product and the feedback factor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Settling_Time\": {\n      \"description\": \"Time required for the output to settle within 1% of its final value after an input step.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 ns\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_settle \u2248 -ln(0.01) / (2 * pi * BW). For BW=20MHz, t_settle \u2248 4.6 / (1.25e8) \u2248 36 ns.\",\n        \"range\": {\n          \"min\": 10e-9,\n          \"typical\": 35e-9,\n          \"max\": 50e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Settling time is inversely proportional to the closed-loop bandwidth. The paper's 15ns implies a higher effective bandwidth during the specific clock phase.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure closed-loop AC gain, -3dB bandwidth, and transient settling time of the charge amplifier using an op-amp macro-model.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Closed_Loop_Gain\",\n      \"Bandwidth_3dB\",\n      \"Settling_Time\"\n    ],\n    \"spice\": \"* Double-Sampling Extended-Counting ADC - Charge Amplifier Testbench\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Component Values\\n.param C1_val=1p C3_val=1p Cp_val=0.1p C2_val=1p CpL_val=0.1p\\n\\n* DUT (Extracted Netlist)\\nI1 Vin GND 0\\nC1 Vin N1 {C1_val}\\nCp N1 GND {Cp_val}\\nC3 N1 Vout {C3_val}\\n* Replaced A1 with standard subcircuit call X1\\nX1 N1 GND Vout amplifier\\nC2 Vout GND {C2_val}\\nCpL Vout GND {CpL_val}\\n\\n* Op-amp Macro-model (GBW = 40MHz, DC Gain = 100dB)\\n.subckt amplifier in_m in_p out\\n  G1 0 int in_p in_m 1m\\n  R1 int 0 100MEG\\n  C1 int 0 3.98p\\n  E1 out 0 int 0 1\\n.ends\\n\\n* Stimulus\\n* AC: 1V for Bode plot. Tran: 0V to 1V step for settling time.\\nVVIN Vin GND DC 0 AC 1 PULSE(0 1 10n 1n 1n 40n 100n)\\n\\n.control\\n  * 1. AC Analysis\\n  ac dec 100 1k 1G\\n  let gain_db = vdb(Vout)\\n  \\n  * Measure low frequency gain\\n  meas ac low_freq_gain find gain_db at=1k\\n  \\n  * Measure -3dB bandwidth\\n  let target_gain = low_freq_gain - 3\\n  meas ac bw_3db when gain_db=target_gain fall=1\\n\\n  * 2. Transient Analysis\\n  tran 0.1n 100n\\n  \\n  * Measure settling time (1% of final value)\\n  * Input steps from 0 to 1V. Ideal inverting gain is -1, so output steps 0 to -1V.\\n  * 1% settling means reaching -0.99V.\\n  meas tran t_settle trig v(Vin) val=0.5 rise=1 targ v(Vout) val=-0.99 fall=1\\n\\n  print low_freq_gain bw_3db t_settle\\n  quit\\n.endc\\n\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1269916",
+  "_case": "1269916_image_11"
+}

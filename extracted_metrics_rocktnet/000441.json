@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Latched Comparator / Master-Slave D-Flip-Flop",
+    "description": "A high-speed continuous-time latched comparator used as a 1-bit quantizer in a delta-sigma ADC. It consists of a pre-amplifier stage, a master latch, and a slave latch, implemented using Current Mode Logic (CML).",
+    "node_mapping": {
+      "input": [
+        "IN_P",
+        "IN_N",
+        "CLK_P",
+        "CLK_N"
+      ],
+      "output": [
+        "Q_P",
+        "Q_N"
+      ],
+      "supply": [
+        "GND",
+        "VEE"
+      ],
+      "bias": [
+        "V_R"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "High Dynamic Range InP HBT Delta-Sigma Analog-to-Digital Converters",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Clock Frequency": {
+      "description": "Maximum operating clock frequency of the latched comparator.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.5 GHz",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "CML logic speed is typically limited by the RC time constant of the pull-up resistors and parasitic capacitances. With fT ~ 40GHz for SKY130 NMOS, CML can operate up to fT/20.",
+        "range": {
+          "min": "1G",
+          "typical": "2G",
+          "max": "3G",
+          "unit": "Hz"
+        },
+        "reasoning": "Adjusted from InP HBT (which is much faster) to 130nm CMOS capabilities."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "DC power dissipation of the comparator.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "6 W (entire ADC)",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "9 tail current sources * ~1mA per source = 9mA total current. 9mA * 1.8V VDD = 16.2mW.",
+        "range": {
+          "min": "10m",
+          "typical": "16m",
+          "max": "25m",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on typical CML biasing in 130nm CMOS to achieve GHz speeds."
+      },
+      "importance": "essential"
+    },
+    "Propagation Delay": {
+      "description": "Delay from the active clock edge to the output transition.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC delay of the slave latch and output buffer stages. R_pu = 400 ohm, C_load ~ 100fF -> tau = 40ps. Delay is typically 2-3 tau.",
+        "range": {
+          "min": "50p",
+          "typical": "100p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Standard delay for CML latches in 130nm technology."
+      },
+      "importance": "essential"
+    },
+    "Output Voltage Swing": {
+      "description": "Peak-to-peak differential output voltage.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Swing = I_tail * R_pu. With I_tail = 1mA and R_pu = 400 ohms, single-ended swing is 0.4V. Differential swing is 0.8Vpp.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.8",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "CML logic requires a swing large enough to fully switch the differential pairs without pushing them into deep triode."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power consumption, output voltage swing, and propagation delay of the latched comparator. The netlist is adapted for SKY130 NMOS by replacing NPNs with NMOS, mapping GND to VDD (1.8V), and VEE to 0V.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Output Voltage Swing",
+      "Propagation Delay"
+    ],
+    "spice": "* Latched Comparator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Supply Voltages (Adapted for 1.8V CMOS CML)\nVVDD VDD 0 DC 1.8\nVVR V_R 0 DC 0.6\n\n* Clocks (1 GHz, Common Mode = 0.8V, Swing = 0.4Vpp)\nVCLK_P CLK_P 0 DC 0.8 PULSE(0.6 1.0 0 20p 20p 480p 1n)\nVCLK_N CLK_N 0 DC 0.8 PULSE(1.0 0.6 0 20p 20p 480p 1n)\n\n* Inputs (110 MHz, Common Mode = 1.6V, Swing = 0.4Vpp)\nVIN_P IN_P 0 DC 1.6 SIN(1.6 0.2 110MEG 0 0 0)\nVIN_N IN_N 0 DC 1.6 SIN(1.6 0.2 110MEG 0 0 180)\n\n* Modified Netlist for SKY130 (Added resistor values, mapped NPN to NMOS)\nR16 VDD N1 400\nR8 VDD N2 400\nR3 VDD N6 400\nR1 VDD N7 400\nR10 VDD N13 400\nR2 VDD N14 400\nR11 N18 0 50\nR13 N19 0 50\nR5 N20 0 50\nR4 N21 0 50\nR9 N22 0 50\nR12 N23 0 50\nR7 N24 0 50\nR6 N25 0 50\nR15 N26 0 50\nXM14 N1 IN_P N3 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM25 N2 IN_N N3 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM6 N3 V_R N18 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM23 VDD N1 N4 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM2 VDD N2 N5 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM9 N4 V_R N19 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM21 N5 V_R N20 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM28 N10 CLK_P N12 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM16 N11 CLK_N N12 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM13 N12 V_R N21 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM24 N6 N4 N10 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM30 N7 N5 N10 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM10 N6 N9 N11 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM8 N7 N8 N11 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM12 VDD N6 N8 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM4 VDD N7 N9 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM5 N8 V_R N22 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM1 N9 V_R N23 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM22 N15 CLK_N N17 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM27 N16 CLK_P N17 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM15 N17 V_R N24 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM18 N13 N8 N15 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM29 N14 N9 N15 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM3 N13 Q_P N16 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM11 N14 Q_N N16 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM20 VDD N13 Q_N 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM19 VDD N14 Q_P 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM7 Q_N V_R N25 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nXM26 Q_P V_R N26 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\n\n.control\n* DC Operating Point for Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* Transient Analysis\ntran 10p 20n\nlet out_diff = v(Q_P) - v(Q_N)\nlet clk_diff = v(CLK_P) - v(CLK_N)\n\n* Measure Output Swing\nmeas tran v_max max out_diff\nmeas tran v_min min out_diff\nlet swing = v_max - v_min\nprint swing\n\n* Measure Propagation Delay\nmeas tran t_pd trig clk_diff val=0 fall=2 targ out_diff val=0 cross=1\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Latched Comparator / Master-Slave D-Flip-Flop\",\n    \"description\": \"A high-speed continuous-time latched comparator used as a 1-bit quantizer in a delta-sigma ADC. It consists of a pre-amplifier stage, a master latch, and a slave latch, implemented using Current Mode Logic (CML).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN_P\",\n        \"IN_N\",\n        \"CLK_P\",\n        \"CLK_N\"\n      ],\n      \"output\": [\n        \"Q_P\",\n        \"Q_N\"\n      ],\n      \"supply\": [\n        \"GND\",\n        \"VEE\"\n      ],\n      \"bias\": [\n        \"V_R\"\n      ],\n      \"ground\": [\n        \"VEE\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"High Dynamic Range InP HBT Delta-Sigma Analog-to-Digital Converters\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Clock Frequency\": {\n      \"description\": \"Maximum operating clock frequency of the latched comparator.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.5 GHz\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"CML logic speed is typically limited by the RC time constant of the pull-up resistors and parasitic capacitances. With fT ~ 40GHz for SKY130 NMOS, CML can operate up to fT/20.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"2G\",\n          \"max\": \"3G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Adjusted from InP HBT (which is much faster) to 130nm CMOS capabilities.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"DC power dissipation of the comparator.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"6 W (entire ADC)\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"9 tail current sources * ~1mA per source = 9mA total current. 9mA * 1.8V VDD = 16.2mW.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"16m\",\n          \"max\": \"25m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on typical CML biasing in 130nm CMOS to achieve GHz speeds.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Propagation Delay\": {\n      \"description\": \"Delay from the active clock edge to the output transition.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC delay of the slave latch and output buffer stages. R_pu = 400 ohm, C_load ~ 100fF -> tau = 40ps. Delay is typically 2-3 tau.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"100p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard delay for CML latches in 130nm technology.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output Voltage Swing\": {\n      \"description\": \"Peak-to-peak differential output voltage.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing = I_tail * R_pu. With I_tail = 1mA and R_pu = 400 ohms, single-ended swing is 0.4V. Differential swing is 0.8Vpp.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.8\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CML logic requires a swing large enough to fully switch the differential pairs without pushing them into deep triode.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power consumption, output voltage swing, and propagation delay of the latched comparator. The netlist is adapted for SKY130 NMOS by replacing NPNs with NMOS, mapping GND to VDD (1.8V), and VEE to 0V.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Output Voltage Swing\",\n      \"Propagation Delay\"\n    ],\n    \"spice\": \"* Latched Comparator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Supply Voltages (Adapted for 1.8V CMOS CML)\\nVVDD VDD 0 DC 1.8\\nVVR V_R 0 DC 0.6\\n\\n* Clocks (1 GHz, Common Mode = 0.8V, Swing = 0.4Vpp)\\nVCLK_P CLK_P 0 DC 0.8 PULSE(0.6 1.0 0 20p 20p 480p 1n)\\nVCLK_N CLK_N 0 DC 0.8 PULSE(1.0 0.6 0 20p 20p 480p 1n)\\n\\n* Inputs (110 MHz, Common Mode = 1.6V, Swing = 0.4Vpp)\\nVIN_P IN_P 0 DC 1.6 SIN(1.6 0.2 110MEG 0 0 0)\\nVIN_N IN_N 0 DC 1.6 SIN(1.6 0.2 110MEG 0 0 180)\\n\\n* Modified Netlist for SKY130 (Added resistor values, mapped NPN to NMOS)\\nR16 VDD N1 400\\nR8 VDD N2 400\\nR3 VDD N6 400\\nR1 VDD N7 400\\nR10 VDD N13 400\\nR2 VDD N14 400\\nR11 N18 0 50\\nR13 N19 0 50\\nR5 N20 0 50\\nR4 N21 0 50\\nR9 N22 0 50\\nR12 N23 0 50\\nR7 N24 0 50\\nR6 N25 0 50\\nR15 N26 0 50\\nXM14 N1 IN_P N3 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM25 N2 IN_N N3 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM6 N3 V_R N18 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM23 VDD N1 N4 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM2 VDD N2 N5 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM9 N4 V_R N19 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM21 N5 V_R N20 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM28 N10 CLK_P N12 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM16 N11 CLK_N N12 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM13 N12 V_R N21 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM24 N6 N4 N10 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM30 N7 N5 N10 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM10 N6 N9 N11 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM8 N7 N8 N11 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM12 VDD N6 N8 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM4 VDD N7 N9 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM5 N8 V_R N22 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM1 N9 V_R N23 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM22 N15 CLK_N N17 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM27 N16 CLK_P N17 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM15 N17 V_R N24 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM18 N13 N8 N15 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM29 N14 N9 N15 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM3 N13 Q_P N16 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM11 N14 Q_N N16 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM20 VDD N13 Q_N 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM19 VDD N14 Q_P 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM7 Q_N V_R N25 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nXM26 Q_P V_R N26 0 sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\n\\n.control\\n* DC Operating Point for Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* Transient Analysis\\ntran 10p 20n\\nlet out_diff = v(Q_P) - v(Q_N)\\nlet clk_diff = v(CLK_P) - v(CLK_N)\\n\\n* Measure Output Swing\\nmeas tran v_max max out_diff\\nmeas tran v_min min out_diff\\nlet swing = v_max - v_min\\nprint swing\\n\\n* Measure Propagation Delay\\nmeas tran t_pd trig clk_diff val=0 fall=2 targ out_diff val=0 cross=1\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1225794",
+  "_case": "1225794_image_12"
+}

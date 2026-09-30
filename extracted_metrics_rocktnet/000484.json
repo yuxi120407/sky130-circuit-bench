@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Comparator with Built-in Threshold",
+    "description": "A clocked dynamic comparator (StrongARM latch variant) typically used in the flash sub-ADC of a pipelined ADC. It compares a differential input signal against a differential reference voltage by embedding two differential pairs into the evaluation branches of the latch.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN",
+        "LATCH"
+      ],
+      "output": [
+        "VOUT_PLUS",
+        "VOUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VREFP",
+        "VREFN"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 69-mW 10-bit 80-MSample/s Pipelined CMOS ADC",
+      "figure": "Not specified",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Average power consumption during continuous clocking",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "69 mW (entire ADC)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power = C * V^2 * f. For an estimated switching capacitance of ~50fF, V=1.8V, and f=100MHz, P_dyn ~ 16uW. Including short-circuit current during transitions, expect ~50-100uW per comparator.",
+        "range": {
+          "min": "20u",
+          "typical": "60u",
+          "max": "150u",
+          "unit": "W"
+        },
+        "reasoning": "Based on typical dynamic comparator power at 100MHz in a 130nm process."
+      },
+      "importance": "essential"
+    },
+    "delay": {
+      "description": "Clock-to-Q delay (time from LATCH rising edge to output decision crossing VDD/2)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "80 MS/s (12.5ns period)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Delay depends on gm and load capacitance. With W=5u and C_load=10fF, delay ~ C * V / I. Assuming I_tail ~ 1mA, delay ~ 10fF * 1.8V / 1mA = 18ps. Adding internal parasitic delays, expect ~100-300ps.",
+        "range": {
+          "min": "50p",
+          "typical": "150p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "Estimated from transistor sizes and typical StrongARM latch evaluation times."
+      },
+      "importance": "essential"
+    },
+    "kickback_noise": {
+      "description": "Voltage disturbance on the input nodes due to clock transitions coupling through Cgd of the input pair",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Depends heavily on source impedance. With 50-ohm source and Cgd ~ 5fF, dV ~ Cgd / C_total * V_swing.",
+        "range": {
+          "min": "1m",
+          "typical": "5m",
+          "max": "20m",
+          "unit": "V"
+        },
+        "reasoning": "Standard metric for dynamic comparators to ensure they don't corrupt the sampled input."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure clock-to-Q delay for both decision states and average power consumption at 100MHz clock frequency.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_state1",
+      "delay_state2",
+      "avg_power"
+    ],
+    "spice": "* Dynamic Comparator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n\nXM1 N1 LATCH VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 INP N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N2 VREFN N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 VREFP N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N3 INN N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VOUT_MINUS VOUT_PLUS N2 VSS sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 VOUT_PLUS VOUT_MINUS N3 VSS sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N2 LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 VOUT_MINUS LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 VOUT_MINUS VOUT_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 VOUT_PLUS VOUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM12 VOUT_PLUS LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM13 N3 LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVLATCH LATCH 0 PULSE(0 1.8 2n 100p 100p 4n 10n)\nVVREFP VREFP 0 1.0\nVVREFN VREFN 0 0.8\nVINP INP 0 PWL(0 1.05 15n 1.05 15.1n 0.95 30n 0.95)\nVINN INN 0 PWL(0 0.75 15n 0.75 15.1n 0.85 30n 0.85)\n\nC1 VOUT_PLUS 0 10f\nC2 VOUT_MINUS 0 10f\n\n.control\ntran 10p 30n\nmeas tran delay_state1 trig v(LATCH) val=0.9 rise=1 targ v(VOUT_MINUS) val=0.9 fall=1\nmeas tran delay_state2 trig v(LATCH) val=0.9 rise=3 targ v(VOUT_PLUS) val=0.9 fall=1\nmeas tran avg_current avg i(VVDD) from=0 to=30n\nlet avg_power = -avg_current * 1.8\nprint delay_state1 delay_state2 avg_power\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Comparator with Built-in Threshold\",\n    \"description\": \"A clocked dynamic comparator (StrongARM latch variant) typically used in the flash sub-ADC of a pipelined ADC. It compares a differential input signal against a differential reference voltage by embedding two differential pairs into the evaluation branches of the latch.\",\n    \"node_mapping\": {\n      \"input\": [\"INP\", \"INN\", \"LATCH\"],\n      \"output\": [\"VOUT_PLUS\", \"VOUT_MINUS\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"VREFP\", \"VREFN\"],\n      \"ground\": [\"VSS\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 69-mW 10-bit 80-MSample/s Pipelined CMOS ADC\",\n      \"figure\": \"Not specified\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Average power consumption during continuous clocking\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"69 mW (entire ADC)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power = C * V^2 * f. For an estimated switching capacitance of ~50fF, V=1.8V, and f=100MHz, P_dyn ~ 16uW. Including short-circuit current during transitions, expect ~50-100uW per comparator.\",\n        \"range\": { \"min\": \"20u\", \"typical\": \"60u\", \"max\": \"150u\", \"unit\": \"W\" },\n        \"reasoning\": \"Based on typical dynamic comparator power at 100MHz in a 130nm process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay\": {\n      \"description\": \"Clock-to-Q delay (time from LATCH rising edge to output decision crossing VDD/2)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"80 MS/s (12.5ns period)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay depends on gm and load capacitance. With W=5u and C_load=10fF, delay ~ C * V / I. Assuming I_tail ~ 1mA, delay ~ 10fF * 1.8V / 1mA = 18ps. Adding internal parasitic delays, expect ~100-300ps.\",\n        \"range\": { \"min\": \"50p\", \"typical\": \"150p\", \"max\": \"500p\", \"unit\": \"s\" },\n        \"reasoning\": \"Estimated from transistor sizes and typical StrongARM latch evaluation times.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"kickback_noise\": {\n      \"description\": \"Voltage disturbance on the input nodes due to clock transitions coupling through Cgd of the input pair\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends heavily on source impedance. With 50-ohm source and Cgd ~ 5fF, dV ~ Cgd / C_total * V_swing.\",\n        \"range\": { \"min\": \"1m\", \"typical\": \"5m\", \"max\": \"20m\", \"unit\": \"V\" },\n        \"reasoning\": \"Standard metric for dynamic comparators to ensure they don't corrupt the sampled input.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure clock-to-Q delay for both decision states and average power consumption at 100MHz clock frequency.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"delay_state1\", \"delay_state2\", \"avg_power\"],\n    \"spice\": \"* Dynamic Comparator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n\\nXM1 N1 LATCH VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 INP N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N2 VREFN N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 VREFP N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N3 INN N1 VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VOUT_MINUS VOUT_PLUS N2 VSS sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 VOUT_PLUS VOUT_MINUS N3 VSS sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N2 LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 VOUT_MINUS LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 VOUT_MINUS VOUT_PLUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 VOUT_PLUS VOUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 VOUT_PLUS LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 N3 LATCH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVLATCH LATCH 0 PULSE(0 1.8 2n 100p 100p 4n 10n)\\nVVREFP VREFP 0 1.0\\nVVREFN VREFN 0 0.8\\nVINP INP 0 PWL(0 1.05 15n 1.05 15.1n 0.95 30n 0.95)\\nVINN INN 0 PWL(0 0.75 15n 0.75 15.1n 0.85 30n 0.85)\\n\\nC1 VOUT_PLUS 0 10f\\nC2 VOUT_MINUS 0 10f\\n\\n.control\\ntran 10p 30n\\nmeas tran delay_state1 trig v(LATCH) val=0.9 rise=1 targ v(VOUT_MINUS) val=0.9 fall=1\\nmeas tran delay_state2 trig v(LATCH) val=0.9 rise=3 targ v(VOUT_PLUS) val=0.9 fall=1\\nmeas tran avg_current avg i(VVDD) from=0 to=30n\\nlet avg_power = -avg_current * 1.8\\nprint delay_state1 delay_state2 avg_power\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1253849",
+  "_case": "1253849_image_9_b"
+}

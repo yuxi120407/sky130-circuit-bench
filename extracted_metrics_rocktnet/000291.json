@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Double-Balanced Mixer Core",
+    "description": "A CMOS double-balanced mixer core (Gilbert cell) used for down-conversion in an RF receiver. It mixes an RF signal with an LO signal to produce an IF signal.",
+    "node_mapping": {
+      "input": [
+        "VIN_P",
+        "VIN_N",
+        "VLO_P",
+        "VLO_N"
+      ],
+      "output": [
+        "VOUT_P",
+        "VOUT_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2-GHz CMOS Image-Reject Receiver With LMS Calibration",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "Gain": {
+      "description": "Conversion gain from RF input to IF output",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "57 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Vth=0.42V, Vov=0.28V, Id=105uA -> g_m1 = 750uS. With R_L = 1k, CG = (2/pi) * g_m1 * R_L = 0.477 V/V = -6.4 dB.",
+        "range": {
+          "min": -10,
+          "typical": -6.4,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "The paper reports 57 dB for the entire receiver chain (LNA + Mixer + IF amps). The extracted netlist is only the passive-loaded mixer core, which typically has a small loss or near 0 dB gain."
+      },
+      "importance": "essential"
+    },
+    "Output_power": {
+      "description": "Power of the IF signal delivered to the load",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "17 dBm (IIP3)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_if_amp = 4.77 mV. P_out = V_if_amp^2 / 4000 = 5.68 nW = -52.4 dBm.",
+        "range": {
+          "min": -60,
+          "typical": -52,
+          "max": -40,
+          "unit": "dBm"
+        },
+        "reasoning": "Output power depends on the input test signal amplitude (10mV used here). The paper's 17 dBm refers to IIP3, not standard operating output power."
+      },
+      "importance": "essential"
+    },
+    "Power_consumption": {
+      "description": "DC power consumed from the supply",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 mW",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 210 uA. P = 1.8V * 210uA = 0.378 mW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00038,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "The paper's 50 mW is for the full receiver. The isolated mixer core consumes much less power."
+      },
+      "importance": "essential"
+    },
+    "Operating_frequency": {
+      "description": "RF input frequency",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.4 GHz",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Set by testbench source to 2 GHz.",
+        "range": {
+          "min": 1900000000.0,
+          "typical": 2000000000.0,
+          "max": 2500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the paper's target band (2 GHz receiver)."
+      },
+      "importance": "essential"
+    },
+    "IF_Frequency": {
+      "description": "Intermediate frequency at the output",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "190 MHz",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_RF - f_LO = 2.0 GHz - 1.81 GHz = 190 MHz.",
+        "range": {
+          "min": 180000000.0,
+          "typical": 190000000.0,
+          "max": 200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the chosen RF and LO frequencies in the testbench."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure conversion gain, power consumption, and operating frequencies of the mixer core.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_consumption",
+      "IF_Frequency",
+      "Operating_frequency",
+      "Gain",
+      "Output_power"
+    ],
+    "spice": "* 2-GHz CMOS Image-Reject Receiver Mixer Core\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\n.lib \"${SKY130_PDK}\" tt\n\nVVDD VDD 0 1.8\nRL1 VOUT_P VDD 1k\nRL2 VOUT_N VDD 1k\n\nXM1 N1 VIN_P GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 VIN_N GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VOUT_P VLO_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUT_N VLO_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VOUT_P VLO_P N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VOUT_N VLO_N N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* Buffers to prevent filter loading\nE1 VOUT_P_BUF 0 VOUT_P 0 1\nE2 VOUT_N_BUF 0 VOUT_N 0 1\n\n* 2-stage RC Low-pass filters (fc ~ 160MHz) to extract IF\nR_f1a VOUT_P_BUF VOUT_P_F1 1k\nC_f1a VOUT_P_F1 0 300f\nR_f1b VOUT_P_F1 VOUT_P_F 1k\nC_f1b VOUT_P_F 0 300f\n\nR_f2a VOUT_N_BUF VOUT_N_F1 1k\nC_f2a VOUT_N_F1 0 300f\nR_f2b VOUT_N_F1 VOUT_N_F 1k\nC_f2b VOUT_N_F 0 300f\n\n* Difference signal for measurement\nB1 VOUT_DIFF 0 V = V(VOUT_P_F) - V(VOUT_N_F)\n\n* Sources (RF=2GHz, LO=1.81GHz -> IF=190MHz)\nVVIN_P VIN_P 0 DC 0.7 SIN(0.7 0.01 2G 0 0)\nVVIN_N VIN_N 0 DC 0.7\nVVLO_P VLO_P 0 DC 1.2 SIN(1.2 0.5 1.81G 0 0)\nVVLO_N VLO_N 0 DC 1.2 SIN(1.2 0.5 1.81G 0 180)\n\n.control\ntran 10p 50n\n\n* 1. Power Consumption\nlet power = -i(VVDD) * 1.8\nmeas tran Power_consumption avg power from=30n to=50n\n\n* 2. IF Frequency\nmeas tran t1 WHEN v(VOUT_DIFF)=0 RISE=1 FROM=30n\nmeas tran t2 WHEN v(VOUT_DIFF)=0 RISE=2 FROM=30n\nlet IF_Frequency = 1 / (t2 - t1)\n\n* 3. Operating Frequency (RF)\nmeas tran trf1 WHEN v(VIN_P)=0.7 RISE=1 FROM=30n\nmeas tran trf2 WHEN v(VIN_P)=0.7 RISE=2 FROM=30n\nlet Operating_frequency = 1 / (trf2 - trf1)\n\n* 4. Gain (Conversion Gain)\nmeas tran vout_max max v(VOUT_DIFF) from=30n to=50n\nmeas tran vout_min min v(VOUT_DIFF) from=30n to=50n\nlet vout_pp = vout_max - vout_min\n* Attenuation factor of the 2-stage RC filter at 190MHz is 0.723\nlet v_if_pp_actual = vout_pp / 0.723\nlet v_if_amp = v_if_pp_actual / 2\nlet Gain = 20 * log10(v_if_amp / 0.01)\n\n* 5. Output Power (dBm)\n* Differential load is 2k (1k + 1k)\nlet p_out_w = (v_if_amp * v_if_amp) / 4000\nlet Output_power = 10 * log10(p_out_w / 1e-3)\n\nprint Power_consumption\nprint IF_Frequency\nprint Operating_frequency\nprint Gain\nprint Output_power\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Double-Balanced Mixer Core\",\n    \"description\": \"A CMOS double-balanced mixer core (Gilbert cell) used for down-conversion in an RF receiver. It mixes an RF signal with an LO signal to produce an IF signal.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_P\",\n        \"VIN_N\",\n        \"VLO_P\",\n        \"VLO_N\"\n      ],\n      \"output\": [\n        \"VOUT_P\",\n        \"VOUT_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2-GHz CMOS Image-Reject Receiver With LMS Calibration\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"Gain\": {\n      \"description\": \"Conversion gain from RF input to IF output\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"57 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Vth=0.42V, Vov=0.28V, Id=105uA -> g_m1 = 750uS. With R_L = 1k, CG = (2/pi) * g_m1 * R_L = 0.477 V/V = -6.4 dB.\",\n        \"range\": {\n          \"min\": -10,\n          \"typical\": -6.4,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper reports 57 dB for the entire receiver chain (LNA + Mixer + IF amps). The extracted netlist is only the passive-loaded mixer core, which typically has a small loss or near 0 dB gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_power\": {\n      \"description\": \"Power of the IF signal delivered to the load\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"17 dBm (IIP3)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_if_amp = 4.77 mV. P_out = V_if_amp^2 / 4000 = 5.68 nW = -52.4 dBm.\",\n        \"range\": {\n          \"min\": -60,\n          \"typical\": -52,\n          \"max\": -40,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Output power depends on the input test signal amplitude (10mV used here). The paper's 17 dBm refers to IIP3, not standard operating output power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_consumption\": {\n      \"description\": \"DC power consumed from the supply\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 mW\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 210 uA. P = 1.8V * 210uA = 0.378 mW.\",\n        \"range\": {\n          \"min\": 0.1e-3,\n          \"typical\": 0.38e-3,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 50 mW is for the full receiver. The isolated mixer core consumes much less power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Operating_frequency\": {\n      \"description\": \"RF input frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.4 GHz\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set by testbench source to 2 GHz.\",\n        \"range\": {\n          \"min\": 1.9e9,\n          \"typical\": 2.0e9,\n          \"max\": 2.5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the paper's target band (2 GHz receiver).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"IF_Frequency\": {\n      \"description\": \"Intermediate frequency at the output\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"190 MHz\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_RF - f_LO = 2.0 GHz - 1.81 GHz = 190 MHz.\",\n        \"range\": {\n          \"min\": 180e6,\n          \"typical\": 190e6,\n          \"max\": 200e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the chosen RF and LO frequencies in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure conversion gain, power consumption, and operating frequencies of the mixer core.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_consumption\",\n      \"IF_Frequency\",\n      \"Operating_frequency\",\n      \"Gain\",\n      \"Output_power\"\n    ],\n    \"spice\": \"* 2-GHz CMOS Image-Reject Receiver Mixer Core\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\nVVDD VDD 0 1.8\\nRL1 VOUT_P VDD 1k\\nRL2 VOUT_N VDD 1k\\n\\nXM1 N1 VIN_P GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 VIN_N GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VOUT_P VLO_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUT_N VLO_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VOUT_P VLO_P N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VOUT_N VLO_N N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Buffers to prevent filter loading\\nE1 VOUT_P_BUF 0 VOUT_P 0 1\\nE2 VOUT_N_BUF 0 VOUT_N 0 1\\n\\n* 2-stage RC Low-pass filters (fc ~ 160MHz) to extract IF\\nR_f1a VOUT_P_BUF VOUT_P_F1 1k\\nC_f1a VOUT_P_F1 0 300f\\nR_f1b VOUT_P_F1 VOUT_P_F 1k\\nC_f1b VOUT_P_F 0 300f\\n\\nR_f2a VOUT_N_BUF VOUT_N_F1 1k\\nC_f2a VOUT_N_F1 0 300f\\nR_f2b VOUT_N_F1 VOUT_N_F 1k\\nC_f2b VOUT_N_F 0 300f\\n\\n* Difference signal for measurement\\nB1 VOUT_DIFF 0 V = V(VOUT_P_F) - V(VOUT_N_F)\\n\\n* Sources (RF=2GHz, LO=1.81GHz -> IF=190MHz)\\nVVIN_P VIN_P 0 DC 0.7 SIN(0.7 0.01 2G 0 0)\\nVVIN_N VIN_N 0 DC 0.7\\nVVLO_P VLO_P 0 DC 1.2 SIN(1.2 0.5 1.81G 0 0)\\nVVLO_N VLO_N 0 DC 1.2 SIN(1.2 0.5 1.81G 0 180)\\n\\n.control\\ntran 10p 50n\\n\\n* 1. Power Consumption\\nlet power = -i(VVDD) * 1.8\\nmeas tran Power_consumption avg power from=30n to=50n\\n\\n* 2. IF Frequency\\nmeas tran t1 WHEN v(VOUT_DIFF)=0 RISE=1 FROM=30n\\nmeas tran t2 WHEN v(VOUT_DIFF)=0 RISE=2 FROM=30n\\nlet IF_Frequency = 1 / (t2 - t1)\\n\\n* 3. Operating Frequency (RF)\\nmeas tran trf1 WHEN v(VIN_P)=0.7 RISE=1 FROM=30n\\nmeas tran trf2 WHEN v(VIN_P)=0.7 RISE=2 FROM=30n\\nlet Operating_frequency = 1 / (trf2 - trf1)\\n\\n* 4. Gain (Conversion Gain)\\nmeas tran vout_max max v(VOUT_DIFF) from=30n to=50n\\nmeas tran vout_min min v(VOUT_DIFF) from=30n to=50n\\nlet vout_pp = vout_max - vout_min\\n* Attenuation factor of the 2-stage RC filter at 190MHz is 0.723\\nlet v_if_pp_actual = vout_pp / 0.723\\nlet v_if_amp = v_if_pp_actual / 2\\nlet Gain = 20 * log10(v_if_amp / 0.01)\\n\\n* 5. Output Power (dBm)\\n* Differential load is 2k (1k + 1k)\\nlet p_out_w = (v_if_amp * v_if_amp) / 4000\\nlet Output_power = 10 * log10(p_out_w / 1e-3)\\n\\nprint Power_consumption\\nprint IF_Frequency\\nprint Operating_frequency\\nprint Gain\\nprint Output_power\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1175495",
+  "_case": "1175495_image_8"
+}

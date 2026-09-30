@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Ratioed Latch with Pseudo-PMOS Clock Buffer",
+    "description": "This circuit is a high-speed ratioed latch used as a sub-block in a dual-modulus prescaler. It utilizes pseudo-PMOS inverters to locally buffer the clock signal, which then drives the PMOS pull-up of the latch, while the NMOS pull-down is driven by the data input, forming a fast, low-area ratioed logic structure.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_2 (Clock)",
+        "LABEL_NET_1 (Data)"
+      ],
+      "output": [
+        "N1 (Latch Output)"
+      ],
+      "supply": [
+        "VDD",
+        "N4"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_3"
+      ],
+      "ground": [
+        "GND",
+        "N0"
+      ]
+    },
+    "paper_reference": {
+      "title": "Dual-Modulus 127/128 FOM Enhanced Prescaler Design in 0.35-m CMOS Technology",
+      "figure": "Fig. 1 (implied from context)",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "delay_data_eval": {
+      "description": "Propagation delay from Data rising to Output falling during the transparent phase (CLK=0).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "177 ps",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "In ratioed logic, the NMOS discharges the node against the PMOS pull-up. Delay ~ C_load * VDD / (I_nmos - I_pmos). With SKY130 at 1.8V, I_nmos is significantly larger than I_pmos for equal sizing. Expect ~50-150ps.",
+        "range": {
+          "min": "20p",
+          "typical": "80p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "SKY130 at 1.8V has higher drive strength and lower parasitic capacitance than the original 0.35um 3V process, leading to faster evaluation."
+      },
+      "importance": "essential"
+    },
+    "delay_clk_precharge": {
+      "description": "Propagation delay from CLK falling to Output rising (pull-up phase).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "369 ps",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The PMOS pulls up the output node when the NMOS is off. Delay ~ C_load * VDD / I_pmos. Expect ~50-250ps.",
+        "range": {
+          "min": "20p",
+          "typical": "100p",
+          "max": "300p",
+          "unit": "s"
+        },
+        "reasoning": "PMOS mobility is lower than NMOS, making the pull-up phase slower than the pull-down evaluation phase, consistent with the paper's reported asymmetry."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumption of the latch sub-block at 1GHz operating frequency.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "4.8 mW (Entire Prescaler)",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power (C*V^2*f) + Static power from pseudo-PMOS and ratioed states. Static current per pseudo-PMOS gate ~ 100-200uA. Total expected power for this sub-block ~ 500uW.",
+        "range": {
+          "min": "100u",
+          "typical": "500u",
+          "max": "2m",
+          "unit": "W"
+        },
+        "reasoning": "Pseudo-PMOS and ratioed logic consume significant static power when evaluating to logic 0, which dominates the power consumption compared to standard CMOS."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the evaluation delay, precharge delay, and average power consumption of the ratioed latch at 1GHz.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_data_eval",
+      "delay_clk_precharge",
+      "power_consumption"
+    ],
+    "spice": "* Testbench for Ratioed Latch with Pseudo-PMOS Clock Buffer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 N1 N3 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 LABEL_NET_0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 LABEL_NET_2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N3 LABEL_NET_3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n* Power Supplies\nVVDD VDD 0 1.8\nVN4 N4 0 1.8\nVN0 N0 0 0\n\n* Bias for pseudo-PMOS (always ON)\nVbias1 LABEL_NET_0 0 0\nVbias2 LABEL_NET_3 0 0\n\n* CLK: 1GHz, 50% duty cycle\nVCLK LABEL_NET_2 0 PULSE(0 1.8 0 10p 10p 490p 1n)\n* Data: 1GHz, shifted to test transparent and hold phases\nVDATA LABEL_NET_1 0 PULSE(0 1.8 0.2n 10p 10p 0.49n 1n)\n\n* Initial conditions to ensure clean first transitions\n.ic v(N1)=0 v(N2)=1.8 v(N3)=0\n\n.control\ntran 1p 4n\n\n* Measure delay from Data rising to N1 falling (transparent phase)\nmeas tran delay_data_eval trig v(LABEL_NET_1) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\n\n* Measure delay from CLK falling to N1 rising (precharge phase)\nmeas tran delay_clk_precharge trig v(LABEL_NET_2) val=0.9 fall=1 targ v(N1) val=0.9 rise=2\n\n* Measure average currents to calculate power\nmeas tran avg_i_vdd avg i(VVDD)\nmeas tran avg_i_n4 avg i(VN4)\n\n* Print results\nprint delay_data_eval\nprint delay_clk_precharge\nprint avg_i_vdd\nprint avg_i_n4\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Ratioed Latch with Pseudo-PMOS Clock Buffer\",\n    \"description\": \"This circuit is a high-speed ratioed latch used as a sub-block in a dual-modulus prescaler. It utilizes pseudo-PMOS inverters to locally buffer the clock signal, which then drives the PMOS pull-up of the latch, while the NMOS pull-down is driven by the data input, forming a fast, low-area ratioed logic structure.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_2 (Clock)\",\n        \"LABEL_NET_1 (Data)\"\n      ],\n      \"output\": [\n        \"N1 (Latch Output)\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"N4\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_3\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Dual-Modulus 127/128 FOM Enhanced Prescaler Design in 0.35-m CMOS Technology\",\n      \"figure\": \"Fig. 1 (implied from context)\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"delay_data_eval\": {\n      \"description\": \"Propagation delay from Data rising to Output falling during the transparent phase (CLK=0).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"177 ps\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"In ratioed logic, the NMOS discharges the node against the PMOS pull-up. Delay ~ C_load * VDD / (I_nmos - I_pmos). With SKY130 at 1.8V, I_nmos is significantly larger than I_pmos for equal sizing. Expect ~50-150ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"80p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 at 1.8V has higher drive strength and lower parasitic capacitance than the original 0.35um 3V process, leading to faster evaluation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_clk_precharge\": {\n      \"description\": \"Propagation delay from CLK falling to Output rising (pull-up phase).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"369 ps\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The PMOS pulls up the output node when the NMOS is off. Delay ~ C_load * VDD / I_pmos. Expect ~50-250ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"100p\",\n          \"max\": \"300p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"PMOS mobility is lower than NMOS, making the pull-up phase slower than the pull-down evaluation phase, consistent with the paper's reported asymmetry.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the latch sub-block at 1GHz operating frequency.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"4.8 mW (Entire Prescaler)\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power (C*V^2*f) + Static power from pseudo-PMOS and ratioed states. Static current per pseudo-PMOS gate ~ 100-200uA. Total expected power for this sub-block ~ 500uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"500u\",\n          \"max\": \"2m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Pseudo-PMOS and ratioed logic consume significant static power when evaluating to logic 0, which dominates the power consumption compared to standard CMOS.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the evaluation delay, precharge delay, and average power consumption of the ratioed latch at 1GHz.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay_data_eval\",\n      \"delay_clk_precharge\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Testbench for Ratioed Latch with Pseudo-PMOS Clock Buffer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 N1 N3 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 LABEL_NET_0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 LABEL_NET_1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 LABEL_NET_2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N3 LABEL_NET_3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n* Power Supplies\\nVVDD VDD 0 1.8\\nVN4 N4 0 1.8\\nVN0 N0 0 0\\n\\n* Bias for pseudo-PMOS (always ON)\\nVbias1 LABEL_NET_0 0 0\\nVbias2 LABEL_NET_3 0 0\\n\\n* CLK: 1GHz, 50% duty cycle\\nVCLK LABEL_NET_2 0 PULSE(0 1.8 0 10p 10p 490p 1n)\\n* Data: 1GHz, shifted to test transparent and hold phases\\nVDATA LABEL_NET_1 0 PULSE(0 1.8 0.2n 10p 10p 0.49n 1n)\\n\\n* Initial conditions to ensure clean first transitions\\n.ic v(N1)=0 v(N2)=1.8 v(N3)=0\\n\\n.control\\ntran 1p 4n\\n\\n* Measure delay from Data rising to N1 falling (transparent phase)\\nmeas tran delay_data_eval trig v(LABEL_NET_1) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\\n\\n* Measure delay from CLK falling to N1 rising (precharge phase)\\nmeas tran delay_clk_precharge trig v(LABEL_NET_2) val=0.9 fall=1 targ v(N1) val=0.9 rise=2\\n\\n* Measure average currents to calculate power\\nmeas tran avg_i_vdd avg i(VVDD)\\nmeas tran avg_i_n4 avg i(VN4)\\n\\n* Print results\\nprint delay_data_eval\\nprint delay_clk_precharge\\nprint avg_i_vdd\\nprint avg_i_n4\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1487610",
+  "_case": "1487610_image_1"
+}

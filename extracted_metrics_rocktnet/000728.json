@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Stacked NMOS Transistors / Pull-Down Network",
+    "description": "The circuit consists of two NMOS transistors connected in series with their gates tied together. This structure is typically used as a pull-down network in digital logic gates or as a stacked switch to reduce leakage or handle higher voltages.",
+    "node_mapping": {
+      "input": [
+        "INPUT"
+      ],
+      "output": [
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "N3",
+        "N4",
+        "N0"
+      ]
+    },
+    "paper_reference": {
+      "title": "Simulation and Measurement of Supply and Substrate Noise in Mixed-Signal ICs",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "Total DC power consumption of the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With a 10k pull-up resistor and effective W/L of 5 (two 5u/0.5u in series), the transistors operate in the linear region at Vin=0.9V. Req \u2248 1 / (uCox * (W/L)eff * (Vgs - Vth)) \u2248 1 / (270u * 5 * 0.48) \u2248 1.5 kOhm. Total resistance \u2248 11.5 kOhm. Current \u2248 1.8V / 11.5k \u2248 156 uA. Power = 1.8V * 156uA \u2248 280 uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00028,
+          "max": 0.0004,
+          "unit": "W"
+        },
+        "reasoning": "Based on standard square-law triode equations for SKY130 NMOS parameters."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "AC voltage gain from the input to the output node at 1 MHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Since the transistors are in deep triode, the transconductance is low and the output resistance is dominated by the 10k load and the triode channel resistance. Gain will be negative in dB.",
+        "range": {
+          "min": -20,
+          "typical": -10,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Triode operation significantly reduces the intrinsic gain compared to saturation."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak voltage swing at the output during transient operation.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "24 mV",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Input is a 1MHz sine wave with 0.1V amplitude. The small-signal gain is roughly -10dB (0.3 V/V). Output swing \u2248 0.2Vpp * 0.3 \u2248 0.06 Vpp.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.06,
+          "max": 0.2,
+          "unit": "V"
+        },
+        "reasoning": "Derived from the expected AC gain and the 0.2V peak-to-peak input swing."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain at 1MHz, and transient output swing of the stacked NMOS circuit.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "voltage_gain",
+      "output_swing"
+    ],
+    "spice": "* Stacked NMOS Testbench\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 N9 INPUT N3 N4 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 INPUT N9 N0 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Biasing and Loads\nRL N2 VDD 10k\nVN3 N3 0 0\nVN4 N4 0 0\nVN0 N0 0 0\n\n* Sources\nVVDD VDD 0 1.8\nVINPUT INPUT 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\n\n.control\n* 1. DC Operating Point\nop\nlet dc_power = -i(VVDD) * 1.8\nprint dc_power\n\n* 2. AC Analysis\nac dec 100 1k 100MEG\nlet gain_db = vdb(N2)\nmeas ac gain_1mhz find gain_db at=1MEG\n\n* 3. Transient Analysis\ntran 10n 5u\nmeas tran vout_max max v(N2)\nmeas tran vout_min min v(N2)\nlet output_swing = vout_max - vout_min\nprint output_swing\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Stacked NMOS Transistors / Pull-Down Network\",\n    \"description\": \"The circuit consists of two NMOS transistors connected in series with their gates tied together. This structure is typically used as a pull-down network in digital logic gates or as a stacked switch to reduce leakage or handle higher voltages.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INPUT\"\n      ],\n      \"output\": [\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"N3\",\n        \"N4\",\n        \"N0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Simulation and Measurement of Supply and Substrate Noise in Mixed-Signal ICs\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 10k pull-up resistor and effective W/L of 5 (two 5u/0.5u in series), the transistors operate in the linear region at Vin=0.9V. Req \u2248 1 / (uCox * (W/L)eff * (Vgs - Vth)) \u2248 1 / (270u * 5 * 0.48) \u2248 1.5 kOhm. Total resistance \u2248 11.5 kOhm. Current \u2248 1.8V / 11.5k \u2248 156 uA. Power = 1.8V * 156uA \u2248 280 uW.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 280e-6,\n          \"max\": 400e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on standard square-law triode equations for SKY130 NMOS parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"AC voltage gain from the input to the output node at 1 MHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since the transistors are in deep triode, the transconductance is low and the output resistance is dominated by the 10k load and the triode channel resistance. Gain will be negative in dB.\",\n        \"range\": {\n          \"min\": -20,\n          \"typical\": -10,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Triode operation significantly reduces the intrinsic gain compared to saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output during transient operation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"24 mV\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input is a 1MHz sine wave with 0.1V amplitude. The small-signal gain is roughly -10dB (0.3 V/V). Output swing \u2248 0.2Vpp * 0.3 \u2248 0.06 Vpp.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.06,\n          \"max\": 0.2,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Derived from the expected AC gain and the 0.2V peak-to-peak input swing.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain at 1MHz, and transient output swing of the stacked NMOS circuit.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"voltage_gain\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* Stacked NMOS Testbench\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 N9 INPUT N3 N4 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 INPUT N9 N0 sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Biasing and Loads\\nRL N2 VDD 10k\\nVN3 N3 0 0\\nVN4 N4 0 0\\nVN0 N0 0 0\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVINPUT INPUT 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet dc_power = -i(VVDD) * 1.8\\nprint dc_power\\n\\n* 2. AC Analysis\\nac dec 100 1k 100MEG\\nlet gain_db = vdb(N2)\\nmeas ac gain_1mhz find gain_db at=1MEG\\n\\n* 3. Transient Analysis\\ntran 10n 5u\\nmeas tran vout_max max v(N2)\\nmeas tran vout_min min v(N2)\\nlet output_swing = vout_max - vout_min\\nprint output_swing\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1388627",
+  "_case": "1388627_image_3_b"
+}

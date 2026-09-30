@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Precharge / Virtual Supply Generator",
+    "description": "This circuit generates a virtual supply voltage (VDDV) using a diode-connected PMOS and uses it to precharge a read bitline (RBL) and an internal node (O2) through PMOS switches. Several transistors are configured as dummy capacitors to model bitline and node parasitic capacitances.",
+    "node_mapping": {
+      "input": [
+        "SA_WL",
+        "O1"
+      ],
+      "output": [
+        "RBL",
+        "O2",
+        "VDDV"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.48V 0.57nJ/Pixel Video-Recording SoC in 65nm CMOS",
+      "figure": "unknown",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "VDDV_Level": {
+      "description": "Steady-state voltage of the virtual supply node VDDV.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.48V (System Supply)",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "VDDV = VDD - |Vthp|. For VDD=1.8V and |Vthp| \u2248 0.42V, VDDV \u2248 1.38V.",
+        "range": {
+          "min": 1.2,
+          "typical": 1.38,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "The diode-connected PMOS (XM5) drops one threshold voltage from the main supply."
+      },
+      "importance": "essential"
+    },
+    "Precharge_Delay_RBL": {
+      "description": "Time required to precharge the Read Bitline (RBL) to 1.0V after SA_WL goes low.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "t = (C_RBL * V) / I_PMOS. C_RBL is dominated by XM4 and XM7 gate caps (~50fF). I_PMOS for W=5u is ~1mA. t \u2248 (50fF * 1V) / 1mA = 50ps.",
+        "range": {
+          "min": 2e-11,
+          "typical": 1e-10,
+          "max": 5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the exact parasitic capacitance of the dummy transistors in SKY130."
+      },
+      "importance": "essential"
+    },
+    "Precharge_Delay_O2": {
+      "description": "Time required to precharge node O2 to 1.0V after O1 goes low.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to RBL, O2 is loaded by XM2 and XM6 (~50fF). Delay should be on the same order of magnitude as RBL.",
+        "range": {
+          "min": 2e-11,
+          "typical": 1e-10,
+          "max": 5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Symmetric loading and identical PMOS switch sizing (W=5u, L=0.5u) yields similar delay."
+      },
+      "importance": "essential"
+    },
+    "Energy_Per_Precharge": {
+      "description": "Total energy drawn from VDD to precharge the internal nodes and bitlines.",
+      "unit": "J",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.57nJ/Pixel",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "E = C_total * VDDV * VDD. C_total \u2248 150fF. E \u2248 150fF * 1.38V * 1.8V \u2248 370fJ.",
+        "range": {
+          "min": 1e-13,
+          "typical": 4e-13,
+          "max": 1e-12,
+          "unit": "J"
+        },
+        "reasoning": "The paper's 0.57nJ metric is for an entire pixel processing operation. This specific sub-circuit only charges a few local capacitors, so its energy is in the femtojoule range."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure the virtual supply voltage level, precharge delays for RBL and O2, and total precharge energy.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "VDDV_Level",
+      "Precharge_Delay_RBL",
+      "Precharge_Delay_O2",
+      "Energy_Per_Precharge"
+    ],
+    "spice": "* Precharge Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* Input Stimulus\nVSA_WL SA_WL 0 PULSE(1.8 0 1n 0.1n 0.1n 4n 10n)\nVO1 O1 0 PULSE(1.8 0 2n 0.1n 0.1n 4n 10n)\n\n* DUT\nXM1 GND O1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 GND O2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VDDV SA_WL RBL VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 GND RBL GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VDDV VDDV VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VDD O2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 VDDV RBL RBL VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 O2 O1 VDDV VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\n\n* Initial conditions to ensure nodes start discharged\n.ic v(RBL)=0 v(O2)=0 v(VDDV)=0\n\n.control\ntran 10p 10n\n\n* Measure VDDV steady state (approx max value)\nmeas tran vddv_max max v(VDDV)\n\n* Measure precharge delay for RBL\nmeas tran t_rbl_rise trig v(SA_WL) val=0.9 fall=1 targ v(RBL) val=1.0 rise=1\n\n* Measure precharge delay for O2\nmeas tran t_o2_rise trig v(O1) val=0.9 fall=1 targ v(O2) val=1.0 rise=1\n\n* Measure total energy consumed during the 10ns window\nmeas tran i_integ integ i(VVDD) from=0 to=10n\nlet energy = -i_integ * 1.8\nprint energy\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Precharge / Virtual Supply Generator\",\n    \"description\": \"This circuit generates a virtual supply voltage (VDDV) using a diode-connected PMOS and uses it to precharge a read bitline (RBL) and an internal node (O2) through PMOS switches. Several transistors are configured as dummy capacitors to model bitline and node parasitic capacitances.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"SA_WL\",\n        \"O1\"\n      ],\n      \"output\": [\n        \"RBL\",\n        \"O2\",\n        \"VDDV\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.48V 0.57nJ/Pixel Video-Recording SoC in 65nm CMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"VDDV_Level\": {\n      \"description\": \"Steady-state voltage of the virtual supply node VDDV.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.48V (System Supply)\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDDV = VDD - |Vthp|. For VDD=1.8V and |Vthp| \u2248 0.42V, VDDV \u2248 1.38V.\",\n        \"range\": {\n          \"min\": 1.2,\n          \"typical\": 1.38,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The diode-connected PMOS (XM5) drops one threshold voltage from the main supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Precharge_Delay_RBL\": {\n      \"description\": \"Time required to precharge the Read Bitline (RBL) to 1.0V after SA_WL goes low.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t = (C_RBL * V) / I_PMOS. C_RBL is dominated by XM4 and XM7 gate caps (~50fF). I_PMOS for W=5u is ~1mA. t \u2248 (50fF * 1V) / 1mA = 50ps.\",\n        \"range\": {\n          \"min\": 20e-12,\n          \"typical\": 100e-12,\n          \"max\": 500e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the exact parasitic capacitance of the dummy transistors in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Precharge_Delay_O2\": {\n      \"description\": \"Time required to precharge node O2 to 1.0V after O1 goes low.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to RBL, O2 is loaded by XM2 and XM6 (~50fF). Delay should be on the same order of magnitude as RBL.\",\n        \"range\": {\n          \"min\": 20e-12,\n          \"typical\": 100e-12,\n          \"max\": 500e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Symmetric loading and identical PMOS switch sizing (W=5u, L=0.5u) yields similar delay.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Energy_Per_Precharge\": {\n      \"description\": \"Total energy drawn from VDD to precharge the internal nodes and bitlines.\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.57nJ/Pixel\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"E = C_total * VDDV * VDD. C_total \u2248 150fF. E \u2248 150fF * 1.38V * 1.8V \u2248 370fJ.\",\n        \"range\": {\n          \"min\": 100e-15,\n          \"typical\": 400e-15,\n          \"max\": 1e-12,\n          \"unit\": \"J\"\n        },\n        \"reasoning\": \"The paper's 0.57nJ metric is for an entire pixel processing operation. This specific sub-circuit only charges a few local capacitors, so its energy is in the femtojoule range.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure the virtual supply voltage level, precharge delays for RBL and O2, and total precharge energy.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"VDDV_Level\",\n      \"Precharge_Delay_RBL\",\n      \"Precharge_Delay_O2\",\n      \"Energy_Per_Precharge\"\n    ],\n    \"spice\": \"* Precharge Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* Input Stimulus\\nVSA_WL SA_WL 0 PULSE(1.8 0 1n 0.1n 0.1n 4n 10n)\\nVO1 O1 0 PULSE(1.8 0 2n 0.1n 0.1n 4n 10n)\\n\\n* DUT\\nXM1 GND O1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 GND O2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VDDV SA_WL RBL VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 GND RBL GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VDDV VDDV VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VDD O2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 VDDV RBL RBL VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 O2 O1 VDDV VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* Initial conditions to ensure nodes start discharged\\n.ic v(RBL)=0 v(O2)=0 v(VDDV)=0\\n\\n.control\\ntran 10p 10n\\n\\n* Measure VDDV steady state (approx max value)\\nmeas tran vddv_max max v(VDDV)\\n\\n* Measure precharge delay for RBL\\nmeas tran t_rbl_rise trig v(SA_WL) val=0.9 fall=1 targ v(RBL) val=1.0 rise=1\\n\\n* Measure precharge delay for O2\\nmeas tran t_o2_rise trig v(O1) val=0.9 fall=1 targ v(O2) val=1.0 rise=1\\n\\n* Measure total energy consumed during the 10ns window\\nmeas tran i_integ integ i(VVDD) from=0 to=10n\\nlet energy = -i_integ * 1.8\\nprint energy\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6487680",
+  "_case": "6487680_image_4_a"
+}

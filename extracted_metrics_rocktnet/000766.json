@@ -1,0 +1,116 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Frequency Doubler / Common-Mode Amplifier (Mixer Sub-circuit)",
+    "description": "This bipolar sub-circuit features a differential pair (Q1, Q2) with their collectors tied together to a common node (n0), which effectively cancels out the differential fundamental frequency and sums the common-mode or 2nd harmonic currents. The signal at n0 is then buffered by two identical emitter followers (Q3, Q4) to drive the outputs.",
+    "node_mapping": {
+      "input": [
+        "label_net_0",
+        "label_net_1"
+      ],
+      "output": [
+        "n7",
+        "n8"
+      ],
+      "supply": [
+        "label_net_2",
+        "label_net_3",
+        "label_net_4",
+        "label_net_5",
+        "label_net_7"
+      ],
+      "bias": [
+        "n1"
+      ],
+      "ground": [
+        "GND",
+        "label_net_6",
+        "label_net_8"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Monolithic Double-Balanced Direct Conversion Mixer With an Integrated Wideband Passive Balun",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Conversion_Gain": {
+      "description": "Voltage gain from the input to the output at the desired frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "16 dB",
+        "technology": "InGaP/GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Using a generic NPN model at 1.8V, the gain is determined by the transconductance of Q1/Q2 and the load resistors R3/R4. Assuming gm ~ 10mA/26mV and Rload = 1k, intrinsic gain could be high, but tied collectors reduce differential gain to 0. Single-ended gain is expected around 10-15 dB.",
+        "range": {
+          "min": 5,
+          "typical": 12,
+          "max": 18,
+          "unit": "dB"
+        },
+        "reasoning": "Adjusted for 1.8V supply and generic silicon NPN parameters compared to the high-frequency GaAs HBT process."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "The 3-dB bandwidth of the amplifier/buffer stage.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 GHz",
+        "technology": "InGaP/GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Silicon NPNs in standard CMOS processes typically have lower fT than GaAs HBTs. Expected bandwidth is limited by parasitic capacitances at node n0.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Standard generic NPN models or parasitic BJTs in 130nm CMOS typically achieve a few GHz bandwidth, significantly lower than the 40 GHz of the specialized GaAs process."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumed by the sub-circuit.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "Not explicitly stated for this sub-block",
+        "technology": "InGaP/GaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming bias currents of ~1mA per branch (tail current 2mA, emitter followers 1mA each, bias mirror 1mA), total current is ~5mA. At 1.8V, power is 5mA * 1.8V = 9mW.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.009,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "Based on standard biasing for 1k ohm loads and 1.8V supply to keep transistors in the active region."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, 3dB bandwidth, and transient output swing of the bipolar sub-circuit. Resistor values (1k and 100 ohms) have been appended to the netlist to allow simulation.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "Voltage_Gain",
+      "Bandwidth",
+      "Output_Swing"
+    ],
+    "spice": "* Testbench for Bipolar Mixer Sub-circuit\n\n.model npn npn (is=1e-16 bf=100 vaf=50 cjc=1p cje=2p fT=10G)\n\n* DUT with appended resistor values\nQ1 n0 label_net_0 n5 npn\nQ2 n0 label_net_1 n2 npn\nR1 n2 n3 100\nR2 n3 n5 100\nQ3 label_net_2 n0 n8 npn\nQ4 label_net_3 n0 n7 npn\nR3 n0 label_net_4 1k\nQ5 n1 n1 n6 npn\nR4 n0 label_net_5 1k\nR5 n7 label_net_6 1k\nR6 n1 label_net_7 1k\nR7 n8 label_net_8 1k\nR8 n4 0 100\nR9 n6 0 100\nQ6 n3 n1 n4 npn\n\n* Supply and Bias Sources\nV_label_net_2 label_net_2 0 dc 1.8\nV_label_net_3 label_net_3 0 dc 1.8\nV_label_net_4 label_net_4 0 dc 1.8\nV_label_net_5 label_net_5 0 dc 1.8\nV_label_net_7 label_net_7 0 dc 1.8\n\nV_label_net_6 label_net_6 0 dc 0\nV_label_net_8 label_net_8 0 dc 0\n\n* Input Sources (Single-ended drive to observe gain at common node n0)\nV_label_net_0 label_net_0 0 dc 0.9 ac 1 sin(0.9 0.05 10Meg)\nV_label_net_1 label_net_1 0 dc 0.9 ac 0\n\n.control\n* 1. DC Operating Point & Power\nop\nlet total_current = -(i(V_label_net_2) + i(V_label_net_3) + i(V_label_net_4) + i(V_label_net_5) + i(V_label_net_7))\nlet power_consumption = total_current * 1.8\nprint power_consumption\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 20 1Meg 100Gig\nlet gain_db = vdb(n8)\nmeas ac max_gain max gain_db\nmeas ac bw_3db when gain_db=(max_gain-3) fall=1\nprint max_gain bw_3db\n\n* 3. Transient Analysis for Output Swing\ntran 1n 200n\nmeas tran v_max max v(n8)\nmeas tran v_min min v(n8)\nlet output_swing = v_max - v_min\nprint output_swing\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Frequency Doubler / Common-Mode Amplifier (Mixer Sub-circuit)\",\n    \"description\": \"This bipolar sub-circuit features a differential pair (Q1, Q2) with their collectors tied together to a common node (n0), which effectively cancels out the differential fundamental frequency and sums the common-mode or 2nd harmonic currents. The signal at n0 is then buffered by two identical emitter followers (Q3, Q4) to drive the outputs.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"label_net_0\",\n        \"label_net_1\"\n      ],\n      \"output\": [\n        \"n7\",\n        \"n8\"\n      ],\n      \"supply\": [\n        \"label_net_2\",\n        \"label_net_3\",\n        \"label_net_4\",\n        \"label_net_5\",\n        \"label_net_7\"\n      ],\n      \"bias\": [\n        \"n1\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"label_net_6\",\n        \"label_net_8\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Monolithic Double-Balanced Direct Conversion Mixer With an Integrated Wideband Passive Balun\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Conversion_Gain\": {\n      \"description\": \"Voltage gain from the input to the output at the desired frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"16 dB\",\n        \"technology\": \"InGaP/GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using a generic NPN model at 1.8V, the gain is determined by the transconductance of Q1/Q2 and the load resistors R3/R4. Assuming gm ~ 10mA/26mV and Rload = 1k, intrinsic gain could be high, but tied collectors reduce differential gain to 0. Single-ended gain is expected around 10-15 dB.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 12,\n          \"max\": 18,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Adjusted for 1.8V supply and generic silicon NPN parameters compared to the high-frequency GaAs HBT process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"The 3-dB bandwidth of the amplifier/buffer stage.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 GHz\",\n        \"technology\": \"InGaP/GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Silicon NPNs in standard CMOS processes typically have lower fT than GaAs HBTs. Expected bandwidth is limited by parasitic capacitances at node n0.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 5e9,\n          \"max\": 10e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Standard generic NPN models or parasitic BJTs in 130nm CMOS typically achieve a few GHz bandwidth, significantly lower than the 40 GHz of the specialized GaAs process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumed by the sub-circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated for this sub-block\",\n        \"technology\": \"InGaP/GaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming bias currents of ~1mA per branch (tail current 2mA, emitter followers 1mA each, bias mirror 1mA), total current is ~5mA. At 1.8V, power is 5mA * 1.8V = 9mW.\",\n        \"range\": {\n          \"min\": 5e-3,\n          \"typical\": 9e-3,\n          \"max\": 15e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on standard biasing for 1k ohm loads and 1.8V supply to keep transistors in the active region.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, 3dB bandwidth, and transient output swing of the bipolar sub-circuit. Resistor values (1k and 100 ohms) have been appended to the netlist to allow simulation.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"Voltage_Gain\",\n      \"Bandwidth\",\n      \"Output_Swing\"\n    ],\n    \"spice\": \"* Testbench for Bipolar Mixer Sub-circuit\\n\\n.model npn npn (is=1e-16 bf=100 vaf=50 cjc=1p cje=2p fT=10G)\\n\\n* DUT with appended resistor values\\nQ1 n0 label_net_0 n5 npn\\nQ2 n0 label_net_1 n2 npn\\nR1 n2 n3 100\\nR2 n3 n5 100\\nQ3 label_net_2 n0 n8 npn\\nQ4 label_net_3 n0 n7 npn\\nR3 n0 label_net_4 1k\\nQ5 n1 n1 n6 npn\\nR4 n0 label_net_5 1k\\nR5 n7 label_net_6 1k\\nR6 n1 label_net_7 1k\\nR7 n8 label_net_8 1k\\nR8 n4 0 100\\nR9 n6 0 100\\nQ6 n3 n1 n4 npn\\n\\n* Supply and Bias Sources\\nV_label_net_2 label_net_2 0 dc 1.8\\nV_label_net_3 label_net_3 0 dc 1.8\\nV_label_net_4 label_net_4 0 dc 1.8\\nV_label_net_5 label_net_5 0 dc 1.8\\nV_label_net_7 label_net_7 0 dc 1.8\\n\\nV_label_net_6 label_net_6 0 dc 0\\nV_label_net_8 label_net_8 0 dc 0\\n\\n* Input Sources (Single-ended drive to observe gain at common node n0)\\nV_label_net_0 label_net_0 0 dc 0.9 ac 1 sin(0.9 0.05 10Meg)\\nV_label_net_1 label_net_1 0 dc 0.9 ac 0\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet total_current = -(i(V_label_net_2) + i(V_label_net_3) + i(V_label_net_4) + i(V_label_net_5) + i(V_label_net_7))\\nlet power_consumption = total_current * 1.8\\nprint power_consumption\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 20 1Meg 100Gig\\nlet gain_db = vdb(n8)\\nmeas ac max_gain max gain_db\\nmeas ac bw_3db when gain_db=(max_gain-3) fall=1\\nprint max_gain bw_3db\\n\\n* 3. Transient Analysis for Output Swing\\ntran 1n 200n\\nmeas tran v_max max v(n8)\\nmeas tran v_min min v(n8)\\nlet output_swing = v_max - v_min\\nprint output_swing\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1408082",
+  "_case": "1408082_image_3"
+}

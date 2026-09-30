@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Interpolating / Summing Amplifier",
+    "description": "A wide-band interpolating amplifier used in a flash ADC. It features a multi-input differential pair with negative feedback to set the common-mode and perform signal averaging.",
+    "node_mapping": {
+      "input": [
+        "Ta",
+        "Tb",
+        "Tc"
+      ],
+      "output": [
+        "N8",
+        "Bo"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5-b 10-GSample/s A/D Converter for 10-Gb/s Optical Receivers",
+      "figure": "Unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "3.6 W",
+        "technology": "0.18um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_total = 3*400uA + 400uA + 4*200uA = 2.4mA. P = 2.4mA * 1.8V = 4.32mW",
+        "range": {
+          "min": 0.003,
+          "typical": 0.0043,
+          "max": 0.006,
+          "unit": "W"
+        },
+        "reasoning": "Paper reports power for the entire ADC. For a single amplifier stage in SKY130, power is determined by the tail currents chosen for proper DC biasing."
+      },
+      "importance": "essential"
+    },
+    "gain": {
+      "description": "Low-frequency voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "16 dB",
+        "technology": "0.18um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "First stage gain ~ 0.5 due to strong negative feedback. Second stage gain = gm * R = 2.7mA/V * 1k = 2.7. Total gain = 1.35 = 2.6 dB.",
+        "range": {
+          "min": 0,
+          "typical": 3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Gain is lower in CMOS compared to SiGe bipolar due to lower gm. The 16dB in the paper likely refers to the entire THA or comparator."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "16 GHz",
+        "technology": "0.18um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2*pi*R*C). With R=1k and C~15fF, f_3dB ~ 10 GHz.",
+        "range": {
+          "min": 5000000000,
+          "typical": 10000000000,
+          "max": 15000000000,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 130nm CMOS is slower than 100GHz SiGe BiCMOS, so bandwidth is expected to be slightly lower."
+      },
+      "importance": "essential"
+    },
+    "delay": {
+      "description": "Propagation delay from input to output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "75 ps",
+        "technology": "0.18um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_delay ~ 0.69 * R * C per stage. For 2 stages, 2 * 0.69 * 1k * 15fF ~ 20 ps.",
+        "range": {
+          "min": 1e-11,
+          "typical": 2.5e-11,
+          "max": 5e-11,
+          "unit": "s"
+        },
+        "reasoning": "Delay is dominated by RC time constants. 25ps is reasonable for a low-gain wideband stage."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power, gain, bandwidth, and delay of the interpolating amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "gain",
+      "bandwidth",
+      "delay"
+    ],
+    "spice": "* Testbench for Interpolating Amplifier\n.lib \"${SKY130_PDK}\" tt\n\n.param W_m=10 L_m=0.15\n.param I_tail1=400u I_sf1=200u I_tail2=400u I_sf2=200u\n.param R_val=1k\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\n\n* Inputs\nVTa Ta 0 dc 0.6 ac 1 pulse(0.5 0.7 100p 20p 20p 400p 1n)\nVTb Tb 0 dc 0.6\nVTc Tc 0 dc 0.6\n\n* Current sources\nI1 Bo VSS {I_sf2}\nI2 N13 VSS {I_sf1}\nI3 N0 VSS {I_tail2}\nI4 N6 VSS {I_tail1}\nI5 N11 VSS {I_tail1}\nI6 N4 VSS {I_tail1}\nI7 N8 VSS {I_sf2}\nI8 N12 VSS {I_sf1}\n\n* Transistors (Mapped from NPN to NMOS for SKY130)\nXM1 VDD N5 N8 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM2 N7 N13 N4 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM3 N9 Tb N11 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM4 N5 N12 N0 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM5 N9 Ta N4 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM6 VDD N10 Bo VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM7 N10 N13 N0 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM8 N9 Tc N6 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM9 VDD N9 N12 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM10 N7 N13 N6 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM11 VDD N7 N13 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\nXM12 N7 N13 N11 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\n\n* Resistors\nR1 VDD N7 {R_val}\nR2 VDD N5 {R_val}\nR3 VDD N9 {R_val}\nR4 VDD N10 {R_val}\n\n* Differential output conversion for AC measurement\nE1 out 0 N8 Bo 1\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1M 100G\nlet gain_db = vdb(out)\nmeas ac max_gain max gain_db\nlet gain_3db = max_gain - 3\nmeas ac bw when gain_db=gain_3db fall=1\n\ntran 1p 2n\nmeas tran t_delay trig v(Ta) val=0.6 rise=1 targ v(out) val=0.05 rise=1\nmeas tran v_max max v(out)\nmeas tran v_min min v(out)\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Interpolating / Summing Amplifier\",\n    \"description\": \"A wide-band interpolating amplifier used in a flash ADC. It features a multi-input differential pair with negative feedback to set the common-mode and perform signal averaging.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Ta\",\n        \"Tb\",\n        \"Tc\"\n      ],\n      \"output\": [\n        \"N8\",\n        \"Bo\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5-b 10-GSample/s A/D Converter for 10-Gb/s Optical Receivers\",\n      \"figure\": \"Unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"3.6 W\",\n        \"technology\": \"0.18um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total = 3*400uA + 400uA + 4*200uA = 2.4mA. P = 2.4mA * 1.8V = 4.32mW\",\n        \"range\": {\n          \"min\": 0.003,\n          \"typical\": 0.0043,\n          \"max\": 0.006,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Paper reports power for the entire ADC. For a single amplifier stage in SKY130, power is determined by the tail currents chosen for proper DC biasing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain\": {\n      \"description\": \"Low-frequency voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"16 dB\",\n        \"technology\": \"0.18um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"First stage gain ~ 0.5 due to strong negative feedback. Second stage gain = gm * R = 2.7mA/V * 1k = 2.7. Total gain = 1.35 = 2.6 dB.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 3,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain is lower in CMOS compared to SiGe bipolar due to lower gm. The 16dB in the paper likely refers to the entire THA or comparator.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"16 GHz\",\n        \"technology\": \"0.18um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2*pi*R*C). With R=1k and C~15fF, f_3dB ~ 10 GHz.\",\n        \"range\": {\n          \"min\": 5000000000,\n          \"typical\": 10000000000,\n          \"max\": 15000000000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 130nm CMOS is slower than 100GHz SiGe BiCMOS, so bandwidth is expected to be slightly lower.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay\": {\n      \"description\": \"Propagation delay from input to output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"75 ps\",\n        \"technology\": \"0.18um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_delay ~ 0.69 * R * C per stage. For 2 stages, 2 * 0.69 * 1k * 15fF ~ 20 ps.\",\n        \"range\": {\n          \"min\": 1e-11,\n          \"typical\": 2.5e-11,\n          \"max\": 5e-11,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Delay is dominated by RC time constants. 25ps is reasonable for a low-gain wideband stage.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power, gain, bandwidth, and delay of the interpolating amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"gain\",\n      \"bandwidth\",\n      \"delay\"\n    ],\n    \"spice\": \"* Testbench for Interpolating Amplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_m=10 L_m=0.15\\n.param I_tail1=400u I_sf1=200u I_tail2=400u I_sf2=200u\\n.param R_val=1k\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\n\\n* Inputs\\nVTa Ta 0 dc 0.6 ac 1 pulse(0.5 0.7 100p 20p 20p 400p 1n)\\nVTb Tb 0 dc 0.6\\nVTc Tc 0 dc 0.6\\n\\n* Current sources\\nI1 Bo VSS {I_sf2}\\nI2 N13 VSS {I_sf1}\\nI3 N0 VSS {I_tail2}\\nI4 N6 VSS {I_tail1}\\nI5 N11 VSS {I_tail1}\\nI6 N4 VSS {I_tail1}\\nI7 N8 VSS {I_sf2}\\nI8 N12 VSS {I_sf1}\\n\\n* Transistors (Mapped from NPN to NMOS for SKY130)\\nXM1 VDD N5 N8 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM2 N7 N13 N4 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM3 N9 Tb N11 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM4 N5 N12 N0 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM5 N9 Ta N4 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM6 VDD N10 Bo VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM7 N10 N13 N0 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM8 N9 Tc N6 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM9 VDD N9 N12 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM10 N7 N13 N6 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM11 VDD N7 N13 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\nXM12 N7 N13 N11 VSS sky130_fd_pr__nfet_01v8 L={L_m} W={W_m}\\n\\n* Resistors\\nR1 VDD N7 {R_val}\\nR2 VDD N5 {R_val}\\nR3 VDD N9 {R_val}\\nR4 VDD N10 {R_val}\\n\\n* Differential output conversion for AC measurement\\nE1 out 0 N8 Bo 1\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1M 100G\\nlet gain_db = vdb(out)\\nmeas ac max_gain max gain_db\\nlet gain_3db = max_gain - 3\\nmeas ac bw when gain_db=gain_3db fall=1\\n\\ntran 1p 2n\\nmeas tran t_delay trig v(Ta) val=0.6 rise=1 targ v(out) val=0.05 rise=1\\nmeas tran v_max max v(out)\\nmeas tran v_min min v(out)\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1336995",
+  "_case": "1336995_image_12"
+}

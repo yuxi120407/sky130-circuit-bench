@@ -1,0 +1,148 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switch Driver / Inverter Chain",
+    "description": "A three-stage inverter chain acting as a switch driver for a current-steering DAC. It generates complementary signals (IN_L, IN_R) from the input (IN) to drive the differential current switches. The separate PMOS source node N3 might be used for crossing-point adjustment or isolated power supply routing.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "IN_L",
+        "IN_R"
+      ],
+      "supply": [
+        "VDD",
+        "N3"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Parallel-Path Digital-to-Analog Converters for Nyquist Signal Generation",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "delay_in_inl": {
+      "description": "Propagation delay from IN to IN_L (non-inverting, 2 stages)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "250 MS/s (implies < 4ns timing budget)",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Two inverter stages with L=0.5um. Delay ~ 2 * 100ps = 200ps.",
+        "range": {
+          "min": "100p",
+          "typical": "200p",
+          "max": "400p",
+          "unit": "s"
+        },
+        "reasoning": "Using L=0.5um makes the gates slower than minimum length (0.15um) devices in SKY130."
+      },
+      "importance": "essential"
+    },
+    "delay_in_inr": {
+      "description": "Propagation delay from IN to IN_R (inverting, 3 stages)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Three inverter stages with L=0.5um. Delay ~ 3 * 100ps = 300ps.",
+        "range": {
+          "min": "150p",
+          "typical": "300p",
+          "max": "600p",
+          "unit": "s"
+        },
+        "reasoning": "Expected to be one stage delay longer than IN_L."
+      },
+      "importance": "essential"
+    },
+    "v_cross": {
+      "description": "Crossing voltage of the complementary outputs IN_L and IN_R",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "With equal W=5um for NMOS and PMOS, the PMOS is weaker, shifting the crossing point below VDD/2.",
+        "range": {
+          "min": "0.6",
+          "typical": "0.8",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Crucial metric for DAC switch drivers to minimize glitch energy by controlling the simultaneous on/off state of the differential switches."
+      },
+      "importance": "essential"
+    },
+    "trise_inl": {
+      "description": "Rise time of the IN_L output (20% to 80%)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by PMOS drive strength and load capacitance. C_load ~ 25fF. t_rise ~ 2.2 * R_p * C_load ~ 150ps.",
+        "range": {
+          "min": "50p",
+          "typical": "150p",
+          "max": "300p",
+          "unit": "s"
+        },
+        "reasoning": "Standard metric for digital buffers."
+      },
+      "importance": "recommended"
+    },
+    "avg_pwr": {
+      "description": "Average power consumption at 250 MHz",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "P = 3 stages * C_node * VDD^2 * f = 3 * 50fF * 1.8^2 * 250e6 = 121uW.",
+        "range": {
+          "min": "50u",
+          "typical": "150u",
+          "max": "300u",
+          "unit": "W"
+        },
+        "reasoning": "Dynamic power dominates at 250 MHz."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure propagation delays, rise/fall times, crossing voltage, and average power of the DAC switch driver at 250 MHz.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_in_inl",
+      "delay_in_inr",
+      "v_cross",
+      "trise_inl",
+      "tfall_inl",
+      "avg_pwr"
+    ],
+    "spice": "* DAC Switch Driver Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\nXM3 IN_L N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 IN_L N2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM2 N2 IN N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM1 N2 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM6 IN_R IN_L N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM5 IN_R IN_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\n* Power Supplies\nVVDD VDD 0 1.8\nVN3 N3 0 1.8\n\n* Input Signal (250 MHz -> 4ns period)\nVIN IN 0 PULSE(0 1.8 1n 100p 100p 1.9n 4n)\n\n.control\ntran 10p 20n\n\n* Measure Delays\nmeas tran delay_in_inl trig v(IN) val=0.9 rise=2 targ v(IN_L) val=0.9 rise=2\nmeas tran delay_in_inr trig v(IN) val=0.9 rise=2 targ v(IN_R) val=0.9 fall=2\n\n* Measure Rise and Fall Times\nmeas tran trise_inl trig v(IN_L) val=0.36 rise=2 targ v(IN_L) val=1.44 rise=2\nmeas tran tfall_inl trig v(IN_L) val=1.44 fall=2 targ v(IN_L) val=0.36 fall=2\nmeas tran trise_inr trig v(IN_R) val=0.36 rise=2 targ v(IN_R) val=1.44 rise=2\nmeas tran tfall_inr trig v(IN_R) val=1.44 fall=2 targ v(IN_R) val=0.36 fall=2\n\n* Measure Crossing Point\nlet vdiff = v(IN_L) - v(IN_R)\nmeas tran t_cross when vdiff=0 cross=3\nmeas tran v_cross find v(IN_L) at=t_cross\n\n* Measure Average Power\nlet pwr = - (i(VVDD) + i(VN3)) * 1.8\nmeas tran avg_pwr avg pwr from=4n to=16n\n\nprint delay_in_inl delay_in_inr trise_inl tfall_inl trise_inr tfall_inr v_cross avg_pwr\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switch Driver / Inverter Chain\",\n    \"description\": \"A three-stage inverter chain acting as a switch driver for a current-steering DAC. It generates complementary signals (IN_L, IN_R) from the input (IN) to drive the differential current switches. The separate PMOS source node N3 might be used for crossing-point adjustment or isolated power supply routing.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"IN_L\",\n        \"IN_R\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"N3\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Parallel-Path Digital-to-Analog Converters for Nyquist Signal Generation\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"delay_in_inl\": {\n      \"description\": \"Propagation delay from IN to IN_L (non-inverting, 2 stages)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"250 MS/s (implies < 4ns timing budget)\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Two inverter stages with L=0.5um. Delay ~ 2 * 100ps = 200ps.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"200p\",\n          \"max\": \"400p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Using L=0.5um makes the gates slower than minimum length (0.15um) devices in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_in_inr\": {\n      \"description\": \"Propagation delay from IN to IN_R (inverting, 3 stages)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Three inverter stages with L=0.5um. Delay ~ 3 * 100ps = 300ps.\",\n        \"range\": {\n          \"min\": \"150p\",\n          \"typical\": \"300p\",\n          \"max\": \"600p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Expected to be one stage delay longer than IN_L.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_cross\": {\n      \"description\": \"Crossing voltage of the complementary outputs IN_L and IN_R\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With equal W=5um for NMOS and PMOS, the PMOS is weaker, shifting the crossing point below VDD/2.\",\n        \"range\": {\n          \"min\": \"0.6\",\n          \"typical\": \"0.8\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Crucial metric for DAC switch drivers to minimize glitch energy by controlling the simultaneous on/off state of the differential switches.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"trise_inl\": {\n      \"description\": \"Rise time of the IN_L output (20% to 80%)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by PMOS drive strength and load capacitance. C_load ~ 25fF. t_rise ~ 2.2 * R_p * C_load ~ 150ps.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"150p\",\n          \"max\": \"300p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard metric for digital buffers.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"avg_pwr\": {\n      \"description\": \"Average power consumption at 250 MHz\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = 3 stages * C_node * VDD^2 * f = 3 * 50fF * 1.8^2 * 250e6 = 121uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"150u\",\n          \"max\": \"300u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dynamic power dominates at 250 MHz.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure propagation delays, rise/fall times, crossing voltage, and average power of the DAC switch driver at 250 MHz.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay_in_inl\",\n      \"delay_in_inr\",\n      \"v_cross\",\n      \"trise_inl\",\n      \"tfall_inl\",\n      \"avg_pwr\"\n    ],\n    \"spice\": \"* DAC Switch Driver Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\nXM3 IN_L N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 IN_L N2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM2 N2 IN N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 N2 IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM6 IN_R IN_L N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM5 IN_R IN_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\n* Power Supplies\\nVVDD VDD 0 1.8\\nVN3 N3 0 1.8\\n\\n* Input Signal (250 MHz -> 4ns period)\\nVIN IN 0 PULSE(0 1.8 1n 100p 100p 1.9n 4n)\\n\\n.control\\ntran 10p 20n\\n\\n* Measure Delays\\nmeas tran delay_in_inl trig v(IN) val=0.9 rise=2 targ v(IN_L) val=0.9 rise=2\\nmeas tran delay_in_inr trig v(IN) val=0.9 rise=2 targ v(IN_R) val=0.9 fall=2\\n\\n* Measure Rise and Fall Times\\nmeas tran trise_inl trig v(IN_L) val=0.36 rise=2 targ v(IN_L) val=1.44 rise=2\\nmeas tran tfall_inl trig v(IN_L) val=1.44 fall=2 targ v(IN_L) val=0.36 fall=2\\nmeas tran trise_inr trig v(IN_R) val=0.36 rise=2 targ v(IN_R) val=1.44 rise=2\\nmeas tran tfall_inr trig v(IN_R) val=1.44 fall=2 targ v(IN_R) val=0.36 fall=2\\n\\n* Measure Crossing Point\\nlet vdiff = v(IN_L) - v(IN_R)\\nmeas tran t_cross when vdiff=0 cross=3\\nmeas tran v_cross find v(IN_L) at=t_cross\\n\\n* Measure Average Power\\nlet pwr = - (i(VVDD) + i(VN3)) * 1.8\\nmeas tran avg_pwr avg pwr from=4n to=16n\\n\\nprint delay_in_inl delay_in_inr trise_inl tfall_inl trise_inr tfall_inr v_cross avg_pwr\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1308581",
+  "_case": "1308581_image_11"
+}

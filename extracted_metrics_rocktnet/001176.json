@@ -1,0 +1,144 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cross-coupled CMOS pair (VCO core / Latch)",
+    "description": "A complementary cross-coupled CMOS pair that provides negative resistance. It is typically used as the active core of an LC voltage-controlled oscillator (VCO) to sustain oscillation, or as a bistable latch in digital circuits.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "QP",
+        "QN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fully Integrated SONET OC-48 Transceiver in Standard CMOS",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "Fundamental oscillation frequency of the VCO when loaded with an LC tank.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.488 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). With an ideal L=2nH and C=2pF added in the testbench, f = 1 / (2 * pi * sqrt(4e-21)) = 2.516 GHz.",
+        "range": {
+          "min": "2.4G",
+          "typical": "2.51G",
+          "max": "2.6G",
+          "unit": "Hz"
+        },
+        "reasoning": "Determined primarily by the ideal LC tank components added in the testbench, with minor downward shifts due to the parasitic capacitances of the cross-coupled transistors."
+      },
+      "importance": "essential"
+    },
+    "negative_resistance": {
+      "description": "Small-signal negative resistance provided by the cross-coupled pair to overcome tank losses and sustain oscillation.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "gm_n = 2*Id/Vov ~= 1.3mS. gm_p ~= 0.24mS. G_neg = -(gm_n + gm_p)/2 = -0.77mS. R_neg = 1/G_neg = -1300 ohms.",
+        "range": {
+          "min": "-2000",
+          "typical": "-1300",
+          "max": "-800",
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated from the transconductance of the cross-coupled NMOS and PMOS transistors biased at the metastable point (VDD/2)."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "DC power consumed by the cross-coupled pair during steady-state oscillation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "500 mW (entire transceiver)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Average current drawn from 1.8V supply during oscillation. Estimated at ~1-2mA.",
+        "range": {
+          "min": "1m",
+          "typical": "2m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "The VCO core consumes only a small fraction of the total transceiver power. The current is determined by the dynamic switching of the cross-coupled pair."
+      },
+      "importance": "essential"
+    },
+    "oscillation_amplitude": {
+      "description": "Peak-to-peak voltage swing at the oscillator output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Swing is limited by the supply voltage and transistors entering the triode region.",
+        "range": {
+          "min": "1.5",
+          "typical": "2.5",
+          "max": "4.0",
+          "unit": "V"
+        },
+        "reasoning": "The inductor allows the node voltages to swing above VDD and below GND, typically reaching 2-3V peak-to-peak differentially."
+      },
+      "importance": "recommended"
+    },
+    "phase_noise": {
+      "description": "Phase noise of the oscillator at a specific offset frequency.",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "105 dBc/Hz @ 1 MHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": "90",
+          "typical": "100",
+          "max": "110",
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Phase noise depends heavily on the Q-factor of the LC tank. With ideal components, it would be artificially low. Not measured in this basic testbench."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the cross-coupled VCO core. It adds an ideal LC tank (2nH, 2pF) to set the oscillation frequency to ~2.5 GHz. It performs an AC analysis to measure the small-signal negative resistance at resonance, and a transient analysis (kickstarted by a brief current pulse) to measure oscillation frequency, amplitude, and power consumption.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "negative_resistance",
+      "oscillation_frequency",
+      "oscillation_amplitude",
+      "power_consumption"
+    ],
+    "spice": "* Fully Integrated SONET OC-48 Transceiver - VCO Core\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM3 QP QN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 QN QP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM1 QP QN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 QN QP GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Testbench components\nVVDD VDD 0 1.8\nL1 QP QN 2nH\nC1 QP QN 2pF\n\n* Kickstart current pulse for Tran (single pulse), AC source for AC analysis\nIkick QP QN PULSE(0 1m 0 100p 100p 100p 100n) AC 1\n\n.control\n* 1. AC Analysis for Negative Resistance\nac dec 100 1G 10G\nlet v_diff_ac = v(QP) - v(QN)\nlet z_mag = mag(v_diff_ac)\nmeas ac z_max max z_mag\nlet neg_res = -z_max\nprint neg_res\n\n* 2. Transient Analysis for Oscillation\ntran 10p 50n\n* Measure frequency (using cycles near the end of simulation to ensure steady-state)\nmeas tran t1 trig v(QP) val=0.9 rise=1 from=40n to=50n\nmeas tran t2 trig v(QP) val=0.9 rise=2 from=40n to=50n\nlet osc_freq = 1 / (t2 - t1)\nprint osc_freq\n\n* Measure amplitude\nmeas tran vqp_max max v(QP) from=40n to=50n\nmeas tran vqp_min min v(QP) from=40n to=50n\nlet vqp_pp = vqp_max - vqp_min\nprint vqp_pp\n\n* Measure power\nmeas tran pwr_avg avg i(VVDD) from=40n to=50n\nlet power_mW = -pwr_avg * 1.8 * 1000\nprint power_mW\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cross-coupled CMOS pair (VCO core / Latch)\",\n    \"description\": \"A complementary cross-coupled CMOS pair that provides negative resistance. It is typically used as the active core of an LC voltage-controlled oscillator (VCO) to sustain oscillation, or as a bistable latch in digital circuits.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"QP\", \"QN\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fully Integrated SONET OC-48 Transceiver in Standard CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"Fundamental oscillation frequency of the VCO when loaded with an LC tank.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.488 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). With an ideal L=2nH and C=2pF added in the testbench, f = 1 / (2 * pi * sqrt(4e-21)) = 2.516 GHz.\",\n        \"range\": { \"min\": \"2.4G\", \"typical\": \"2.51G\", \"max\": \"2.6G\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Determined primarily by the ideal LC tank components added in the testbench, with minor downward shifts due to the parasitic capacitances of the cross-coupled transistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"negative_resistance\": {\n      \"description\": \"Small-signal negative resistance provided by the cross-coupled pair to overcome tank losses and sustain oscillation.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm_n = 2*Id/Vov ~= 1.3mS. gm_p ~= 0.24mS. G_neg = -(gm_n + gm_p)/2 = -0.77mS. R_neg = 1/G_neg = -1300 ohms.\",\n        \"range\": { \"min\": \"-2000\", \"typical\": \"-1300\", \"max\": \"-800\", \"unit\": \"ohm\" },\n        \"reasoning\": \"Calculated from the transconductance of the cross-coupled NMOS and PMOS transistors biased at the metastable point (VDD/2).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"DC power consumed by the cross-coupled pair during steady-state oscillation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"500 mW (entire transceiver)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Average current drawn from 1.8V supply during oscillation. Estimated at ~1-2mA.\",\n        \"range\": { \"min\": \"1m\", \"typical\": \"2m\", \"max\": \"5m\", \"unit\": \"W\" },\n        \"reasoning\": \"The VCO core consumes only a small fraction of the total transceiver power. The current is determined by the dynamic switching of the cross-coupled pair.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"oscillation_amplitude\": {\n      \"description\": \"Peak-to-peak voltage swing at the oscillator output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing is limited by the supply voltage and transistors entering the triode region.\",\n        \"range\": { \"min\": \"1.5\", \"typical\": \"2.5\", \"max\": \"4.0\", \"unit\": \"V\" },\n        \"reasoning\": \"The inductor allows the node voltages to swing above VDD and below GND, typically reaching 2-3V peak-to-peak differentially.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise of the oscillator at a specific offset frequency.\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"105 dBc/Hz @ 1 MHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": { \"min\": \"90\", \"typical\": \"100\", \"max\": \"110\", \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"Phase noise depends heavily on the Q-factor of the LC tank. With ideal components, it would be artificially low. Not measured in this basic testbench.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the cross-coupled VCO core. It adds an ideal LC tank (2nH, 2pF) to set the oscillation frequency to ~2.5 GHz. It performs an AC analysis to measure the small-signal negative resistance at resonance, and a transient analysis (kickstarted by a brief current pulse) to measure oscillation frequency, amplitude, and power consumption.\",\n    \"analyses\": [\"AC\", \"Tran\"],\n    \"metrics_measured\": [\"negative_resistance\", \"oscillation_frequency\", \"oscillation_amplitude\", \"power_consumption\"],\n    \"spice\": \"* Fully Integrated SONET OC-48 Transceiver - VCO Core\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM3 QP QN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 QN QP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM1 QP QN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 QN QP GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Testbench components\\nVVDD VDD 0 1.8\\nL1 QP QN 2nH\\nC1 QP QN 2pF\\n\\n* Kickstart current pulse for Tran (single pulse), AC source for AC analysis\\nIkick QP QN PULSE(0 1m 0 100p 100p 100p 100n) AC 1\\n\\n.control\\n* 1. AC Analysis for Negative Resistance\\nac dec 100 1G 10G\\nlet v_diff_ac = v(QP) - v(QN)\\nlet z_mag = mag(v_diff_ac)\\nmeas ac z_max max z_mag\\nlet neg_res = -z_max\\nprint neg_res\\n\\n* 2. Transient Analysis for Oscillation\\ntran 10p 50n\\n* Measure frequency (using cycles near the end of simulation to ensure steady-state)\\nmeas tran t1 trig v(QP) val=0.9 rise=1 from=40n to=50n\\nmeas tran t2 trig v(QP) val=0.9 rise=2 from=40n to=50n\\nlet osc_freq = 1 / (t2 - t1)\\nprint osc_freq\\n\\n* Measure amplitude\\nmeas tran vqp_max max v(QP) from=40n to=50n\\nmeas tran vqp_min min v(QP) from=40n to=50n\\nlet vqp_pp = vqp_max - vqp_min\\nprint vqp_pp\\n\\n* Measure power\\nmeas tran pwr_avg avg i(VVDD) from=40n to=50n\\nlet power_mW = -pwr_avg * 1.8 * 1000\\nprint power_mW\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "972147",
+  "_case": "972147_image_7"
+}

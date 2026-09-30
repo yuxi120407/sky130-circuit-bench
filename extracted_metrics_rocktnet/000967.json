@@ -1,0 +1,148 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual Inverter / Differential Buffer",
+    "description": "The circuit consists of two independent CMOS inverters. It is typically used as a differential clock buffer or to generate complementary signals in a clock multiplier path.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "IN_BAR"
+      ],
+      "output": [
+        "OUT",
+        "OUT_BAR"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.5GHz 2.2mW/25\u03bcW On/Off-State Power 2psrmsLong-Term-Jitter Digital Clock Multiplier with 3-Reference-Cycles Power-On Time",
+      "figure": "N/A",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "tpd": {
+      "description": "Propagation delay (average of rising and falling transitions)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10ns (system level)",
+        "technology": "90nm"
+      },
+      "sky130_expected": {
+        "calculation": "Delay depends on load capacitance and drive strength. For W=5u, L=0.5u and 10fF load, delay is roughly (C * VDD/2) / Idsat.",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Standard inverter delay in 130nm with light load."
+      },
+      "importance": "essential"
+    },
+    "trise": {
+      "description": "Rise time (20% to 80% of VDD)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "t_rise \u2248 C_load / (up*Cox * W/L * (VDD-|Vth|))",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Depends on PMOS sizing and load capacitance."
+      },
+      "importance": "essential"
+    },
+    "tfall": {
+      "description": "Fall time (80% to 20% of VDD)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "t_fall \u2248 C_load / (un*Cox * W/L * (VDD-Vth))",
+        "range": {
+          "min": "15p",
+          "typical": "40p",
+          "max": "80p",
+          "unit": "s"
+        },
+        "reasoning": "Typically faster than rise time due to higher electron mobility."
+      },
+      "importance": "essential"
+    },
+    "power_dyn": {
+      "description": "Dynamic power consumption at 1GHz",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.2mW (system level)",
+        "technology": "90nm"
+      },
+      "sky130_expected": {
+        "calculation": "P = C_total * VDD^2 * f = 20fF * 1.8^2 * 1GHz",
+        "range": {
+          "min": "30u",
+          "typical": "65u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on switching frequency and load capacitance."
+      },
+      "importance": "essential"
+    },
+    "vth_logic": {
+      "description": "Logic threshold voltage (Vin where Vout = VDD/2)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the ratio of PMOS to NMOS strength. Since Wp=Wn, NMOS is stronger, so Vth < VDD/2.",
+        "range": {
+          "min": "0.7",
+          "typical": "0.8",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "Unbalanced inverter (Wp=Wn) shifts threshold below VDD/2 (0.9V)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure propagation delay, rise/fall times, dynamic power, and logic threshold of the dual inverter.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "vth_logic",
+      "tpd",
+      "trise",
+      "tfall",
+      "power_dyn"
+    ],
+    "spice": "* Dual Inverter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\n* DUT\nXM1 OUT IN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUT_BAR IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 OUT_BAR IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUT IN_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\n* Load Capacitance\nC1 OUT GND 10f\nC2 OUT_BAR GND 10f\n\n* Sources\nVVDD VDD 0 1.8\nVIN IN 0 PULSE(0 1.8 100p 20p 20p 400p 1n) DC 0\nVIN_BAR IN_BAR 0 PULSE(1.8 0 100p 20p 20p 400p 1n) DC 1.8\n\n.control\n  * DC Analysis for logic threshold\n  dc VIN 0 1.8 0.01\n  meas dc vth_logic when v(OUT_BAR)=0.9\n  \n  * Transient Analysis\n  tran 1p 3n\n  \n  * Delay measurements (IN to OUT_BAR)\n  meas tran tplh trig v(IN) val=0.9 fall=1 targ v(OUT_BAR) val=0.9 rise=1\n  meas tran tphl trig v(IN) val=0.9 rise=1 targ v(OUT_BAR) val=0.9 fall=1\n  let tpd = (tplh + tphl) / 2\n  print tpd\n  \n  * Rise and fall times (OUT_BAR)\n  meas tran trise trig v(OUT_BAR) val=0.36 rise=1 targ v(OUT_BAR) val=1.44 rise=1\n  meas tran tfall trig v(OUT_BAR) val=1.44 fall=1 targ v(OUT_BAR) val=0.36 fall=1\n  \n  * Dynamic power measurement (average over 1 cycle from 1ns to 2ns)\n  meas tran p_dyn_integ integ i(VVDD) from=1n to=2n\n  let p_dyn = -p_dyn_integ * 1.8 / 1n\n  print p_dyn\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual Inverter / Differential Buffer\",\n    \"description\": \"The circuit consists of two independent CMOS inverters. It is typically used as a differential clock buffer or to generate complementary signals in a clock multiplier path.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"IN_BAR\"\n      ],\n      \"output\": [\n        \"OUT\",\n        \"OUT_BAR\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.5GHz 2.2mW/25\u03bcW On/Off-State Power 2psrmsLong-Term-Jitter Digital Clock Multiplier with 3-Reference-Cycles Power-On Time\",\n      \"figure\": \"N/A\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"tpd\": {\n      \"description\": \"Propagation delay (average of rising and falling transitions)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10ns (system level)\",\n        \"technology\": \"90nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay depends on load capacitance and drive strength. For W=5u, L=0.5u and 10fF load, delay is roughly (C * VDD/2) / Idsat.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard inverter delay in 130nm with light load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"trise\": {\n      \"description\": \"Rise time (20% to 80% of VDD)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise \u2248 C_load / (up*Cox * W/L * (VDD-|Vth|))\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends on PMOS sizing and load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tfall\": {\n      \"description\": \"Fall time (80% to 20% of VDD)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_fall \u2248 C_load / (un*Cox * W/L * (VDD-Vth))\",\n        \"range\": {\n          \"min\": \"15p\",\n          \"typical\": \"40p\",\n          \"max\": \"80p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Typically faster than rise time due to higher electron mobility.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dyn\": {\n      \"description\": \"Dynamic power consumption at 1GHz\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.2mW (system level)\",\n        \"technology\": \"90nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C_total * VDD^2 * f = 20fF * 1.8^2 * 1GHz\",\n        \"range\": {\n          \"min\": \"30u\",\n          \"typical\": \"65u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on switching frequency and load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vth_logic\": {\n      \"description\": \"Logic threshold voltage (Vin where Vout = VDD/2)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the ratio of PMOS to NMOS strength. Since Wp=Wn, NMOS is stronger, so Vth < VDD/2.\",\n        \"range\": {\n          \"min\": \"0.7\",\n          \"typical\": \"0.8\",\n          \"max\": \"0.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Unbalanced inverter (Wp=Wn) shifts threshold below VDD/2 (0.9V).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure propagation delay, rise/fall times, dynamic power, and logic threshold of the dual inverter.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"vth_logic\",\n      \"tpd\",\n      \"trise\",\n      \"tfall\",\n      \"power_dyn\"\n    ],\n    \"spice\": \"* Dual Inverter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\n* DUT\\nXM1 OUT IN_BAR GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUT_BAR IN GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 OUT_BAR IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUT IN_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Load Capacitance\\nC1 OUT GND 10f\\nC2 OUT_BAR GND 10f\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVIN IN 0 PULSE(0 1.8 100p 20p 20p 400p 1n) DC 0\\nVIN_BAR IN_BAR 0 PULSE(1.8 0 100p 20p 20p 400p 1n) DC 1.8\\n\\n.control\\n  * DC Analysis for logic threshold\\n  dc VIN 0 1.8 0.01\\n  meas dc vth_logic when v(OUT_BAR)=0.9\\n  \\n  * Transient Analysis\\n  tran 1p 3n\\n  \\n  * Delay measurements (IN to OUT_BAR)\\n  meas tran tplh trig v(IN) val=0.9 fall=1 targ v(OUT_BAR) val=0.9 rise=1\\n  meas tran tphl trig v(IN) val=0.9 rise=1 targ v(OUT_BAR) val=0.9 fall=1\\n  let tpd = (tplh + tphl) / 2\\n  print tpd\\n  \\n  * Rise and fall times (OUT_BAR)\\n  meas tran trise trig v(OUT_BAR) val=0.36 rise=1 targ v(OUT_BAR) val=1.44 rise=1\\n  meas tran tfall trig v(OUT_BAR) val=1.44 fall=1 targ v(OUT_BAR) val=0.36 fall=1\\n  \\n  * Dynamic power measurement (average over 1 cycle from 1ns to 2ns)\\n  meas tran p_dyn_integ integ i(VVDD) from=1n to=2n\\n  let p_dyn = -p_dyn_integ * 1.8 / 1n\\n  print p_dyn\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6487724",
+  "_case": "6487724_image_2_b"
+}

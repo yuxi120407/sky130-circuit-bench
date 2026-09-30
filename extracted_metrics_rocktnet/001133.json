@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "PWM Delay Cell / Current-Starved NAND Gate",
+    "description": "A high-speed pseudo-NMOS NAND gate with a diode-connected PMOS load and a PMOS current source. It is likely used as a variable delay element in a pulse-width modulation (PWM) generator, where the bias voltage VBP controls the pull-up current and thus the rising edge delay.",
+    "node_mapping": {
+      "input": [
+        "VN1",
+        "VN2"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBP"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS 400-Mb/s Serial Link for AS-Memory Systems Using a PWM Scheme",
+      "figure": "unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "v_oh": {
+      "description": "High output voltage level",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.5V (supply)",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "When pull-down is off, XM4 (current source) pulls N1 to VDD.",
+        "range": {
+          "min": 1.7,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "XM4 will charge the output node until it reaches VDD, as there is no DC path to ground."
+      },
+      "importance": "essential"
+    },
+    "v_ol": {
+      "description": "Low output voltage level",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Voltage divider between pull-up (XM2, XM4) and pull-down (XM1, XM5, XM3). R_pd ~ 800 ohms, I_pu ~ 400uA -> V_OL ~ 0.3V.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.3,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "The strong pull-down network overcomes the PMOS loads, bringing the output close to ground but not exactly 0V due to the static pull-up current."
+      },
+      "importance": "essential"
+    },
+    "t_pd": {
+      "description": "Propagation delay",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "500 ps / 1 ns",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Delay = C * V / I. With C=10fF, I=400uA, V=0.9V, delay is roughly 20-50ps. Adding parasitic capacitance, expect ~100ps.",
+        "range": {
+          "min": "50p",
+          "typical": "150p",
+          "max": "300p",
+          "unit": "s"
+        },
+        "reasoning": "SKY130 is faster than 0.25um. The reported 500ps might be the total PWM pulse width, so the individual cell delay is a fraction of that."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Average power consumption",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "66.5 mW (total transceiver)",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Static current when output is low is ~400uA. At 50% duty cycle, average current is 200uA. Power = 200uA * 1.8V = 0.36mW.",
+        "range": {
+          "min": "0.1m",
+          "typical": "0.4m",
+          "max": "1m",
+          "unit": "W"
+        },
+        "reasoning": "Single cell power is much lower than the full transceiver power. Dominated by static short-circuit current when the output is low."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure output voltage swing, propagation delay, and power consumption of the PWM delay cell.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_oh",
+      "v_ol",
+      "t_pd_fall",
+      "t_pd_rise",
+      "avg_power"
+    ],
+    "spice": "* PWM Delay Cell Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\nVVDD VDD 0 1.8\nVVBP VBP 0 0.99\nVVN1 VN1 0 1.8\nVVN2 VN2 0 PULSE(0 1.8 0.5n 50p 50p 1.2n 2.5n)\n\nXM1 N1 VDD N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 VN2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N1 VBP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 VN1 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\nCload N1 0 10f\n\n.control\ntran 10p 10n\nmeas tran v_oh max v(N1)\nmeas tran v_ol min v(N1)\nmeas tran t_pd_fall trig v(VN2) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\nmeas tran t_pd_rise trig v(VN2) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\nmeas tran t_rise trig v(N1) val=0.36 rise=1 targ v(N1) val=1.44 rise=1\nmeas tran t_fall trig v(N1) val=1.44 fall=1 targ v(N1) val=0.36 fall=1\n\nlet power = -i(VVDD)*1.8\nmeas tran avg_power avg power\n\nprint v_oh v_ol t_pd_fall t_pd_rise t_rise t_fall avg_power\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"PWM Delay Cell / Current-Starved NAND Gate\",\n    \"description\": \"A high-speed pseudo-NMOS NAND gate with a diode-connected PMOS load and a PMOS current source. It is likely used as a variable delay element in a pulse-width modulation (PWM) generator, where the bias voltage VBP controls the pull-up current and thus the rising edge delay.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VN1\",\n        \"VN2\"\n      ],\n      \"output\": [\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBP\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS 400-Mb/s Serial Link for AS-Memory Systems Using a PWM Scheme\",\n      \"figure\": \"unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"v_oh\": {\n      \"description\": \"High output voltage level\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.5V (supply)\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When pull-down is off, XM4 (current source) pulls N1 to VDD.\",\n        \"range\": {\n          \"min\": 1.7,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"XM4 will charge the output node until it reaches VDD, as there is no DC path to ground.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_ol\": {\n      \"description\": \"Low output voltage level\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Voltage divider between pull-up (XM2, XM4) and pull-down (XM1, XM5, XM3). R_pd ~ 800 ohms, I_pu ~ 400uA -> V_OL ~ 0.3V.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.3,\n          \"max\": 0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The strong pull-down network overcomes the PMOS loads, bringing the output close to ground but not exactly 0V due to the static pull-up current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_pd\": {\n      \"description\": \"Propagation delay\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"500 ps / 1 ns\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay = C * V / I. With C=10fF, I=400uA, V=0.9V, delay is roughly 20-50ps. Adding parasitic capacitance, expect ~100ps.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"150p\",\n          \"max\": \"300p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 is faster than 0.25um. The reported 500ps might be the total PWM pulse width, so the individual cell delay is a fraction of that.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Average power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"66.5 mW (total transceiver)\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static current when output is low is ~400uA. At 50% duty cycle, average current is 200uA. Power = 200uA * 1.8V = 0.36mW.\",\n        \"range\": {\n          \"min\": \"0.1m\",\n          \"typical\": \"0.4m\",\n          \"max\": \"1m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Single cell power is much lower than the full transceiver power. Dominated by static short-circuit current when the output is low.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure output voltage swing, propagation delay, and power consumption of the PWM delay cell.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_oh\",\n      \"v_ol\",\n      \"t_pd_fall\",\n      \"t_pd_rise\",\n      \"avg_power\"\n    ],\n    \"spice\": \"* PWM Delay Cell Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\nVVDD VDD 0 1.8\\nVVBP VBP 0 0.99\\nVVN1 VN1 0 1.8\\nVVN2 VN2 0 PULSE(0 1.8 0.5n 50p 50p 1.2n 2.5n)\\n\\nXM1 N1 VDD N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 VN2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N1 VBP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 VN1 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\nCload N1 0 10f\\n\\n.control\\ntran 10p 10n\\nmeas tran v_oh max v(N1)\\nmeas tran v_ol min v(N1)\\nmeas tran t_pd_fall trig v(VN2) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\\nmeas tran t_pd_rise trig v(VN2) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\\nmeas tran t_rise trig v(N1) val=0.36 rise=1 targ v(N1) val=1.44 rise=1\\nmeas tran t_fall trig v(N1) val=1.44 fall=1 targ v(N1) val=0.36 fall=1\\n\\nlet power = -i(VVDD)*1.8\\nmeas tran avg_power avg power\\n\\nprint v_oh v_ol t_pd_fall t_pd_rise t_rise t_fall avg_power\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "953478",
+  "_case": "953478_image_5_a"
+}

@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Voltage-Limiting Precharge Switch / Charge-Injection-Cancelled Dynamic Load",
+    "description": "A clocked switch network that precharges the output node during one clock phase and limits the voltage swing during the evaluation phase to [|Vthp|, VDD-Vthn]. It uses parallel complementary-clocked transistors to cancel clock feedthrough and charge injection, maintaining a continuous signal path while halving the full-scale voltage range to conserve power.",
+    "node_mapping": {
+      "input": [
+        "N4"
+      ],
+      "output": [
+        "N2"
+      ],
+      "clock": [
+        "CLK",
+        "CLK_BAR"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 150-MS/s 8-b 71-mW CMOS Time-Interleaved ADC",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "v_out_max": {
+      "description": "Maximum output voltage during evaluation phase",
+      "unit": "V",
+      "analysis_type": "DC",
+      "sky130_expected": {
+        "calculation": "VDD - Vthn (with body effect). 1.8V - ~0.6V = 1.2V",
+        "range": {
+          "min": 1.0,
+          "typical": 1.2,
+          "max": 1.4,
+          "unit": "V"
+        },
+        "reasoning": "The series NMOS passes high voltages but cuts off at VDD-Vthn. Body effect increases Vthn."
+      },
+      "importance": "essential"
+    },
+    "v_out_min": {
+      "description": "Minimum output voltage during evaluation phase",
+      "unit": "V",
+      "analysis_type": "DC",
+      "sky130_expected": {
+        "calculation": "|Vthp| (with body effect). ~0.6V",
+        "range": {
+          "min": 0.4,
+          "typical": 0.6,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "The series PMOS passes low voltages but cuts off at |Vthp|. Body effect increases |Vthp|."
+      },
+      "importance": "essential"
+    },
+    "v_swing": {
+      "description": "Output voltage swing range",
+      "unit": "V",
+      "analysis_type": "DC",
+      "sky130_expected": {
+        "calculation": "v_out_max - v_out_min = 1.2V - 0.6V = 0.6V",
+        "range": {
+          "min": 0.4,
+          "typical": 0.6,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "The circuit halves the full-scale range to conserve power in the subsequent op-amps, as stated in the paper."
+      },
+      "importance": "essential"
+    },
+    "v_precharge_n2": {
+      "description": "Precharge voltage at output node during CLK=0",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "sky130_expected": {
+        "calculation": "VDD - Vthn = 1.8V - 0.6V = 1.2V",
+        "range": {
+          "min": 1.0,
+          "typical": 1.2,
+          "max": 1.4,
+          "unit": "V"
+        },
+        "reasoning": "During CLK=0, N4 is pulled to VDD, and N2 is charged through the NMOS and PMOS, limited by the NMOS Vth."
+      },
+      "importance": "essential"
+    },
+    "glitch_pp": {
+      "description": "Peak-to-peak clock feedthrough glitch at output",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "sky130_expected": {
+        "calculation": "Cancellation from complementary parallel switches",
+        "range": {
+          "min": 0.0,
+          "typical": 0.01,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "The parallel NMOS and PMOS switches driven by opposite clocks cancel out most of the charge injection."
+      },
+      "importance": "recommended"
+    },
+    "power": {
+      "description": "Average power consumption",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "71 mW",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power of switching nodes",
+        "range": {
+          "min": 1e-06,
+          "typical": 1e-05,
+          "max": 0.0001,
+          "unit": "W"
+        },
+        "reasoning": "The 71mW reported is for the entire ADC. This single sub-block only drives small parasitic and load capacitances, consuming very little power."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC voltage limiting transfer characteristic and transient precharge/clock feedthrough.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_out_max",
+      "v_out_min",
+      "v_swing",
+      "v_precharge_n2",
+      "glitch_pp",
+      "power"
+    ],
+    "spice": "* Testbench for Voltage-Limiting Switch\n.lib \"${SKY130_PDK}\" tt\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\nVVDD VDD 0 1.8\nVCLK CLK 0 dc 1.8 pulse(0 1.8 1n 0.1n 0.1n 4.9n 10n)\nVCLK_BAR CLK_BAR 0 dc 0 pulse(1.8 0 1n 0.1n 0.1n 4.9n 10n)\n\n* DUT1 - Transient (Precharge and Clock Feedthrough)\nXM1_t VDD CLK N4_t VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2_t N3_t CLK N4_t GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3_t N4_t CLK_BAR N3_t GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4_t N2_t CLK N3_t VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5_t N3_t CLK_BAR N2_t VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nC1_t N4_t 0 10f\nC2_t N2_t 0 10f\n\n* DUT2 - DC Sweep (Voltage Limiting Transfer Characteristic)\nVN4_dc N4_dc 0 dc 0\nXM1_dc VDD CLK N4_dc VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2_dc N3_dc CLK N4_dc GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3_dc N4_dc CLK_BAR N3_dc GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4_dc N2_dc CLK N3_dc VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5_dc N3_dc CLK_BAR N2_dc VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\n\n.control\n* DC Sweep\ndc VN4_dc 0 1.8 0.01\nmeas dc v_out_max MAX v(N2_dc)\nmeas dc v_out_min MIN v(N2_dc)\nlet v_swing = v_out_max - v_out_min\nprint v_swing\n\n* Transient Analysis\ntran 0.1n 20n\nmeas tran v_precharge_n4 FIND v(N4_t) AT=5n\nmeas tran v_precharge_n2 FIND v(N2_t) AT=5n\nmeas tran v_glitch_max MAX v(N2_t) FROM=5.9n TO=6.5n\nmeas tran v_glitch_min MIN v(N2_t) FROM=5.9n TO=6.5n\nlet glitch_pp = v_glitch_max - v_glitch_min\nprint glitch_pp\n\nmeas tran i_vdd_avg AVG i(VVDD) FROM=0 TO=20n\nlet power = -i_vdd_avg * 1.8\nprint power\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Voltage-Limiting Precharge Switch / Charge-Injection-Cancelled Dynamic Load\",\n    \"description\": \"A clocked switch network that precharges the output node during one clock phase and limits the voltage swing during the evaluation phase to [|Vthp|, VDD-Vthn]. It uses parallel complementary-clocked transistors to cancel clock feedthrough and charge injection, maintaining a continuous signal path while halving the full-scale voltage range to conserve power.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N4\"\n      ],\n      \"output\": [\n        \"N2\"\n      ],\n      \"clock\": [\n        \"CLK\",\n        \"CLK_BAR\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 150-MS/s 8-b 71-mW CMOS Time-Interleaved ADC\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"v_out_max\": {\n      \"description\": \"Maximum output voltage during evaluation phase\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - Vthn (with body effect). 1.8V - ~0.6V = 1.2V\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.2,\n          \"max\": 1.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The series NMOS passes high voltages but cuts off at VDD-Vthn. Body effect increases Vthn.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_out_min\": {\n      \"description\": \"Minimum output voltage during evaluation phase\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"sky130_expected\": {\n        \"calculation\": \"|Vthp| (with body effect). ~0.6V\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.6,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The series PMOS passes low voltages but cuts off at |Vthp|. Body effect increases |Vthp|.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_swing\": {\n      \"description\": \"Output voltage swing range\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"sky130_expected\": {\n        \"calculation\": \"v_out_max - v_out_min = 1.2V - 0.6V = 0.6V\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.6,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The circuit halves the full-scale range to conserve power in the subsequent op-amps, as stated in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_precharge_n2\": {\n      \"description\": \"Precharge voltage at output node during CLK=0\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"sky130_expected\": {\n        \"calculation\": \"VDD - Vthn = 1.8V - 0.6V = 1.2V\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.2,\n          \"max\": 1.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"During CLK=0, N4 is pulled to VDD, and N2 is charged through the NMOS and PMOS, limited by the NMOS Vth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"glitch_pp\": {\n      \"description\": \"Peak-to-peak clock feedthrough glitch at output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"sky130_expected\": {\n        \"calculation\": \"Cancellation from complementary parallel switches\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 0.01,\n          \"max\": 0.05,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The parallel NMOS and PMOS switches driven by opposite clocks cancel out most of the charge injection.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power\": {\n      \"description\": \"Average power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"71 mW\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power of switching nodes\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 1e-05,\n          \"max\": 1e-04,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 71mW reported is for the entire ADC. This single sub-block only drives small parasitic and load capacitances, consuming very little power.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC voltage limiting transfer characteristic and transient precharge/clock feedthrough.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_out_max\",\n      \"v_out_min\",\n      \"v_swing\",\n      \"v_precharge_n2\",\n      \"glitch_pp\",\n      \"power\"\n    ],\n    \"spice\": \"* Testbench for Voltage-Limiting Switch\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\nVVDD VDD 0 1.8\\nVCLK CLK 0 dc 1.8 pulse(0 1.8 1n 0.1n 0.1n 4.9n 10n)\\nVCLK_BAR CLK_BAR 0 dc 0 pulse(1.8 0 1n 0.1n 0.1n 4.9n 10n)\\n\\n* DUT1 - Transient (Precharge and Clock Feedthrough)\\nXM1_t VDD CLK N4_t VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2_t N3_t CLK N4_t GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3_t N4_t CLK_BAR N3_t GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4_t N2_t CLK N3_t VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5_t N3_t CLK_BAR N2_t VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nC1_t N4_t 0 10f\\nC2_t N2_t 0 10f\\n\\n* DUT2 - DC Sweep (Voltage Limiting Transfer Characteristic)\\nVN4_dc N4_dc 0 dc 0\\nXM1_dc VDD CLK N4_dc VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2_dc N3_dc CLK N4_dc GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3_dc N4_dc CLK_BAR N3_dc GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4_dc N2_dc CLK N3_dc VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5_dc N3_dc CLK_BAR N2_dc VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\n\\n.control\\n* DC Sweep\\ndc VN4_dc 0 1.8 0.01\\nmeas dc v_out_max MAX v(N2_dc)\\nmeas dc v_out_min MIN v(N2_dc)\\nlet v_swing = v_out_max - v_out_min\\nprint v_swing\\n\\n* Transient Analysis\\ntran 0.1n 20n\\nmeas tran v_precharge_n4 FIND v(N4_t) AT=5n\\nmeas tran v_precharge_n2 FIND v(N2_t) AT=5n\\nmeas tran v_glitch_max MAX v(N2_t) FROM=5.9n TO=6.5n\\nmeas tran v_glitch_min MIN v(N2_t) FROM=5.9n TO=6.5n\\nlet glitch_pp = v_glitch_max - v_glitch_min\\nprint glitch_pp\\n\\nmeas tran i_vdd_avg AVG i(VVDD) FROM=0 TO=20n\\nlet power = -i_vdd_avg * 1.8\\nprint power\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1425713",
+  "_case": "1425713_image_12_a"
+}

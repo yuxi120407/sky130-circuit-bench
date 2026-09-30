@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Derivative Superposition (DS) Differential Amplifier / LNA",
+    "description": "A highly linear differential amplifier utilizing the derivative superposition (DS) technique. It features a main differential pair (XM1/XM2) biased in strong inversion and an auxiliary differential pair (XM8/XM6) biased in weak inversion to cancel out the third-order intermodulation distortion (gm3), thereby improving IIP3.",
+    "node_mapping": {
+      "input": [
+        "N1",
+        "N2",
+        "N4",
+        "N0"
+      ],
+      "output": [
+        "N5",
+        "N7"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Experimental Coin-Sized Radio for Extremely Low-Power WPAN (IEEE 802.15.4) Application at 2.4 GHz",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the amplifier from the 1.8V supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "21 mW (Total RX)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD=1.8V and tail bias voltages of 0.9V and 0.5V, the tail currents are approximately 1mA and 0.1mA. Total current ~1.1mA. Power = 1.8V * 1.1mA = 1.98mW.",
+        "range": {
+          "min": "1m",
+          "typical": "2m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 21mW for the entire receiver. The LNA block alone typically consumes 10-20% of the total RX power."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain_2_4GHz": {
+      "description": "Differential AC voltage gain at the operating frequency of 2.4 GHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain is roughly gm_main / gm_load. Since W/L are identical (5u/0.5u) and the load is an active NMOS, the intrinsic gain is low, around 0 to 6 dB depending on exact bias points.",
+        "range": {
+          "min": "-5",
+          "typical": "2",
+          "max": "10",
+          "unit": "dB"
+        },
+        "reasoning": "Without high-Q LC tank loads (as mentioned in the paper but absent in the extracted netlist), the active NMOS loads limit the voltage gain."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB cutoff frequency of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.4 GHz (Operating)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * R_out * C_load). With R_out ~ 1/gm_load ~ 500 ohms and C_load = 50fF, BW ~ 6.3 GHz.",
+        "range": {
+          "min": "2G",
+          "typical": "5G",
+          "max": "10G",
+          "unit": "Hz"
+        },
+        "reasoning": "The low impedance of the diode-connected/active NMOS loads pushes the dominant pole to a very high frequency, easily covering the 2.4 GHz band."
+      },
+      "importance": "recommended"
+    },
+    "transient_output_swing": {
+      "description": "Peak-to-peak differential output voltage for a given input.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "For a 20mVpp differential input and a gain of ~1.2V/V, the output swing should be ~24mVpp.",
+        "range": {
+          "min": "10m",
+          "typical": "25m",
+          "max": "100m",
+          "unit": "V"
+        },
+        "reasoning": "Verifies large-signal time-domain operation and basic amplification at 2.4 GHz."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain at 2.4 GHz, -3dB bandwidth, and transient output swing of the DS LNA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain_2_4GHz",
+      "bandwidth",
+      "transient_output_swing"
+    ],
+    "spice": "* Derivative Superposition LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n* Power Supply and Biases\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.5\nVN3 N3 0 1.8\n\n* RF Inputs (Differential 1V AC for easy gain calculation, 20mV for Tran)\nVIN_P IN_P 0 DC 0 AC 0.5 SIN(0 10m 2.4G 0 0 0)\nVIN_N IN_N 0 DC 0 AC -0.5 SIN(0 10m 2.4G 0 0 180)\n\n* AC Coupling and Gate Biasing for Main Pair (Strong Inversion)\nC1 IN_P N1 10p\nC2 IN_N N2 10p\nR1 VBIAS_MAIN N1 10k\nR2 VBIAS_MAIN N2 10k\nVBIAS_MAIN VBIAS_MAIN 0 0.9\n\n* AC Coupling and Gate Biasing for Aux Pair (Weak Inversion)\nC3 IN_P N4 10p\nC4 IN_N N0 10p\nR3 VBIAS_AUX N4 10k\nR4 VBIAS_AUX N0 10k\nVBIAS_AUX VBIAS_AUX 0 0.5\n\n* DUT\nXM1 N5 N1 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N7 N2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VDD N3 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N6 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VDD N3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N7 N0 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N8 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N5 N4 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\n* Load Capacitance\nCL1 N5 0 50f\nCL2 N7 0 50f\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis for Gain and Bandwidth\n  ac dec 100 10M 10G\n  let vout_diff = v(N5) - v(N7)\n  let gain_mag = mag(vout_diff)\n  let gain_db = 20 * log10(gain_mag)\n  \n  meas ac gain_2_4G find gain_db at=2.4G\n  meas ac max_gain max gain_db\n  \n  let gain_3db = max_gain - 3\n  meas ac bw_3db when gain_db=gain_3db fall=1\n  \n  * 3. Transient Analysis\n  tran 10p 5n\n  let vout_diff_tran = v(N5) - v(N7)\n  meas tran vmax max vout_diff_tran\n  meas tran vmin min vout_diff_tran\n  let vout_ptp = vmax - vmin\n  print vout_ptp\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Derivative Superposition (DS) Differential Amplifier / LNA\",\n    \"description\": \"A highly linear differential amplifier utilizing the derivative superposition (DS) technique. It features a main differential pair (XM1/XM2) biased in strong inversion and an auxiliary differential pair (XM8/XM6) biased in weak inversion to cancel out the third-order intermodulation distortion (gm3), thereby improving IIP3.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\",\n        \"N2\",\n        \"N4\",\n        \"N0\"\n      ],\n      \"output\": [\n        \"N5\",\n        \"N7\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"N3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Experimental Coin-Sized Radio for Extremely Low-Power WPAN (IEEE 802.15.4) Application at 2.4 GHz\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the amplifier from the 1.8V supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"21 mW (Total RX)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD=1.8V and tail bias voltages of 0.9V and 0.5V, the tail currents are approximately 1mA and 0.1mA. Total current ~1.1mA. Power = 1.8V * 1.1mA = 1.98mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"2m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 21mW for the entire receiver. The LNA block alone typically consumes 10-20% of the total RX power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain_2_4GHz\": {\n      \"description\": \"Differential AC voltage gain at the operating frequency of 2.4 GHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain is roughly gm_main / gm_load. Since W/L are identical (5u/0.5u) and the load is an active NMOS, the intrinsic gain is low, around 0 to 6 dB depending on exact bias points.\",\n        \"range\": {\n          \"min\": \"-5\",\n          \"typical\": \"2\",\n          \"max\": \"10\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Without high-Q LC tank loads (as mentioned in the paper but absent in the extracted netlist), the active NMOS loads limit the voltage gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.4 GHz (Operating)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * R_out * C_load). With R_out ~ 1/gm_load ~ 500 ohms and C_load = 50fF, BW ~ 6.3 GHz.\",\n        \"range\": {\n          \"min\": \"2G\",\n          \"typical\": \"5G\",\n          \"max\": \"10G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The low impedance of the diode-connected/active NMOS loads pushes the dominant pole to a very high frequency, easily covering the 2.4 GHz band.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"transient_output_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage for a given input.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 20mVpp differential input and a gain of ~1.2V/V, the output swing should be ~24mVpp.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"25m\",\n          \"max\": \"100m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Verifies large-signal time-domain operation and basic amplification at 2.4 GHz.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain at 2.4 GHz, -3dB bandwidth, and transient output swing of the DS LNA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain_2_4GHz\",\n      \"bandwidth\",\n      \"transient_output_swing\"\n    ],\n    \"spice\": \"* Derivative Superposition LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n* Power Supply and Biases\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.5\\nVN3 N3 0 1.8\\n\\n* RF Inputs (Differential 1V AC for easy gain calculation, 20mV for Tran)\\nVIN_P IN_P 0 DC 0 AC 0.5 SIN(0 10m 2.4G 0 0 0)\\nVIN_N IN_N 0 DC 0 AC -0.5 SIN(0 10m 2.4G 0 0 180)\\n\\n* AC Coupling and Gate Biasing for Main Pair (Strong Inversion)\\nC1 IN_P N1 10p\\nC2 IN_N N2 10p\\nR1 VBIAS_MAIN N1 10k\\nR2 VBIAS_MAIN N2 10k\\nVBIAS_MAIN VBIAS_MAIN 0 0.9\\n\\n* AC Coupling and Gate Biasing for Aux Pair (Weak Inversion)\\nC3 IN_P N4 10p\\nC4 IN_N N0 10p\\nR3 VBIAS_AUX N4 10k\\nR4 VBIAS_AUX N0 10k\\nVBIAS_AUX VBIAS_AUX 0 0.5\\n\\n* DUT\\nXM1 N5 N1 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N7 N2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VDD N3 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N6 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VDD N3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N7 N0 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N8 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N5 N4 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* Load Capacitance\\nCL1 N5 0 50f\\nCL2 N7 0 50f\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis for Gain and Bandwidth\\n  ac dec 100 10M 10G\\n  let vout_diff = v(N5) - v(N7)\\n  let gain_mag = mag(vout_diff)\\n  let gain_db = 20 * log10(gain_mag)\\n  \\n  meas ac gain_2_4G find gain_db at=2.4G\\n  meas ac max_gain max gain_db\\n  \\n  let gain_3db = max_gain - 3\\n  meas ac bw_3db when gain_db=gain_3db fall=1\\n  \\n  * 3. Transient Analysis\\n  tran 10p 5n\\n  let vout_diff_tran = v(N5) - v(N7)\\n  meas tran vmax max vout_diff_tran\\n  meas tran vmin min vout_diff_tran\\n  let vout_ptp = vmax - vmin\\n  print vout_ptp\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1253873",
+  "_case": "1253873_image_7"
+}

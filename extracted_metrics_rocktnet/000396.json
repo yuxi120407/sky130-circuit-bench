@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cross-coupled charge pump stage (Pelliconi charge pump)",
+    "description": "A power-efficient charge pump stage that uses cross-coupled NMOS and PMOS transistors to transfer charge from a lower voltage to a higher voltage without threshold voltage drops. It is driven by two out-of-phase clocks coupled through capacitors.",
+    "node_mapping": {
+      "input": [
+        "VLOW",
+        "CLK",
+        "CLKB"
+      ],
+      "output": [
+        "VHIGH"
+      ],
+      "supply": [
+        "VLOW"
+      ],
+      "bias": [],
+      "ground": [
+        "0"
+      ],
+      "internal": [
+        "N_TOP",
+        "N_BOT"
+      ]
+    },
+    "paper_reference": {
+      "title": "Power Efficient Charge Pump in Deep Submicron Standard CMOS Technology",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "v_out_avg": {
+      "description": "Steady-state average output voltage at VHIGH.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "8 V (for 5 stages)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_out = VLOW + VDD - I_load/(f_clk*C_pump) - V_loss. With VLOW=1.8V, VDD=1.8V, I_load~66uA, f=100MHz, C=5pF: V_out \u2248 3.6V - 0.13V - 0.17V = 3.3V",
+        "range": {
+          "min": 3.0,
+          "typical": 3.3,
+          "max": 3.5,
+          "unit": "V"
+        },
+        "reasoning": "A single stage adds approximately VDD to the input voltage, minus load-dependent ripple and parasitic switching losses."
+      },
+      "importance": "essential"
+    },
+    "efficiency": {
+      "description": "Power efficiency, defined as the ratio of power delivered to the load versus total power drawn from the DC supply and clock sources.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "65% - 70%",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P_out / P_in * 100",
+        "range": {
+          "min": 60,
+          "typical": 75,
+          "max": 90,
+          "unit": "%"
+        },
+        "reasoning": "Expected to be similar to the paper's reported efficiency. The cross-coupled structure eliminates Vth drops, leading to high efficiency, limited mainly by parasitic bottom-plate capacitance and dynamic switching power."
+      },
+      "importance": "essential"
+    },
+    "v_ripple": {
+      "description": "Peak-to-peak voltage variation at the output in steady state.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_ripple \u2248 I_load / (2 * f_clk * C_load) = 66uA / (2 * 100MHz * 10pF) = 33mV",
+        "range": {
+          "min": 0.01,
+          "typical": 0.03,
+          "max": 0.1,
+          "unit": "V"
+        },
+        "reasoning": "Ripple is inversely proportional to the load capacitance and clock frequency, and directly proportional to the load current."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the steady-state output voltage, voltage ripple, and power efficiency of the charge pump stage.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_out_avg",
+      "v_ripple",
+      "efficiency"
+    ],
+    "spice": "* Pelliconi Charge Pump Stage Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm0=5u L_xm0=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\n.param C_pump=5p\n.param C_load=10p\n.param R_load=50000\n.param f_clk=100Meg\n.param t_per={1/f_clk}\n.param t_pw={t_per/2 - 0.1n}\n\n* DUT\nXM0 N_TOP N_BOT VLOW VLOW sky130_fd_pr__nfet_01v8 l={L_xm0} w={W_xm0}\nXM1 N_BOT N_TOP VLOW VLOW sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N_TOP N_BOT VHIGH VHIGH sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N_BOT N_TOP VHIGH VHIGH sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\n\n* Voltage Sources\nV_VLOW VLOW 0 1.8\nV_CLK CLK 0 PULSE(0 1.8 0 0.1n 0.1n {t_pw} {t_per})\nV_CLKB CLKB 0 PULSE(1.8 0 0 0.1n 0.1n {t_pw} {t_per})\n\n* Pumping Capacitors\nC1 CLK N_TOP {C_pump}\nC2 CLKB N_BOT {C_pump}\n\n* Load Network\nC3 VHIGH 0 {C_load}\nR1 VHIGH 0 {R_load}\n\n* Power Measurement B-Sources\nB_pin PIN_NODE 0 V = -i(V_VLOW)*v(VLOW) - i(V_CLK)*v(CLK) - i(V_CLKB)*v(CLKB)\nB_pout POUT_NODE 0 V = v(VHIGH)*v(VHIGH)/50000\n\n* Initial Conditions to speed up steady-state convergence\n.ic v(VHIGH)=1.8 v(N_TOP)=1.8 v(N_BOT)=1.8\n\n.control\ntran 1n 3u\n\n* Measure Output Voltage and Ripple\nmeas tran v_out_avg avg v(VHIGH) from=2.5u to=3.0u\nmeas tran v_out_max max v(VHIGH) from=2.5u to=3.0u\nmeas tran v_out_min min v(VHIGH) from=2.5u to=3.0u\nlet v_ripple = v_out_max - v_out_min\nprint v_out_avg\nprint v_ripple\n\n* Measure Power and Efficiency\nmeas tran p_in_avg avg v(PIN_NODE) from=2.5u to=3.0u\nmeas tran p_out_avg avg v(POUT_NODE) from=2.5u to=3.0u\nlet efficiency = p_out_avg / p_in_avg * 100\nprint efficiency\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cross-coupled charge pump stage (Pelliconi charge pump)\",\n    \"description\": \"A power-efficient charge pump stage that uses cross-coupled NMOS and PMOS transistors to transfer charge from a lower voltage to a higher voltage without threshold voltage drops. It is driven by two out-of-phase clocks coupled through capacitors.\",\n    \"node_mapping\": {\n      \"input\": [\"VLOW\", \"CLK\", \"CLKB\"],\n      \"output\": [\"VHIGH\"],\n      \"supply\": [\"VLOW\"],\n      \"bias\": [],\n      \"ground\": [\"0\"],\n      \"internal\": [\"N_TOP\", \"N_BOT\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Power Efficient Charge Pump in Deep Submicron Standard CMOS Technology\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"v_out_avg\": {\n      \"description\": \"Steady-state average output voltage at VHIGH.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"8 V (for 5 stages)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_out = VLOW + VDD - I_load/(f_clk*C_pump) - V_loss. With VLOW=1.8V, VDD=1.8V, I_load~66uA, f=100MHz, C=5pF: V_out \u2248 3.6V - 0.13V - 0.17V = 3.3V\",\n        \"range\": {\n          \"min\": 3.0,\n          \"typical\": 3.3,\n          \"max\": 3.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"A single stage adds approximately VDD to the input voltage, minus load-dependent ripple and parasitic switching losses.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"efficiency\": {\n      \"description\": \"Power efficiency, defined as the ratio of power delivered to the load versus total power drawn from the DC supply and clock sources.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"65% - 70%\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_out / P_in * 100\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 75,\n          \"max\": 90,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Expected to be similar to the paper's reported efficiency. The cross-coupled structure eliminates Vth drops, leading to high efficiency, limited mainly by parasitic bottom-plate capacitance and dynamic switching power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_ripple\": {\n      \"description\": \"Peak-to-peak voltage variation at the output in steady state.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_ripple \u2248 I_load / (2 * f_clk * C_load) = 66uA / (2 * 100MHz * 10pF) = 33mV\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.03,\n          \"max\": 0.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ripple is inversely proportional to the load capacitance and clock frequency, and directly proportional to the load current.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the steady-state output voltage, voltage ripple, and power efficiency of the charge pump stage.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_out_avg\",\n      \"v_ripple\",\n      \"efficiency\"\n    ],\n    \"spice\": \"* Pelliconi Charge Pump Stage Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm0=5u L_xm0=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\n.param C_pump=5p\\n.param C_load=10p\\n.param R_load=50000\\n.param f_clk=100Meg\\n.param t_per={1/f_clk}\\n.param t_pw={t_per/2 - 0.1n}\\n\\n* DUT\\nXM0 N_TOP N_BOT VLOW VLOW sky130_fd_pr__nfet_01v8 l={L_xm0} w={W_xm0}\\nXM1 N_BOT N_TOP VLOW VLOW sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N_TOP N_BOT VHIGH VHIGH sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N_BOT N_TOP VHIGH VHIGH sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Voltage Sources\\nV_VLOW VLOW 0 1.8\\nV_CLK CLK 0 PULSE(0 1.8 0 0.1n 0.1n {t_pw} {t_per})\\nV_CLKB CLKB 0 PULSE(1.8 0 0 0.1n 0.1n {t_pw} {t_per})\\n\\n* Pumping Capacitors\\nC1 CLK N_TOP {C_pump}\\nC2 CLKB N_BOT {C_pump}\\n\\n* Load Network\\nC3 VHIGH 0 {C_load}\\nR1 VHIGH 0 {R_load}\\n\\n* Power Measurement B-Sources\\nB_pin PIN_NODE 0 V = -i(V_VLOW)*v(VLOW) - i(V_CLK)*v(CLK) - i(V_CLKB)*v(CLKB)\\nB_pout POUT_NODE 0 V = v(VHIGH)*v(VHIGH)/50000\\n\\n* Initial Conditions to speed up steady-state convergence\\n.ic v(VHIGH)=1.8 v(N_TOP)=1.8 v(N_BOT)=1.8\\n\\n.control\\ntran 1n 3u\\n\\n* Measure Output Voltage and Ripple\\nmeas tran v_out_avg avg v(VHIGH) from=2.5u to=3.0u\\nmeas tran v_out_max max v(VHIGH) from=2.5u to=3.0u\\nmeas tran v_out_min min v(VHIGH) from=2.5u to=3.0u\\nlet v_ripple = v_out_max - v_out_min\\nprint v_out_avg\\nprint v_ripple\\n\\n* Measure Power and Efficiency\\nmeas tran p_in_avg avg v(PIN_NODE) from=2.5u to=3.0u\\nmeas tran p_out_avg avg v(POUT_NODE) from=2.5u to=3.0u\\nlet efficiency = p_out_avg / p_in_avg * 100\\nprint efficiency\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1202012",
+  "_case": "1202012_image_1"
+}

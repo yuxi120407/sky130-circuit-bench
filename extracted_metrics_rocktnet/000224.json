@@ -1,0 +1,124 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Voltage Reference / Bias Generator",
+    "description": "A static voltage divider using diode-connected NMOS and PMOS transistors to generate a stable reference voltage (likely VDD/2) for sense amplifiers or bitline precharge in a cache memory. It includes a dummy/capacitor NMOS (XMN2) for node stabilization.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.8-V 128-kb Four-Way Set-Associative Two-Level CMOS Cache Memory Using Two-Stage Wordline/Bitline-Oriented Tag-Compare (WLOTC/BLOTC) Scheme",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "V_ref": {
+      "description": "DC output reference voltage at node N0",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.513 V",
+        "technology": "0.8V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Equating pull-up and pull-down currents: 1850u*(1.38-V_N0)^2 = 2700u*(V_N0-0.42)^2 -> V_N0 \u2248 0.85V",
+        "range": {
+          "min": 0.7,
+          "typical": 0.85,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "Scales with VDD. For VDD=1.8V, it acts as a near VDD/2 divider."
+      },
+      "importance": "essential"
+    },
+    "Power": {
+      "description": "Static DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0.77 mW",
+        "technology": "0.8V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_total = 1850u * (1.38 - 0.854)^2 = 511 uA. Power = 1.8V * 511uA = 0.92 mW",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.00092,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "Depends heavily on the W/L ratios and Vth. Expected to be around 1mW for SKY130 at 1.8V."
+      },
+      "importance": "essential"
+    },
+    "R_out_dB": {
+      "description": "Small-signal output impedance in dB ohms",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Total gm = sum(gm_n) + sum(gm_p) \u2248 4.28 mS. R_out = 1/gm \u2248 233 ohms. In dB: 20*log10(233) \u2248 47.3 dB",
+        "range": {
+          "min": 40,
+          "typical": 47,
+          "max": 55,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the transconductance of the diode-connected devices."
+      },
+      "importance": "recommended"
+    },
+    "Line_Regulation": {
+      "description": "Sensitivity of output voltage to supply voltage variations (dV_ref/dVDD)",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "dV_N0 / dVDD \u2248 sqrt(I_up_factor) / (sqrt(I_up_factor) + sqrt(I_down_factor)) \u2248 0.45 V/V",
+        "range": {
+          "min": 0.3,
+          "typical": 0.45,
+          "max": 0.6,
+          "unit": "V/V"
+        },
+        "reasoning": "As a resistive divider, the output tracks the supply voltage with a factor of roughly 0.45."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC reference voltage, power consumption, output impedance, and line regulation of the bias generator.",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC"
+    ],
+    "metrics_measured": [
+      "V_ref",
+      "Power",
+      "R_out_dB",
+      "Line_Regulation"
+    ],
+    "spice": "* VDD/2 Voltage Reference Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmn0=5u L_xmn0=0.5u\n.param W_xmp0=5u L_xmp0=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmn3=5u L_xmn3=0.5u\n\nVVDD VDD 0 1.8\nI_load N0 0 DC 0 AC 1\n\nXMN1 N0 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMN0 N0 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_xmn0} w={W_xmn0}\nXMP0 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp0} w={W_xmp0}\nXMP1 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\nXMN2 N0 VDD N0 0 sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMN3 VDD VDD N0 0 sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\n\n.control\n* 1. DC Operating Point\nop\nlet v_ref = v(N0)\nlet power = -i(VVDD) * 1.8\nprint v_ref power\n\n* 2. AC Analysis for Output Impedance\nac dec 10 1 1G\nlet z_out_db = vdb(N0)\nmeas ac r_out_db find z_out_db at=1k\n\n* 3. DC Sweep for Line Regulation\ndc VVDD 0 1.8 0.01\nmeas dc v_ref_18 find v(N0) at=1.8\nmeas dc v_ref_17 find v(N0) at=1.7\nlet line_reg = (v_ref_18 - v_ref_17) / 0.1\nprint line_reg\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Voltage Reference / Bias Generator\",\n    \"description\": \"A static voltage divider using diode-connected NMOS and PMOS transistors to generate a stable reference voltage (likely VDD/2) for sense amplifiers or bitline precharge in a cache memory. It includes a dummy/capacitor NMOS (XMN2) for node stabilization.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"N0\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.8-V 128-kb Four-Way Set-Associative Two-Level CMOS Cache Memory Using Two-Stage Wordline/Bitline-Oriented Tag-Compare (WLOTC/BLOTC) Scheme\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"V_ref\": {\n      \"description\": \"DC output reference voltage at node N0\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.513 V\",\n        \"technology\": \"0.8V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Equating pull-up and pull-down currents: 1850u*(1.38-V_N0)^2 = 2700u*(V_N0-0.42)^2 -> V_N0 \u2248 0.85V\",\n        \"range\": { \"min\": 0.7, \"typical\": 0.85, \"max\": 1.0, \"unit\": \"V\" },\n        \"reasoning\": \"Scales with VDD. For VDD=1.8V, it acts as a near VDD/2 divider.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power\": {\n      \"description\": \"Static DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0.77 mW\",\n        \"technology\": \"0.8V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total = 1850u * (1.38 - 0.854)^2 = 511 uA. Power = 1.8V * 511uA = 0.92 mW\",\n        \"range\": { \"min\": 0.5e-3, \"typical\": 0.92e-3, \"max\": 2e-3, \"unit\": \"W\" },\n        \"reasoning\": \"Depends heavily on the W/L ratios and Vth. Expected to be around 1mW for SKY130 at 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"R_out_dB\": {\n      \"description\": \"Small-signal output impedance in dB ohms\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total gm = sum(gm_n) + sum(gm_p) \u2248 4.28 mS. R_out = 1/gm \u2248 233 ohms. In dB: 20*log10(233) \u2248 47.3 dB\",\n        \"range\": { \"min\": 40, \"typical\": 47, \"max\": 55, \"unit\": \"dB\" },\n        \"reasoning\": \"Determined by the transconductance of the diode-connected devices.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Line_Regulation\": {\n      \"description\": \"Sensitivity of output voltage to supply voltage variations (dV_ref/dVDD)\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dV_N0 / dVDD \u2248 sqrt(I_up_factor) / (sqrt(I_up_factor) + sqrt(I_down_factor)) \u2248 0.45 V/V\",\n        \"range\": { \"min\": 0.3, \"typical\": 0.45, \"max\": 0.6, \"unit\": \"V/V\" },\n        \"reasoning\": \"As a resistive divider, the output tracks the supply voltage with a factor of roughly 0.45.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC reference voltage, power consumption, output impedance, and line regulation of the bias generator.\",\n    \"analyses\": [\"OP\", \"AC\", \"DC\"],\n    \"metrics_measured\": [\"V_ref\", \"Power\", \"R_out_dB\", \"Line_Regulation\"],\n    \"spice\": \"* VDD/2 Voltage Reference Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmn0=5u L_xmn0=0.5u\\n.param W_xmp0=5u L_xmp0=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmn3=5u L_xmn3=0.5u\\n\\nVVDD VDD 0 1.8\\nI_load N0 0 DC 0 AC 1\\n\\nXMN1 N0 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMN0 N0 N0 0 0 sky130_fd_pr__nfet_01v8 l={L_xmn0} w={W_xmn0}\\nXMP0 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp0} w={W_xmp0}\\nXMP1 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMN2 N0 VDD N0 0 sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMN3 VDD VDD N0 0 sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet v_ref = v(N0)\\nlet power = -i(VVDD) * 1.8\\nprint v_ref power\\n\\n* 2. AC Analysis for Output Impedance\\nac dec 10 1 1G\\nlet z_out_db = vdb(N0)\\nmeas ac r_out_db find z_out_db at=1k\\n\\n* 3. DC Sweep for Line Regulation\\ndc VVDD 0 1.8 0.01\\nmeas dc v_ref_18 find v(N0) at=1.8\\nmeas dc v_ref_17 find v(N0) at=1.7\\nlet line_reg = (v_ref_18 - v_ref_17) / 0.1\\nprint line_reg\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1035945",
+  "_case": "1035945_image_7"
+}

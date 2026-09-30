@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cross-coupled NMOS pair",
+    "description": "A cross-coupled NMOS pair that provides negative resistance, commonly used as the active core in LC oscillators (VCOs), active mixers, or latches in RF transceivers.",
+    "node_mapping": {
+      "input": [
+        "N0",
+        "N1"
+      ],
+      "output": [
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Ultralow-Power UHF Transceiver Integrated in a Standard Digital CMOS Process: Architecture and Receiver",
+      "figure": "4",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "Total DC power consumption of the cross-coupled pair and tail current.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1 mW",
+        "technology": "Standard Digital CMOS (1V)"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_tail = 1.8V * 500uA = 0.9 mW",
+        "range": {
+          "min": 0.0008,
+          "typical": 0.0009,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Tail current is set to 500uA to match the ~1mW power consumption target from the paper, adjusted for the 1.8V SKY130 supply."
+      },
+      "importance": "essential"
+    },
+    "negative_resistance": {
+      "description": "Small-signal differential negative resistance provided by the cross-coupled pair.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "gm = sqrt(2 * u_n * C_ox * (W/L) * I_D) = sqrt(2 * 270u * 10 * 250u) = 1.16 mA/V. Rin = -2 / gm = -1724 ohms.",
+        "range": {
+          "min": -2500,
+          "typical": -1700,
+          "max": -1000,
+          "unit": "ohm"
+        },
+        "reasoning": "Depends on the exact gm of the SKY130 NMOS at 250uA bias current per branch."
+      },
+      "importance": "essential"
+    },
+    "oscillation_frequency": {
+      "description": "Oscillation frequency when loaded with an ideal LC tank (10nH diff, 2pF).",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1 GHz",
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L_diff * C_tank)) = 1 / (2 * pi * sqrt(10nH * 2pF)) = 1.12 GHz",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 1120000000.0,
+          "max": 1200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the 1 GHz frequency reported in the paper, dominated by the external ideal tank components added in the testbench."
+      },
+      "importance": "recommended"
+    },
+    "voltage_swing": {
+      "description": "Peak-to-peak differential voltage swing of the oscillator.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Swing is limited by the supply voltage and transistor triode regions. Typically 2-3V peak-to-peak for a 1.8V supply with an LC tank.",
+        "range": {
+          "min": 1.5,
+          "typical": 2.5,
+          "max": 3.5,
+          "unit": "V"
+        },
+        "reasoning": "Ideal LC tank allows voltage to swing above VDD, limited only by transistor non-linearities."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, small-signal negative resistance, and transient oscillation of the cross-coupled pair.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "negative_resistance",
+      "oscillation_frequency",
+      "voltage_swing"
+    ],
+    "spice": "* Cross-coupled pair testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\nXM1 N0 N1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\nVVDD VDD 0 1.8\nI_tail N2 0 500u\n\n* LC Tank for oscillation and DC bias\nL1 VDD N0 5n\nL2 VDD N1 5n\nCtank N0 N1 2p\n\n* AC source for impedance measurement\nI_ac N0 N1 DC 0 AC 1\n\n.ic v(N0)=1.8 v(N1)=1.7\n\n.control\n* 1. DC Operating Point\nop\nlet dc_power = -i(VVDD) * 1.8\nprint dc_power\n\n* 2. AC Analysis for Negative Resistance\nac dec 100 100Meg 10Gig\nlet vdiff = v(N0) - v(N1)\nlet Y = 1 / vdiff\nlet Gin = real(Y)\nlet Rin = 1 / Gin\nmeas ac Rin_1G find Rin at=1G\nmeas ac Gin_1G find Gin at=1G\nlet gm_eff = -Gin_1G * 2\nprint gm_eff\n\n* 3. Transient Analysis for Oscillation\ntran 10p 50n\nmeas tran v_max max v(N0)\nmeas tran v_min min v(N0)\nlet v_swing = v_max - v_min\nprint v_swing\n\nmeas tran t1 trig v(N0) val=1.8 rise=15 targ v(N0) val=1.8 rise=16\nlet osc_freq = 1 / t1\nprint osc_freq\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cross-coupled NMOS pair\",\n    \"description\": \"A cross-coupled NMOS pair that provides negative resistance, commonly used as the active core in LC oscillators (VCOs), active mixers, or latches in RF transceivers.\",\n    \"node_mapping\": {\n      \"input\": [\"N0\", \"N1\"],\n      \"output\": [\"N0\", \"N1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N2\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Ultralow-Power UHF Transceiver Integrated in a Standard Digital CMOS Process: Architecture and Receiver\",\n      \"figure\": \"4\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the cross-coupled pair and tail current.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1 mW\",\n        \"technology\": \"Standard Digital CMOS (1V)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_tail = 1.8V * 500uA = 0.9 mW\",\n        \"range\": { \"min\": 0.8e-3, \"typical\": 0.9e-3, \"max\": 1.0e-3, \"unit\": \"W\" },\n        \"reasoning\": \"Tail current is set to 500uA to match the ~1mW power consumption target from the paper, adjusted for the 1.8V SKY130 supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"negative_resistance\": {\n      \"description\": \"Small-signal differential negative resistance provided by the cross-coupled pair.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = sqrt(2 * u_n * C_ox * (W/L) * I_D) = sqrt(2 * 270u * 10 * 250u) = 1.16 mA/V. Rin = -2 / gm = -1724 ohms.\",\n        \"range\": { \"min\": -2500, \"typical\": -1700, \"max\": -1000, \"unit\": \"ohm\" },\n        \"reasoning\": \"Depends on the exact gm of the SKY130 NMOS at 250uA bias current per branch.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"oscillation_frequency\": {\n      \"description\": \"Oscillation frequency when loaded with an ideal LC tank (10nH diff, 2pF).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz\",\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L_diff * C_tank)) = 1 / (2 * pi * sqrt(10nH * 2pF)) = 1.12 GHz\",\n        \"range\": { \"min\": 1.0e9, \"typical\": 1.12e9, \"max\": 1.2e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"Matches the 1 GHz frequency reported in the paper, dominated by the external ideal tank components added in the testbench.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"voltage_swing\": {\n      \"description\": \"Peak-to-peak differential voltage swing of the oscillator.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing is limited by the supply voltage and transistor triode regions. Typically 2-3V peak-to-peak for a 1.8V supply with an LC tank.\",\n        \"range\": { \"min\": 1.5, \"typical\": 2.5, \"max\": 3.5, \"unit\": \"V\" },\n        \"reasoning\": \"Ideal LC tank allows voltage to swing above VDD, limited only by transistor non-linearities.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, small-signal negative resistance, and transient oscillation of the cross-coupled pair.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"dc_power\", \"negative_resistance\", \"oscillation_frequency\", \"voltage_swing\"],\n    \"spice\": \"* Cross-coupled pair testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\nXM1 N0 N1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\nVVDD VDD 0 1.8\\nI_tail N2 0 500u\\n\\n* LC Tank for oscillation and DC bias\\nL1 VDD N0 5n\\nL2 VDD N1 5n\\nCtank N0 N1 2p\\n\\n* AC source for impedance measurement\\nI_ac N0 N1 DC 0 AC 1\\n\\n.ic v(N0)=1.8 v(N1)=1.7\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet dc_power = -i(VVDD) * 1.8\\nprint dc_power\\n\\n* 2. AC Analysis for Negative Resistance\\nac dec 100 100Meg 10Gig\\nlet vdiff = v(N0) - v(N1)\\nlet Y = 1 / vdiff\\nlet Gin = real(Y)\\nlet Rin = 1 / Gin\\nmeas ac Rin_1G find Rin at=1G\\nmeas ac Gin_1G find Gin at=1G\\nlet gm_eff = -Gin_1G * 2\\nprint gm_eff\\n\\n* 3. Transient Analysis for Oscillation\\ntran 10p 50n\\nmeas tran v_max max v(N0)\\nmeas tran v_min min v(N0)\\nlet v_swing = v_max - v_min\\nprint v_swing\\n\\nmeas tran t1 trig v(N0) val=1.8 rise=15 targ v(N0) val=1.8 rise=16\\nlet osc_freq = 1 / t1\\nprint osc_freq\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "910484",
+  "_case": "910484_image_5_a"
+}

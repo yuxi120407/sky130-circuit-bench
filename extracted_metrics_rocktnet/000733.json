@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Two-Stage CMOS Operational Amplifier (OTA)",
+    "description": "A classic two-stage uncompensated operational amplifier with a PMOS input differential pair and an NMOS common-source second stage. It is designed to drive large capacitive loads, which is typical for interfacing with macroscopic biological sensors like tripolar cuff electrodes.",
+    "node_mapping": {
+      "input": [
+        "I_I",
+        "N_M2_G"
+      ],
+      "output": [
+        "V_O"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N_BIAS"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Adaptive ENG Amplifier for Tripolar Cuff Electrodes",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low frequency open-loop voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "54 dB",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 10uA bias: gm1 = sqrt(2*50u*10*5u) = 70.7uS. Rout1 = ro2||ro4 = 1MOhm. Stage 1 Gain = 70.7 V/V (37 dB). gm9 = sqrt(2*270u*10*10u) = 232uS. Rout2 = ro7||ro9 = 500kOhm. Stage 2 Gain = 116 V/V (41 dB). Total Gain = 37 + 41 = 78 dB.",
+        "range": {
+          "min": 60,
+          "typical": 78,
+          "max": 90,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using standard square-law models for SKY130 1.8V devices. The paper's 54 dB may refer to the closed-loop system gain or a heavily loaded state."
+      },
+      "importance": "essential"
+    },
+    "UGF": {
+      "description": "Unity gain frequency where open-loop gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 kHz (system bandwidth)",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "With a 1nF load (typical for cuff electrodes): Dominant pole p1 = 1/(2*pi*Rout2*CL) = 1/(2*pi*500k*1nF) = 318 Hz. UGF = DC_Gain * p1 = 8200 * 318 = 2.6 MHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 2600000.0,
+          "max": 5000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Assumes a 1nF load capacitance to ensure stability, as the OTA lacks an internal Miller compensation capacitor."
+      },
+      "importance": "essential"
+    },
+    "Phase_Margin": {
+      "description": "Stability margin at unity gain frequency.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Second pole p2 at first stage output = 1/(2*pi*1MOhm*21fF) = 7.5 MHz. Phase shift at UGF (2.6 MHz) = atan(2.6/7.5) = 19 degrees. PM = 90 - 19 = 71 degrees.",
+        "range": {
+          "min": 45,
+          "typical": 71,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Stable with a 1nF load. Without a large external load, the uncompensated OTA would be unstable."
+      },
+      "importance": "essential"
+    },
+    "Power": {
+      "description": "Total DC power dissipation.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Total current = Ibias + Itail + Iout = 10uA + 10uA + 10uA = 30uA. Power = 30uA * 1.8V = 54 uW.",
+        "range": {
+          "min": 4e-05,
+          "typical": 5.4e-05,
+          "max": 7e-05,
+          "unit": "W"
+        },
+        "reasoning": "Based on a 10uA reference current mirrored to the tail and output stages."
+      },
+      "importance": "essential"
+    },
+    "Slew_Rate": {
+      "description": "Maximum rate of change of the output voltage.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "SR = Iout / CL = 10uA / 1nF = 0.01 V/us.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.01,
+          "max": 0.02,
+          "unit": "V/us"
+        },
+        "reasoning": "Limited by the 10uA output stage bias current charging the large 1nF load."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for measuring DC Gain, UGF, Phase Margin, Power, and Slew Rate of the Two-Stage OTA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Gain",
+      "UGF",
+      "Phase_Margin",
+      "Power",
+      "Slew_Rate"
+    ],
+    "spice": "* Testbench for Adaptive ENG Amplifier (Two-Stage OTA)\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\n* DUT\nXM1 N_M1_D I_I N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N_M2_D N_M2_G N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N_M1_D N_M1_D VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N_M2_D N_M1_D VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N_BIAS N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N_TAIL N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 V_O N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N_M2_D VDD N_M8_S VSS sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 V_O N_M2_D VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\n* Dummy resistor to prevent floating node matrix singularity\nRdummy N_M8_S 0 1T\n\n* Supplies and Bias\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nIbias N_BIAS 0 10u\n\n* Input Signal (DC for OP/AC, Pulse for Tran)\nVcm N_M2_G 0 dc 0.9 ac 1 pulse(0.4 0.9 10u 1u 1u 100u 200u)\n\n* Feedback network (Closed loop at DC, Open loop at AC)\nL1 V_O I_I 1G\nC1 I_I 0 1G\n\n* Load capacitance (Large to stabilize uncompensated OTA)\nCL V_O 0 1n\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis\n  ac dec 50 1 100Meg\n  let gain_db = vdb(V_O)\n  let phase_deg = 180/PI * cph(v(V_O))\n  \n  meas ac dc_gain find gain_db at=10\n  meas ac ugf when gain_db=0 fall=1\n  meas ac phase_at_ugf find phase_deg when gain_db=0 fall=1\n  let pm = 180 + phase_at_ugf\n  print pm\n\n  * 3. Transient Analysis (Step Response)\n  * Alter feedback to unity-gain buffer for transient\n  alter L1 1p\n  alter C1 1a\n  tran 1u 200u\n  \n  meas tran trise trig v(V_O) val=0.5 rise=1 targ v(V_O) val=0.8 rise=1\n  meas tran tfall trig v(V_O) val=0.8 fall=1 targ v(V_O) val=0.5 fall=1\n  \n  let sr_rise_vus = (0.3 / trise) * 1e-6\n  let sr_fall_vus = (0.3 / tfall) * 1e-6\n  print sr_rise_vus sr_fall_vus\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Two-Stage CMOS Operational Amplifier (OTA)\",\n    \"description\": \"A classic two-stage uncompensated operational amplifier with a PMOS input differential pair and an NMOS common-source second stage. It is designed to drive large capacitive loads, which is typical for interfacing with macroscopic biological sensors like tripolar cuff electrodes.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"I_I\",\n        \"N_M2_G\"\n      ],\n      \"output\": [\n        \"V_O\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N_BIAS\"\n      ],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Adaptive ENG Amplifier for Tripolar Cuff Electrodes\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low frequency open-loop voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"54 dB\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 10uA bias: gm1 = sqrt(2*50u*10*5u) = 70.7uS. Rout1 = ro2||ro4 = 1MOhm. Stage 1 Gain = 70.7 V/V (37 dB). gm9 = sqrt(2*270u*10*10u) = 232uS. Rout2 = ro7||ro9 = 500kOhm. Stage 2 Gain = 116 V/V (41 dB). Total Gain = 37 + 41 = 78 dB.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 78,\n          \"max\": 90,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using standard square-law models for SKY130 1.8V devices. The paper's 54 dB may refer to the closed-loop system gain or a heavily loaded state.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"UGF\": {\n      \"description\": \"Unity gain frequency where open-loop gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 kHz (system bandwidth)\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 1nF load (typical for cuff electrodes): Dominant pole p1 = 1/(2*pi*Rout2*CL) = 1/(2*pi*500k*1nF) = 318 Hz. UGF = DC_Gain * p1 = 8200 * 318 = 2.6 MHz.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 2.6e6,\n          \"max\": 5e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Assumes a 1nF load capacitance to ensure stability, as the OTA lacks an internal Miller compensation capacitor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_Margin\": {\n      \"description\": \"Stability margin at unity gain frequency.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Second pole p2 at first stage output = 1/(2*pi*1MOhm*21fF) = 7.5 MHz. Phase shift at UGF (2.6 MHz) = atan(2.6/7.5) = 19 degrees. PM = 90 - 19 = 71 degrees.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 71,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Stable with a 1nF load. Without a large external load, the uncompensated OTA would be unstable.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power\": {\n      \"description\": \"Total DC power dissipation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current = Ibias + Itail + Iout = 10uA + 10uA + 10uA = 30uA. Power = 30uA * 1.8V = 54 uW.\",\n        \"range\": {\n          \"min\": 40e-6,\n          \"typical\": 54e-6,\n          \"max\": 70e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a 10uA reference current mirrored to the tail and output stages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Slew_Rate\": {\n      \"description\": \"Maximum rate of change of the output voltage.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = Iout / CL = 10uA / 1nF = 0.01 V/us.\",\n        \"range\": {\n          \"min\": 0.005,\n          \"typical\": 0.01,\n          \"max\": 0.02,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Limited by the 10uA output stage bias current charging the large 1nF load.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for measuring DC Gain, UGF, Phase Margin, Power, and Slew Rate of the Two-Stage OTA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Gain\",\n      \"UGF\",\n      \"Phase_Margin\",\n      \"Power\",\n      \"Slew_Rate\"\n    ],\n    \"spice\": \"* Testbench for Adaptive ENG Amplifier (Two-Stage OTA)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\n* DUT\\nXM1 N_M1_D I_I N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N_M2_D N_M2_G N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N_M1_D N_M1_D VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N_M2_D N_M1_D VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N_BIAS N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N_TAIL N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 V_O N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N_M2_D VDD N_M8_S VSS sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 V_O N_M2_D VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\n* Dummy resistor to prevent floating node matrix singularity\\nRdummy N_M8_S 0 1T\\n\\n* Supplies and Bias\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nIbias N_BIAS 0 10u\\n\\n* Input Signal (DC for OP/AC, Pulse for Tran)\\nVcm N_M2_G 0 dc 0.9 ac 1 pulse(0.4 0.9 10u 1u 1u 100u 200u)\\n\\n* Feedback network (Closed loop at DC, Open loop at AC)\\nL1 V_O I_I 1G\\nC1 I_I 0 1G\\n\\n* Load capacitance (Large to stabilize uncompensated OTA)\\nCL V_O 0 1n\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis\\n  ac dec 50 1 100Meg\\n  let gain_db = vdb(V_O)\\n  let phase_deg = 180/PI * cph(v(V_O))\\n  \\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugf when gain_db=0 fall=1\\n  meas ac phase_at_ugf find phase_deg when gain_db=0 fall=1\\n  let pm = 180 + phase_at_ugf\\n  print pm\\n\\n  * 3. Transient Analysis (Step Response)\\n  * Alter feedback to unity-gain buffer for transient\\n  alter L1 1p\\n  alter C1 1a\\n  tran 1u 200u\\n  \\n  meas tran trise trig v(V_O) val=0.5 rise=1 targ v(V_O) val=0.8 rise=1\\n  meas tran tfall trig v(V_O) val=0.8 fall=1 targ v(V_O) val=0.5 fall=1\\n  \\n  let sr_rise_vus = (0.3 / trise) * 1e-6\\n  let sr_fall_vus = (0.3 / tfall) * 1e-6\\n  print sr_rise_vus sr_fall_vus\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1388630",
+  "_case": "1388630_image_9"
+}

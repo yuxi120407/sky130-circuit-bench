@@ -1,0 +1,123 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.9",
+    "page": "494",
+    "circuit_type": "Switched-Capacitor (SC) Charge Pump for Delta-Sigma Modulator",
+    "description": "A switched-capacitor circuit designed to add a precise, constant amount of charge to a bit line. Transistor M4 is added to set a fixed voltage swing across the capacitor (Ccup), making the injected charge independent of the varying bit line voltage."
+  },
+  "step2_metrics": {
+    "charge_per_cycle_unregulated": {
+      "description": "The amount of charge dumped into the bit line per clock cycle if M4 were not present (or if M4 is fully shorted), making it dependent on the bit line voltage.",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "493",
+        "reference": "Eq 17.11"
+      },
+      "equation": {
+        "formula": "Qcup = Ccup * (VDD - Vbit)",
+        "explanation": "Calculates the charge transferred based on the capacitor size and the voltage difference between VDD and the current bit line voltage.",
+        "assumptions": "Assumes M4 is absent or acts as a perfect short, and complete settling occurs."
+      },
+      "sky130_expected": {
+        "calculation": "Ccup = 100fF (from netlist). VDD = 1.8V. Assuming a test Vbit of 0.5V: Qcup = 100e-15 * (1.8 - 0.5) = 130 fC.",
+        "range": {
+          "min": 8e-14,
+          "typical": 1.3e-13,
+          "max": 1.8e-13,
+          "unit": "C"
+        },
+        "reasoning": "Depends heavily on the instantaneous Vbit voltage (0V to 1V range)."
+      },
+      "importance": "optional"
+    },
+    "charge_per_cycle_regulated": {
+      "description": "The precise amount of charge dumped into the bit line per clock cycle with M4 regulating the voltage swing across Ccup.",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "493",
+        "reference": "Eq 17.12"
+      },
+      "equation": {
+        "formula": "Qcup = Ccup * (VDD - VREF - VTHP)",
+        "explanation": "M4 shuts off when its source reaches VREF + VTHP, keeping the voltage swing across Ccup constant regardless of Vbit.",
+        "assumptions": "Assumes M4 does not enter the linear region (Vbit < VREF + VTHP) and complete settling occurs."
+      },
+      "sky130_expected": {
+        "calculation": "Ccup = 100fF, VDD = 1.8V, VREF = 0.5V (from netlist), |VTHP| = 0.42V. Qcup = 100e-15 * (1.8 - 0.5 - 0.42) = 100e-15 * 0.88 = 88 fC.",
+        "range": {
+          "min": 8e-14,
+          "typical": 8.8e-14,
+          "max": 9.5e-14,
+          "unit": "C"
+        },
+        "reasoning": "Determined by fixed parameters (VDD, VREF) and process parameters (VTHP, Ccup). Variations in VTHP will slightly alter this value."
+      },
+      "importance": "essential"
+    },
+    "max_bitline_voltage": {
+      "description": "The maximum voltage the bit line can reach before M4 enters the linear region, which would cause the injected charge to become dependent on Vbit again.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "493",
+        "reference": "Eq 17.13"
+      },
+      "equation": {
+        "formula": "Vbit,max < VREF + VTHP",
+        "explanation": "To keep M4 from being fully on (VSD,sat not zero), the bit line voltage must remain below the source voltage at which M4 cuts off.",
+        "assumptions": "Assumes standard saturation conditions for the PMOS."
+      },
+      "sky130_expected": {
+        "calculation": "VREF = 0.5V, |VTHP| = 0.42V. Vbit,max = 0.5 + 0.42 = 0.92V.",
+        "range": {
+          "min": 0.85,
+          "typical": 0.92,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "Directly tied to VREF and the threshold voltage of the PMOS device."
+      },
+      "importance": "recommended"
+    },
+    "zero_charge_vref_limit": {
+      "description": "The maximum reference voltage (VREF) that can be applied before the injected charge (Qcup) drops to zero.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "495",
+        "reference": "Eq 17.15"
+      },
+      "equation": {
+        "formula": "VREF < VDD - VTHP",
+        "explanation": "If VREF is set too high, the voltage swing across Ccup becomes zero or negative, preventing any charge transfer.",
+        "assumptions": "Based on the turn-on condition of the PMOS M4."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8V, |VTHP| = 0.42V. VREF_max = 1.8 - 0.42 = 1.38V.",
+        "range": {
+          "min": 1.3,
+          "typical": 1.38,
+          "max": 1.45,
+          "unit": "V"
+        },
+        "reasoning": "Depends on VDD and the PMOS threshold voltage."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient simulation to measure the average current injected into a fixed bit line voltage (0.5V) over multiple clock cycles to calculate the regulated charge per cycle (Qcup). It also calculates theoretical limits based on extracted parameters.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "charge_per_cycle_regulated",
+      "max_bitline_voltage",
+      "zero_charge_vref_limit"
+    ],
+    "spice": "* Switched-Capacitor Charge Pump Testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameterized W/L for the DUT\n.param W_xm1=2u L_xm1=0.15u\n.param W_xm2=2u L_xm2=0.15u\n.param W_xm3=2u L_xm3=0.15u\n.param W_xm4=2u L_xm4=0.15u\n\n* --- DUT (Device Under Test) ---\nVDD VDD 0 1.8\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nxm2 N003 0 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nC1 N001 0 1e-13\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nVREF VREF 0 500m\n\n* --- Stimulus ---\n* 100MHz non-overlapping clocks (T=10ns). PMOS switches are active LOW.\n* phi1 active (0V) from 1ns to 4ns\nVphi1 phi1 0 PULSE(1.8 0 1n 100p 100p 3n 10n)\n* phi2 active (0V) from 6ns to 9ns\nVphi2 phi2 0 PULSE(1.8 0 6n 100p 100p 3n 10n)\n\n* Fixed bit line voltage for testing charge transfer\nVbit_src vbit 0 0.5\n\n* --- Analysis ---\n.control\n* Run transient for 20 cycles (200ns)\ntran 100p 200n\n\n* Measure average current injected into Vbit_src from cycle 10 to 20\n* Note: Current flowing out of M4 into Vbit_src is measured as negative by ngspice\nmeas tran I_avg avg i(Vbit_src) from=100n to=200n\n\n* Calculate measured Qcup (Charge = Current * Period)\n* Period = 10ns (100MHz)\nlet Qcup_meas = -I_avg * 10e-9\nprint Qcup_meas\n\n* Calculate theoretical limits based on SKY130 parameters\nlet VDD_val = 1.8\nlet VREF_val = 0.5\nlet VTHP_val = 0.42\nlet Ccup_val = 100e-15\n\nlet Qcup_regulated_theory = Ccup_val * (VDD_val - VREF_val - VTHP_val)\nlet Vbit_max_theory = VREF_val + VTHP_val\nlet VREF_max_theory = VDD_val - VTHP_val\n\nprint Qcup_regulated_theory\nprint Vbit_max_theory\nprint VREF_max_theory\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.9\",\n    \"page\": \"494\",\n    \"circuit_type\": \"Switched-Capacitor (SC) Charge Pump for Delta-Sigma Modulator\",\n    \"description\": \"A switched-capacitor circuit designed to add a precise, constant amount of charge to a bit line. Transistor M4 is added to set a fixed voltage swing across the capacitor (Ccup), making the injected charge independent of the varying bit line voltage.\"\n  },\n  \"step2_metrics\": {\n    \"charge_per_cycle_unregulated\": {\n      \"description\": \"The amount of charge dumped into the bit line per clock cycle if M4 were not present (or if M4 is fully shorted), making it dependent on the bit line voltage.\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"493\",\n        \"reference\": \"Eq 17.11\"\n      },\n      \"equation\": {\n        \"formula\": \"Qcup = Ccup * (VDD - Vbit)\",\n        \"explanation\": \"Calculates the charge transferred based on the capacitor size and the voltage difference between VDD and the current bit line voltage.\",\n        \"assumptions\": \"Assumes M4 is absent or acts as a perfect short, and complete settling occurs.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ccup = 100fF (from netlist). VDD = 1.8V. Assuming a test Vbit of 0.5V: Qcup = 100e-15 * (1.8 - 0.5) = 130 fC.\",\n        \"range\": {\n          \"min\": 80e-15,\n          \"typical\": 130e-15,\n          \"max\": 180e-15,\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Depends heavily on the instantaneous Vbit voltage (0V to 1V range).\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"charge_per_cycle_regulated\": {\n      \"description\": \"The precise amount of charge dumped into the bit line per clock cycle with M4 regulating the voltage swing across Ccup.\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"493\",\n        \"reference\": \"Eq 17.12\"\n      },\n      \"equation\": {\n        \"formula\": \"Qcup = Ccup * (VDD - VREF - VTHP)\",\n        \"explanation\": \"M4 shuts off when its source reaches VREF + VTHP, keeping the voltage swing across Ccup constant regardless of Vbit.\",\n        \"assumptions\": \"Assumes M4 does not enter the linear region (Vbit < VREF + VTHP) and complete settling occurs.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ccup = 100fF, VDD = 1.8V, VREF = 0.5V (from netlist), |VTHP| = 0.42V. Qcup = 100e-15 * (1.8 - 0.5 - 0.42) = 100e-15 * 0.88 = 88 fC.\",\n        \"range\": {\n          \"min\": 80e-15,\n          \"typical\": 88e-15,\n          \"max\": 95e-15,\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Determined by fixed parameters (VDD, VREF) and process parameters (VTHP, Ccup). Variations in VTHP will slightly alter this value.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"max_bitline_voltage\": {\n      \"description\": \"The maximum voltage the bit line can reach before M4 enters the linear region, which would cause the injected charge to become dependent on Vbit again.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"493\",\n        \"reference\": \"Eq 17.13\"\n      },\n      \"equation\": {\n        \"formula\": \"Vbit,max < VREF + VTHP\",\n        \"explanation\": \"To keep M4 from being fully on (VSD,sat not zero), the bit line voltage must remain below the source voltage at which M4 cuts off.\",\n        \"assumptions\": \"Assumes standard saturation conditions for the PMOS.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VREF = 0.5V, |VTHP| = 0.42V. Vbit,max = 0.5 + 0.42 = 0.92V.\",\n        \"range\": {\n          \"min\": 0.85,\n          \"typical\": 0.92,\n          \"max\": 1.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Directly tied to VREF and the threshold voltage of the PMOS device.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"zero_charge_vref_limit\": {\n      \"description\": \"The maximum reference voltage (VREF) that can be applied before the injected charge (Qcup) drops to zero.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"495\",\n        \"reference\": \"Eq 17.15\"\n      },\n      \"equation\": {\n        \"formula\": \"VREF < VDD - VTHP\",\n        \"explanation\": \"If VREF is set too high, the voltage swing across Ccup becomes zero or negative, preventing any charge transfer.\",\n        \"assumptions\": \"Based on the turn-on condition of the PMOS M4.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8V, |VTHP| = 0.42V. VREF_max = 1.8 - 0.42 = 1.38V.\",\n        \"range\": {\n          \"min\": 1.3,\n          \"typical\": 1.38,\n          \"max\": 1.45,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on VDD and the PMOS threshold voltage.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient simulation to measure the average current injected into a fixed bit line voltage (0.5V) over multiple clock cycles to calculate the regulated charge per cycle (Qcup). It also calculates theoretical limits based on extracted parameters.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"charge_per_cycle_regulated\",\n      \"max_bitline_voltage\",\n      \"zero_charge_vref_limit\"\n    ],\n    \"spice\": \"* Switched-Capacitor Charge Pump Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameterized W/L for the DUT\\n.param W_xm1=2u L_xm1=0.15u\\n.param W_xm2=2u L_xm2=0.15u\\n.param W_xm3=2u L_xm3=0.15u\\n.param W_xm4=2u L_xm4=0.15u\\n\\n* --- DUT (Device Under Test) ---\\nVDD VDD 0 1.8\\nxm3 N001 phi1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm1 N002 phi2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 N003 0 N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nC1 N001 0 1e-13\\nxm4 vbit VREF N003 N003 sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nVREF VREF 0 500m\\n\\n* --- Stimulus ---\\n* 100MHz non-overlapping clocks (T=10ns). PMOS switches are active LOW.\\n* phi1 active (0V) from 1ns to 4ns\\nVphi1 phi1 0 PULSE(1.8 0 1n 100p 100p 3n 10n)\\n* phi2 active (0V) from 6ns to 9ns\\nVphi2 phi2 0 PULSE(1.8 0 6n 100p 100p 3n 10n)\\n\\n* Fixed bit line voltage for testing charge transfer\\nVbit_src vbit 0 0.5\\n\\n* --- Analysis ---\\n.control\\n* Run transient for 20 cycles (200ns)\\ntran 100p 200n\\n\\n* Measure average current injected into Vbit_src from cycle 10 to 20\\n* Note: Current flowing out of M4 into Vbit_src is measured as negative by ngspice\\nmeas tran I_avg avg i(Vbit_src) from=100n to=200n\\n\\n* Calculate measured Qcup (Charge = Current * Period)\\n* Period = 10ns (100MHz)\\nlet Qcup_meas = -I_avg * 10e-9\\nprint Qcup_meas\\n\\n* Calculate theoretical limits based on SKY130 parameters\\nlet VDD_val = 1.8\\nlet VREF_val = 0.5\\nlet VTHP_val = 0.42\\nlet Ccup_val = 100e-15\\n\\nlet Qcup_regulated_theory = Ccup_val * (VDD_val - VREF_val - VTHP_val)\\nlet Vbit_max_theory = VREF_val + VTHP_val\\nlet VREF_max_theory = VDD_val - VTHP_val\\n\\nprint Qcup_regulated_theory\\nprint Vbit_max_theory\\nprint VREF_max_theory\\n\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

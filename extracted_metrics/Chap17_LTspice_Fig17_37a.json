@@ -1,0 +1,146 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.36",
+    "page": "515",
+    "circuit_type": "Delta-Sigma Modulator (DSM) sensing circuit",
+    "description": "A DSM circuit for sensing in a CMOS imaging chip. It uses an NMOS source follower input, PMOS cup capacitors, NMOS bucket capacitors, and a PMOS imbalance comparator followed by an SR latch to digitize the difference between a reference voltage and an intensity voltage."
+  },
+  "step2_metrics": {
+    "thermal_noise_rms": {
+      "description": "RMS noise voltage due to thermal noise on the hold capacitor",
+      "unit": "V",
+      "analysis_type": "Noise",
+      "source": {
+        "page": "506",
+        "reference": "Text discussion (Table 8.1 reference)"
+      },
+      "equation": {
+        "formula": "V_noise,RMS = sqrt(k * T / C_H)",
+        "explanation": "Calculates the thermal noise floor sampled onto the hold capacitor.",
+        "assumptions": "Room temperature (T=300K), C_H is the hold capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "sqrt(1.38e-23 J/K * 300 K / 1e-12 F) = 64.3 uV",
+        "range": {
+          "min": "60u",
+          "typical": "64.3u",
+          "max": "70u",
+          "unit": "V"
+        },
+        "reasoning": "Based on a typical 1pF hold capacitor at room temperature."
+      },
+      "importance": "optional"
+    },
+    "V_R_shift": {
+      "description": "Shifted reference voltage at the source of the NMOS input device",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "515",
+        "reference": "Text discussion and Figure 17.37"
+      },
+      "equation": {
+        "formula": "V_R,shift = V_R - V_THN",
+        "explanation": "The reference voltage is level-shifted down by the threshold voltage of the NMOS source follower.",
+        "assumptions": "Body effect is neglected or lumped into an effective V_THN."
+      },
+      "sky130_expected": {
+        "calculation": "V_R = 0.65V. V_THN for SKY130 is approx 0.42V. V_R,shift = 0.65 - 0.42 = 0.23V",
+        "range": {
+          "min": "0.20",
+          "typical": "0.23",
+          "max": "0.26",
+          "unit": "V"
+        },
+        "reasoning": "Depends on the exact V_THN of the SKY130 NMOS device at the operating current."
+      },
+      "importance": "essential"
+    },
+    "V_I_shift": {
+      "description": "Shifted intensity voltage at the source of the NMOS input device",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "515",
+        "reference": "Figure 17.37"
+      },
+      "equation": {
+        "formula": "V_I,shift = V_I - V_THN",
+        "explanation": "The intensity voltage is level-shifted down by the threshold voltage of the NMOS source follower.",
+        "assumptions": "Assumes identical V_THN for both input devices."
+      },
+      "sky130_expected": {
+        "calculation": "V_I = 0.64V. V_THN approx 0.42V. V_I,shift = 0.64 - 0.42 = 0.22V",
+        "range": {
+          "min": "0.19",
+          "typical": "0.22",
+          "max": "0.25",
+          "unit": "V"
+        },
+        "reasoning": "Directly follows the V_R_shift calculation but with V_I input."
+      },
+      "importance": "essential"
+    },
+    "V_res": {
+      "description": "Voltage resolution of the DSM sensing circuit",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "515",
+        "reference": "Eq 17.43"
+      },
+      "equation": {
+        "formula": "V_res = V_R,shift / N",
+        "explanation": "The minimum resolvable voltage difference, determined by the shifted reference voltage divided by the number of clock cycles.",
+        "assumptions": "N is the total number of clock cycles (e.g., 100)."
+      },
+      "sky130_expected": {
+        "calculation": "V_R,shift = 0.23V, N = 100. V_res = 0.23 / 100 = 2.3 mV",
+        "range": {
+          "min": "2.0m",
+          "typical": "2.3m",
+          "max": "2.6m",
+          "unit": "V"
+        },
+        "reasoning": "Directly proportional to V_R,shift."
+      },
+      "importance": "essential"
+    },
+    "M_count": {
+      "description": "Digital output count (number of ones) over N cycles",
+      "unit": "count",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "513",
+        "reference": "Eq 17.40"
+      },
+      "equation": {
+        "formula": "M = N * (V_I,shift / V_R,shift)",
+        "explanation": "The transfer function of the DSM, relating the digital output count M to the ratio of the shifted input voltages.",
+        "assumptions": "Linear operation, no saturation of bucket capacitors, N is large enough."
+      },
+      "sky130_expected": {
+        "calculation": "N = 100, V_I,shift = 0.22V, V_R,shift = 0.23V. M = 100 * (0.22 / 0.23) = 95.6",
+        "range": {
+          "min": "94",
+          "typical": "96",
+          "max": "98",
+          "unit": "count"
+        },
+        "reasoning": "The ratio of V_I,shift to V_R,shift determines the duty cycle of the output."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure the digital output count (M) of the DSM over 100 clock cycles.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "M_count"
+    ],
+    "spice": "* DSM Sensing Circuit Testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameters for device sizing (Scale factor = 50nm)\n.param W_xm1=0.5u L_xm1=0.15u\n.param W_xm2=0.5u L_xm2=0.15u\n.param W_xm3=1.0u L_xm3=0.15u\n.param W_xm4=0.5u L_xm4=0.15u\n.param W_xm5=0.5u L_xm5=0.15u\n.param W_xm6=0.5u L_xm6=0.15u\n.param W_xm7=1.0u L_xm7=0.15u\n.param W_xm8=0.5u L_xm8=0.15u\n.param W_xm9=0.5u L_xm9=0.15u\n.param W_xm10=0.5u L_xm10=0.15u\n.param W_xm11=1.0u L_xm11=0.15u\n.param W_xm12=1.0u L_xm12=0.15u\n.param W_xm13=25u L_xm13=0.5u\n.param W_xm14=25u L_xm14=0.5u\n.param W_xm15=2.5u L_xm15=0.5u\n.param W_xm16=2.5u L_xm16=0.5u\n.param W_xm17=1.0u L_xm17=0.15u\n.param W_xm18=1.0u L_xm18=0.15u\n.param W_xm19=1.0u L_xm19=0.15u\n.param W_xm20=1.0u L_xm20=0.15u\n.param W_xm21=0.5u L_xm21=0.15u\n.param W_xm22=0.5u L_xm22=0.15u\n.param W_xm23=0.5u L_xm23=0.15u\n.param W_xm24=0.5u L_xm24=0.15u\n\n* DUT Netlist\nVDD VDD 0 1.8\nxm3 VDD N005 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm5 N006 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm7 vbuck vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nVr Vr 0 650m\nVi Vi 0 640m\nxm1 N005 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm2 N004 phi1 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm4 N003 phi1 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm6 N002 VDD N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm8 N001 Q N003 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxm9 vbuck Vi N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 vbucki Vr N001 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\nxm11 VDD N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm12 vbucki vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\nxm13 0 vbuck 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\nxm14 0 vbucki 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\nxm15 n1 vbuck VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\nxm16 n2 vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\nxm17 n3 Out n1 VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\nxm18 n4 Outi n2 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\nxm19 Outi phi2 n3 VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\nxm20 Out phi2 n4 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\nxm21 Out Outi 0 0 sky130_fd_pr__nfet_01v8 w={W_xm21} l={L_xm21}\nxm22 Outi Out 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\nxm23 Outi phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\nxm24 Out phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\nX_U1 Out Qi Q VDD 0 NOR_2\nX_U2 Q Outi Qi VDD 0 NOR_2\n\n.subckt NOR_2 A B Out VDD GND\n  xm3 out B N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 N001 A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 out B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A 0 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NOR_2\n\n* Clock Stimulus (10MHz, non-overlapping)\nVphi1 phi1 0 PULSE(0 1.8 0 1n 1n 40n 100n)\nVphi2 phi2 0 PULSE(0 1.8 50n 1n 1n 40n 100n)\n\n.control\n* Run transient for 10.5us (allows 500ns startup + 100 cycles of 100ns)\ntran 10n 10.5u\n\n* Measure the average value of Qi over the 100 cycle window (500ns to 10.5us)\nmeas tran qi_avg avg v(Qi) from=500n to=10.5u\n\n* Calculate M count (M = avg_voltage / VDD * N)\nlet M_meas = (qi_avg / 1.8) * 100\nprint M_meas\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.36\",\n    \"page\": \"515\",\n    \"circuit_type\": \"Delta-Sigma Modulator (DSM) sensing circuit\",\n    \"description\": \"A DSM circuit for sensing in a CMOS imaging chip. It uses an NMOS source follower input, PMOS cup capacitors, NMOS bucket capacitors, and a PMOS imbalance comparator followed by an SR latch to digitize the difference between a reference voltage and an intensity voltage.\"\n  },\n  \"step2_metrics\": {\n    \"thermal_noise_rms\": {\n      \"description\": \"RMS noise voltage due to thermal noise on the hold capacitor\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Noise\",\n      \"source\": {\n        \"page\": \"506\",\n        \"reference\": \"Text discussion (Table 8.1 reference)\"\n      },\n      \"equation\": {\n        \"formula\": \"V_noise,RMS = sqrt(k * T / C_H)\",\n        \"explanation\": \"Calculates the thermal noise floor sampled onto the hold capacitor.\",\n        \"assumptions\": \"Room temperature (T=300K), C_H is the hold capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"sqrt(1.38e-23 J/K * 300 K / 1e-12 F) = 64.3 uV\",\n        \"range\": {\n          \"min\": \"60u\",\n          \"typical\": \"64.3u\",\n          \"max\": \"70u\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Based on a typical 1pF hold capacitor at room temperature.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"V_R_shift\": {\n      \"description\": \"Shifted reference voltage at the source of the NMOS input device\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"515\",\n        \"reference\": \"Text discussion and Figure 17.37\"\n      },\n      \"equation\": {\n        \"formula\": \"V_R,shift = V_R - V_THN\",\n        \"explanation\": \"The reference voltage is level-shifted down by the threshold voltage of the NMOS source follower.\",\n        \"assumptions\": \"Body effect is neglected or lumped into an effective V_THN.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_R = 0.65V. V_THN for SKY130 is approx 0.42V. V_R,shift = 0.65 - 0.42 = 0.23V\",\n        \"range\": {\n          \"min\": \"0.20\",\n          \"typical\": \"0.23\",\n          \"max\": \"0.26\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the exact V_THN of the SKY130 NMOS device at the operating current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_I_shift\": {\n      \"description\": \"Shifted intensity voltage at the source of the NMOS input device\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"515\",\n        \"reference\": \"Figure 17.37\"\n      },\n      \"equation\": {\n        \"formula\": \"V_I,shift = V_I - V_THN\",\n        \"explanation\": \"The intensity voltage is level-shifted down by the threshold voltage of the NMOS source follower.\",\n        \"assumptions\": \"Assumes identical V_THN for both input devices.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_I = 0.64V. V_THN approx 0.42V. V_I,shift = 0.64 - 0.42 = 0.22V\",\n        \"range\": {\n          \"min\": \"0.19\",\n          \"typical\": \"0.22\",\n          \"max\": \"0.25\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Directly follows the V_R_shift calculation but with V_I input.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_res\": {\n      \"description\": \"Voltage resolution of the DSM sensing circuit\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"515\",\n        \"reference\": \"Eq 17.43\"\n      },\n      \"equation\": {\n        \"formula\": \"V_res = V_R,shift / N\",\n        \"explanation\": \"The minimum resolvable voltage difference, determined by the shifted reference voltage divided by the number of clock cycles.\",\n        \"assumptions\": \"N is the total number of clock cycles (e.g., 100).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_R,shift = 0.23V, N = 100. V_res = 0.23 / 100 = 2.3 mV\",\n        \"range\": {\n          \"min\": \"2.0m\",\n          \"typical\": \"2.3m\",\n          \"max\": \"2.6m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Directly proportional to V_R,shift.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"M_count\": {\n      \"description\": \"Digital output count (number of ones) over N cycles\",\n      \"unit\": \"count\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"513\",\n        \"reference\": \"Eq 17.40\"\n      },\n      \"equation\": {\n        \"formula\": \"M = N * (V_I,shift / V_R,shift)\",\n        \"explanation\": \"The transfer function of the DSM, relating the digital output count M to the ratio of the shifted input voltages.\",\n        \"assumptions\": \"Linear operation, no saturation of bucket capacitors, N is large enough.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N = 100, V_I,shift = 0.22V, V_R,shift = 0.23V. M = 100 * (0.22 / 0.23) = 95.6\",\n        \"range\": {\n          \"min\": \"94\",\n          \"typical\": \"96\",\n          \"max\": \"98\",\n          \"unit\": \"count\"\n        },\n        \"reasoning\": \"The ratio of V_I,shift to V_R,shift determines the duty cycle of the output.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure the digital output count (M) of the DSM over 100 clock cycles.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"M_count\"\n    ],\n    \"spice\": \"* DSM Sensing Circuit Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters for device sizing (Scale factor = 50nm)\\n.param W_xm1=0.5u L_xm1=0.15u\\n.param W_xm2=0.5u L_xm2=0.15u\\n.param W_xm3=1.0u L_xm3=0.15u\\n.param W_xm4=0.5u L_xm4=0.15u\\n.param W_xm5=0.5u L_xm5=0.15u\\n.param W_xm6=0.5u L_xm6=0.15u\\n.param W_xm7=1.0u L_xm7=0.15u\\n.param W_xm8=0.5u L_xm8=0.15u\\n.param W_xm9=0.5u L_xm9=0.15u\\n.param W_xm10=0.5u L_xm10=0.15u\\n.param W_xm11=1.0u L_xm11=0.15u\\n.param W_xm12=1.0u L_xm12=0.15u\\n.param W_xm13=25u L_xm13=0.5u\\n.param W_xm14=25u L_xm14=0.5u\\n.param W_xm15=2.5u L_xm15=0.5u\\n.param W_xm16=2.5u L_xm16=0.5u\\n.param W_xm17=1.0u L_xm17=0.15u\\n.param W_xm18=1.0u L_xm18=0.15u\\n.param W_xm19=1.0u L_xm19=0.15u\\n.param W_xm20=1.0u L_xm20=0.15u\\n.param W_xm21=0.5u L_xm21=0.15u\\n.param W_xm22=0.5u L_xm22=0.15u\\n.param W_xm23=0.5u L_xm23=0.15u\\n.param W_xm24=0.5u L_xm24=0.15u\\n\\n* DUT Netlist\\nVDD VDD 0 1.8\\nxm3 VDD N005 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm5 N006 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm7 vbuck vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nVr Vr 0 650m\\nVi Vi 0 640m\\nxm1 N005 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 N004 phi1 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm4 N003 phi1 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm6 N002 VDD N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm8 N001 Q N003 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 vbuck Vi N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 vbucki Vr N001 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 VDD N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 vbucki vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 0 vbuck 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 0 vbucki 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 n1 vbuck VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 n2 vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\\nxm17 n3 Out n1 VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\\nxm18 n4 Outi n2 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\\nxm19 Outi phi2 n3 VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\\nxm20 Out phi2 n4 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\\nxm21 Out Outi 0 0 sky130_fd_pr__nfet_01v8 w={W_xm21} l={L_xm21}\\nxm22 Outi Out 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\\nxm23 Outi phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\\nxm24 Out phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\\nX_U1 Out Qi Q VDD 0 NOR_2\\nX_U2 Q Outi Qi VDD 0 NOR_2\\n\\n.subckt NOR_2 A B Out VDD GND\\n  xm3 out B N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 N001 A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 out B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A 0 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NOR_2\\n\\n* Clock Stimulus (10MHz, non-overlapping)\\nVphi1 phi1 0 PULSE(0 1.8 0 1n 1n 40n 100n)\\nVphi2 phi2 0 PULSE(0 1.8 50n 1n 1n 40n 100n)\\n\\n.control\\n* Run transient for 10.5us (allows 500ns startup + 100 cycles of 100ns)\\ntran 10n 10.5u\\n\\n* Measure the average value of Qi over the 100 cycle window (500ns to 10.5us)\\nmeas tran qi_avg avg v(Qi) from=500n to=10.5u\\n\\n* Calculate M count (M = avg_voltage / VDD * N)\\nlet M_meas = (qi_avg / 1.8) * 100\\nprint M_meas\\n\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

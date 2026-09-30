@@ -1,0 +1,173 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Linear Regulator (LDO) Error Amplifier and Pass Transistor",
+    "description": "A two-stage CMOS linear regulator consisting of a differential error amplifier (first stage) and a PMOS pass transistor (second stage). It includes an auxiliary bias network (XM1, XM3, XM5, XM7, XM10) likely used for slew-rate enhancement or fast transient response.",
+    "node_mapping": {
+      "input": [
+        "V_P",
+        "V_N"
+      ],
+      "output": [
+        "V_AMP"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "V_BIAS",
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Area-Efficient Linear Regulator With Ultra-Fast Load Regulation",
+      "figure": "Schematic extraction",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Open-loop low-frequency voltage gain of the error amplifier and pass transistor.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "90 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Gain of diff pair (gm * ro) + Gain of CS stage (gm * ro). Assuming gm*ro ~ 20-30 V/V per stage.",
+        "range": {
+          "min": 40,
+          "typical": 50,
+          "max": 70,
+          "unit": "dB"
+        },
+        "reasoning": "Standard two-stage CMOS amplifier gain in 130nm technology without cascoding."
+      },
+      "importance": "essential"
+    },
+    "ugbf": {
+      "description": "Unity Gain Bandwidth Frequency where the open-loop gain crosses 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "90 nm"
+      },
+      "sky130_expected": {
+        "calculation": "gm1 / (2 * pi * Cload). With Cload = 1pF and gm1 ~ 50uS.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 10000000.0,
+          "max": 50000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is highly dependent on the load capacitance and the transconductance of the input pair."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin of the open-loop response to ensure closed-loop stability.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "90 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Phase at UGBF. Depends on the separation of the dominant pole (at output) and non-dominant pole (at N3).",
+        "range": {
+          "min": 30,
+          "typical": 60,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Without explicit Miller compensation, stability relies on the load capacitor acting as the dominant pole."
+      },
+      "importance": "essential"
+    },
+    "quiescent_power": {
+      "description": "Total power consumed by the regulator with no load current.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "94% current efficiency at 100mA (implies ~6mA Iq in paper)",
+        "technology": "90 nm"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * (I_tail + I_bias_network). With 1.8V and ~100uA total bias current.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0002,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "The extracted netlist uses scaled-down transistors (W=5u), so the quiescent current will be much lower than the 100mA-capable paper design."
+      },
+      "importance": "essential"
+    },
+    "load_regulation": {
+      "description": "Peak-to-peak output voltage variation during a transient load current step.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "90 mV for 100 mA step",
+        "technology": "90 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Delta Vout for a 10uA to 50uA load step.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.05,
+          "max": 0.1,
+          "unit": "V"
+        },
+        "reasoning": "Scaled down load step (40uA) for the scaled down pass transistor (W=5u) should yield similar proportional droop."
+      },
+      "importance": "essential"
+    },
+    "line_regulation": {
+      "description": "Change in output voltage per unit change in supply voltage.",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "90 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Delta Vout / Delta VDD over 1.6V to 2.0V range.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.01,
+          "max": 0.05,
+          "unit": "V/V"
+        },
+        "reasoning": "Determined by the finite output resistance of the bias current sources and the loop gain."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Comprehensive testbench measuring open-loop AC characteristics (Gain, UGBF, PM), closed-loop transient load regulation, and DC line regulation. Uses Rbreak/Cbreak method to seamlessly switch between open-loop AC and closed-loop Tran/DC analyses.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "ugbf",
+      "phase_margin",
+      "quiescent_power",
+      "load_regulation",
+      "line_regulation"
+    ],
+    "spice": "* Testbench for Area-Efficient Linear Regulator\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm14=5u L_xm14=0.5u\n\n* Include SKY130 models\n.lib \"${SKY130_PDK}/models/sky130.lib.spice\" tt\n\n* DUT\nXM1 N6 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N4 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N4 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N3 V_BIAS N6 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 V_N N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 V_AMP N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N3 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N3 V_P N0 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM13 V_AMP N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM14 N2 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\n\n* Power and Biasing\nVVDD VDD 0 1.8\nVbias V_BIAS 0 0.9\nIbias N2 0 20u\n\n* Reference Voltage\nVref V_P 0 0.9\n\n* Feedback Loop (Broken for AC, Closed for DC/Tran via alter)\nRbreak V_AMP V_N 1G\nCbreak V_N V_AC 1G\nVac V_AC 0 DC 0 AC 1\n\n* Load\nIload V_AMP 0 DC 10u PULSE(10u 50u 1u 0.1u 0.1u 5u 10u)\nCload V_AMP 0 1p\n\n.control\n* 1. Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis (Open Loop)\nac dec 20 1 10G\nlet gain_db = vdb(V_AMP)\nlet phase = 180/PI * cph(v(V_AMP))\nmeas ac dc_gain find gain_db at=10\nmeas ac ugbf when gain_db=0 fall=1\nmeas ac phase_at_ugbf find phase when gain_db=0 fall=1\nprint dc_gain ugbf phase_at_ugbf\n\n* Close the loop for Transient and DC analyses\nalter Rbreak 0.1\nalter Cbreak 1f\n\n* 3. Transient Analysis (Load Regulation)\ntran 10n 10u\nmeas tran vout_max max v(V_AMP)\nmeas tran vout_min min v(V_AMP)\nlet load_reg = vout_max - vout_min\nprint load_reg\n\n* 4. DC Sweep (Line Regulation)\ndc VVDD 1.6 2.0 0.01\nmeas dc vout_16 find v(V_AMP) at=1.6\nmeas dc vout_20 find v(V_AMP) at=2.0\nlet line_reg = (vout_20 - vout_16) / 0.4\nprint line_reg\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Linear Regulator (LDO) Error Amplifier and Pass Transistor\",\n    \"description\": \"A two-stage CMOS linear regulator consisting of a differential error amplifier (first stage) and a PMOS pass transistor (second stage). It includes an auxiliary bias network (XM1, XM3, XM5, XM7, XM10) likely used for slew-rate enhancement or fast transient response.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"V_P\",\n        \"V_N\"\n      ],\n      \"output\": [\n        \"V_AMP\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"V_BIAS\",\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Area-Efficient Linear Regulator With Ultra-Fast Load Regulation\",\n      \"figure\": \"Schematic extraction\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Open-loop low-frequency voltage gain of the error amplifier and pass transistor.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain of diff pair (gm * ro) + Gain of CS stage (gm * ro). Assuming gm*ro ~ 20-30 V/V per stage.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 50,\n          \"max\": 70,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard two-stage CMOS amplifier gain in 130nm technology without cascoding.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbf\": {\n      \"description\": \"Unity Gain Bandwidth Frequency where the open-loop gain crosses 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm1 / (2 * pi * Cload). With Cload = 1pF and gm1 ~ 50uS.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 10e6,\n          \"max\": 50e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is highly dependent on the load capacitance and the transconductance of the input pair.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin of the open-loop response to ensure closed-loop stability.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Phase at UGBF. Depends on the separation of the dominant pole (at output) and non-dominant pole (at N3).\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 60,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Without explicit Miller compensation, stability relies on the load capacitor acting as the dominant pole.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quiescent_power\": {\n      \"description\": \"Total power consumed by the regulator with no load current.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"94% current efficiency at 100mA (implies ~6mA Iq in paper)\",\n        \"technology\": \"90 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * (I_tail + I_bias_network). With 1.8V and ~100uA total bias current.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 200e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The extracted netlist uses scaled-down transistors (W=5u), so the quiescent current will be much lower than the 100mA-capable paper design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"load_regulation\": {\n      \"description\": \"Peak-to-peak output voltage variation during a transient load current step.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"90 mV for 100 mA step\",\n        \"technology\": \"90 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta Vout for a 10uA to 50uA load step.\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.05,\n          \"max\": 0.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Scaled down load step (40uA) for the scaled down pass transistor (W=5u) should yield similar proportional droop.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"line_regulation\": {\n      \"description\": \"Change in output voltage per unit change in supply voltage.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta Vout / Delta VDD over 1.6V to 2.0V range.\",\n        \"range\": {\n          \"min\": 0.001,\n          \"typical\": 0.01,\n          \"max\": 0.05,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Determined by the finite output resistance of the bias current sources and the loop gain.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Comprehensive testbench measuring open-loop AC characteristics (Gain, UGBF, PM), closed-loop transient load regulation, and DC line regulation. Uses Rbreak/Cbreak method to seamlessly switch between open-loop AC and closed-loop Tran/DC analyses.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"ugbf\",\n      \"phase_margin\",\n      \"quiescent_power\",\n      \"load_regulation\",\n      \"line_regulation\"\n    ],\n    \"spice\": \"* Testbench for Area-Efficient Linear Regulator\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n\\n* Include SKY130 models\\n.lib \\\"${SKY130_PDK}/models/sky130.lib.spice\\\" tt\\n\\n* DUT\\nXM1 N6 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N4 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N4 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N3 V_BIAS N6 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 V_N N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 V_AMP N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N3 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N3 V_P N0 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 V_AMP N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM14 N2 GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\\n\\n* Power and Biasing\\nVVDD VDD 0 1.8\\nVbias V_BIAS 0 0.9\\nIbias N2 0 20u\\n\\n* Reference Voltage\\nVref V_P 0 0.9\\n\\n* Feedback Loop (Broken for AC, Closed for DC/Tran via alter)\\nRbreak V_AMP V_N 1G\\nCbreak V_N V_AC 1G\\nVac V_AC 0 DC 0 AC 1\\n\\n* Load\\nIload V_AMP 0 DC 10u PULSE(10u 50u 1u 0.1u 0.1u 5u 10u)\\nCload V_AMP 0 1p\\n\\n.control\\n* 1. Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Open Loop)\\nac dec 20 1 10G\\nlet gain_db = vdb(V_AMP)\\nlet phase = 180/PI * cph(v(V_AMP))\\nmeas ac dc_gain find gain_db at=10\\nmeas ac ugbf when gain_db=0 fall=1\\nmeas ac phase_at_ugbf find phase when gain_db=0 fall=1\\nprint dc_gain ugbf phase_at_ugbf\\n\\n* Close the loop for Transient and DC analyses\\nalter Rbreak 0.1\\nalter Cbreak 1f\\n\\n* 3. Transient Analysis (Load Regulation)\\ntran 10n 10u\\nmeas tran vout_max max v(V_AMP)\\nmeas tran vout_min min v(V_AMP)\\nlet load_reg = vout_max - vout_min\\nprint load_reg\\n\\n* 4. DC Sweep (Line Regulation)\\ndc VVDD 1.6 2.0 0.01\\nmeas dc vout_16 find v(V_AMP) at=1.6\\nmeas dc vout_20 find v(V_AMP) at=2.0\\nlet line_reg = (vout_20 - vout_16) / 0.4\\nprint line_reg\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1424225",
+  "_case": "1424225_image_10"
+}

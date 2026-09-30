@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Active Mixer (Gilbert Cell)",
+    "description": "An active mixer circuit used for frequency down-conversion in a direct-conversion receiver. Due to the grounded gate on one of the RF transconductance transistors (M2), it operates as a single-balanced mixer, multiplying the RF input with the differential LO to produce a differential IF/baseband output.",
+    "node_mapping": {
+      "input": [
+        "IN1",
+        "IN+",
+        "IN-"
+      ],
+      "output": [
+        "V1",
+        "V2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "RF Front-End of Direct Conversion Receiver RFIC for CDMA-2000",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Conversion Gain": {
+      "description": "Ratio of the intermediate frequency (IF) output voltage amplitude to the RF input voltage amplitude.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5 dB",
+        "technology": "Unknown (likely BiCMOS or CMOS given 2.7V supply)"
+      },
+      "sky130_expected": {
+        "calculation": "With Itail = 0.15mA, gm1 = 2.3mA/V. Conversion gm = gm1 * 2/pi = 1.46mA/V. With Rload = 5kOhm, Gain = 1.46m * 5k = 7.3 V/V = 17.2 dB.",
+        "range": {
+          "min": 10,
+          "typical": 17,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply and chosen load resistors to ensure stacked transistors remain in saturation."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power dissipated by the circuit from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Not explicitly separated for mixer",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Itail = 0.15mA. P = VDD * Itail = 1.8V * 0.15mA = 0.27mW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00027,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Based on the bias point required to keep the stacked transistors in saturation under 1.8V."
+      },
+      "importance": "essential"
+    },
+    "Operating Frequency": {
+      "description": "The RF and LO frequencies the mixer is designed to operate at.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1990 MHz",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Set RF to 2.001 GHz and LO to 2.000 GHz to produce a 1 MHz IF for simulation.",
+        "range": {
+          "min": 1800000000.0,
+          "typical": 1990000000.0,
+          "max": 2200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the CDMA-2000 bands reported in the paper."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power and transient conversion gain of the mixer.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Conversion Gain"
+    ],
+    "spice": "* RF Front-End Mixer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param R_load=5k\n.param R_tail=1k\n.param W_rf=10u L_rf=0.15u\n.param W_lo=10u L_lo=0.15u\n\n* Modified DUT: Changed Q to M and npn to sky130_fd_pr__nfet_01v8 to use SKY130 MOSFETs\nR1 V1 VDD {R_load}\nR2 V2 VDD {R_load}\nR3 E3 GND {R_tail}\nM1 E1 IN1 E3 GND sky130_fd_pr__nfet_01v8 W={W_rf} L={L_rf}\nM2 E2 GND E3 GND sky130_fd_pr__nfet_01v8 W={W_rf} L={L_rf}\nM3 V1 IN+ E1 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\nM4 V2 IN- E1 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\nM5 V1 IN- E2 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\nM6 V2 IN+ E2 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\n\nVGND GND 0 0\n\nVVDD VDD 0 1.8\n* RF input at 2.001 GHz, 10mV amplitude\nVIN1 IN1 0 DC 0.7 SIN(0.7 0.01 2.001G 0 0)\n* Differential LO at 2.000 GHz, 300mV amplitude\nVINp IN+ 0 DC 1.2 SIN(1.2 0.3 2.000G 0 0)\nVINn IN- 0 DC 1.2 SIN(1.2 0.3 2.000G 0 180)\n\nB1 out_diff 0 V=v(V1)-v(V2)\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(V1) v(V2) v(E1) v(E3)\n\n* Transient analysis to capture 1MHz IF (1us period)\ntran 10p 3u\nmeas tran vout_max max v(out_diff) from=2u to=3u\nmeas tran vout_min min v(out_diff) from=2u to=3u\nlet vout_pp = vout_max - vout_min\nlet vout_amp = vout_pp / 2\nlet gain_linear = vout_amp / 0.01\nlet gain_db = 20 * log10(gain_linear)\nprint gain_db\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Active Mixer (Gilbert Cell)\",\n    \"description\": \"An active mixer circuit used for frequency down-conversion in a direct-conversion receiver. Due to the grounded gate on one of the RF transconductance transistors (M2), it operates as a single-balanced mixer, multiplying the RF input with the differential LO to produce a differential IF/baseband output.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN1\",\n        \"IN+\",\n        \"IN-\"\n      ],\n      \"output\": [\n        \"V1\",\n        \"V2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"RF Front-End of Direct Conversion Receiver RFIC for CDMA-2000\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Conversion Gain\": {\n      \"description\": \"Ratio of the intermediate frequency (IF) output voltage amplitude to the RF input voltage amplitude.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5 dB\",\n        \"technology\": \"Unknown (likely BiCMOS or CMOS given 2.7V supply)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With Itail = 0.15mA, gm1 = 2.3mA/V. Conversion gm = gm1 * 2/pi = 1.46mA/V. With Rload = 5kOhm, Gain = 1.46m * 5k = 7.3 V/V = 17.2 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 17,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply and chosen load resistors to ensure stacked transistors remain in saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly separated for mixer\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Itail = 0.15mA. P = VDD * Itail = 1.8V * 0.15mA = 0.27mW.\",\n        \"range\": {\n          \"min\": 0.1e-3,\n          \"typical\": 0.27e-3,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the bias point required to keep the stacked transistors in saturation under 1.8V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Operating Frequency\": {\n      \"description\": \"The RF and LO frequencies the mixer is designed to operate at.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1990 MHz\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Set RF to 2.001 GHz and LO to 2.000 GHz to produce a 1 MHz IF for simulation.\",\n        \"range\": {\n          \"min\": 1.8e9,\n          \"typical\": 1.99e9,\n          \"max\": 2.2e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the CDMA-2000 bands reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power and transient conversion gain of the mixer.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Conversion Gain\"\n    ],\n    \"spice\": \"* RF Front-End Mixer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param R_load=5k\\n.param R_tail=1k\\n.param W_rf=10u L_rf=0.15u\\n.param W_lo=10u L_lo=0.15u\\n\\n* Modified DUT: Changed Q to M and npn to sky130_fd_pr__nfet_01v8 to use SKY130 MOSFETs\\nR1 V1 VDD {R_load}\\nR2 V2 VDD {R_load}\\nR3 E3 GND {R_tail}\\nM1 E1 IN1 E3 GND sky130_fd_pr__nfet_01v8 W={W_rf} L={L_rf}\\nM2 E2 GND E3 GND sky130_fd_pr__nfet_01v8 W={W_rf} L={L_rf}\\nM3 V1 IN+ E1 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\\nM4 V2 IN- E1 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\\nM5 V1 IN- E2 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\\nM6 V2 IN+ E2 GND sky130_fd_pr__nfet_01v8 W={W_lo} L={L_lo}\\n\\nVGND GND 0 0\\n\\nVVDD VDD 0 1.8\\n* RF input at 2.001 GHz, 10mV amplitude\\nVIN1 IN1 0 DC 0.7 SIN(0.7 0.01 2.001G 0 0)\\n* Differential LO at 2.000 GHz, 300mV amplitude\\nVINp IN+ 0 DC 1.2 SIN(1.2 0.3 2.000G 0 0)\\nVINn IN- 0 DC 1.2 SIN(1.2 0.3 2.000G 0 180)\\n\\nB1 out_diff 0 V=v(V1)-v(V2)\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(V1) v(V2) v(E1) v(E3)\\n\\n* Transient analysis to capture 1MHz IF (1us period)\\ntran 10p 3u\\nmeas tran vout_max max v(out_diff) from=2u to=3u\\nmeas tran vout_min min v(out_diff) from=2u to=3u\\nlet vout_pp = vout_max - vout_min\\nlet vout_amp = vout_pp / 2\\nlet gain_linear = vout_amp / 0.01\\nlet gain_db = 20 * log10(gain_linear)\\nprint gain_db\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1336990",
+  "_case": "1336990_image_8_a"
+}

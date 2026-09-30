@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Power Gating Header Circuit",
+    "description": "A fine-granularity power gating header circuit used to partition power supplies and reduce leakage in an SRAM array. It uses series PFETs to create a virtual VDD (N0) and includes bias and decoupling elements to manage power domains.",
+    "node_mapping": {
+      "input": [
+        "N7",
+        "N6",
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N0",
+        "N4",
+        "N5"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 64Mb SRAM in 22nm SOI Technology Featuring Fine-Granularity Power Gating and Low-Energy Power-Supply-Partition Techniques for 37% Leakage Reduction",
+      "figure": "18.4.6",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "voltage_drop_active": {
+      "description": "Voltage drop across the header switch during active mode (VDD - V_virtual_VDD).",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "150mV",
+        "technology": "22nm"
+      },
+      "sky130_expected": {
+        "calculation": "I_load * R_on of series PFETs. With a 10k load, I ~= 140uA. R_on of two 5u/0.5u PFETs is roughly 2.9kOhm. Voltage drop = 140uA * 2.9kOhm ~= 0.4V.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.4",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on the load resistor and transistor sizing. The series stack increases the resistance compared to a single header."
+      },
+      "importance": "essential"
+    },
+    "turn_on_time": {
+      "description": "Time required for the virtual VDD to reach a functional level after the sleep signal is de-asserted.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "22nm"
+      },
+      "sky130_expected": {
+        "calculation": "RC time constant of header R_on and load capacitance. Assuming minimal parasitic capacitance (~10fF), tau = 2.9kOhm * 10fF = 29ps. Dominated by input transition time.",
+        "range": {
+          "min": "10p",
+          "typical": "100p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "Fast switching due to small parasitic capacitance in the testbench, though in a real SRAM array the load capacitance would be much larger."
+      },
+      "importance": "essential"
+    },
+    "leakage_power": {
+      "description": "Power consumed by the circuit in sleep mode (N7 = VDD).",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "37% reduction",
+        "technology": "22nm"
+      },
+      "sky130_expected": {
+        "calculation": "Subthreshold leakage of the series PFETs. For W=5u, leakage is roughly 10pA/um, so ~50pA. Power = 1.8V * 50pA = 90pW.",
+        "range": {
+          "min": "10p",
+          "typical": "100p",
+          "max": "1n",
+          "unit": "W"
+        },
+        "reasoning": "Series stacked PFETs significantly reduce leakage (stack effect), which aligns with the paper's goal of leakage reduction."
+      },
+      "importance": "essential"
+    },
+    "active_power": {
+      "description": "Power consumed from the main supply during active mode.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "22nm"
+      },
+      "sky130_expected": {
+        "calculation": "Dominated by the load resistor. I = V_N0 / 10k ~= 1.4V / 10k = 140uA. Power = 1.8V * 140uA = 252uW.",
+        "range": {
+          "min": "100u",
+          "typical": "250u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Directly proportional to the artificial load placed on the virtual VDD node in the testbench."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure active voltage drop, turn-on time, active power, and sleep leakage power of the power gating header.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_drop_active",
+      "turn_on_time",
+      "leakage_power",
+      "active_power"
+    ],
+    "spice": "* Power Gating Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVN6 N6 0 1.8\n\n* Sleep signal (active low to turn on VDDV)\nVN7 N7 0 PULSE(1.8 0 5n 0.1n 0.1n 20n 40n)\n\n* DUT\nXM1 N1 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 N6 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 N7 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N3 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N5 LABEL_NET_1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N5 N7 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N4 N6 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N3 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\n\n* Loads to simulate SRAM array and peripheral logic\nRload0 N0 0 10k\nRload4 N4 0 10k\nRload5 N5 0 10k\n\n.control\ntran 0.1n 50n\n\n* Measure active and sleep voltages on virtual VDD (N0)\nmeas tran v_vddv_active max v(N0)\nmeas tran v_vddv_sleep min v(N0)\n\n* Measure turn-on time (delay from sleep falling to VDDV rising)\nmeas tran t_turn_on trig v(N7) val=0.9 fall=1 targ v(N0) val=1.2 rise=1\n\n* Measure power consumption\nmeas tran pwr_active avg i(VVDD) from=10n to=20n\nmeas tran pwr_sleep avg i(VVDD) from=35n to=45n\n\nlet pwr_active_mw = -pwr_active * 1.8 * 1000\nlet pwr_sleep_uw = -pwr_sleep * 1.8 * 1000000\n\nprint v_vddv_active v_vddv_sleep t_turn_on pwr_active_mw pwr_sleep_uw\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Power Gating Header Circuit\",\n    \"description\": \"A fine-granularity power gating header circuit used to partition power supplies and reduce leakage in an SRAM array. It uses series PFETs to create a virtual VDD (N0) and includes bias and decoupling elements to manage power domains.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N7\",\n        \"N6\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N4\",\n        \"N5\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 64Mb SRAM in 22nm SOI Technology Featuring Fine-Granularity Power Gating and Low-Energy Power-Supply-Partition Techniques for 37% Leakage Reduction\",\n      \"figure\": \"18.4.6\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_drop_active\": {\n      \"description\": \"Voltage drop across the header switch during active mode (VDD - V_virtual_VDD).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"150mV\",\n        \"technology\": \"22nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_load * R_on of series PFETs. With a 10k load, I ~= 140uA. R_on of two 5u/0.5u PFETs is roughly 2.9kOhm. Voltage drop = 140uA * 2.9kOhm ~= 0.4V.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.4\",\n          \"max\": \"0.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on the load resistor and transistor sizing. The series stack increases the resistance compared to a single header.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"turn_on_time\": {\n      \"description\": \"Time required for the virtual VDD to reach a functional level after the sleep signal is de-asserted.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"22nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"RC time constant of header R_on and load capacitance. Assuming minimal parasitic capacitance (~10fF), tau = 2.9kOhm * 10fF = 29ps. Dominated by input transition time.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"100p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Fast switching due to small parasitic capacitance in the testbench, though in a real SRAM array the load capacitance would be much larger.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"leakage_power\": {\n      \"description\": \"Power consumed by the circuit in sleep mode (N7 = VDD).\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"37% reduction\",\n        \"technology\": \"22nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Subthreshold leakage of the series PFETs. For W=5u, leakage is roughly 10pA/um, so ~50pA. Power = 1.8V * 50pA = 90pW.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"100p\",\n          \"max\": \"1n\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Series stacked PFETs significantly reduce leakage (stack effect), which aligns with the paper's goal of leakage reduction.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"active_power\": {\n      \"description\": \"Power consumed from the main supply during active mode.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"22nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominated by the load resistor. I = V_N0 / 10k ~= 1.4V / 10k = 140uA. Power = 1.8V * 140uA = 252uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"250u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Directly proportional to the artificial load placed on the virtual VDD node in the testbench.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure active voltage drop, turn-on time, active power, and sleep leakage power of the power gating header.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_drop_active\",\n      \"turn_on_time\",\n      \"leakage_power\",\n      \"active_power\"\n    ],\n    \"spice\": \"* Power Gating Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVN6 N6 0 1.8\\n\\n* Sleep signal (active low to turn on VDDV)\\nVN7 N7 0 PULSE(1.8 0 5n 0.1n 0.1n 20n 40n)\\n\\n* DUT\\nXM1 N1 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 N6 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 N7 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N3 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N5 LABEL_NET_1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N5 N7 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N4 N6 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N3 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Loads to simulate SRAM array and peripheral logic\\nRload0 N0 0 10k\\nRload4 N4 0 10k\\nRload5 N5 0 10k\\n\\n.control\\ntran 0.1n 50n\\n\\n* Measure active and sleep voltages on virtual VDD (N0)\\nmeas tran v_vddv_active max v(N0)\\nmeas tran v_vddv_sleep min v(N0)\\n\\n* Measure turn-on time (delay from sleep falling to VDDV rising)\\nmeas tran t_turn_on trig v(N7) val=0.9 fall=1 targ v(N0) val=1.2 rise=1\\n\\n* Measure power consumption\\nmeas tran pwr_active avg i(VVDD) from=10n to=20n\\nmeas tran pwr_sleep avg i(VVDD) from=35n to=45n\\n\\nlet pwr_active_mw = -pwr_active * 1.8 * 1000\\nlet pwr_sleep_uw = -pwr_sleep * 1.8 * 1000000\\n\\nprint v_vddv_active v_vddv_sleep t_turn_on pwr_active_mw pwr_sleep_uw\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6487753",
+  "_case": "6487753_image_3"
+}

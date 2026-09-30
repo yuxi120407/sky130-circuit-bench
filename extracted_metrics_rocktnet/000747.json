@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Current Sense Amplifier",
+    "description": "A low-voltage current-mode sense amplifier for nonvolatile memories. It uses a negative feedback loop formed by cross-coupled current mirrors to regulate the bitline voltage and compare the memory cell current against a reference current.",
+    "node_mapping": {
+      "input": [
+        "BL",
+        "N1"
+      ],
+      "output": [
+        "BL",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A High-Performance Very Low-Voltage Current Sense Amplifier for Nonvolatile Memories",
+      "figure": "unknown",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "read_access_time": {
+      "description": "Delay from the activation of the memory cell current to the output voltage crossing the decision threshold.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "30 ns",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a bitline capacitance Cbl = 1pF, a half-swing dV = 0.24V, and a charging current I = 5uA. The delay t = C * dV / I = 1pF * 0.24V / 5uA = 48ns.",
+        "range": {
+          "min": "30n",
+          "typical": "48n",
+          "max": "70n",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the assumed bitline capacitance and reference current. Adjusted for 1pF load and 10uA reference current."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power drawn from the supply during a read operation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2 uW to 9 uW",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Total current is I_ref + I_12. If I_ref = 10uA and I_cell = 0, I_12 = 15uA. Total current = 25uA. Power = 25uA * 1.8V = 45uW.",
+        "range": {
+          "min": "20u",
+          "typical": "45u",
+          "max": "80u",
+          "unit": "W"
+        },
+        "reasoning": "Higher than the paper's reported values due to the 1.8V supply and assumed 10uA reference current (the paper likely used ~1uA and a 1V supply)."
+      },
+      "importance": "essential"
+    },
+    "bitline_voltage_swing": {
+      "description": "Voltage difference on the bitline between programmed and erased states.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "700 mV",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "When I_cell = 0, BL is at Vgs of XM1 with 5uA. Vgs = Vth + sqrt(2*Id / (un*Cox * W/L)) = 0.42 + sqrt(10u / (270u * 10)) = 0.48V. When I_cell = 20uA, BL is discharged to 0V. Swing = 0.48V.",
+        "range": {
+          "min": "0.3",
+          "typical": "0.48",
+          "max": "0.7",
+          "unit": "V"
+        },
+        "reasoning": "Calculated using SKY130 NMOS parameters. The swing is clamped by the diode-connected NMOS to keep the bitline voltage low and improve speed."
+      },
+      "importance": "essential"
+    },
+    "supply_voltage": {
+      "description": "Operating power supply voltage.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "1 V, 1.65 V, 1.5 V, 0.8 V",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Standard nominal voltage for sky130_fd_pr__nfet_01v8 is 1.8V.",
+        "range": {
+          "min": "1.62",
+          "typical": "1.8",
+          "max": "1.98",
+          "unit": "V"
+        },
+        "reasoning": "Adapted to SKY130 standard 1.8V devices, though the current-mode topology allows it to operate at much lower voltages."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure read access time, power consumption, and voltage swings of the current sense amplifier.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "read_access_time",
+      "power_consumption",
+      "bitline_voltage_swing"
+    ],
+    "spice": "* High-Performance Very Low-Voltage Current Sense Amplifier\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm12=5u L_xm12=0.5u\n\nVVDD VDD 0 1.8\nIref VDD N1 DC 10u\n* Voltage source to control the cell current (1V = 1uA)\nVcell_ctrl ctrl 0 DC 5 AC 1 PULSE(0 20 10n 1n 1n 40n 80n)\nGcell BL 0 ctrl 0 1u\nCbl BL 0 1p\n\nXM11 N2 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM13 BL N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM10 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM1 BL BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM14 N1 BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\nXM12 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\n\n.control\n* DC Analysis\ndc Vcell_ctrl 0 20 0.1\nmeas dc bl_high find v(BL) at=0\nmeas dc bl_low find v(BL) at=20\nmeas dc n2_high max v(N2)\nmeas dc n2_low min v(N2)\n\n* AC Analysis\nac dec 10 1k 1G\nmeas ac z_bl_db find vdb(BL) at=1k\nmeas ac z_n2_db find vdb(N2) at=1k\n\n* Transient Analysis\ntran 0.1n 100n\nmeas tran t_read_fall trig v(ctrl) val=10 rise=1 targ v(BL) val=0.24 fall=1\nmeas tran t_read_rise trig v(ctrl) val=10 fall=1 targ v(BL) val=0.24 rise=1\nmeas tran pwr_avg avg -i(VVDD)*1.8\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Current Sense Amplifier\",\n    \"description\": \"A low-voltage current-mode sense amplifier for nonvolatile memories. It uses a negative feedback loop formed by cross-coupled current mirrors to regulate the bitline voltage and compare the memory cell current against a reference current.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"BL\",\n        \"N1\"\n      ],\n      \"output\": [\n        \"BL\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A High-Performance Very Low-Voltage Current Sense Amplifier for Nonvolatile Memories\",\n      \"figure\": \"unknown\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"read_access_time\": {\n      \"description\": \"Delay from the activation of the memory cell current to the output voltage crossing the decision threshold.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"30 ns\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a bitline capacitance Cbl = 1pF, a half-swing dV = 0.24V, and a charging current I = 5uA. The delay t = C * dV / I = 1pF * 0.24V / 5uA = 48ns.\",\n        \"range\": {\n          \"min\": \"30n\",\n          \"typical\": \"48n\",\n          \"max\": \"70n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the assumed bitline capacitance and reference current. Adjusted for 1pF load and 10uA reference current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power drawn from the supply during a read operation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2 uW to 9 uW\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current is I_ref + I_12. If I_ref = 10uA and I_cell = 0, I_12 = 15uA. Total current = 25uA. Power = 25uA * 1.8V = 45uW.\",\n        \"range\": {\n          \"min\": \"20u\",\n          \"typical\": \"45u\",\n          \"max\": \"80u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Higher than the paper's reported values due to the 1.8V supply and assumed 10uA reference current (the paper likely used ~1uA and a 1V supply).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bitline_voltage_swing\": {\n      \"description\": \"Voltage difference on the bitline between programmed and erased states.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"700 mV\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When I_cell = 0, BL is at Vgs of XM1 with 5uA. Vgs = Vth + sqrt(2*Id / (un*Cox * W/L)) = 0.42 + sqrt(10u / (270u * 10)) = 0.48V. When I_cell = 20uA, BL is discharged to 0V. Swing = 0.48V.\",\n        \"range\": {\n          \"min\": \"0.3\",\n          \"typical\": \"0.48\",\n          \"max\": \"0.7\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS parameters. The swing is clamped by the diode-connected NMOS to keep the bitline voltage low and improve speed.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"supply_voltage\": {\n      \"description\": \"Operating power supply voltage.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"1 V, 1.65 V, 1.5 V, 0.8 V\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard nominal voltage for sky130_fd_pr__nfet_01v8 is 1.8V.\",\n        \"range\": {\n          \"min\": \"1.62\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.98\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Adapted to SKY130 standard 1.8V devices, though the current-mode topology allows it to operate at much lower voltages.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure read access time, power consumption, and voltage swings of the current sense amplifier.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"read_access_time\",\n      \"power_consumption\",\n      \"bitline_voltage_swing\"\n    ],\n    \"spice\": \"* High-Performance Very Low-Voltage Current Sense Amplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n\\nVVDD VDD 0 1.8\\nIref VDD N1 DC 10u\\n* Voltage source to control the cell current (1V = 1uA)\\nVcell_ctrl ctrl 0 DC 5 AC 1 PULSE(0 20 10n 1n 1n 40n 80n)\\nGcell BL 0 ctrl 0 1u\\nCbl BL 0 1p\\n\\nXM11 N2 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM13 BL N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM10 N1 N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM1 BL BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM14 N1 BL GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\\nXM12 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\n\\n.control\\n* DC Analysis\\ndc Vcell_ctrl 0 20 0.1\\nmeas dc bl_high find v(BL) at=0\\nmeas dc bl_low find v(BL) at=20\\nmeas dc n2_high max v(N2)\\nmeas dc n2_low min v(N2)\\n\\n* AC Analysis\\nac dec 10 1k 1G\\nmeas ac z_bl_db find vdb(BL) at=1k\\nmeas ac z_n2_db find vdb(N2) at=1k\\n\\n* Transient Analysis\\ntran 0.1n 100n\\nmeas tran t_read_fall trig v(ctrl) val=10 rise=1 targ v(BL) val=0.24 fall=1\\nmeas tran t_read_rise trig v(ctrl) val=10 fall=1 targ v(BL) val=0.24 rise=1\\nmeas tran pwr_avg avg -i(VVDD)*1.8\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1388640",
+  "_case": "1388640_image_5"
+}

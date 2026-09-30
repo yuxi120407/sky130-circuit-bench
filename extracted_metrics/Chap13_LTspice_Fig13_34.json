@@ -1,0 +1,174 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 13.33",
+    "page": "394",
+    "circuit_type": "Input section of an edge-triggered D-Flip-Flop (D-FF)",
+    "description": "The circuit is the master latch input stage of a D-FF. It consists of an input transmission gate (TG) driving a dynamic storage node (A), followed by a forward inverter to node (B), a second inverter, and feedback transmission gates to hold the state."
+  },
+  "step2_metrics": {
+    "delay_D_to_A": {
+      "description": "Propagation delay from the D input through the ON transmission gate to the dynamic node A.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "394",
+        "reference": "Equation for tPLHA = tPHLA"
+      },
+      "equation": {
+        "formula": "tPLHA = 0.7 * (Rn || Rp) * CA",
+        "explanation": "The delay is determined by the parallel equivalent resistance of the NMOS and PMOS in the transmission gate, multiplied by the capacitance at node A.",
+        "assumptions": "Assumes a step input and uses a linear equivalent resistance model for the MOSFETs."
+      },
+      "sky130_expected": {
+        "calculation": "1. Calculate equivalent resistances: Rn = 1 / (un*Cox * W/L * (VDD - Vthn)) = 1 / (270u * 1 * (1.8 - 0.42)) = 2.68 kOhm. Rp = 1 / (up*Cox * W/L * (VDD - |Vthp|)) = 1 / (50u * 1 * (1.8 - 0.42)) = 14.5 kOhm. \n2. Parallel resistance: Rn || Rp = (2.68k * 14.5k) / (2.68k + 14.5k) = 2.26 kOhm. \n3. Assume CA ~ 6 fF for typical small devices in 130nm. \n4. Delay = 0.7 * 2.26k * 6fF = 9.5 ps.",
+        "range": {
+          "min": "5ps",
+          "typical": "10ps",
+          "max": "25ps",
+          "unit": "s"
+        },
+        "reasoning": "The book calculates 4.5 ps for a 50nm process. SKY130 (130nm) has larger parasitics and lower drive strength, so the delay will be roughly 2x to 3x longer depending on exact W/L sizing."
+      },
+      "importance": "essential"
+    },
+    "delay_A_to_B": {
+      "description": "Propagation delay from node A to node B through the first inverter.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "394",
+        "reference": "Equation for tPLHB + tPHLB"
+      },
+      "equation": {
+        "formula": "tPLHB + tPHLB = 0.7 * (Rn + Rp) * CB",
+        "explanation": "The sum of the low-to-high and high-to-low delays through the inverter, driven by the capacitance at node B.",
+        "assumptions": "Uses the digital RC delay model where inverter delay is proportional to the sum of pull-up and pull-down equivalent resistances."
+      },
+      "sky130_expected": {
+        "calculation": "1. Sum of resistances: Rn + Rp = 2.68 kOhm + 14.5 kOhm = 17.18 kOhm. \n2. Assume CB ~ 8 fF (slightly larger than CA due to driving the next stage and feedback TG). \n3. Sum of delays = 0.7 * 17.18k * 8fF = 96 ps. \n4. Average single-edge delay = 96 ps / 2 = 48 ps.",
+        "range": {
+          "min": "20ps",
+          "typical": "50ps",
+          "max": "100ps",
+          "unit": "s"
+        },
+        "reasoning": "Inverter delays in 130nm typically range from 30ps to 60ps for a fan-out of 1-2. The book's 50nm process shows 22.5ps for the sum (~11ps average)."
+      },
+      "importance": "essential"
+    },
+    "delay_D_to_B": {
+      "description": "Total propagation delay from the D input to node B.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "395",
+        "reference": "Equation for tPLH = tPHL = 15.75 ps"
+      },
+      "equation": {
+        "formula": "t_total = t_delay_D_to_A + t_delay_A_to_B",
+        "explanation": "The overall delay is approximately the sum of the transmission gate delay and the first inverter delay.",
+        "assumptions": "Ignores the effect of finite input slew rate degrading the downstream stage delay."
+      },
+      "sky130_expected": {
+        "calculation": "t_total = 9.5 ps (D to A) + 48 ps (A to B) = 57.5 ps.",
+        "range": {
+          "min": "30ps",
+          "typical": "60ps",
+          "max": "120ps",
+          "unit": "s"
+        },
+        "reasoning": "The book calculates 15.75 ps and simulates ~90 ps for 50nm. For SKY130, the simulated delay will likely be between 60ps and 120ps due to larger node capacitances."
+      },
+      "importance": "essential"
+    },
+    "node_A_capacitance": {
+      "description": "Total parasitic capacitance on the dynamic storage node A.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "394",
+        "reference": "Equation for CA"
+      },
+      "equation": {
+        "formula": "CA = Coxn/2 + Coxp/2 + 3/2 * (Coxn + Coxp)",
+        "explanation": "The capacitance is the sum of the ON transmission gate capacitance (first two terms) and the input capacitance of the following inverter (last term).",
+        "assumptions": "Ignores the capacitive loading from the OFF transmission gate in the feedback loop to simplify hand calculations."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Cox ~ 10 fF/um^2 for 130nm. For W=1um, L=0.15um, Coxn = Coxp = 1.5 fF. CA = 1.5/2 + 1.5/2 + 1.5*(1.5 + 1.5) = 1.5 + 4.5 = 6.0 fF.",
+        "range": {
+          "min": "2fF",
+          "typical": "6fF",
+          "max": "15fF",
+          "unit": "F"
+        },
+        "reasoning": "Depends directly on the parameterized W and L values in the netlist. 6fF is a reasonable estimate for near-minimum sized devices."
+      },
+      "importance": "recommended"
+    },
+    "node_B_capacitance": {
+      "description": "Total parasitic capacitance on node B.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "394",
+        "reference": "Equation for CB"
+      },
+      "equation": {
+        "formula": "CB = 3/2 * (Coxn + Coxp) + (Coxn + Coxp)",
+        "explanation": "The capacitance is the sum of the first inverter's output capacitance and the second inverter's input capacitance.",
+        "assumptions": "Uses the simplified 3/2 multiplier for input capacitance and 1x multiplier for output capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "Using Coxn = Coxp = 1.5 fF: CB = 1.5 * (1.5 + 1.5) + (1.5 + 1.5) = 4.5 + 3.0 = 7.5 fF.",
+        "range": {
+          "min": "3fF",
+          "typical": "8fF",
+          "max": "20fF",
+          "unit": "F"
+        },
+        "reasoning": "Node B drives the next inverter and connects to a feedback TG, making its capacitance slightly larger than Node A."
+      },
+      "importance": "recommended"
+    },
+    "setup_time": {
+      "description": "The minimum time the D input must be stable before the clock edge (when the input TG turns off).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "394",
+        "reference": "Text: 'Note that this delay is important because it directly determines the setup time of the FF.'"
+      },
+      "equation": {
+        "formula": "t_setup \u2248 t_delay_D_to_A",
+        "explanation": "The setup time is bounded by the time required to fully charge or discharge the dynamic node A through the transmission gate before it isolates the node.",
+        "assumptions": "Assumes the clock edge is instantaneous and node A must reach VDD/2."
+      },
+      "sky130_expected": {
+        "calculation": "Matches the delay_D_to_A calculation: ~9.5 ps.",
+        "range": {
+          "min": "5ps",
+          "typical": "10ps",
+          "max": "25ps",
+          "unit": "s"
+        },
+        "reasoning": "Directly correlated to the RC delay of the input transmission gate charging node A."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the propagation delays from the D input to internal nodes A and B to characterize the D-FF input stage performance.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_D_to_A",
+      "delay_A_to_B",
+      "delay_D_to_B",
+      "setup_time"
+    ],
+    "spice": "* Testbench for D-FF Input Section (Figure 13.33)\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters used in the parameterized netlist\n.param W_xm1=1u L_xm1=0.15u\n.param W_xm2=2u L_xm2=0.15u\n.param W_xm3=2u L_xm3=0.15u\n.param W_xm4=1u L_xm4=0.15u\n.param W_xm5=1u L_xm5=0.15u\n.param W_xm6=2u L_xm6=0.15u\n.param W_xm7=1u L_xm7=0.15u\n.param W_xm8=2u L_xm8=0.15u\n.param W_xm9=1u L_xm9=0.15u\n.param W_xm10=2u L_xm10=0.15u\n\n* --- DUT Netlist ---\nxm1 B A 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 B A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm5 N001 B 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N001 B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 D VDD A 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\n* Replaced DC source with PULSE for transient delay measurement\n* VD D 0 DC 0.9\nVD D 0 PULSE(0 1.8 100p 20p 20p 400p 1n)\nxm3 A 0 D VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 A 0 N001 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm8 N001 VDD A VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N001 0 N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N002 VDD N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\n* --- End DUT ---\n\n.control\ntran 1p 2n\n\n* Measure delay from D to A (Rise edge)\nmeas tran delay_d_to_a trig v(d) val=0.9 rise=1 targ v(a) val=0.9 rise=1\n\n* Measure delay from A to B (Fall edge, since inverter 1 inverts the signal)\nmeas tran delay_a_to_b trig v(a) val=0.9 rise=1 targ v(b) val=0.9 fall=1\n\n* Measure total delay from D to B\nmeas tran delay_d_to_b trig v(d) val=0.9 rise=1 targ v(b) val=0.9 fall=1\n\n* Setup time is approximately the delay to charge node A\nlet setup_time_approx = delay_d_to_a\n\nprint delay_d_to_a delay_a_to_b delay_d_to_b setup_time_approx\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 13.33\",\n    \"page\": \"394\",\n    \"circuit_type\": \"Input section of an edge-triggered D-Flip-Flop (D-FF)\",\n    \"description\": \"The circuit is the master latch input stage of a D-FF. It consists of an input transmission gate (TG) driving a dynamic storage node (A), followed by a forward inverter to node (B), a second inverter, and feedback transmission gates to hold the state.\"\n  },\n  \"step2_metrics\": {\n    \"delay_D_to_A\": {\n      \"description\": \"Propagation delay from the D input through the ON transmission gate to the dynamic node A.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"394\",\n        \"reference\": \"Equation for tPLHA = tPHLA\"\n      },\n      \"equation\": {\n        \"formula\": \"tPLHA = 0.7 * (Rn || Rp) * CA\",\n        \"explanation\": \"The delay is determined by the parallel equivalent resistance of the NMOS and PMOS in the transmission gate, multiplied by the capacitance at node A.\",\n        \"assumptions\": \"Assumes a step input and uses a linear equivalent resistance model for the MOSFETs.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. Calculate equivalent resistances: Rn = 1 / (un*Cox * W/L * (VDD - Vthn)) = 1 / (270u * 1 * (1.8 - 0.42)) = 2.68 kOhm. Rp = 1 / (up*Cox * W/L * (VDD - |Vthp|)) = 1 / (50u * 1 * (1.8 - 0.42)) = 14.5 kOhm. \\n2. Parallel resistance: Rn || Rp = (2.68k * 14.5k) / (2.68k + 14.5k) = 2.26 kOhm. \\n3. Assume CA ~ 6 fF for typical small devices in 130nm. \\n4. Delay = 0.7 * 2.26k * 6fF = 9.5 ps.\",\n        \"range\": {\n          \"min\": \"5ps\",\n          \"typical\": \"10ps\",\n          \"max\": \"25ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The book calculates 4.5 ps for a 50nm process. SKY130 (130nm) has larger parasitics and lower drive strength, so the delay will be roughly 2x to 3x longer depending on exact W/L sizing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_A_to_B\": {\n      \"description\": \"Propagation delay from node A to node B through the first inverter.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"394\",\n        \"reference\": \"Equation for tPLHB + tPHLB\"\n      },\n      \"equation\": {\n        \"formula\": \"tPLHB + tPHLB = 0.7 * (Rn + Rp) * CB\",\n        \"explanation\": \"The sum of the low-to-high and high-to-low delays through the inverter, driven by the capacitance at node B.\",\n        \"assumptions\": \"Uses the digital RC delay model where inverter delay is proportional to the sum of pull-up and pull-down equivalent resistances.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. Sum of resistances: Rn + Rp = 2.68 kOhm + 14.5 kOhm = 17.18 kOhm. \\n2. Assume CB ~ 8 fF (slightly larger than CA due to driving the next stage and feedback TG). \\n3. Sum of delays = 0.7 * 17.18k * 8fF = 96 ps. \\n4. Average single-edge delay = 96 ps / 2 = 48 ps.\",\n        \"range\": {\n          \"min\": \"20ps\",\n          \"typical\": \"50ps\",\n          \"max\": \"100ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Inverter delays in 130nm typically range from 30ps to 60ps for a fan-out of 1-2. The book's 50nm process shows 22.5ps for the sum (~11ps average).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_D_to_B\": {\n      \"description\": \"Total propagation delay from the D input to node B.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"395\",\n        \"reference\": \"Equation for tPLH = tPHL = 15.75 ps\"\n      },\n      \"equation\": {\n        \"formula\": \"t_total = t_delay_D_to_A + t_delay_A_to_B\",\n        \"explanation\": \"The overall delay is approximately the sum of the transmission gate delay and the first inverter delay.\",\n        \"assumptions\": \"Ignores the effect of finite input slew rate degrading the downstream stage delay.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_total = 9.5 ps (D to A) + 48 ps (A to B) = 57.5 ps.\",\n        \"range\": {\n          \"min\": \"30ps\",\n          \"typical\": \"60ps\",\n          \"max\": \"120ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The book calculates 15.75 ps and simulates ~90 ps for 50nm. For SKY130, the simulated delay will likely be between 60ps and 120ps due to larger node capacitances.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"node_A_capacitance\": {\n      \"description\": \"Total parasitic capacitance on the dynamic storage node A.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"394\",\n        \"reference\": \"Equation for CA\"\n      },\n      \"equation\": {\n        \"formula\": \"CA = Coxn/2 + Coxp/2 + 3/2 * (Coxn + Coxp)\",\n        \"explanation\": \"The capacitance is the sum of the ON transmission gate capacitance (first two terms) and the input capacitance of the following inverter (last term).\",\n        \"assumptions\": \"Ignores the capacitive loading from the OFF transmission gate in the feedback loop to simplify hand calculations.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Cox ~ 10 fF/um^2 for 130nm. For W=1um, L=0.15um, Coxn = Coxp = 1.5 fF. CA = 1.5/2 + 1.5/2 + 1.5*(1.5 + 1.5) = 1.5 + 4.5 = 6.0 fF.\",\n        \"range\": {\n          \"min\": \"2fF\",\n          \"typical\": \"6fF\",\n          \"max\": \"15fF\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Depends directly on the parameterized W and L values in the netlist. 6fF is a reasonable estimate for near-minimum sized devices.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"node_B_capacitance\": {\n      \"description\": \"Total parasitic capacitance on node B.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"394\",\n        \"reference\": \"Equation for CB\"\n      },\n      \"equation\": {\n        \"formula\": \"CB = 3/2 * (Coxn + Coxp) + (Coxn + Coxp)\",\n        \"explanation\": \"The capacitance is the sum of the first inverter's output capacitance and the second inverter's input capacitance.\",\n        \"assumptions\": \"Uses the simplified 3/2 multiplier for input capacitance and 1x multiplier for output capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using Coxn = Coxp = 1.5 fF: CB = 1.5 * (1.5 + 1.5) + (1.5 + 1.5) = 4.5 + 3.0 = 7.5 fF.\",\n        \"range\": {\n          \"min\": \"3fF\",\n          \"typical\": \"8fF\",\n          \"max\": \"20fF\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Node B drives the next inverter and connects to a feedback TG, making its capacitance slightly larger than Node A.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"setup_time\": {\n      \"description\": \"The minimum time the D input must be stable before the clock edge (when the input TG turns off).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"394\",\n        \"reference\": \"Text: 'Note that this delay is important because it directly determines the setup time of the FF.'\"\n      },\n      \"equation\": {\n        \"formula\": \"t_setup \u2248 t_delay_D_to_A\",\n        \"explanation\": \"The setup time is bounded by the time required to fully charge or discharge the dynamic node A through the transmission gate before it isolates the node.\",\n        \"assumptions\": \"Assumes the clock edge is instantaneous and node A must reach VDD/2.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Matches the delay_D_to_A calculation: ~9.5 ps.\",\n        \"range\": {\n          \"min\": \"5ps\",\n          \"typical\": \"10ps\",\n          \"max\": \"25ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Directly correlated to the RC delay of the input transmission gate charging node A.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the propagation delays from the D input to internal nodes A and B to characterize the D-FF input stage performance.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay_D_to_A\",\n      \"delay_A_to_B\",\n      \"delay_D_to_B\",\n      \"setup_time\"\n    ],\n    \"spice\": \"* Testbench for D-FF Input Section (Figure 13.33)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters used in the parameterized netlist\\n.param W_xm1=1u L_xm1=0.15u\\n.param W_xm2=2u L_xm2=0.15u\\n.param W_xm3=2u L_xm3=0.15u\\n.param W_xm4=1u L_xm4=0.15u\\n.param W_xm5=1u L_xm5=0.15u\\n.param W_xm6=2u L_xm6=0.15u\\n.param W_xm7=1u L_xm7=0.15u\\n.param W_xm8=2u L_xm8=0.15u\\n.param W_xm9=1u L_xm9=0.15u\\n.param W_xm10=2u L_xm10=0.15u\\n\\n* --- DUT Netlist ---\\nxm1 B A 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 B A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm5 N001 B 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N001 B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 D VDD A 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\n* Replaced DC source with PULSE for transient delay measurement\\n* VD D 0 DC 0.9\\nVD D 0 PULSE(0 1.8 100p 20p 20p 400p 1n)\\nxm3 A 0 D VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 A 0 N001 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm8 N001 VDD A VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N001 0 N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N002 VDD N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\n* --- End DUT ---\\n\\n.control\\ntran 1p 2n\\n\\n* Measure delay from D to A (Rise edge)\\nmeas tran delay_d_to_a trig v(d) val=0.9 rise=1 targ v(a) val=0.9 rise=1\\n\\n* Measure delay from A to B (Fall edge, since inverter 1 inverts the signal)\\nmeas tran delay_a_to_b trig v(a) val=0.9 rise=1 targ v(b) val=0.9 fall=1\\n\\n* Measure total delay from D to B\\nmeas tran delay_d_to_b trig v(d) val=0.9 rise=1 targ v(b) val=0.9 fall=1\\n\\n* Setup time is approximately the delay to charge node A\\nlet setup_time_approx = delay_d_to_a\\n\\nprint delay_d_to_a delay_a_to_b delay_d_to_b setup_time_approx\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Ultrawideband CMOS Low-Noise Amplifier (LNA)",
+    "description": "This circuit is the active core of a cascode low-noise amplifier with a source follower output buffer. XM1 is the main amplifying common-source transistor (with source degeneration), XM2 is the cascode transistor to reduce the Miller effect and improve isolation, and XM3 is a source follower acting as an output buffer to drive the subsequent stages.",
+    "node_mapping": {
+      "input": [
+        "N8"
+      ],
+      "output": [
+        "V_OUT_PRIME"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "V_CAS"
+      ],
+      "ground": [
+        "GND"
+      ],
+      "intermediate": [
+        "N4",
+        "N3",
+        "V_OUT"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Ultrawideband CMOS Low-Noise Amplifier for 3.1\u201310.6-GHz Wireless Receivers",
+      "figure": "Schematic",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the amplifier core and buffer.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "9 mW",
+        "technology": "0.18\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Assuming a bias current of ~5mA from a 1.8V supply to match the paper's power target.",
+        "range": {
+          "min": "5m",
+          "typical": "9m",
+          "max": "15m",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted bias voltages and transistor sizing in the testbench to target ~9mW total power consumption on SKY130's 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Mid-band AC voltage gain of the amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "9.3 dB",
+        "technology": "0.18\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 gm1 * R_load. With gm1 \u2248 20mS and R_load = 300\u03a9, intrinsic gain is ~15 dB. The source follower attenuates this slightly.",
+        "range": {
+          "min": "8",
+          "typical": "10",
+          "max": "15",
+          "unit": "dB"
+        },
+        "reasoning": "Expected to be around 10 dB to match the paper, heavily dependent on the chosen load resistor/inductor in the testbench."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Operating frequency range where gain is within 3dB of its maximum.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3.1 - 10.6 GHz",
+        "technology": "0.18\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant at the cascode output node (V_OUT). f_3dB \u2248 1 / (2 * \u03c0 * R_load * C_parasitic).",
+        "range": {
+          "min": "3G",
+          "typical": "8G",
+          "max": "12G",
+          "unit": "Hz"
+        },
+        "reasoning": "Without the paper's input Chebyshev filter and inductive peaking, the bare circuit acts as a low-pass amplifier. The unity-gain frequency will extend into the multi-GHz range."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Signal-to-noise ratio degradation caused by the amplifier.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "4 dB",
+        "technology": "0.18\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dominated by the input transistor XM1. NF \u2248 10 * log10(1 + \u03b3 * gdo / gm1).",
+        "range": {
+          "min": "2.5",
+          "typical": "4.0",
+          "max": "5.5",
+          "unit": "dB"
+        },
+        "reasoning": "SKY130 0.15\u00b5m devices have comparable noise performance to 0.18\u00b5m devices, so ~4 dB is expected."
+      },
+      "importance": "essential"
+    },
+    "iip3": {
+      "description": "Input third-order intercept point, measuring linearity.",
+      "unit": "dBm",
+      "analysis_type": "HB/Tran",
+      "paper_reported": {
+        "value": "6.7 dBm",
+        "technology": "0.18\u00b5m CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Proportional to the overdrive voltage (Vgs - Vth) of XM1.",
+        "range": {
+          "min": "0",
+          "typical": "5",
+          "max": "10",
+          "unit": "dBm"
+        },
+        "reasoning": "A higher overdrive voltage improves linearity at the cost of power consumption."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power consumption, AC voltage gain, and unity-gain bandwidth of the UWB LNA core. Passives and biasing are added to make the bare transistors function as an amplifier.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "unity_gain_freq"
+    ],
+    "spice": "* UWB LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized sizing for RF performance (~5mA total current)\n.param W_xm1=50u L_xm1=0.15u\n.param W_xm2=50u L_xm2=0.15u\n.param W_xm3=20u L_xm3=0.15u\n\n* DUT (Extracted from paper)\nXM2 V_OUT V_CAS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VDD V_OUT V_OUT_PRIME GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM1 N4 N8 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* Biasing and Passives\nVVDD VDD 0 1.8\nV_CAS V_CAS 0 1.2\nV_BIAS N8_bias 0 0.7\nR_bias N8_bias N8 10k\nC_in IN N8 10p\nV_IN IN 0 dc 0 ac 1\nL_deg N3 0 0.5n\nR_load VDD V_OUT 300\nR_out V_OUT_PRIME 0 500\n\n.control\n* 1. DC Operating Point for Power Consumption\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 50 100Meg 100G\nlet gain_db = vdb(V_OUT_PRIME)\n\n* Measure mid-band gain at 1 GHz\nmeas ac gain_1G find gain_db at=1G\n\n* Measure unity gain frequency (0 dB crossing)\nmeas ac f_unity when gain_db=0 fall=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Ultrawideband CMOS Low-Noise Amplifier (LNA)\",\n    \"description\": \"This circuit is the active core of a cascode low-noise amplifier with a source follower output buffer. XM1 is the main amplifying common-source transistor (with source degeneration), XM2 is the cascode transistor to reduce the Miller effect and improve isolation, and XM3 is a source follower acting as an output buffer to drive the subsequent stages.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N8\"\n      ],\n      \"output\": [\n        \"V_OUT_PRIME\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"V_CAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"intermediate\": [\n        \"N4\",\n        \"N3\",\n        \"V_OUT\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Ultrawideband CMOS Low-Noise Amplifier for 3.1\u201310.6-GHz Wireless Receivers\",\n      \"figure\": \"Schematic\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the amplifier core and buffer.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"9 mW\",\n        \"technology\": \"0.18\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Assuming a bias current of ~5mA from a 1.8V supply to match the paper's power target.\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"9m\",\n          \"max\": \"15m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted bias voltages and transistor sizing in the testbench to target ~9mW total power consumption on SKY130's 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Mid-band AC voltage gain of the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"9.3 dB\",\n        \"technology\": \"0.18\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 gm1 * R_load. With gm1 \u2248 20mS and R_load = 300\u03a9, intrinsic gain is ~15 dB. The source follower attenuates this slightly.\",\n        \"range\": {\n          \"min\": \"8\",\n          \"typical\": \"10\",\n          \"max\": \"15\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Expected to be around 10 dB to match the paper, heavily dependent on the chosen load resistor/inductor in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Operating frequency range where gain is within 3dB of its maximum.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3.1 - 10.6 GHz\",\n        \"technology\": \"0.18\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant at the cascode output node (V_OUT). f_3dB \u2248 1 / (2 * \u03c0 * R_load * C_parasitic).\",\n        \"range\": {\n          \"min\": \"3G\",\n          \"typical\": \"8G\",\n          \"max\": \"12G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Without the paper's input Chebyshev filter and inductive peaking, the bare circuit acts as a low-pass amplifier. The unity-gain frequency will extend into the multi-GHz range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Signal-to-noise ratio degradation caused by the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"4 dB\",\n        \"technology\": \"0.18\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominated by the input transistor XM1. NF \u2248 10 * log10(1 + \u03b3 * gdo / gm1).\",\n        \"range\": {\n          \"min\": \"2.5\",\n          \"typical\": \"4.0\",\n          \"max\": \"5.5\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SKY130 0.15\u00b5m devices have comparable noise performance to 0.18\u00b5m devices, so ~4 dB is expected.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"iip3\": {\n      \"description\": \"Input third-order intercept point, measuring linearity.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"HB/Tran\",\n      \"paper_reported\": {\n        \"value\": \"6.7 dBm\",\n        \"technology\": \"0.18\u00b5m CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Proportional to the overdrive voltage (Vgs - Vth) of XM1.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"5\",\n          \"max\": \"10\",\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"A higher overdrive voltage improves linearity at the cost of power consumption.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power consumption, AC voltage gain, and unity-gain bandwidth of the UWB LNA core. Passives and biasing are added to make the bare transistors function as an amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"unity_gain_freq\"\n    ],\n    \"spice\": \"* UWB LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized sizing for RF performance (~5mA total current)\\n.param W_xm1=50u L_xm1=0.15u\\n.param W_xm2=50u L_xm2=0.15u\\n.param W_xm3=20u L_xm3=0.15u\\n\\n* DUT (Extracted from paper)\\nXM2 V_OUT V_CAS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VDD V_OUT V_OUT_PRIME GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM1 N4 N8 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Biasing and Passives\\nVVDD VDD 0 1.8\\nV_CAS V_CAS 0 1.2\\nV_BIAS N8_bias 0 0.7\\nR_bias N8_bias N8 10k\\nC_in IN N8 10p\\nV_IN IN 0 dc 0 ac 1\\nL_deg N3 0 0.5n\\nR_load VDD V_OUT 300\\nR_out V_OUT_PRIME 0 500\\n\\n.control\\n* 1. DC Operating Point for Power Consumption\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 50 100Meg 100G\\nlet gain_db = vdb(V_OUT_PRIME)\\n\\n* Measure mid-band gain at 1 GHz\\nmeas ac gain_1G find gain_db at=1G\\n\\n* Measure unity gain frequency (0 dB crossing)\\nmeas ac f_unity when gain_db=0 fall=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362834",
+  "_case": "1362834_image_3"
+}

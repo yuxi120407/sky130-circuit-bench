@@ -1,0 +1,104 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Common-Source Amplifier with Miller Low-Pass Filter",
+    "description": "A common-source amplifier stage with a resistive load and explicit feedback capacitance. The feedback capacitor leverages the Miller effect to multiply its effective capacitance, creating a compact low-pass filter suitable for baseband channel selection without adding noisy series resistors.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "Vout"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Low-Power 2.4-GHz Transmitter/Receiver CMOS IC",
+      "figure": "Generic Baseband Filter",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low-frequency voltage gain of the amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "41 dB (Total Receiver Gain)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * R1. With VDD=1.8V, Vbias=0.6V, Id~450uA, gm~5.7mS, R1=2kOhm, Gain = 11.4 V/V = 21.1 dB.",
+        "range": {
+          "min": 15,
+          "typical": 21,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on the chosen bias current and load resistor. 21 dB is typical for a single stage with a 2k load."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth_3dB": {
+      "description": "The -3dB cutoff frequency of the low-pass filter.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rin * Cin). Cin = C1 + C2*(1+Av) = 100fF + 200fF*(1+11.4) = 2.58pF. BW = 1 / (2*pi*1k*2.58p) = 61.7 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 60000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is set by the source resistance and the Miller-multiplied feedback capacitance. Can be tuned for specific baseband requirements."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power dissipated by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "17.5 mW (Total Receiver)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * Id. With VDD=1.8V and Id=450uA, P = 0.81 mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.0008,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "A single baseband stage consumes a fraction of the total receiver power."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, low-frequency gain, and 3dB bandwidth of the Miller filter.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "DC_Gain",
+      "Bandwidth_3dB"
+    ],
+    "spice": "* Common-Source Amplifier with Miller Filter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param C1_val=100f\n.param C2_val=200f\n.param R1_val=2k\n.param W_n=20u\n.param L_n=0.15u\n\n* DUT (Modified A1 to X1 for standard SPICE subcircuit compatibility)\nC1 N0 GND {C1_val}\nR1 VDD Vout {R1_val}\nC2 N0 Vout {C2_val}\nX1 N0 Vout amplifier\n\n.subckt amplifier in out\nXM1 out in GND GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\n.ends\n\n* Biasing and Sources\nVVDD VDD GND 1.8\nVin N_in GND dc 0.6 ac 1\nRin N_in N0 1k\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  print v(Vout)\n\n  * AC Analysis\n  ac dec 100 1Meg 10G\n  let gain_db = vdb(Vout)\n  meas ac dc_gain find gain_db at=1Meg\n  \n  * Assuming dc_gain is approx 21.1 dB, target is 18.1 dB for 3dB bandwidth\n  meas ac bw_3db when gain_db=18.1 fall=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Common-Source Amplifier with Miller Low-Pass Filter\",\n    \"description\": \"A common-source amplifier stage with a resistive load and explicit feedback capacitance. The feedback capacitor leverages the Miller effect to multiply its effective capacitance, creating a compact low-pass filter suitable for baseband channel selection without adding noisy series resistors.\",\n    \"node_mapping\": {\n      \"input\": [\"N0\"],\n      \"output\": [\"Vout\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Low-Power 2.4-GHz Transmitter/Receiver CMOS IC\",\n      \"figure\": \"Generic Baseband Filter\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low-frequency voltage gain of the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"41 dB (Total Receiver Gain)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * R1. With VDD=1.8V, Vbias=0.6V, Id~450uA, gm~5.7mS, R1=2kOhm, Gain = 11.4 V/V = 21.1 dB.\",\n        \"range\": {\n          \"min\": 15,\n          \"typical\": 21,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on the chosen bias current and load resistor. 21 dB is typical for a single stage with a 2k load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth_3dB\": {\n      \"description\": \"The -3dB cutoff frequency of the low-pass filter.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rin * Cin). Cin = C1 + C2*(1+Av) = 100fF + 200fF*(1+11.4) = 2.58pF. BW = 1 / (2*pi*1k*2.58p) = 61.7 MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 60e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is set by the source resistance and the Miller-multiplied feedback capacitance. Can be tuned for specific baseband requirements.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"17.5 mW (Total Receiver)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * Id. With VDD=1.8V and Id=450uA, P = 0.81 mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.8e-3,\n          \"max\": 2e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"A single baseband stage consumes a fraction of the total receiver power.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, low-frequency gain, and 3dB bandwidth of the Miller filter.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"DC_Gain\",\n      \"Bandwidth_3dB\"\n    ],\n    \"spice\": \"* Common-Source Amplifier with Miller Filter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param C1_val=100f\\n.param C2_val=200f\\n.param R1_val=2k\\n.param W_n=20u\\n.param L_n=0.15u\\n\\n* DUT (Modified A1 to X1 for standard SPICE subcircuit compatibility)\\nC1 N0 GND {C1_val}\\nR1 VDD Vout {R1_val}\\nC2 N0 Vout {C2_val}\\nX1 N0 Vout amplifier\\n\\n.subckt amplifier in out\\nXM1 out in GND GND sky130_fd_pr__nfet_01v8 W={W_n} L={L_n}\\n.ends\\n\\n* Biasing and Sources\\nVVDD VDD GND 1.8\\nVin N_in GND dc 0.6 ac 1\\nRin N_in N0 1k\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  print v(Vout)\\n\\n  * AC Analysis\\n  ac dec 100 1Meg 10G\\n  let gain_db = vdb(Vout)\\n  meas ac dc_gain find gain_db at=1Meg\\n  \\n  * Assuming dc_gain is approx 21.1 dB, target is 18.1 dB for 3dB bandwidth\\n  meas ac bw_3db when gain_db=18.1 fall=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1175496",
+  "_case": "1175496_image_10"
+}

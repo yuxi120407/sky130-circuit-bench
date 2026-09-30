@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Ultra-Wideband CMOS Low Noise Amplifier (Core)",
+    "description": "The circuit consists of a cascode amplifier (XM1, XM2) followed by a source follower buffer (XM4, XM3). It forms the active core of an ultra-wideband LNA, designed to be used with resistive shunt-feedback and inductive peaking for wideband matching and flat gain.",
+    "node_mapping": {
+      "input": [
+        "N4"
+      ],
+      "output": [
+        "N6"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB2"
+      ],
+      "ground": [
+        "GND",
+        "N5"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Ultra-Wideband CMOS Low Noise Amplifier for 3\u20135-GHz UWB System",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "12.6 mW",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id1 = 0.5 * 270u * (5/0.5) * (0.9-0.42)^2 = 311uA. Id3 = 0.5 * 270u * (5/0.5) * (0.54-0.42)^2 = 19uA. Total Current = 330uA. Total Power = 1.8V * 330uA = 0.6 mW.",
+        "range": {
+          "min": 0.0004,
+          "typical": 0.0006,
+          "max": 0.0008,
+          "unit": "W"
+        },
+        "reasoning": "The provided netlist uses very small transistors (W=5u) compared to a typical LNA, resulting in much lower power consumption than the paper's optimized design."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Maximum AC voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "9.8 dB",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm1 = 2*Id1/Vov = 1.29mS. With a 2kOhm load resistor added in the testbench, core gain = 2.58 V/V. Source follower gain ~ 0.8 V/V. Total gain = 2.06 V/V = 6.2 dB.",
+        "range": {
+          "min": 4,
+          "typical": 6.2,
+          "max": 8,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the load resistor added in the testbench, as the original inductive load is not present in the netlist."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3db": {
+      "description": "Frequency at which the gain drops by 3 dB from its maximum.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "4.6 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3db = 1 / (2 * pi * R_load * C_par). With R_load=2k and C_par~30fF at the cascode drain, f_3db ~ 2.6 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 2600000000.0,
+          "max": 4000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is limited by the RC time constant at the cascode drain node in this testbench setup, lacking the inductive peaking used in the paper."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Signal-to-noise ratio degradation (NF).",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "2.3 dB",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "NF is typically dominated by the input transistor gm and channel noise.",
+        "range": {
+          "min": 2,
+          "typical": 3.5,
+          "max": 5,
+          "unit": "dB"
+        },
+        "reasoning": "Without the proper input matching network and optimal sizing, NF will be higher than the paper's optimized design."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, 3-dB bandwidth, and transient output swing of the LNA core.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth_3db"
+    ],
+    "spice": "* UWB LNA Core Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm1=5u L_xm1=0.5u\n\n* DUT\nXM2 N0 VDD N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N6 VB2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VDD N0 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM1 N3 N4 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* Biasing and Sources\nVVDD VDD 0 1.8\nVVB2 VB2 0 0.54\nVIN N4 0 DC 0.9 AC 1 SIN(0.9 0.01 100MEG 0 0)\nVN5 N5 0 0\nRL N0 VDD 2k\nCL N6 0 50f\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 50 1Meg 100G\n  let gain_db = vdb(N6)\n  meas ac max_gain MAX gain_db\n  meas ac f_3db when gain_db='max_gain - 3' fall=1\n\n  * Transient Analysis\n  tran 100p 50n\n  meas tran v_out_max MAX v(N6)\n  meas tran v_out_min MIN v(N6)\n  let v_out_pp = v_out_max - v_out_min\n  print v_out_pp\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Ultra-Wideband CMOS Low Noise Amplifier (Core)\",\n    \"description\": \"The circuit consists of a cascode amplifier (XM1, XM2) followed by a source follower buffer (XM4, XM3). It forms the active core of an ultra-wideband LNA, designed to be used with resistive shunt-feedback and inductive peaking for wideband matching and flat gain.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N4\"\n      ],\n      \"output\": [\n        \"N6\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB2\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N5\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Ultra-Wideband CMOS Low Noise Amplifier for 3\u20135-GHz UWB System\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"12.6 mW\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id1 = 0.5 * 270u * (5/0.5) * (0.9-0.42)^2 = 311uA. Id3 = 0.5 * 270u * (5/0.5) * (0.54-0.42)^2 = 19uA. Total Current = 330uA. Total Power = 1.8V * 330uA = 0.6 mW.\",\n        \"range\": {\n          \"min\": 0.4e-3,\n          \"typical\": 0.6e-3,\n          \"max\": 0.8e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The provided netlist uses very small transistors (W=5u) compared to a typical LNA, resulting in much lower power consumption than the paper's optimized design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Maximum AC voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"9.8 dB\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm1 = 2*Id1/Vov = 1.29mS. With a 2kOhm load resistor added in the testbench, core gain = 2.58 V/V. Source follower gain ~ 0.8 V/V. Total gain = 2.06 V/V = 6.2 dB.\",\n        \"range\": {\n          \"min\": 4,\n          \"typical\": 6.2,\n          \"max\": 8,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the load resistor added in the testbench, as the original inductive load is not present in the netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3db\": {\n      \"description\": \"Frequency at which the gain drops by 3 dB from its maximum.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"4.6 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3db = 1 / (2 * pi * R_load * C_par). With R_load=2k and C_par~30fF at the cascode drain, f_3db ~ 2.6 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 2.6e9,\n          \"max\": 4e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is limited by the RC time constant at the cascode drain node in this testbench setup, lacking the inductive peaking used in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Signal-to-noise ratio degradation (NF).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"2.3 dB\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NF is typically dominated by the input transistor gm and channel noise.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 3.5,\n          \"max\": 5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Without the proper input matching network and optimal sizing, NF will be higher than the paper's optimized design.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, 3-dB bandwidth, and transient output swing of the LNA core.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth_3db\"\n    ],\n    \"spice\": \"* UWB LNA Core Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n\\n* DUT\\nXM2 N0 VDD N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N6 VB2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VDD N0 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM1 N3 N4 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Biasing and Sources\\nVVDD VDD 0 1.8\\nVVB2 VB2 0 0.54\\nVIN N4 0 DC 0.9 AC 1 SIN(0.9 0.01 100MEG 0 0)\\nVN5 N5 0 0\\nRL N0 VDD 2k\\nCL N6 0 50f\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 50 1Meg 100G\\n  let gain_db = vdb(N6)\\n  meas ac max_gain MAX gain_db\\n  meas ac f_3db when gain_db='max_gain - 3' fall=1\\n\\n  * Transient Analysis\\n  tran 100p 50n\\n  meas tran v_out_max MAX v(N6)\\n  meas tran v_out_min MIN v(N6)\\n  let v_out_pp = v_out_max - v_out_min\\n  print v_out_pp\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1388645",
+  "_case": "1388645_image_2_a"
+}

@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Two-stage folded cascode operational amplifier",
+    "description": "A two-stage op-amp consisting of a PMOS-input folded cascode first stage with an active NMOS current mirror, followed by a common-source second stage. It is designed for use in the MDAC of an algorithmic ADC.",
+    "node_mapping": {
+      "input": [
+        "VIP",
+        "VIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB1",
+        "VB2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.9-V 12-mW 5-MSPS Algorithmic ADC With 77-dB SFDR",
+      "figure": "Not specified",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "69 dB",
+        "technology": "0.9V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "First stage gain ~ gm1 * (Rout_casc || Rout_mirror). Second stage gain ~ gm11 * (ro11 || ro12). Due to porting a 0.9V low-Vth design to 1.8V standard-Vth SKY130 without resizing, the cascode transistor XM8 may operate near or in triode, significantly lowering the first stage gain.",
+        "range": {
+          "min": 30,
+          "typical": 50,
+          "max": 75,
+          "unit": "dB"
+        },
+        "reasoning": "Expected to be lower than the paper's 69dB due to voltage headroom and Vth mismatch in SKY130 causing cascode compression."
+      },
+      "importance": "essential"
+    },
+    "gbw": {
+      "description": "Unity gain bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "30 MHz",
+        "technology": "0.9V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "GBW = gm1 / (2*pi*Cc). With gm1 ~ 100uS and Cc = 1pF, GBW ~ 16 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 15000000.0,
+          "max": 30000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the compensation capacitor used. 1pF is assumed for stability."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.9V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the location of the non-dominant pole p2 = gm11 / (2*pi*CL). With gm11 ~ 400uS and CL = 1pF, p2 ~ 60 MHz. Since p2 > GBW, PM should be > 45 degrees.",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 75,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard stability requirement for op-amps in feedback."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total static power dissipation",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "12 mW (entire ADC)",
+        "technology": "0.9V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Four main current branches (tail, 2x cascode sources, 2nd stage load). Each branch carries ~38uA based on VB1=0.99V. Total current ~ 152uA. Power = 152uA * 1.8V = 273uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00027,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Calculated directly from the bias voltages and SKY130 PMOS parameters."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.9V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_tail / Cc = 38uA / 1pF = 38 V/us.",
+        "range": {
+          "min": 20,
+          "typical": 38,
+          "max": 50,
+          "unit": "V/us"
+        },
+        "reasoning": "Limited by the tail current charging the compensation capacitor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, GBW, Phase Margin, Power, and Slew Rate. It uses a large inductor/capacitor to close the loop for DC while breaking it for AC. For transient analysis, the inductor is altered to a short circuit to configure the op-amp as a unity-gain buffer.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_mw",
+      "dc_gain_db",
+      "gbw_hz",
+      "pm_deg",
+      "sr_rise_vus",
+      "sr_fall_vus"
+    ],
+    "spice": "* Testbench for Two-Stage Folded Cascode Op-Amp\n\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters\n.param W_xm0=5u L_xm0=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n\n* DUT\nXM0 N_TAIL VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm0} w={W_xm0}\nXM1 N_FOLD1 VIP N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N_FOLD2 VIN N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N_FOLD1 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N_FOLD2 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N_FOLD1 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N_FOLD2 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N_CASC1 VB2 N_FOLD1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N_CASC2 VB2 N_FOLD2 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N_CASC1 VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N_CASC2 VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 VOUT N_CASC2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM12 VOUT VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\n\n* Biasing\nVVDD VDD 0 1.8\nVVB1 VB1 0 0.99\n* VB2 adjusted from 0.54V to 1.2V to accommodate SKY130 higher Vth\nVVB2 VB2 0 1.2\n\n* Inputs and Feedback\n* VIN is the non-inverting input, VIP is the inverting input\nVVIN VIN 0 DC 0.9 AC 0 PULSE(0.9 1.3 10n 1n 1n 40n 100n)\nL_fb VOUT VIP 1T\nC_ac VAC VIP 1T\nVAC VAC 0 DC 0 AC 1\n\n* Load and Compensation\nCL VOUT 0 1p\nCC VOUT N_CASC2 1p\n\n.control\n  * 1. Operating Point & Power\n  op\n  let power_mw = -i(VVDD) * 1.8 * 1000\n  print power_mw\n\n  * 2. AC Analysis\n  ac dec 100 1 1G\n  let gain_db = vdb(VOUT)\n  let phase = 180/PI * cph(v(VOUT))\n  \n  meas ac dc_gain_db find gain_db at=10\n  meas ac gbw_hz when gain_db=0 fall=1\n  meas ac pm_deg find phase when gain_db=0 fall=1\n  \n  print dc_gain_db gbw_hz pm_deg\n\n  * 3. Transient Analysis (Configure as unity gain buffer)\n  alter L_fb 1p\n  alter C_ac 1f\n  tran 100p 100n\n  \n  * Measure Slew Rate on the 0.9V to 1.3V step (measuring 1.0V to 1.2V)\n  meas tran t_rise trig v(VOUT) val=1.0 rise=1 targ v(VOUT) val=1.2 rise=1\n  let sr_rise_vus = 0.2 / t_rise / 1e6\n  \n  meas tran t_fall trig v(VOUT) val=1.2 fall=1 targ v(VOUT) val=1.0 fall=1\n  let sr_fall_vus = 0.2 / t_fall / 1e6\n  \n  print sr_rise_vus sr_fall_vus\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Two-stage folded cascode operational amplifier\",\n    \"description\": \"A two-stage op-amp consisting of a PMOS-input folded cascode first stage with an active NMOS current mirror, followed by a common-source second stage. It is designed for use in the MDAC of an algorithmic ADC.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIP\",\n        \"VIN\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB1\",\n        \"VB2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.9-V 12-mW 5-MSPS Algorithmic ADC With 77-dB SFDR\",\n      \"figure\": \"Not specified\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"69 dB\",\n        \"technology\": \"0.9V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"First stage gain ~ gm1 * (Rout_casc || Rout_mirror). Second stage gain ~ gm11 * (ro11 || ro12). Due to porting a 0.9V low-Vth design to 1.8V standard-Vth SKY130 without resizing, the cascode transistor XM8 may operate near or in triode, significantly lowering the first stage gain.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 50,\n          \"max\": 75,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Expected to be lower than the paper's 69dB due to voltage headroom and Vth mismatch in SKY130 causing cascode compression.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gbw\": {\n      \"description\": \"Unity gain bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"30 MHz\",\n        \"technology\": \"0.9V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"GBW = gm1 / (2*pi*Cc). With gm1 ~ 100uS and Cc = 1pF, GBW ~ 16 MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 15e6,\n          \"max\": 30e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the compensation capacitor used. 1pF is assumed for stability.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.9V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the location of the non-dominant pole p2 = gm11 / (2*pi*CL). With gm11 ~ 400uS and CL = 1pF, p2 ~ 60 MHz. Since p2 > GBW, PM should be > 45 degrees.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 75,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Standard stability requirement for op-amps in feedback.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total static power dissipation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"12 mW (entire ADC)\",\n        \"technology\": \"0.9V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Four main current branches (tail, 2x cascode sources, 2nd stage load). Each branch carries ~38uA based on VB1=0.99V. Total current ~ 152uA. Power = 152uA * 1.8V = 273uW.\",\n        \"range\": {\n          \"min\": 0.2e-3,\n          \"typical\": 0.27e-3,\n          \"max\": 0.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated directly from the bias voltages and SKY130 PMOS parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.9V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_tail / Cc = 38uA / 1pF = 38 V/us.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 38,\n          \"max\": 50,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Limited by the tail current charging the compensation capacitor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, GBW, Phase Margin, Power, and Slew Rate. It uses a large inductor/capacitor to close the loop for DC while breaking it for AC. For transient analysis, the inductor is altered to a short circuit to configure the op-amp as a unity-gain buffer.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_mw\",\n      \"dc_gain_db\",\n      \"gbw_hz\",\n      \"pm_deg\",\n      \"sr_rise_vus\",\n      \"sr_fall_vus\"\n    ],\n    \"spice\": \"* Testbench for Two-Stage Folded Cascode Op-Amp\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters\\n.param W_xm0=5u L_xm0=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n\\n* DUT\\nXM0 N_TAIL VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm0} w={W_xm0}\\nXM1 N_FOLD1 VIP N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N_FOLD2 VIN N_TAIL VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N_FOLD1 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N_FOLD2 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N_FOLD1 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N_FOLD2 N_FOLD1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N_CASC1 VB2 N_FOLD1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N_CASC2 VB2 N_FOLD2 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N_CASC1 VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N_CASC2 VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 VOUT N_CASC2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 VOUT VB1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\n\\n* Biasing\\nVVDD VDD 0 1.8\\nVVB1 VB1 0 0.99\\n* VB2 adjusted from 0.54V to 1.2V to accommodate SKY130 higher Vth\\nVVB2 VB2 0 1.2\\n\\n* Inputs and Feedback\\n* VIN is the non-inverting input, VIP is the inverting input\\nVVIN VIN 0 DC 0.9 AC 0 PULSE(0.9 1.3 10n 1n 1n 40n 100n)\\nL_fb VOUT VIP 1T\\nC_ac VAC VIP 1T\\nVAC VAC 0 DC 0 AC 1\\n\\n* Load and Compensation\\nCL VOUT 0 1p\\nCC VOUT N_CASC2 1p\\n\\n.control\\n  * 1. Operating Point & Power\\n  op\\n  let power_mw = -i(VVDD) * 1.8 * 1000\\n  print power_mw\\n\\n  * 2. AC Analysis\\n  ac dec 100 1 1G\\n  let gain_db = vdb(VOUT)\\n  let phase = 180/PI * cph(v(VOUT))\\n  \\n  meas ac dc_gain_db find gain_db at=10\\n  meas ac gbw_hz when gain_db=0 fall=1\\n  meas ac pm_deg find phase when gain_db=0 fall=1\\n  \\n  print dc_gain_db gbw_hz pm_deg\\n\\n  * 3. Transient Analysis (Configure as unity gain buffer)\\n  alter L_fb 1p\\n  alter C_ac 1f\\n  tran 100p 100n\\n  \\n  * Measure Slew Rate on the 0.9V to 1.3V step (measuring 1.0V to 1.2V)\\n  meas tran t_rise trig v(VOUT) val=1.0 rise=1 targ v(VOUT) val=1.2 rise=1\\n  let sr_rise_vus = 0.2 / t_rise / 1e6\\n  \\n  meas tran t_fall trig v(VOUT) val=1.2 fall=1 targ v(VOUT) val=1.0 fall=1\\n  let sr_fall_vus = 0.2 / t_fall / 1e6\\n  \\n  print sr_rise_vus sr_fall_vus\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1424228",
+  "_case": "1424228_image_9"
+}

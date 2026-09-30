@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "TCAM Search Line Load / Discharge Circuit",
+    "description": "This circuit models a segment of a TCAM search line, including pull-down discharge transistors and dummy MOS capacitors representing the load of the compare logic. It is used to evaluate the capacitance and discharge delay of segmented search lines.",
+    "node_mapping": {
+      "input": [
+        "QN",
+        "Q",
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "SBL_U",
+        "SBL_U_BAR"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "TCAM for IP-Address Lookup Using Tree-style AND-type Match Lines and Segmented Search Lines",
+      "figure": "unknown",
+      "year": 2006
+    }
+  },
+  "step2_metrics": {
+    "cap_sbl_u": {
+      "description": "Capacitance of the SBL_U search line segment",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 pF",
+        "technology": "0.18\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "2 MOS caps + 1 drain cap. Area = 2.5um^2 per cap. Cox ~ 10fF/um^2. C ~ 2 * 25fF + C_drain ~ 60fF.",
+        "range": {
+          "min": "40fF",
+          "typical": "60fF",
+          "max": "100fF",
+          "unit": "F"
+        },
+        "reasoning": "The paper reports 5 pF for a full search line array. This extracted segment contains only a few transistors, so the capacitance is proportionally smaller."
+      },
+      "importance": "essential"
+    },
+    "cap_sbl_u_bar": {
+      "description": "Capacitance of the SBL_U_BAR search line segment",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "6 pF",
+        "technology": "0.18\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "3 MOS caps + 1 drain cap. C ~ 3 * 25fF + C_drain ~ 85fF.",
+        "range": {
+          "min": "60fF",
+          "typical": "85fF",
+          "max": "120fF",
+          "unit": "F"
+        },
+        "reasoning": "SBL_U_BAR has one additional MOS capacitor compared to SBL_U, resulting in slightly higher capacitance, matching the trend in the paper (6 pF vs 5 pF)."
+      },
+      "importance": "essential"
+    },
+    "t_fall_sbl_u": {
+      "description": "Pull-down delay of SBL_U when QN goes high",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "dt = C * dV / I. C = 60fF, dV = 0.9V, I ~ 500uA. dt ~ 108ps.",
+        "range": {
+          "min": "50ps",
+          "typical": "100ps",
+          "max": "200ps",
+          "unit": "s"
+        },
+        "reasoning": "Based on the saturation current of a 5um/0.5um NMOS in SKY130 discharging a ~60fF load."
+      },
+      "importance": "recommended"
+    },
+    "avg_power": {
+      "description": "Average power consumption during the discharge event",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Energy = C_total * V^2 = 145fF * (1.8V)^2 = 0.47 pJ. Power over 10ns = 47 uW.",
+        "range": {
+          "min": "20uW",
+          "typical": "50uW",
+          "max": "100uW",
+          "unit": "W"
+        },
+        "reasoning": "Dynamic power dominates during the switching event."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure search line capacitance via AC analysis and discharge delay/power via Transient analysis.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "cap_sbl_u",
+      "cap_sbl_u_bar",
+      "t_fall_sbl_u",
+      "t_fall_sbl_u_bar",
+      "avg_power"
+    ],
+    "spice": "* TCAM Search Line Load Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\nXM1 GND QN SBL_U_BAR GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 SBL_U QN GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 Q LABEL_NET_0 Q GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 SBL_U_BAR QN SBL_U_BAR VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 SBL_U_BAR Q SBL_U_BAR GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 SBL_U QN SBL_U VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 SBL_U Q SBL_U GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 SBL_U_BAR LABEL_NET_1 SBL_U_BAR GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\n* DC Sources\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVQ Q 0 0\n\n* Pull-up resistors to precharge search lines\nR1 VDD SBL_U 100k\nR2 VDD SBL_U_BAR 100k\n\n* Input Pulse\nVQN QN 0 PULSE(0 1.8 2n 0.1n 0.1n 5n 20n)\n\n* AC Sources for Capacitance Measurement\nIac1 SBL_U 0 AC 1\nIac2 SBL_U_BAR 0 AC 1\n\n.control\n* Transient Analysis\ntran 10p 10n\nmeas tran t_fall_sbl_u trig v(QN) val=0.9 rise=1 targ v(SBL_U) val=0.9 fall=1\nmeas tran t_fall_sbl_u_bar trig v(QN) val=0.9 rise=1 targ v(SBL_U_BAR) val=0.9 fall=1\nmeas tran avg_power avg -i(VVDD)*1.8 from=0 to=10n\n\n* AC Analysis\nac dec 10 1G 10G\nmeas ac vdb_sbl_u find vdb(SBL_U) at=1G\nmeas ac vdb_sbl_u_bar find vdb(SBL_U_BAR) at=1G\nlet v_mag_sbl_u = 10^(vdb_sbl_u / 20)\nlet v_mag_sbl_u_bar = 10^(vdb_sbl_u_bar / 20)\nlet cap_sbl_u = 1 / (2 * 3.1415926535 * 1e9 * v_mag_sbl_u)\nlet cap_sbl_u_bar = 1 / (2 * 3.1415926535 * 1e9 * v_mag_sbl_u_bar)\nprint cap_sbl_u cap_sbl_u_bar\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"TCAM Search Line Load / Discharge Circuit\",\n    \"description\": \"This circuit models a segment of a TCAM search line, including pull-down discharge transistors and dummy MOS capacitors representing the load of the compare logic. It is used to evaluate the capacitance and discharge delay of segmented search lines.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"QN\",\n        \"Q\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"SBL_U\",\n        \"SBL_U_BAR\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"TCAM for IP-Address Lookup Using Tree-style AND-type Match Lines and Segmented Search Lines\",\n      \"figure\": \"unknown\",\n      \"year\": 2006\n    }\n  },\n  \"step2_metrics\": {\n    \"cap_sbl_u\": {\n      \"description\": \"Capacitance of the SBL_U search line segment\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 pF\",\n        \"technology\": \"0.18\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2 MOS caps + 1 drain cap. Area = 2.5um^2 per cap. Cox ~ 10fF/um^2. C ~ 2 * 25fF + C_drain ~ 60fF.\",\n        \"range\": {\n          \"min\": \"40fF\",\n          \"typical\": \"60fF\",\n          \"max\": \"100fF\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"The paper reports 5 pF for a full search line array. This extracted segment contains only a few transistors, so the capacitance is proportionally smaller.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cap_sbl_u_bar\": {\n      \"description\": \"Capacitance of the SBL_U_BAR search line segment\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"6 pF\",\n        \"technology\": \"0.18\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"3 MOS caps + 1 drain cap. C ~ 3 * 25fF + C_drain ~ 85fF.\",\n        \"range\": {\n          \"min\": \"60fF\",\n          \"typical\": \"85fF\",\n          \"max\": \"120fF\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"SBL_U_BAR has one additional MOS capacitor compared to SBL_U, resulting in slightly higher capacitance, matching the trend in the paper (6 pF vs 5 pF).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_fall_sbl_u\": {\n      \"description\": \"Pull-down delay of SBL_U when QN goes high\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dt = C * dV / I. C = 60fF, dV = 0.9V, I ~ 500uA. dt ~ 108ps.\",\n        \"range\": {\n          \"min\": \"50ps\",\n          \"typical\": \"100ps\",\n          \"max\": \"200ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on the saturation current of a 5um/0.5um NMOS in SKY130 discharging a ~60fF load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"avg_power\": {\n      \"description\": \"Average power consumption during the discharge event\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Energy = C_total * V^2 = 145fF * (1.8V)^2 = 0.47 pJ. Power over 10ns = 47 uW.\",\n        \"range\": {\n          \"min\": \"20uW\",\n          \"typical\": \"50uW\",\n          \"max\": \"100uW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dynamic power dominates during the switching event.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure search line capacitance via AC analysis and discharge delay/power via Transient analysis.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"cap_sbl_u\",\n      \"cap_sbl_u_bar\",\n      \"t_fall_sbl_u\",\n      \"t_fall_sbl_u_bar\",\n      \"avg_power\"\n    ],\n    \"spice\": \"* TCAM Search Line Load Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\nXM1 GND QN SBL_U_BAR GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 SBL_U QN GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 Q LABEL_NET_0 Q GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 SBL_U_BAR QN SBL_U_BAR VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 SBL_U_BAR Q SBL_U_BAR GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 SBL_U QN SBL_U VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 SBL_U Q SBL_U GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 SBL_U_BAR LABEL_NET_1 SBL_U_BAR GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVQ Q 0 0\\n\\n* Pull-up resistors to precharge search lines\\nR1 VDD SBL_U 100k\\nR2 VDD SBL_U_BAR 100k\\n\\n* Input Pulse\\nVQN QN 0 PULSE(0 1.8 2n 0.1n 0.1n 5n 20n)\\n\\n* AC Sources for Capacitance Measurement\\nIac1 SBL_U 0 AC 1\\nIac2 SBL_U_BAR 0 AC 1\\n\\n.control\\n* Transient Analysis\\ntran 10p 10n\\nmeas tran t_fall_sbl_u trig v(QN) val=0.9 rise=1 targ v(SBL_U) val=0.9 fall=1\\nmeas tran t_fall_sbl_u_bar trig v(QN) val=0.9 rise=1 targ v(SBL_U_BAR) val=0.9 fall=1\\nmeas tran avg_power avg -i(VVDD)*1.8 from=0 to=10n\\n\\n* AC Analysis\\nac dec 10 1G 10G\\nmeas ac vdb_sbl_u find vdb(SBL_U) at=1G\\nmeas ac vdb_sbl_u_bar find vdb(SBL_U_BAR) at=1G\\nlet v_mag_sbl_u = 10^(vdb_sbl_u / 20)\\nlet v_mag_sbl_u_bar = 10^(vdb_sbl_u_bar / 20)\\nlet cap_sbl_u = 1 / (2 * 3.1415926535 * 1e9 * v_mag_sbl_u)\\nlet cap_sbl_u_bar = 1 / (2 * 3.1415926535 * 1e9 * v_mag_sbl_u_bar)\\nprint cap_sbl_u cap_sbl_u_bar\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1696094",
+  "_case": "1696094_image_4_a"
+}

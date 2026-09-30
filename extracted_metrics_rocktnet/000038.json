@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascode Amplifier",
+    "description": "A single-ended cascode amplifier featuring an NMOS input (XM2), an NMOS cascode device (XM3) to reduce the Miller effect and increase output impedance, an NMOS tail current source (XM4), and a PMOS active load (XM1).",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0"
+      ],
+      "output": [
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_1",
+        "N1"
+      ],
+      "ground": [
+        "GND",
+        "N0",
+        "N2"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Ultra-Low-Power Receiver Using TransmittedReference and Shifted Limiters for In-Band Interference Resilience",
+      "figure": "unknown",
+      "year": 2016
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Maximum AC voltage gain from the input to the output node.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "12dB / 30dB",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm2 * (Rout_cascode || Rout_pmos). With W/L=5u/0.5u and Id~200uA, gm~1mS and Rout~100kOhm. Intrinsic gain can reach 30-40 dB depending on exact bias.",
+        "range": {
+          "min": 10,
+          "typical": 25,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "The paper reports various gain figures (12dB, 30dB) for different receiver blocks. A cascode stage in 130nm typically yields 20-40dB of intrinsic gain."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "3-dB cutoff frequency of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20MHz",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rout * C_load). Assuming Rout=100kOhm and C_load=10fF, BW ~ 150MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 100000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is highly dependent on the load capacitance. With a minimal parasitic load, it can easily exceed the 20MHz IF bandwidth reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit from the 1.8V supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Ultra-Low-Power",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_tail. With Vbias=0.9V on XM4 (W/L=10), I_tail ~ 200uA. Power = 1.8V * 200uA = 360uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00036,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Consistent with 'ultra-low-power' receiver design, individual amplifier/mixer branches typically consume sub-mW power."
+      },
+      "importance": "essential"
+    },
+    "dc_operating_point": {
+      "description": "DC voltage at the output node (N3).",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the Vsg required by the PMOS load to source the tail current. Typically designed to sit near VDD/2 for maximum swing.",
+        "range": {
+          "min": 0.6,
+          "typical": 1.0,
+          "max": 1.4,
+          "unit": "V"
+        },
+        "reasoning": "A well-biased amplifier should have its output DC voltage roughly in the middle of the supply range to keep all transistors in saturation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC voltage gain, 3-dB bandwidth, DC power consumption, and transient response. A large inductor is used to diode-connect the PMOS load at DC for robust biasing, while keeping it as a high-impedance current source at AC.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "bandwidth",
+      "power_consumption",
+      "dc_operating_point"
+    ],
+    "spice": "* Cascode Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 VDD N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* Biasing and Inputs\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 1 sin(0.9 10m 1Meg)\n\n* Robust DC Biasing for PMOS Load (Diode-connected at DC, Current Source at AC)\nLbias N3 N1 1000H\nCac N1 0 100m\n\n* Load Capacitance\nCL N3 0 10f\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(N3)\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 100 1k 10G\nlet gain_db = vdb(N3)\nmeas ac max_gain max gain_db\nmeas ac bw_freq when gain_db=(max_gain-3) fall=1\n\n* 3. Transient Analysis\ntran 1n 2u\nmeas tran vout_pp pp v(N3)\nmeas tran vout_max max v(N3)\nmeas tran vout_min min v(N3)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascode Amplifier\",\n    \"description\": \"A single-ended cascode amplifier featuring an NMOS input (XM2), an NMOS cascode device (XM3) to reduce the Miller effect and increase output impedance, an NMOS tail current source (XM4), and a PMOS active load (XM1).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\"\n      ],\n      \"output\": [\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_1\",\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N0\",\n        \"N2\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Ultra-Low-Power Receiver Using TransmittedReference and Shifted Limiters for In-Band Interference Resilience\",\n      \"figure\": \"unknown\",\n      \"year\": 2016\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Maximum AC voltage gain from the input to the output node.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"12dB / 30dB\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm2 * (Rout_cascode || Rout_pmos). With W/L=5u/0.5u and Id~200uA, gm~1mS and Rout~100kOhm. Intrinsic gain can reach 30-40 dB depending on exact bias.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 25,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper reports various gain figures (12dB, 30dB) for different receiver blocks. A cascode stage in 130nm typically yields 20-40dB of intrinsic gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"3-dB cutoff frequency of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20MHz\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rout * C_load). Assuming Rout=100kOhm and C_load=10fF, BW ~ 150MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 100e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is highly dependent on the load capacitance. With a minimal parasitic load, it can easily exceed the 20MHz IF bandwidth reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit from the 1.8V supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Ultra-Low-Power\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_tail. With Vbias=0.9V on XM4 (W/L=10), I_tail ~ 200uA. Power = 1.8V * 200uA = 360uW.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 360e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Consistent with 'ultra-low-power' receiver design, individual amplifier/mixer branches typically consume sub-mW power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_operating_point\": {\n      \"description\": \"DC voltage at the output node (N3).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the Vsg required by the PMOS load to source the tail current. Typically designed to sit near VDD/2 for maximum swing.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 1.0,\n          \"max\": 1.4,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"A well-biased amplifier should have its output DC voltage roughly in the middle of the supply range to keep all transistors in saturation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC voltage gain, 3-dB bandwidth, DC power consumption, and transient response. A large inductor is used to diode-connect the PMOS load at DC for robust biasing, while keeping it as a high-impedance current source at AC.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"power_consumption\",\n      \"dc_operating_point\"\n    ],\n    \"spice\": \"* Cascode Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 VDD N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* Biasing and Inputs\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVLABEL_NET_0 LABEL_NET_0 0 dc 0.9 ac 1 sin(0.9 10m 1Meg)\\n\\n* Robust DC Biasing for PMOS Load (Diode-connected at DC, Current Source at AC)\\nLbias N3 N1 1000H\\nCac N1 0 100m\\n\\n* Load Capacitance\\nCL N3 0 10f\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(N3)\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 100 1k 10G\\nlet gain_db = vdb(N3)\\nmeas ac max_gain max gain_db\\nmeas ac bw_freq when gain_db=(max_gain-3) fall=1\\n\\n* 3. Transient Analysis\\ntran 1n 2u\\nmeas tran vout_pp pp v(N3)\\nmeas tran vout_max max v(N3)\\nmeas tran vout_min min v(N3)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "7418095",
+  "_case": "7418095_image_3_a"
+}

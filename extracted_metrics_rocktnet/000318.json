@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single-Ended Regulated Cascode Amplifier",
+    "description": "A high-gain single-ended regulated (gain-boosted) cascode amplifier. It uses auxiliary common-source amplifiers to regulate the cascode nodes, significantly increasing the output impedance and DC gain, which is essential for high-accuracy pipelined ADC stages.",
+    "node_mapping": {
+      "input": [
+        "VIN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBP",
+        "VBN"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10-b 30-MS/s Low-Power Pipelined CMOS A/D Converter Using a Pseudodifferential Architecture",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the amplifier.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "16 mW (Total ADC)",
+        "technology": "0.3um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id_total = Id(XM3) + Id(XM6) + Id(XM7). With VBP=0.99V, Vsg=0.81V, Id ~ 37.5uA per branch. Total current ~ 111uA. Power = 1.8V * 111uA = 200uW.",
+        "range": {
+          "min": "150u",
+          "typical": "200u",
+          "max": "300u",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on SKY130 PMOS square law model with given bias voltages."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency open-loop voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.3um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm1 * Rout. Rout is boosted by the auxiliary amplifiers. Intrinsic gain per stage ~ 40dB. Total gain ~ 3 stages (main + cascode + boost) = 120dB.",
+        "range": {
+          "min": "80",
+          "typical": "100",
+          "max": "130",
+          "unit": "dB"
+        },
+        "reasoning": "Regulated cascodes typically achieve 100+ dB gain, necessary for 10-bit settling accuracy."
+      },
+      "importance": "essential"
+    },
+    "ugbw": {
+      "description": "Unity Gain Bandwidth with a 1pF load.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A (ADC sampling rate is 30 MS/s)",
+        "technology": "0.3um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm1 / (2*pi*CL). gm1 ~ 468uS. CL = 1pF. UGBW = 468u / (2*pi*1p) = 74.5 MHz.",
+        "range": {
+          "min": "50M",
+          "typical": "75M",
+          "max": "150M",
+          "unit": "Hz"
+        },
+        "reasoning": "A 30 MS/s ADC typically requires an op-amp bandwidth of 3-5 times the sampling frequency."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.3um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the non-dominant poles at the cascode nodes and the auxiliary amplifier poles.",
+        "range": {
+          "min": "45",
+          "typical": "60",
+          "max": "80",
+          "unit": "degrees"
+        },
+        "reasoning": "Standard stability requirement for closed-loop MDAC operation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, open-loop gain, UGBW, and phase margin. It uses a large inductor in feedback to auto-bias the amplifier in its high-gain region for robust AC analysis.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "ugbw",
+      "phase_margin"
+    ],
+    "spice": "* Regulated Cascode Amplifier Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n* DUT\nXM1 N4 VIN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VOUT N2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 VBP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUT N3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 VBP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N3 VBN GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\n* Load Capacitor\nCL VOUT 0 1p\n\n* DC Sources\nVVDD VDD 0 1.8\nVVBP VBP 0 0.99\nVVBN VBN 0 0.54\n\n* AC Input Source\nVAC VIN_AC 0 DC 0 AC 1\n\n* DC Feedback for Auto-Biasing in High-Gain Region\n* Forces VOUT = VIN at DC, while isolating AC signals\nL1 VOUT VIN 1G\nC1 VIN_AC VIN 1G\n\n.control\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n  print v(VOUT)\n  \n  ac dec 100 1k 10G\n  let gain_db = vdb(VOUT)\n  let phase = 180/PI * cph(v(VOUT))\n  \n  meas ac dc_gain max gain_db\n  meas ac ugbw when gain_db=0 fall=1\n  meas ac phase_margin find phase when gain_db=0 fall=1\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single-Ended Regulated Cascode Amplifier\",\n    \"description\": \"A high-gain single-ended regulated (gain-boosted) cascode amplifier. It uses auxiliary common-source amplifiers to regulate the cascode nodes, significantly increasing the output impedance and DC gain, which is essential for high-accuracy pipelined ADC stages.\",\n    \"node_mapping\": {\n      \"input\": [\"VIN\"],\n      \"output\": [\"VOUT\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"VBP\", \"VBN\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10-b 30-MS/s Low-Power Pipelined CMOS A/D Converter Using a Pseudodifferential Architecture\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"16 mW (Total ADC)\",\n        \"technology\": \"0.3um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id_total = Id(XM3) + Id(XM6) + Id(XM7). With VBP=0.99V, Vsg=0.81V, Id ~ 37.5uA per branch. Total current ~ 111uA. Power = 1.8V * 111uA = 200uW.\",\n        \"range\": { \"min\": \"150u\", \"typical\": \"200u\", \"max\": \"300u\", \"unit\": \"W\" },\n        \"reasoning\": \"Calculated based on SKY130 PMOS square law model with given bias voltages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.3um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm1 * Rout. Rout is boosted by the auxiliary amplifiers. Intrinsic gain per stage ~ 40dB. Total gain ~ 3 stages (main + cascode + boost) = 120dB.\",\n        \"range\": { \"min\": \"80\", \"typical\": \"100\", \"max\": \"130\", \"unit\": \"dB\" },\n        \"reasoning\": \"Regulated cascodes typically achieve 100+ dB gain, necessary for 10-bit settling accuracy.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ugbw\": {\n      \"description\": \"Unity Gain Bandwidth with a 1pF load.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A (ADC sampling rate is 30 MS/s)\",\n        \"technology\": \"0.3um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm1 / (2*pi*CL). gm1 ~ 468uS. CL = 1pF. UGBW = 468u / (2*pi*1p) = 74.5 MHz.\",\n        \"range\": { \"min\": \"50M\", \"typical\": \"75M\", \"max\": \"150M\", \"unit\": \"Hz\" },\n        \"reasoning\": \"A 30 MS/s ADC typically requires an op-amp bandwidth of 3-5 times the sampling frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.3um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the non-dominant poles at the cascode nodes and the auxiliary amplifier poles.\",\n        \"range\": { \"min\": \"45\", \"typical\": \"60\", \"max\": \"80\", \"unit\": \"degrees\" },\n        \"reasoning\": \"Standard stability requirement for closed-loop MDAC operation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, open-loop gain, UGBW, and phase margin. It uses a large inductor in feedback to auto-bias the amplifier in its high-gain region for robust AC analysis.\",\n    \"analyses\": [\"OP\", \"AC\"],\n    \"metrics_measured\": [\"power_consumption\", \"dc_gain\", \"ugbw\", \"phase_margin\"],\n    \"spice\": \"* Regulated Cascode Amplifier Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n* DUT\\nXM1 N4 VIN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VOUT N2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 VBP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUT N3 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 VBP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N3 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N3 VBN GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* Load Capacitor\\nCL VOUT 0 1p\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVVBP VBP 0 0.99\\nVVBN VBN 0 0.54\\n\\n* AC Input Source\\nVAC VIN_AC 0 DC 0 AC 1\\n\\n* DC Feedback for Auto-Biasing in High-Gain Region\\n* Forces VOUT = VIN at DC, while isolating AC signals\\nL1 VOUT VIN 1G\\nC1 VIN_AC VIN 1G\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n  print v(VOUT)\\n  \\n  ac dec 100 1k 10G\\n  let gain_db = vdb(VOUT)\\n  let phase = 180/PI * cph(v(VOUT))\\n  \\n  meas ac dc_gain max gain_db\\n  meas ac ugbw when gain_db=0 fall=1\\n  meas ac phase_margin find phase when gain_db=0 fall=1\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1175522",
+  "_case": "1175522_image_6"
+}

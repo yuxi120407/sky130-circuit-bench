@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Voltage-Controlled Oscillator (VCO)",
+    "description": "A bipolar Colpitts-style voltage-controlled oscillator. The tank circuit includes a varactor (diode-connected Q2) for frequency tuning, though the primary inductor appears to be missing or extracted as a resistor (e.g., R8) in this netlist.",
+    "node_mapping": {
+      "input": [
+        "label_net_0"
+      ],
+      "output": [
+        "n2"
+      ],
+      "supply": [
+        "n4"
+      ],
+      "bias": [
+        "n0",
+        "n1"
+      ],
+      "ground": [
+        "n3"
+      ]
+    },
+    "paper_reference": {
+      "title": "Brief Papers",
+      "figure": "1",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "The fundamental frequency of oscillation.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "98 GHz",
+        "technology": "200-GHz SiGe bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Depends heavily on the LC tank values. With 1pF capacitors and assuming a 1nH inductor, f = 1 / (2*pi*sqrt(L*C)) ~= 5 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 devices are slower than 200-GHz SiGe. Expected frequency is in the low GHz range if it oscillates."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Single sideband phase noise at a specific offset frequency.",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "85 dBc/Hz @ 1MHz",
+        "technology": "200-GHz SiGe bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Phase noise scales with Q-factor and active device noise. SKY130 will likely have worse phase noise due to lower Q passives.",
+        "range": {
+          "min": 70,
+          "typical": 80,
+          "max": 90,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Standard CMOS/BiCMOS phase noise at 1MHz offset for low-GHz VCOs."
+      },
+      "importance": "essential"
+    },
+    "output_power": {
+      "description": "RF output power delivered to the load.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "6 dBm",
+        "technology": "200-GHz SiGe bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "P = V^2 / (2*R). With 1.8V supply, max swing is ~1V. P ~= 10mW = 10 dBm.",
+        "range": {
+          "min": 0,
+          "typical": 5,
+          "max": 10,
+          "unit": "dBm"
+        },
+        "reasoning": "Lower supply voltage (1.8V vs 5V) will reduce the maximum output power compared to the paper."
+      },
+      "importance": "recommended"
+    },
+    "dc_power": {
+      "description": "Total DC power consumption from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "60 mW (12 mA from 5V)",
+        "technology": "200-GHz SiGe bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_dc. Assuming 5-10mA bias at 1.8V.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.015,
+          "max": 0.03,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for 1.8V supply in SKY130."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power and transient response of the VCO. Component values are assumed and appended since they were missing in the raw extraction.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "v_max",
+      "v_min",
+      "period"
+    ],
+    "spice": "* VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param AREA_Q=1\n\n* Generic NPN model for simulation\n.model npn npn (is=1e-16 bf=100 vaf=50 cjc=0.1p cje=0.2p tf=10p)\n\n* DUT (Values appended to raw netlist to allow simulation)\nQ1 n2 n0 n1 npn {AREA_Q}\nR1 n2 n4 50\nC1 n1 n3 1p\nC2 n0 n1 1p\nC3 n3 n7 1p\nR2 n1 n3 1k\nR3 n0 n4 10k\nR4 n0 n3 10k\nC4 n5 n6 1p\nR5 n7 n7 1\nR6 n3 n6 10k\nR7 n2 label_net_0 50\nQ2 n7 n6 n6 npn {AREA_Q}\nR8 n0 n5 1k\n\n* Power and Bias Sources\nV_n4 n4 0 1.8\nV_n3 n3 0 0\nVLABEL_NET_0 label_net_0 0 0.9\n\n.control\n  * DC Operating Point\n  op\n  let dc_power = -i(V_n4) * 1.8\n  print dc_power\n  print v(n2) v(n0) v(n1)\n\n  * Transient Analysis\n  tran 10p 10n\n  meas tran v_max max v(n2)\n  meas tran v_min min v(n2)\n  meas tran period trig v(n2) val=0.9 rise=1 targ v(n2) val=0.9 rise=2\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Voltage-Controlled Oscillator (VCO)\",\n    \"description\": \"A bipolar Colpitts-style voltage-controlled oscillator. The tank circuit includes a varactor (diode-connected Q2) for frequency tuning, though the primary inductor appears to be missing or extracted as a resistor (e.g., R8) in this netlist.\",\n    \"node_mapping\": {\n      \"input\": [\"label_net_0\"],\n      \"output\": [\"n2\"],\n      \"supply\": [\"n4\"],\n      \"bias\": [\"n0\", \"n1\"],\n      \"ground\": [\"n3\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Brief Papers\",\n      \"figure\": \"1\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"The fundamental frequency of oscillation.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"98 GHz\",\n        \"technology\": \"200-GHz SiGe bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends heavily on the LC tank values. With 1pF capacitors and assuming a 1nH inductor, f = 1 / (2*pi*sqrt(L*C)) ~= 5 GHz.\",\n        \"range\": { \"min\": 1e9, \"typical\": 5e9, \"max\": 10e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"SKY130 devices are slower than 200-GHz SiGe. Expected frequency is in the low GHz range if it oscillates.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Single sideband phase noise at a specific offset frequency.\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"85 dBc/Hz @ 1MHz\",\n        \"technology\": \"200-GHz SiGe bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Phase noise scales with Q-factor and active device noise. SKY130 will likely have worse phase noise due to lower Q passives.\",\n        \"range\": { \"min\": 70, \"typical\": 80, \"max\": 90, \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"Standard CMOS/BiCMOS phase noise at 1MHz offset for low-GHz VCOs.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_power\": {\n      \"description\": \"RF output power delivered to the load.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"6 dBm\",\n        \"technology\": \"200-GHz SiGe bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = V^2 / (2*R). With 1.8V supply, max swing is ~1V. P ~= 10mW = 10 dBm.\",\n        \"range\": { \"min\": 0, \"typical\": 5, \"max\": 10, \"unit\": \"dBm\" },\n        \"reasoning\": \"Lower supply voltage (1.8V vs 5V) will reduce the maximum output power compared to the paper.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"60 mW (12 mA from 5V)\",\n        \"technology\": \"200-GHz SiGe bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_dc. Assuming 5-10mA bias at 1.8V.\",\n        \"range\": { \"min\": 5e-3, \"typical\": 15e-3, \"max\": 30e-3, \"unit\": \"W\" },\n        \"reasoning\": \"Scaled down for 1.8V supply in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power and transient response of the VCO. Component values are assumed and appended since they were missing in the raw extraction.\",\n    \"analyses\": [\"OP\", \"Tran\"],\n    \"metrics_measured\": [\"dc_power\", \"v_max\", \"v_min\", \"period\"],\n    \"spice\": \"* VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param AREA_Q=1\\n\\n* Generic NPN model for simulation\\n.model npn npn (is=1e-16 bf=100 vaf=50 cjc=0.1p cje=0.2p tf=10p)\\n\\n* DUT (Values appended to raw netlist to allow simulation)\\nQ1 n2 n0 n1 npn {AREA_Q}\\nR1 n2 n4 50\\nC1 n1 n3 1p\\nC2 n0 n1 1p\\nC3 n3 n7 1p\\nR2 n1 n3 1k\\nR3 n0 n4 10k\\nR4 n0 n3 10k\\nC4 n5 n6 1p\\nR5 n7 n7 1\\nR6 n3 n6 10k\\nR7 n2 label_net_0 50\\nQ2 n7 n6 n6 npn {AREA_Q}\\nR8 n0 n5 1k\\n\\n* Power and Bias Sources\\nV_n4 n4 0 1.8\\nV_n3 n3 0 0\\nVLABEL_NET_0 label_net_0 0 0.9\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let dc_power = -i(V_n4) * 1.8\\n  print dc_power\\n  print v(n2) v(n0) v(n1)\\n\\n  * Transient Analysis\\n  tran 10p 10n\\n  meas tran v_max max v(n2)\\n  meas tran v_min min v(n2)\\n  meas tran period trig v(n2) val=0.9 rise=1 targ v(n2) val=0.9 rise=2\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1337009",
+  "_case": "1337009_image_2"
+}

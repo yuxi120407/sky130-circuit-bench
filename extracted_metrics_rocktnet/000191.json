@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Low-Noise Amplifier (LNA)",
+    "description": "A common-source low-noise amplifier stage with source degeneration. XM1 acts as the main amplifying transistor, while XM2 is diode-connected/shorted to act as a parasitic capacitor or dummy load at the output node.",
+    "node_mapping": {
+      "input": [
+        "N2"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2_bias"
+      ],
+      "ground": [
+        "GND",
+        "N0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Noise Optimization Technique for Integrated Low-Noise Amplifiers",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipated by the amplifier.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "7.5 mW",
+        "technology": "0.24um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With W=5u, L=0.5u, Vgs=0.8V, Vth=0.42V -> Vov=0.38V. Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.38)^2 \u2248 195 uA. Power = 1.8V * 195uA \u2248 0.35 mW.",
+        "range": {
+          "min": "0.1m",
+          "typical": "0.35m",
+          "max": "1.0m",
+          "unit": "W"
+        },
+        "reasoning": "The parameterized W=5u is relatively small for an LNA, leading to lower power consumption than the 7.5 mW reported in the paper (which likely used much wider transistors)."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "AC voltage gain at the tuned operating frequency (800 MHz).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.24um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2 * Id / Vov = 390uA / 0.38V \u2248 1.02 mS. With a tuned tank load equivalent resistance of 10 kOhm, Gain = gm * Rload = 10.2 V/V = 20.1 dB.",
+        "range": {
+          "min": "10",
+          "typical": "20",
+          "max": "25",
+          "unit": "dB"
+        },
+        "reasoning": "Gain depends heavily on the Q-factor of the output matching network. A 10k parallel resistor sets a reasonable peak gain."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Signal-to-noise ratio degradation through the amplifier at 800 MHz.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "0.9 dB",
+        "technology": "0.24um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "NF = 10 * log10(inoise_spectrum / (4*k*T*Rs)). For a simple CS stage in 130nm without perfect noise matching, NF is typically higher than the highly optimized 0.9 dB from the paper.",
+        "range": {
+          "min": "1.5",
+          "typical": "3.0",
+          "max": "5.0",
+          "unit": "dB"
+        },
+        "reasoning": "The paper achieves 0.9 dB through rigorous noise optimization and sizing. The default W=5u is not noise-optimal, so NF will be higher."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "The center frequency where the LNA achieves peak gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "800 MHz",
+        "technology": "0.24um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). With L=10nH and C=39.5pF, f \u2248 800 MHz.",
+        "range": {
+          "min": "750M",
+          "typical": "800M",
+          "max": "850M",
+          "unit": "Hz"
+        },
+        "reasoning": "Set explicitly by the LC tank components added in the testbench to match the paper's 800 MHz target."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, and Noise Figure at 800 MHz for the LNA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Noise"
+    ],
+    "metrics_measured": [
+      "power",
+      "gain_800m",
+      "nf_at_800m"
+    ],
+    "spice": "* LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 N1 N2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 GND N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Supplies and Bias\nVdd VDD 0 1.8\nVbias Vbias_node 0 0.8\n\n* Input Network (50 Ohm source)\nVac in_ac 0 dc 0 ac 1\nRs in_ac net_in 50\nC2 net_in N2 10p\nRbias Vbias_node N2 10k\n\n* Source Degeneration Inductor\nL2 N0 0 1n\n\n* Output Matching Network (Tuned for ~800 MHz)\nL1 VDD N1 10n\nC1 VDD N1 39.5p\nR1 VDD N1 10k\n\n.control\n* 1. DC Power\nop\nlet power = -i(Vdd) * 1.8\nprint power\n\n* 2. AC Gain\nac dec 50 100Meg 10Gig\nlet gain_db = vdb(N1)\nmeas ac gain_800m find gain_db at=800Meg\n\n* 3. Noise Figure\n* 4*k*T*Rs = 4 * 1.38e-23 * 300 * 50 = 8.28e-19\nnoise v(N1) Vac dec 50 100Meg 10Gig\nsetplot noise1\nlet nf_db = 10 * log10(inoise_spectrum / 8.28e-19)\nmeas noise nf_at_800m find nf_db at=800Meg\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Low-Noise Amplifier (LNA)\",\n    \"description\": \"A common-source low-noise amplifier stage with source degeneration. XM1 acts as the main amplifying transistor, while XM2 is diode-connected/shorted to act as a parasitic capacitor or dummy load at the output node.\",\n    \"node_mapping\": {\n      \"input\": [\"N2\"],\n      \"output\": [\"N1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N2_bias\"],\n      \"ground\": [\"GND\", \"N0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Noise Optimization Technique for Integrated Low-Noise Amplifiers\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipated by the amplifier.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"7.5 mW\",\n        \"technology\": \"0.24um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W=5u, L=0.5u, Vgs=0.8V, Vth=0.42V -> Vov=0.38V. Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.38)^2 \u2248 195 uA. Power = 1.8V * 195uA \u2248 0.35 mW.\",\n        \"range\": {\n          \"min\": \"0.1m\",\n          \"typical\": \"0.35m\",\n          \"max\": \"1.0m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The parameterized W=5u is relatively small for an LNA, leading to lower power consumption than the 7.5 mW reported in the paper (which likely used much wider transistors).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"AC voltage gain at the tuned operating frequency (800 MHz).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.24um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2 * Id / Vov = 390uA / 0.38V \u2248 1.02 mS. With a tuned tank load equivalent resistance of 10 kOhm, Gain = gm * Rload = 10.2 V/V = 20.1 dB.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"20\",\n          \"max\": \"25\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain depends heavily on the Q-factor of the output matching network. A 10k parallel resistor sets a reasonable peak gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Signal-to-noise ratio degradation through the amplifier at 800 MHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"0.9 dB\",\n        \"technology\": \"0.24um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NF = 10 * log10(inoise_spectrum / (4*k*T*Rs)). For a simple CS stage in 130nm without perfect noise matching, NF is typically higher than the highly optimized 0.9 dB from the paper.\",\n        \"range\": {\n          \"min\": \"1.5\",\n          \"typical\": \"3.0\",\n          \"max\": \"5.0\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper achieves 0.9 dB through rigorous noise optimization and sizing. The default W=5u is not noise-optimal, so NF will be higher.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"The center frequency where the LNA achieves peak gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"800 MHz\",\n        \"technology\": \"0.24um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). With L=10nH and C=39.5pF, f \u2248 800 MHz.\",\n        \"range\": {\n          \"min\": \"750M\",\n          \"typical\": \"800M\",\n          \"max\": \"850M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Set explicitly by the LC tank components added in the testbench to match the paper's 800 MHz target.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, and Noise Figure at 800 MHz for the LNA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Noise\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"gain_800m\",\n      \"nf_at_800m\"\n    ],\n    \"spice\": \"* LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 N1 N2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 GND N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Supplies and Bias\\nVdd VDD 0 1.8\\nVbias Vbias_node 0 0.8\\n\\n* Input Network (50 Ohm source)\\nVac in_ac 0 dc 0 ac 1\\nRs in_ac net_in 50\\nC2 net_in N2 10p\\nRbias Vbias_node N2 10k\\n\\n* Source Degeneration Inductor\\nL2 N0 0 1n\\n\\n* Output Matching Network (Tuned for ~800 MHz)\\nL1 VDD N1 10n\\nC1 VDD N1 39.5p\\nR1 VDD N1 10k\\n\\n.control\\n* 1. DC Power\\nop\\nlet power = -i(Vdd) * 1.8\\nprint power\\n\\n* 2. AC Gain\\nac dec 50 100Meg 10Gig\\nlet gain_db = vdb(N1)\\nmeas ac gain_800m find gain_db at=800Meg\\n\\n* 3. Noise Figure\\n* 4*k*T*Rs = 4 * 1.38e-23 * 300 * 50 = 8.28e-19\\nnoise v(N1) Vac dec 50 100Meg 10Gig\\nsetplot noise1\\nlet nf_db = 10 * log10(inoise_spectrum / 8.28e-19)\\nmeas noise nf_at_800m find nf_db at=800Meg\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1020238",
+  "_case": "1020238_image_1"
+}

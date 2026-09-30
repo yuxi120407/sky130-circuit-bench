@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Replica Inverter Bias Circuit",
+    "description": "A replica bias circuit used to generate a reference voltage for a hybrid folded current sense amplifier in a DRAM. It uses a diode-connected inverter structure with additional parallel and cross-coupled transistors to match the sense amplifier's characteristics and track process/voltage/temperature variations.",
+    "node_mapping": {
+      "input": [
+        "EN",
+        "INB",
+        "OUT"
+      ],
+      "output": [
+        "OUTB"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.8-V 128-Mb Mobile DRAM With Double Boosting Pump, Hybrid Current Sense Amplifier, and Dual-Referenced Adjustment Scheme for Temperature Sensor",
+      "figure": "unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "V_OUTB_disabled": {
+      "description": "DC voltage at OUTB when the circuit is disabled (EN=0V)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.15um"
+      },
+      "sky130_expected": {
+        "calculation": "When EN=0, the tail NMOS (XM3) is OFF. OUTB is pulled up by the diode-connected PMOS (XM4) to VDD - |Vth_p|. VDD = 1.8V, |Vth_p| = 0.42V. Expected voltage is 1.8 - 0.42 = 1.38V.",
+        "range": {
+          "min": 1.2,
+          "typical": 1.38,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the threshold voltage of the PMOS device in SKY130."
+      },
+      "importance": "essential"
+    },
+    "V_OUTB_enabled": {
+      "description": "DC bias voltage at OUTB when the circuit is enabled (EN=1.8V)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.15um"
+      },
+      "sky130_expected": {
+        "calculation": "When EN=1.8V, NMOS pull-downs (XM1, XM6) fight PMOS pull-ups (XM4, XM2). XM1 has its gate tied to VDD (1.8V), making it a very strong pull-down in linear region. PMOS devices are in saturation. Balancing currents (I_nmos ~ I_pmos) results in OUTB being pulled close to GND.",
+        "range": {
+          "min": 0.05,
+          "typical": 0.15,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "The strong NMOS with gate at VDD dominates the diode-connected PMOS, pulling the output low to serve as an NMOS current sink bias."
+      },
+      "importance": "essential"
+    },
+    "Power_enabled": {
+      "description": "Static power consumption when the circuit is enabled",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.15um"
+      },
+      "sky130_expected": {
+        "calculation": "At V_OUTB = 0.15V, XM4 current is 0.5 * 50u * 10 * (1.8 - 0.15 - 0.42)^2 = ~380uA. Total current from VDD is roughly 400uA. Power = 1.8V * 400uA = 0.72mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.00075,
+          "max": 0.0015,
+          "unit": "W"
+        },
+        "reasoning": "Based on SKY130 standard transistor current equations for the given W/L ratios."
+      },
+      "importance": "recommended"
+    },
+    "t_delay_fall": {
+      "description": "Delay from EN rising to OUTB falling to 0.8V",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.15um"
+      },
+      "sky130_expected": {
+        "calculation": "Discharging the parasitic capacitance at OUTB (~10-20fF) with ~400uA of net pull-down current. I = C * dV/dt -> dt = 20fF * 0.6V / 400uA = 30ps.",
+        "range": {
+          "min": 1e-11,
+          "typical": 5e-11,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "Fast internal node discharge limited only by intrinsic device capacitances."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the DC bias states (enabled/disabled), static power consumption, and transient turn-on delay of the replica inverter.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "V_OUTB_disabled",
+      "V_OUTB_enabled",
+      "Power_enabled",
+      "t_delay_fall"
+    ],
+    "spice": "* Replica Inverter Bias Circuit Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 OUTB VDD N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUTB OUTB INB VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N4 EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTB OUTB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM6 OUTB OUTB N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM10 OUTB OUT INB VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\n\nVVDD VDD 0 1.8\nVINB INB 0 0.9\nVOUT OUT 0 0.9\nVEN EN 0 pwl(0 0 1n 0 1.1n 1.8 10n 1.8)\n\n.control\n  * DC Analysis for bias voltages and power\n  dc VEN 0 1.8 1.8\n  meas dc v_outb_dis find v(OUTB) at=0\n  meas dc v_outb_en find v(OUTB) at=1.8\n  meas dc i_vdd_en find i(VVDD) at=1.8\n  let power_en = -i_vdd_en * 1.8\n  print v_outb_dis v_outb_en power_en\n\n  * Transient Analysis for turn-on delay\n  tran 10p 5n\n  meas tran t_delay_fall trig v(EN) val=0.9 rise=1 targ v(OUTB) val=0.8 fall=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Replica Inverter Bias Circuit\",\n    \"description\": \"A replica bias circuit used to generate a reference voltage for a hybrid folded current sense amplifier in a DRAM. It uses a diode-connected inverter structure with additional parallel and cross-coupled transistors to match the sense amplifier's characteristics and track process/voltage/temperature variations.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"EN\",\n        \"INB\",\n        \"OUT\"\n      ],\n      \"output\": [\n        \"OUTB\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.8-V 128-Mb Mobile DRAM With Double Boosting Pump, Hybrid Current Sense Amplifier, and Dual-Referenced Adjustment Scheme for Temperature Sensor\",\n      \"figure\": \"unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"V_OUTB_disabled\": {\n      \"description\": \"DC voltage at OUTB when the circuit is disabled (EN=0V)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.15um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When EN=0, the tail NMOS (XM3) is OFF. OUTB is pulled up by the diode-connected PMOS (XM4) to VDD - |Vth_p|. VDD = 1.8V, |Vth_p| = 0.42V. Expected voltage is 1.8 - 0.42 = 1.38V.\",\n        \"range\": {\n          \"min\": 1.2,\n          \"typical\": 1.38,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the threshold voltage of the PMOS device in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"V_OUTB_enabled\": {\n      \"description\": \"DC bias voltage at OUTB when the circuit is enabled (EN=1.8V)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.15um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"When EN=1.8V, NMOS pull-downs (XM1, XM6) fight PMOS pull-ups (XM4, XM2). XM1 has its gate tied to VDD (1.8V), making it a very strong pull-down in linear region. PMOS devices are in saturation. Balancing currents (I_nmos ~ I_pmos) results in OUTB being pulled close to GND.\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.15,\n          \"max\": 0.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The strong NMOS with gate at VDD dominates the diode-connected PMOS, pulling the output low to serve as an NMOS current sink bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_enabled\": {\n      \"description\": \"Static power consumption when the circuit is enabled\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.15um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At V_OUTB = 0.15V, XM4 current is 0.5 * 50u * 10 * (1.8 - 0.15 - 0.42)^2 = ~380uA. Total current from VDD is roughly 400uA. Power = 1.8V * 400uA = 0.72mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.75e-3,\n          \"max\": 1.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on SKY130 standard transistor current equations for the given W/L ratios.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"t_delay_fall\": {\n      \"description\": \"Delay from EN rising to OUTB falling to 0.8V\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.15um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Discharging the parasitic capacitance at OUTB (~10-20fF) with ~400uA of net pull-down current. I = C * dV/dt -> dt = 20fF * 0.6V / 400uA = 30ps.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 50e-12,\n          \"max\": 200e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Fast internal node discharge limited only by intrinsic device capacitances.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the DC bias states (enabled/disabled), static power consumption, and transient turn-on delay of the replica inverter.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"V_OUTB_disabled\",\n      \"V_OUTB_enabled\",\n      \"Power_enabled\",\n      \"t_delay_fall\"\n    ],\n    \"spice\": \"* Replica Inverter Bias Circuit Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 OUTB VDD N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUTB OUTB INB VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N4 EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTB OUTB VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM6 OUTB OUTB N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM10 OUTB OUT INB VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\n\\nVVDD VDD 0 1.8\\nVINB INB 0 0.9\\nVOUT OUT 0 0.9\\nVEN EN 0 pwl(0 0 1n 0 1.1n 1.8 10n 1.8)\\n\\n.control\\n  * DC Analysis for bias voltages and power\\n  dc VEN 0 1.8 1.8\\n  meas dc v_outb_dis find v(OUTB) at=0\\n  meas dc v_outb_en find v(OUTB) at=1.8\\n  meas dc i_vdd_en find i(VVDD) at=1.8\\n  let power_en = -i_vdd_en * 1.8\\n  print v_outb_dis v_outb_en power_en\\n\\n  * Transient Analysis for turn-on delay\\n  tran 10p 5n\\n  meas tran t_delay_fall trig v(EN) val=0.9 rise=1 targ v(OUTB) val=0.8 fall=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1190599",
+  "_case": "1190599_image_4"
+}

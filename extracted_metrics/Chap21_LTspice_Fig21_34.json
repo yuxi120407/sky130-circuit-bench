@@ -1,0 +1,203 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig. 21.21",
+    "page": "675",
+    "circuit_type": "Two-stage CMOS operational amplifier (cascaded common-source stages with current-source loads, self-biasing feedback, and Miller compensation)",
+    "description": "Figure 21.21 shows a common-source amplifier with a PMOS current-source load biased by the wide-swing bias circuit of Fig. 20.43 (implemented as SUB_1), with a large feedback resistor for gate-drain self-biasing and an AC input coupling capacitor. The provided netlist extends this topology into a two-stage amplifier by cascading two such common-source stages (xma/xmc and xmb/xmd) with RC Miller frequency compensation (Cc1 and Rz)."
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Low-frequency small-signal open-loop voltage gain of the amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "673",
+        "reference": "Eq. (21.39)"
+      },
+      "equation": {
+        "formula": "A_v = A_{v1} \\cdot A_{v2} = [-g_{ma}(r_{oa} \\parallel r_{oc})] \\cdot [-g_{mb}(r_{ob} \\parallel r_{od})]",
+        "explanation": "Each stage is a common-source amplifier with an active current-source load having gain -gm*(ro_n || ro_p). Cascading two stages yields the product of their individual stage gains.",
+        "assumptions": "Both NMOS and PMOS transistors in both stages are biased in the active/saturation region."
+      },
+      "sky130_expected": {
+        "calculation": "With I_bias \u2248 20 uA: gm_n = sqrt(2 * 270u * (10/1) * 20u) \u2248 328 uA/V. ro_n = 1/(0.1 * 20u) = 500 kOhm, ro_p = 1/(0.1 * 20u) = 500 kOhm. Total output resistance per stage r_out = ro_n || ro_p = 250 kOhm. Single-stage gain Av1 \u2248 328 uA/V * 250 kOhm \u2248 82 V/V (38.3 dB). Two-stage gain Av = Av1 * Av2 \u2248 82 * 82 \u2248 6724 V/V \u2248 76.5 dB.",
+        "range": {
+          "min": 60.0,
+          "typical": 75.0,
+          "max": 90.0,
+          "unit": "dB"
+        },
+        "reasoning": "Standard Sky130 1.8V transistors at ~20 uA bias typically deliver 30 to 40 dB per stage, giving 60 to 80 dB total open-loop gain."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of output voltage when charging/discharging the compensation capacitor",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "672",
+        "reference": "Eq. (21.38)"
+      },
+      "equation": {
+        "formula": "SR = \\frac{dV_{out}}{dt} = \\frac{I_{bias}}{C_c}",
+        "explanation": "Under large-signal slewing, the maximum available current from the first stage current source (I_bias) charges the compensation capacitor Cc1.",
+        "assumptions": "First stage completely steers its bias current into the compensation capacitor."
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_bias / Cc1 = 20 uA / 1.0 pF = 20 V/us.",
+        "range": {
+          "min": 10.0,
+          "typical": 20.0,
+          "max": 35.0,
+          "unit": "V/us"
+        },
+        "reasoning": "Nominal bias current from the bias block is ~20 uA, and Cc1 is 1 pF, matching Ex. 21.5 directly."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency at which the amplifier open-loop voltage gain drops to 0 dB (unity gain)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "674",
+        "reference": "Eq. (21.41) and Eq. (21.44)"
+      },
+      "equation": {
+        "formula": "f_{un} \\approx \\frac{g_{ma}}{2\\pi C_{c1}}",
+        "explanation": "Due to Miller pole splitting, dominant pole occurs at stage 1 output and the gain-bandwidth product is set by input transconductance divided by Miller capacitance Cc1.",
+        "assumptions": "Non-dominant poles are located well beyond unity gain frequency."
+      },
+      "sky130_expected": {
+        "calculation": "fun \u2248 gma / (2*pi*Cc1) = 328 uA/V / (2 * pi * 1.0 pF) \u2248 52.2 MHz.",
+        "range": {
+          "min": 25000000.0,
+          "typical": 50000000.0,
+          "max": 80000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Transconductance of ~300 uS with 1 pF compensation capacitor gives unity-gain frequency in the 30-60 MHz range."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin of the loop gain at the unity-gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "source": {
+        "page": "675",
+        "reference": "Eq. (21.46)"
+      },
+      "equation": {
+        "formula": "PM = 180^\\circ + \\angle A_v(f_{un})",
+        "explanation": "Phase margin evaluates stability by measuring the phase difference from -180 degrees at unity gain frequency.",
+        "assumptions": "System is stable with dominant single-pole rolloff."
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole causes 90 deg phase lag; Rz = 6.5 kOhm moves RHP zero into LHP (nulling zero near 1/(Cc*(Rz - 1/gmb))), providing lead compensation, yielding phase margin around 60 to 75 degrees.",
+        "range": {
+          "min": 45.0,
+          "typical": 65.0,
+          "max": 85.0,
+          "unit": "degrees"
+        },
+        "reasoning": "Standard Miller compensation with nulling resistor Rz = 6.5 kOhm is sized to provide ~60-70 degrees of phase margin."
+      },
+      "importance": "essential"
+    },
+    "bias_current": {
+      "description": "DC bias current delivered by the current source loads",
+      "unit": "A",
+      "analysis_type": "OP",
+      "source": {
+        "page": "672",
+        "reference": "Section 21.2.1 Class A Operation"
+      },
+      "equation": {
+        "formula": "I_{bias} = I_D(M2)",
+        "explanation": "The current established by the bias subcircuit SUB_1 through PMOS current mirror loads (xmc and xmd).",
+        "assumptions": "Bias circuit is operating at its stable operating point."
+      },
+      "sky130_expected": {
+        "calculation": "The reference bias circuit from Fig. 20.43 is configured with R1 = 6.5 kOhm, targeting I_bias \u2248 20 uA.",
+        "range": {
+          "min": 1.2e-05,
+          "typical": 2e-05,
+          "max": 2.8e-05,
+          "unit": "A"
+        },
+        "reasoning": "Table 9.1 specifies 20 uA nominal bias current for this reference generator."
+      },
+      "importance": "recommended"
+    },
+    "power_dissipation": {
+      "description": "Total quiescent DC power consumed by the amplifier and its bias generator",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "672",
+        "reference": "Section 21.2.1"
+      },
+      "equation": {
+        "formula": "P_{DC} = V_{DD} \\cdot I_{supply}",
+        "explanation": "Total power delivered by the 1.8V supply rail to the bias network and the two amplifier branches.",
+        "assumptions": "No external load current."
+      },
+      "sky130_expected": {
+        "calculation": "Amplifier branches draw 2 * 20 uA = 40 uA. Bias circuit SUB_1 has ~6 branches drawing ~120 uA. Total supply current \u2248 160 uA. P_DC = 1.8 V * 160 uA \u2248 288 uW.",
+        "range": {
+          "min": 0.00015,
+          "typical": 0.0003,
+          "max": 0.0006,
+          "unit": "W"
+        },
+        "reasoning": "Sum of currents in bias subcircuit branches plus two gain stages at VDD = 1.8V."
+      },
+      "importance": "recommended"
+    },
+    "output_resistance": {
+      "description": "Small-signal AC output resistance at the amplifier output node",
+      "unit": "ohm",
+      "analysis_type": "OP",
+      "source": {
+        "page": "673",
+        "reference": "Eq. (21.39) discussion"
+      },
+      "equation": {
+        "formula": "R_{out} = r_{ob} \\parallel r_{od} = \\frac{1}{\\lambda_n I_D + \\lambda_p I_D}",
+        "explanation": "The output resistance of the second common-source stage loaded by PMOS current source xmd.",
+        "assumptions": "Output node is a high-impedance drain node with both devices in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "R_out = ro_n || ro_p = (1 / (0.1 * 20u)) || (1 / (0.1 * 20u)) = 500 kOhm || 500 kOhm = 250 kOhm.",
+        "range": {
+          "min": 100000.0,
+          "typical": 250000.0,
+          "max": 500000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Channel-length modulation lambda \u2248 0.1 V^-1 at 20 uA gives 250 kOhm output impedance."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "ngspice testbench measuring DC operating point, power dissipation, AC small-signal open-loop gain, unity-gain bandwidth, phase margin, and transient slew rate on the two-stage amplifier netlist.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate",
+      "bias_current",
+      "power_dissipation"
+    ],
+    "spice": "* Sky130 Two-Stage Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter definitions for DUT\n.param W_xma=10u L_xma=1u\n.param W_xmb=10u L_xmb=1u\n.param W_xmc=30u L_xmc=1u\n.param W_xmd=30u L_xmd=1u\n.param W_xmsu1=10u L_xmsu1=1u\n.param W_xmsu2=30u L_xmsu2=1u\n.param W_xmsu3=10u L_xmsu3=1u\n.param W_xm1=10u L_xm1=1u\n.param W_xm2=10u L_xm2=1u\n.param W_xm3=30u L_xm3=1u\n.param W_xm4=30u L_xm4=1u\n.param W_xm5=30u L_xm5=1u\n.param W_xm6=10u L_xm6=1u\n.param W_xm7=30u L_xm7=1u\n.param W_xm8=10u L_xm8=1u\n.param W_xm9=30u L_xm9=1u\n.param W_xm10=30u L_xm10=1u\n.param W_xm11=30u L_xm11=1u\n.param W_xm12=10u L_xm12=1u\n.param W_xm13=10u L_xm13=1u\n.param W_xm14=10u L_xm14=1u\n.param W_xm15=30u L_xm15=1u\n.param W_xm16=30u L_xm16=1u\n.param W_xm17=30u L_xm17=1u\n.param W_xm18=30u L_xm18=1u\n.param W_xm19=30u L_xm19=1u\n.param W_xm20=30u L_xm20=1u\n.param W_xm21=30u L_xm21=1u\n.param W_xm22=10u L_xm22=1u\n.param W_xm23=10u L_xm23=1u\n.param W_xm24=10u L_xm24=1u\n.param W_xm25=10u L_xm25=1u\n.param W_xm26=10u L_xm26=1u\n\n* DUT Netlist\nVDD VDD 0 1.8\nxma n1 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xma} l={L_xma}\nxmc n1 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmc} l={L_xmc}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nR1 Vin n1 1000000000.0\nC2 Vs Vin 1e-06\nxmb Vout n1 0 0 sky130_fd_pr__nfet_01v8 w={W_xmb} l={L_xmb}\nxmd Vout Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmd} l={L_xmd}\nCc1 N001 Vout 1e-12\nRz N001 n1 6500.0\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 N002 N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N002 Vbiasn N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N003 0 6.5k\n  xm5 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbias2 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 N005 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 Vbias1 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vbias1 Vbias2 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 Vncas Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vncas Vncas N009 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N009 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 N010 N009 GND 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N006 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\n  xm16 Vbias3 Vbias2 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N007 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 Vbias4 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\n  xm19 N008 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\n  xm20 N004 Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\n  xm21 Vpcas Vpcas N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\n  xm22 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\n  xm23 Vpcas Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\n  xm24 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\n  xm25 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm25} l={L_xm25}\n  xm26 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm26} l={L_xm26}\n.ends SUB_1\n\n* Input Source and Load\nVs Vs 0 dc 0 ac 1 pulse(-0.05 0.05 100n 1n 1n 100n 200n)\nCL Vout 0 1p\n\n.control\n  op\n  let power = -i(VDD) * 1.8\n  print power\n  print v(Vbias1) v(n1) v(Vout)\n\n  * AC Analysis\n  ac dec 100 10 1G\n  let gain_db = vdb(Vout)\n  let phase = 180/PI * cph(v(Vout))\n  meas ac voltage_gain find gain_db at=1k\n  meas ac unity_gain_frequency when gain_db=0 fall=1\n  meas ac phase_at_ugf find phase when gain_db=0 fall=1\n  let phase_margin = 180 + phase_at_ugf\n  print phase_margin\n\n  * Transient Analysis for Slew Rate\n  tran 0.1n 300n\n  meas tran slew_rate trig v(Vout) val=0.6 rise=1 targ v(Vout) val=1.2 rise=1\n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig. 21.21\",\n    \"page\": \"675\",\n    \"circuit_type\": \"Two-stage CMOS operational amplifier (cascaded common-source stages with current-source loads, self-biasing feedback, and Miller compensation)\",\n    \"description\": \"Figure 21.21 shows a common-source amplifier with a PMOS current-source load biased by the wide-swing bias circuit of Fig. 20.43 (implemented as SUB_1), with a large feedback resistor for gate-drain self-biasing and an AC input coupling capacitor. The provided netlist extends this topology into a two-stage amplifier by cascading two such common-source stages (xma/xmc and xmb/xmd) with RC Miller frequency compensation (Cc1 and Rz).\"\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency small-signal open-loop voltage gain of the amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"673\", \"reference\": \"Eq. (21.39)\" },\n      \"equation\": {\n        \"formula\": \"A_v = A_{v1} \\\\cdot A_{v2} = [-g_{ma}(r_{oa} \\\\parallel r_{oc})] \\\\cdot [-g_{mb}(r_{ob} \\\\parallel r_{od})]\",\n        \"explanation\": \"Each stage is a common-source amplifier with an active current-source load having gain -gm*(ro_n || ro_p). Cascading two stages yields the product of their individual stage gains.\",\n        \"assumptions\": \"Both NMOS and PMOS transistors in both stages are biased in the active/saturation region.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With I_bias \u2248 20 uA: gm_n = sqrt(2 * 270u * (10/1) * 20u) \u2248 328 uA/V. ro_n = 1/(0.1 * 20u) = 500 kOhm, ro_p = 1/(0.1 * 20u) = 500 kOhm. Total output resistance per stage r_out = ro_n || ro_p = 250 kOhm. Single-stage gain Av1 \u2248 328 uA/V * 250 kOhm \u2248 82 V/V (38.3 dB). Two-stage gain Av = Av1 * Av2 \u2248 82 * 82 \u2248 6724 V/V \u2248 76.5 dB.\",\n        \"range\": { \"min\": 60.0, \"typical\": 75.0, \"max\": 90.0, \"unit\": \"dB\" },\n        \"reasoning\": \"Standard Sky130 1.8V transistors at ~20 uA bias typically deliver 30 to 40 dB per stage, giving 60 to 80 dB total open-loop gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of output voltage when charging/discharging the compensation capacitor\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"672\", \"reference\": \"Eq. (21.38)\" },\n      \"equation\": {\n        \"formula\": \"SR = \\\\frac{dV_{out}}{dt} = \\\\frac{I_{bias}}{C_c}\",\n        \"explanation\": \"Under large-signal slewing, the maximum available current from the first stage current source (I_bias) charges the compensation capacitor Cc1.\",\n        \"assumptions\": \"First stage completely steers its bias current into the compensation capacitor.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_bias / Cc1 = 20 uA / 1.0 pF = 20 V/us.\",\n        \"range\": { \"min\": 10.0, \"typical\": 20.0, \"max\": 35.0, \"unit\": \"V/us\" },\n        \"reasoning\": \"Nominal bias current from the bias block is ~20 uA, and Cc1 is 1 pF, matching Ex. 21.5 directly.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency at which the amplifier open-loop voltage gain drops to 0 dB (unity gain)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"674\", \"reference\": \"Eq. (21.41) and Eq. (21.44)\" },\n      \"equation\": {\n        \"formula\": \"f_{un} \\\\approx \\\\frac{g_{ma}}{2\\\\pi C_{c1}}\",\n        \"explanation\": \"Due to Miller pole splitting, dominant pole occurs at stage 1 output and the gain-bandwidth product is set by input transconductance divided by Miller capacitance Cc1.\",\n        \"assumptions\": \"Non-dominant poles are located well beyond unity gain frequency.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"fun \u2248 gma / (2*pi*Cc1) = 328 uA/V / (2 * pi * 1.0 pF) \u2248 52.2 MHz.\",\n        \"range\": { \"min\": 25.0e6, \"typical\": 50.0e6, \"max\": 80.0e6, \"unit\": \"Hz\" },\n        \"reasoning\": \"Transconductance of ~300 uS with 1 pF compensation capacitor gives unity-gain frequency in the 30-60 MHz range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin of the loop gain at the unity-gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"675\", \"reference\": \"Eq. (21.46)\" },\n      \"equation\": {\n        \"formula\": \"PM = 180^\\\\circ + \\\\angle A_v(f_{un})\",\n        \"explanation\": \"Phase margin evaluates stability by measuring the phase difference from -180 degrees at unity gain frequency.\",\n        \"assumptions\": \"System is stable with dominant single-pole rolloff.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole causes 90 deg phase lag; Rz = 6.5 kOhm moves RHP zero into LHP (nulling zero near 1/(Cc*(Rz - 1/gmb))), providing lead compensation, yielding phase margin around 60 to 75 degrees.\",\n        \"range\": { \"min\": 45.0, \"typical\": 65.0, \"max\": 85.0, \"unit\": \"degrees\" },\n        \"reasoning\": \"Standard Miller compensation with nulling resistor Rz = 6.5 kOhm is sized to provide ~60-70 degrees of phase margin.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bias_current\": {\n      \"description\": \"DC bias current delivered by the current source loads\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"672\", \"reference\": \"Section 21.2.1 Class A Operation\" },\n      \"equation\": {\n        \"formula\": \"I_{bias} = I_D(M2)\",\n        \"explanation\": \"The current established by the bias subcircuit SUB_1 through PMOS current mirror loads (xmc and xmd).\",\n        \"assumptions\": \"Bias circuit is operating at its stable operating point.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The reference bias circuit from Fig. 20.43 is configured with R1 = 6.5 kOhm, targeting I_bias \u2248 20 uA.\",\n        \"range\": { \"min\": 12.0e-6, \"typical\": 20.0e-6, \"max\": 28.0e-6, \"unit\": \"A\" },\n        \"reasoning\": \"Table 9.1 specifies 20 uA nominal bias current for this reference generator.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total quiescent DC power consumed by the amplifier and its bias generator\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"672\", \"reference\": \"Section 21.2.1\" },\n      \"equation\": {\n        \"formula\": \"P_{DC} = V_{DD} \\\\cdot I_{supply}\",\n        \"explanation\": \"Total power delivered by the 1.8V supply rail to the bias network and the two amplifier branches.\",\n        \"assumptions\": \"No external load current.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Amplifier branches draw 2 * 20 uA = 40 uA. Bias circuit SUB_1 has ~6 branches drawing ~120 uA. Total supply current \u2248 160 uA. P_DC = 1.8 V * 160 uA \u2248 288 uW.\",\n        \"range\": { \"min\": 150.0e-6, \"typical\": 300.0e-6, \"max\": 600.0e-6, \"unit\": \"W\" },\n        \"reasoning\": \"Sum of currents in bias subcircuit branches plus two gain stages at VDD = 1.8V.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal AC output resistance at the amplifier output node\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"673\", \"reference\": \"Eq. (21.39) discussion\" },\n      \"equation\": {\n        \"formula\": \"R_{out} = r_{ob} \\\\parallel r_{od} = \\\\frac{1}{\\\\lambda_n I_D + \\\\lambda_p I_D}\",\n        \"explanation\": \"The output resistance of the second common-source stage loaded by PMOS current source xmd.\",\n        \"assumptions\": \"Output node is a high-impedance drain node with both devices in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_out = ro_n || ro_p = (1 / (0.1 * 20u)) || (1 / (0.1 * 20u)) = 500 kOhm || 500 kOhm = 250 kOhm.\",\n        \"range\": { \"min\": 100.0e3, \"typical\": 250.0e3, \"max\": 500.0e3, \"unit\": \"ohm\" },\n        \"reasoning\": \"Channel-length modulation lambda \u2248 0.1 V^-1 at 20 uA gives 250 kOhm output impedance.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"ngspice testbench measuring DC operating point, power dissipation, AC small-signal open-loop gain, unity-gain bandwidth, phase margin, and transient slew rate on the two-stage amplifier netlist.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\",\n      \"bias_current\",\n      \"power_dissipation\"\n    ],\n    \"spice\": \"* Sky130 Two-Stage Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter definitions for DUT\\n.param W_xma=10u L_xma=1u\\n.param W_xmb=10u L_xmb=1u\\n.param W_xmc=30u L_xmc=1u\\n.param W_xmd=30u L_xmd=1u\\n.param W_xmsu1=10u L_xmsu1=1u\\n.param W_xmsu2=30u L_xmsu2=1u\\n.param W_xmsu3=10u L_xmsu3=1u\\n.param W_xm1=10u L_xm1=1u\\n.param W_xm2=10u L_xm2=1u\\n.param W_xm3=30u L_xm3=1u\\n.param W_xm4=30u L_xm4=1u\\n.param W_xm5=30u L_xm5=1u\\n.param W_xm6=10u L_xm6=1u\\n.param W_xm7=30u L_xm7=1u\\n.param W_xm8=10u L_xm8=1u\\n.param W_xm9=30u L_xm9=1u\\n.param W_xm10=30u L_xm10=1u\\n.param W_xm11=30u L_xm11=1u\\n.param W_xm12=10u L_xm12=1u\\n.param W_xm13=10u L_xm13=1u\\n.param W_xm14=10u L_xm14=1u\\n.param W_xm15=30u L_xm15=1u\\n.param W_xm16=30u L_xm16=1u\\n.param W_xm17=30u L_xm17=1u\\n.param W_xm18=30u L_xm18=1u\\n.param W_xm19=30u L_xm19=1u\\n.param W_xm20=30u L_xm20=1u\\n.param W_xm21=30u L_xm21=1u\\n.param W_xm22=10u L_xm22=1u\\n.param W_xm23=10u L_xm23=1u\\n.param W_xm24=10u L_xm24=1u\\n.param W_xm25=10u L_xm25=1u\\n.param W_xm26=10u L_xm26=1u\\n\\n* DUT Netlist\\nVDD VDD 0 1.8\\nxma n1 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xma} l={L_xma}\\nxmc n1 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmc} l={L_xmc}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nR1 Vin n1 1000000000.0\\nC2 Vs Vin 1e-06\\nxmb Vout n1 0 0 sky130_fd_pr__nfet_01v8 w={W_xmb} l={L_xmb}\\nxmd Vout Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmd} l={L_xmd}\\nCc1 N001 Vout 1e-12\\nRz N001 n1 6500.0\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N001 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 N002 N001 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N002 Vbiasn N003 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N003 0 6.5k\\n  xm5 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbias2 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 N005 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 Vbias1 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vbias1 Vbias2 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 Vncas Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vncas Vncas N009 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N009 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 N010 N009 GND 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N006 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\\n  xm16 Vbias3 Vbias2 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N007 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 Vbias4 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\\n  xm19 N008 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\\n  xm20 N004 Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\\n  xm21 Vpcas Vpcas N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm21} l={L_xm21}\\n  xm22 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\\n  xm23 Vpcas Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\\n  xm24 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\\n  xm25 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm25} l={L_xm25}\\n  xm26 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm26} l={L_xm26}\\n.ends SUB_1\\n\\n* Input Source and Load\\nVs Vs 0 dc 0 ac 1 pulse(-0.05 0.05 100n 1n 1n 100n 200n)\\nCL Vout 0 1p\\n\\n.control\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n  print v(Vbias1) v(n1) v(Vout)\\n\\n  * AC Analysis\\n  ac dec 100 10 1G\\n  let gain_db = vdb(Vout)\\n  let phase = 180/PI * cph(v(Vout))\\n  meas ac voltage_gain find gain_db at=1k\\n  meas ac unity_gain_frequency when gain_db=0 fall=1\\n  meas ac phase_at_ugf find phase when gain_db=0 fall=1\\n  let phase_margin = 180 + phase_at_ugf\\n  print phase_margin\\n\\n  * Transient Analysis for Slew Rate\\n  tran 0.1n 300n\\n  meas tran slew_rate trig v(Vout) val=0.6 rise=1 targ v(Vout) val=1.2 rise=1\\n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

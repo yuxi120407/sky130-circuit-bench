@@ -1,0 +1,132 @@
+{
+  "step1_analysis": {
+    "circuit_type": "PFET Source Follower (Level Shifter) with NFET Active Load",
+    "description": "The circuit consists of a PFET source follower (XM1) that shifts the input voltage up, and an NFET current sink (XM2) that acts as an active load for the preceding stage. In the context of a 1-V op-amp, this level shifter is likely used to adjust the DC common-mode voltage to properly drive subsequent stages or switches that are otherwise difficult to turn on at low supply voltages.",
+    "node_mapping": {
+      "input": [
+        "V2"
+      ],
+      "output": [
+        "V1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 10-MHz Clock-Rate 13-Bit CMOS Modulator Using Unity-Gain-Reset Opamps",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "level_shift": {
+      "description": "DC voltage shift from input to output",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 50uA bias current: Vsg = |Vthp| + sqrt(2*Id / (up*Cox * W/L)) = 0.42 + sqrt(2*50u / (50u * 10)) = 0.867 V.",
+        "range": {
+          "min": 0.7,
+          "typical": 0.87,
+          "max": 1.0,
+          "unit": "V"
+        },
+        "reasoning": "Based on the SKY130 PMOS parameters and a standard 50uA test bias."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low-frequency AC voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "80 dB (for full op-amp)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Source follower gain is slightly less than 1 (0 dB) due to body effect and channel length modulation.",
+        "range": {
+          "min": -3,
+          "typical": -1,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Standard source follower behavior; the 80 dB paper metric applies to the entire multi-stage op-amp, not this single buffer."
+      },
+      "importance": "essential"
+    },
+    "delay": {
+      "description": "Transient propagation delay from input to output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "12 ns",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Slew rate = I/C = 50uA / 3.5pF = 14.3 V/us. For a 0.3V swing, delay is ~21ns.",
+        "range": {
+          "min": 1e-08,
+          "typical": 2e-08,
+          "max": 5e-08,
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the bias current and the 3.5pF load capacitance reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "5.6 mW (for full modulator)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_XM2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2 = 311uA. P = VDD*Ibias + Vin*I_XM2 = 1.8V*50uA + 0.5V*311uA = 90uW + 155uW = 245uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.000245,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Calculated from the bias currents of the source follower and the active load."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC level shift, AC gain, transient delay, and power consumption of the PFET source follower.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "level_shift",
+      "power",
+      "dc_gain",
+      "gain_50k",
+      "gain_10mhz",
+      "delay_rise",
+      "delay_fall",
+      "v1_swing"
+    ],
+    "spice": "* PFET Source Follower Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 GND V2 V1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 GND LABEL_NET_2 V2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* DC Sources\nVVDD VDD 0 1.8\nVLABEL_NET_2 LABEL_NET_2 0 0.9\n\n* Input signal at V2 (DC=0.5V, AC=1V, Pulse for Tran)\nVin V2 0 DC 0.5 AC 1 PULSE(0.2 0.8 5n 1n 1n 100n 200n)\n\n* Bias current for the source follower (V1)\nIbias VDD V1 50u\n\n* Load capacitance (from paper)\nCload V1 0 3.5p\n\n.control\n  * DC Operating Point Analysis\n  op\n  let v_out_dc = v(V1)\n  let v_in_dc = v(V2)\n  let level_shift = v_out_dc - v_in_dc\n  let power = -i(VVDD)*1.8 - i(Vin)*0.5\n  print level_shift power\n\n  * AC Analysis\n  ac dec 10 1k 100meg\n  let gain_db = vdb(V1)\n  meas ac dc_gain find gain_db at=1k\n  meas ac gain_50k find gain_db at=50k\n  meas ac gain_10mhz find gain_db at=10.24meg\n\n  * Transient Analysis\n  tran 1n 200n\n  * Expected DC output is ~1.37V for 0.5V input\n  meas tran delay_rise trig v(V2) val=0.5 rise=1 targ v(V1) val=1.37 rise=1\n  meas tran delay_fall trig v(V2) val=0.5 fall=1 targ v(V1) val=1.37 fall=1\n  meas tran v1_max max v(V1)\n  meas tran v1_min min v(V1)\n  let v1_swing = v1_max - v1_min\n  print v1_swing\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"PFET Source Follower (Level Shifter) with NFET Active Load\",\n    \"description\": \"The circuit consists of a PFET source follower (XM1) that shifts the input voltage up, and an NFET current sink (XM2) that acts as an active load for the preceding stage. In the context of a 1-V op-amp, this level shifter is likely used to adjust the DC common-mode voltage to properly drive subsequent stages or switches that are otherwise difficult to turn on at low supply voltages.\",\n    \"node_mapping\": {\n      \"input\": [\"V2\"],\n      \"output\": [\"V1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"LABEL_NET_2\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 10-MHz Clock-Rate 13-Bit CMOS Modulator Using Unity-Gain-Reset Opamps\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"level_shift\": {\n      \"description\": \"DC voltage shift from input to output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 50uA bias current: Vsg = |Vthp| + sqrt(2*Id / (up*Cox * W/L)) = 0.42 + sqrt(2*50u / (50u * 10)) = 0.867 V.\",\n        \"range\": { \"min\": 0.7, \"typical\": 0.87, \"max\": 1.0, \"unit\": \"V\" },\n        \"reasoning\": \"Based on the SKY130 PMOS parameters and a standard 50uA test bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low-frequency AC voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"80 dB (for full op-amp)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Source follower gain is slightly less than 1 (0 dB) due to body effect and channel length modulation.\",\n        \"range\": { \"min\": -3, \"typical\": -1, \"max\": 0, \"unit\": \"dB\" },\n        \"reasoning\": \"Standard source follower behavior; the 80 dB paper metric applies to the entire multi-stage op-amp, not this single buffer.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay\": {\n      \"description\": \"Transient propagation delay from input to output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"12 ns\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Slew rate = I/C = 50uA / 3.5pF = 14.3 V/us. For a 0.3V swing, delay is ~21ns.\",\n        \"range\": { \"min\": 10e-9, \"typical\": 20e-9, \"max\": 50e-9, \"unit\": \"s\" },\n        \"reasoning\": \"Depends heavily on the bias current and the 3.5pF load capacitance reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"5.6 mW (for full modulator)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_XM2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2 = 311uA. P = VDD*Ibias + Vin*I_XM2 = 1.8V*50uA + 0.5V*311uA = 90uW + 155uW = 245uW.\",\n        \"range\": { \"min\": 100e-6, \"typical\": 245e-6, \"max\": 500e-6, \"unit\": \"W\" },\n        \"reasoning\": \"Calculated from the bias currents of the source follower and the active load.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC level shift, AC gain, transient delay, and power consumption of the PFET source follower.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"level_shift\", \"power\", \"dc_gain\", \"gain_50k\", \"gain_10mhz\", \"delay_rise\", \"delay_fall\", \"v1_swing\"],\n    \"spice\": \"* PFET Source Follower Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 GND V2 V1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 GND LABEL_NET_2 V2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\n\\n* Input signal at V2 (DC=0.5V, AC=1V, Pulse for Tran)\\nVin V2 0 DC 0.5 AC 1 PULSE(0.2 0.8 5n 1n 1n 100n 200n)\\n\\n* Bias current for the source follower (V1)\\nIbias VDD V1 50u\\n\\n* Load capacitance (from paper)\\nCload V1 0 3.5p\\n\\n.control\\n  * DC Operating Point Analysis\\n  op\\n  let v_out_dc = v(V1)\\n  let v_in_dc = v(V2)\\n  let level_shift = v_out_dc - v_in_dc\\n  let power = -i(VVDD)*1.8 - i(Vin)*0.5\\n  print level_shift power\\n\\n  * AC Analysis\\n  ac dec 10 1k 100meg\\n  let gain_db = vdb(V1)\\n  meas ac dc_gain find gain_db at=1k\\n  meas ac gain_50k find gain_db at=50k\\n  meas ac gain_10mhz find gain_db at=10.24meg\\n\\n  * Transient Analysis\\n  tran 1n 200n\\n  * Expected DC output is ~1.37V for 0.5V input\\n  meas tran delay_rise trig v(V2) val=0.5 rise=1 targ v(V1) val=1.37 rise=1\\n  meas tran delay_fall trig v(V2) val=0.5 fall=1 targ v(V1) val=1.37 fall=1\\n  meas tran v1_max max v(V1)\\n  meas tran v1_min min v(V1)\\n  let v1_swing = v1_max - v1_min\\n  print v1_swing\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1015678",
+  "_case": "1015678_image_6_a"
+}

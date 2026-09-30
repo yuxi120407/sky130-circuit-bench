@@ -1,0 +1,111 @@
+{
+  "step1_analysis": {
+    "circuit_type": "NMOS Transistor Array / Common-Source Amplifiers",
+    "description": "A set of four independent NMOS transistors with grounded sources. Given the context of a Bluetooth receiver with a PGA and active filters, these are likely used as common-source amplifier stages, current steering switches, or part of a programmable gain amplifier (PGA) array.",
+    "node_mapping": {
+      "input": [
+        "N8",
+        "N7",
+        "N2",
+        "N6"
+      ],
+      "output": [
+        "N1",
+        "OUTY",
+        "N0",
+        "OUTX"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "0.18-m CMOS Bluetooth Analog Receiver With 88-dBm Sensitivity",
+      "figure": "Unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Low-frequency voltage gain of the common-source configuration (with added 2kOhm load).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "84.5 dB (System level)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * un*Cox * W/L * (Vgs - Vth)^2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2 = 311 uA. gm = 2*Id/(Vgs-Vth) = 1.29 mS. Gain = gm * Rd = 1.29m * 2k = 2.58 V/V = 8.2 dB.",
+        "range": {
+          "min": 6.0,
+          "typical": 8.2,
+          "max": 10.0,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated based on SKY130 NMOS parameters with a 0.9V DC bias and a 2kOhm load resistor."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier stage.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * R_load * C_parasitic). Assuming C_parasitic ~ 20fF and R_load = 2kOhm, f_3dB ~ 4 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 4000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is limited by the RC time constant of the load resistor and the transistor's drain parasitic capacitance."
+      },
+      "importance": "recommended"
+    },
+    "dc_power": {
+      "description": "Total DC power consumption of the four transistor stages.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "65 mW (System level)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = 4 * Id * VDD = 4 * 311uA * 1.8V = 2.24 mW.",
+        "range": {
+          "min": 0.0015,
+          "typical": 0.0022,
+          "max": 0.003,
+          "unit": "W"
+        },
+        "reasoning": "Based on the bias current of the four identical NMOS transistors operating in saturation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, bandwidth, and transient response of the NMOS array configured as common-source amplifiers with 2kOhm loads.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "bandwidth",
+      "dc_power"
+    ],
+    "spice": "* NMOS Array Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\n* DUT\nXM1 N1 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 OUTY N7 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTX N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* Input Signals (DC bias = 0.9V, AC = 1V for Bode plot, Tran = 10mV amplitude)\nVINX N6 0 DC 0.9 AC 1 SIN(0.9 0.01 1MEG 0 0)\nVINY N7 0 DC 0.9 AC 1 SIN(0.9 0.01 1MEG 0 0)\nVIN8 N8 0 DC 0.9\nVIN2 N2 0 DC 0.9\n\n* Load Resistors to make the circuit functional as amplifiers\nR1 OUTX VDD 2k\nR2 OUTY VDD 2k\nR3 N1 VDD 2k\nR4 N0 VDD 2k\n\n.control\n* 1. DC Operating Point & Power\nop\nlet total_power = -i(VVDD) * 1.8\nprint total_power\nprint v(OUTX) v(OUTY)\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 20 1k 100G\nlet gain_db = vdb(OUTX)\nmeas ac midband_gain find gain_db at=10k\nmeas ac bw_3db when gain_db=(midband_gain-3) fall=1\n\n* 3. Transient Analysis\ntran 1n 5u\nmeas tran vout_max max v(OUTX)\nmeas tran vout_min min v(OUTX)\nlet vout_pp = vout_max - vout_min\nprint vout_pp\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"NMOS Transistor Array / Common-Source Amplifiers\",\n    \"description\": \"A set of four independent NMOS transistors with grounded sources. Given the context of a Bluetooth receiver with a PGA and active filters, these are likely used as common-source amplifier stages, current steering switches, or part of a programmable gain amplifier (PGA) array.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N8\",\n        \"N7\",\n        \"N2\",\n        \"N6\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"OUTY\",\n        \"N0\",\n        \"OUTX\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"0.18-m CMOS Bluetooth Analog Receiver With 88-dBm Sensitivity\",\n      \"figure\": \"Unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency voltage gain of the common-source configuration (with added 2kOhm load).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"84.5 dB (System level)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * un*Cox * W/L * (Vgs - Vth)^2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2 = 311 uA. gm = 2*Id/(Vgs-Vth) = 1.29 mS. Gain = gm * Rd = 1.29m * 2k = 2.58 V/V = 8.2 dB.\",\n        \"range\": {\n          \"min\": 6.0,\n          \"typical\": 8.2,\n          \"max\": 10.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 NMOS parameters with a 0.9V DC bias and a 2kOhm load resistor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier stage.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * R_load * C_parasitic). Assuming C_parasitic ~ 20fF and R_load = 2kOhm, f_3dB ~ 4 GHz.\",\n        \"range\": {\n          \"min\": 1E9,\n          \"typical\": 4E9,\n          \"max\": 10E9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is limited by the RC time constant of the load resistor and the transistor's drain parasitic capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the four transistor stages.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"65 mW (System level)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = 4 * Id * VDD = 4 * 311uA * 1.8V = 2.24 mW.\",\n        \"range\": {\n          \"min\": 1.5E-3,\n          \"typical\": 2.2E-3,\n          \"max\": 3.0E-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the bias current of the four identical NMOS transistors operating in saturation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, bandwidth, and transient response of the NMOS array configured as common-source amplifiers with 2kOhm loads.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"dc_power\"\n    ],\n    \"spice\": \"* NMOS Array Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\n* DUT\\nXM1 N1 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 OUTY N7 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTX N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* Input Signals (DC bias = 0.9V, AC = 1V for Bode plot, Tran = 10mV amplitude)\\nVINX N6 0 DC 0.9 AC 1 SIN(0.9 0.01 1MEG 0 0)\\nVINY N7 0 DC 0.9 AC 1 SIN(0.9 0.01 1MEG 0 0)\\nVIN8 N8 0 DC 0.9\\nVIN2 N2 0 DC 0.9\\n\\n* Load Resistors to make the circuit functional as amplifiers\\nR1 OUTX VDD 2k\\nR2 OUTY VDD 2k\\nR3 N1 VDD 2k\\nR4 N0 VDD 2k\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet total_power = -i(VVDD) * 1.8\\nprint total_power\\nprint v(OUTX) v(OUTY)\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 20 1k 100G\\nlet gain_db = vdb(OUTX)\\nmeas ac midband_gain find gain_db at=10k\\nmeas ac bw_3db when gain_db=(midband_gain-3) fall=1\\n\\n* 3. Transient Analysis\\ntran 1n 5u\\nmeas tran vout_max max v(OUTX)\\nmeas tran vout_min min v(OUTX)\\nlet vout_pp = vout_max - vout_min\\nprint vout_pp\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1263664",
+  "_case": "1263664_image_3"
+}

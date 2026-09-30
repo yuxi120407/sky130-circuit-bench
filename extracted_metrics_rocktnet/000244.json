@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "NMOS Differential Pair",
+    "description": "An NMOS differential pair extracted from a Noise-Shifting Differential Colpitts VCO. In the context of the paper, it likely serves as the active cross-coupled core or the current switching pair to sustain oscillation and lower phase noise.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N3",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Noise-Shifting Differential Colpitts VCO",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Differential_Gain": {
+      "description": "Low-frequency differential voltage gain of the pair",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "16 dB",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 1mA tail current and 2kOhm load resistors: Id = 0.5mA per branch. gm = sqrt(2 * unCox * W/L * Id) = sqrt(2 * 270u * 10 * 0.5m) = 1.64 mA/V. Av = gm * Rload = 1.64m * 2k = 3.28 V/V = 10.3 dB",
+        "range": {
+          "min": 8,
+          "typical": 10.3,
+          "max": 12,
+          "unit": "dB"
+        },
+        "reasoning": "Gain depends heavily on the chosen load resistors and tail current in the testbench, which are set to standard values (2kOhm, 1mA) to verify basic functionality."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB bandwidth of the differential pair",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.8 GHz (VCO oscillation freq)",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rload * Cload). With W=5u, Cload (parasitic Cgd + Cdb) is approx 10fF. BW = 1 / (2 * pi * 2k * 10fF) = 8 GHz",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 8000000000.0,
+          "max": 10000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "In this isolated testbench without the LC tank, the bandwidth is limited only by the RC time constant of the load resistor and the intrinsic parasitic capacitances of the NMOS drains."
+      },
+      "importance": "essential"
+    },
+    "Power_Dissipation": {
+      "description": "Total DC power consumption of the differential pair",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "90 uW (estimated from '90 w')",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * Itail = 1.8V * 1mA = 1.8 mW",
+        "range": {
+          "min": 0.0015,
+          "typical": 0.0018,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "Determined by the 1mA ideal tail current source added in the testbench to bias the differential pair."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure differential gain, -3dB bandwidth, and power dissipation of the NMOS differential pair.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "Differential_Gain",
+      "Bandwidth",
+      "Power_Dissipation"
+    ],
+    "spice": "* Differential Pair Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 N3 LABEL_NET_0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Biasing and Loads\nVVDD VDD 0 1.8\nI_tail N1 0 1m\nR1 VDD N3 2k\nR2 VDD N2 2k\n\n* Inputs (Common mode 0.9V, Differential AC 1V)\nV_in1 LABEL_NET_0 0 dc 0.9 ac 0.5\nV_in2 LABEL_NET_1 0 dc 0.9 ac -0.5\n\n.control\n* DC Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(N3) v(N2) v(N1)\n\n* AC Analysis for Gain and Bandwidth\nac dec 100 1Meg 100G\nlet vout_diff = v(N3) - v(N2)\nlet gain_mag = mag(vout_diff)\nlet gain_db = 20 * log10(gain_mag)\n\nmeas ac midband_gain find gain_db at=1Meg\nlet gain_3db = midband_gain - 3\nmeas ac bw_3db when gain_db=gain_3db fall=1\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"NMOS Differential Pair\",\n    \"description\": \"An NMOS differential pair extracted from a Noise-Shifting Differential Colpitts VCO. In the context of the paper, it likely serves as the active cross-coupled core or the current switching pair to sustain oscillation and lower phase noise.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Noise-Shifting Differential Colpitts VCO\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Differential_Gain\": {\n      \"description\": \"Low-frequency differential voltage gain of the pair\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"16 dB\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 1mA tail current and 2kOhm load resistors: Id = 0.5mA per branch. gm = sqrt(2 * unCox * W/L * Id) = sqrt(2 * 270u * 10 * 0.5m) = 1.64 mA/V. Av = gm * Rload = 1.64m * 2k = 3.28 V/V = 10.3 dB\",\n        \"range\": {\n          \"min\": 8,\n          \"typical\": 10.3,\n          \"max\": 12,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain depends heavily on the chosen load resistors and tail current in the testbench, which are set to standard values (2kOhm, 1mA) to verify basic functionality.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB bandwidth of the differential pair\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.8 GHz (VCO oscillation freq)\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rload * Cload). With W=5u, Cload (parasitic Cgd + Cdb) is approx 10fF. BW = 1 / (2 * pi * 2k * 10fF) = 8 GHz\",\n        \"range\": {\n          \"min\": 5e9,\n          \"typical\": 8e9,\n          \"max\": 10e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"In this isolated testbench without the LC tank, the bandwidth is limited only by the RC time constant of the load resistor and the intrinsic parasitic capacitances of the NMOS drains.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Dissipation\": {\n      \"description\": \"Total DC power consumption of the differential pair\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"90 uW (estimated from '90 w')\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * Itail = 1.8V * 1mA = 1.8 mW\",\n        \"range\": {\n          \"min\": 1.5e-3,\n          \"typical\": 1.8e-3,\n          \"max\": 2.0e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Determined by the 1mA ideal tail current source added in the testbench to bias the differential pair.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure differential gain, -3dB bandwidth, and power dissipation of the NMOS differential pair.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Differential_Gain\",\n      \"Bandwidth\",\n      \"Power_Dissipation\"\n    ],\n    \"spice\": \"* Differential Pair Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 N3 LABEL_NET_0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Biasing and Loads\\nVVDD VDD 0 1.8\\nI_tail N1 0 1m\\nR1 VDD N3 2k\\nR2 VDD N2 2k\\n\\n* Inputs (Common mode 0.9V, Differential AC 1V)\\nV_in1 LABEL_NET_0 0 dc 0.9 ac 0.5\\nV_in2 LABEL_NET_1 0 dc 0.9 ac -0.5\\n\\n.control\\n* DC Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(N3) v(N2) v(N1)\\n\\n* AC Analysis for Gain and Bandwidth\\nac dec 100 1Meg 100G\\nlet vout_diff = v(N3) - v(N2)\\nlet gain_mag = mag(vout_diff)\\nlet gain_db = 20 * log10(gain_mag)\\n\\nmeas ac midband_gain find gain_db at=1Meg\\nlet gain_3db = midband_gain - 3\\nmeas ac bw_3db when gain_db=gain_3db fall=1\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1088101",
+  "_case": "1088101_image_5_a"
+}

@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive RC Filter Network",
+    "description": "A passive RC filter network used for supply decoupling and control voltage filtering in a fractional-N synthesizer. It provides low-pass filtering to suppress high-frequency noise on the supply and control lines.",
+    "node_mapping": {
+      "input": [
+        "VDD",
+        "Vcontr"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 700-kHz Bandwidth Fractional Synthesizer With Spurs Compensation and Linearization Techniques for WCDMA Applications",
+      "figure": "Generic",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "bandwidth": {
+      "description": "-3dB cutoff frequency of the RC low-pass filter",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "700 kHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB = 1 / (2 * pi * R1 * C1). Using R1=22.7kOhm and C1=10pF gives approximately 700 kHz.",
+        "range": {
+          "min": "600k",
+          "typical": "700k",
+          "max": "800k",
+          "unit": "Hz"
+        },
+        "reasoning": "Targeting the loop bandwidth specified in the paper for the synthesizer."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the filter output to settle to 90% of its final value after a step input",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "7 us",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "t_settle \u2248 2.3 * R * C for 90% settling of a first-order RC circuit. 2.3 * 22.7k * 10p \u2248 522 ns. The paper's 7 us is for the entire PLL closed-loop settling.",
+        "range": {
+          "min": "400n",
+          "typical": "500n",
+          "max": "7u",
+          "unit": "s"
+        },
+        "reasoning": "The sub-block settling time is much faster than the full PLL loop settling time."
+      },
+      "importance": "recommended"
+    },
+    "power_consumption": {
+      "description": "Static DC power dissipation of the filter network",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "28 mW",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = (VDD - Vcontr)^2 / Rx. With VDD=1.8V, Vcontr=0.9V, Rx=22.7kOhm, P = (0.9)^2 / 22.7k = 35.6 uW.",
+        "range": {
+          "min": "30u",
+          "typical": "35.6u",
+          "max": "40u",
+          "unit": "W"
+        },
+        "reasoning": "The paper's 28 mW is for the entire synthesizer. The passive filter only dissipates power due to DC bias differences across its resistors."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the -3dB bandwidth, step response settling time, and DC power dissipation of the passive RC filter network.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "bandwidth",
+      "settling_time",
+      "power_consumption"
+    ],
+    "spice": "* Passive RC Filter Testbench\n.param R1_val=22.7k Rx_val=22.7k C0_val=10p C1_val=10p Cx_val=10p\n\n* DUT\nR1 VDD N1 {R1_val}\nRx VDD Vcontr {Rx_val}\nC0 VDD 0 {C0_val}\nC1 N1 0 {C1_val}\nCx Vcontr 0 {Cx_val}\n\n* Sources\n* VDD includes a DC operating point, an AC source for bandwidth, and a small step for transient settling\nVVDD VDD 0 dc 1.8 ac 1 pulse(1.8 1.9 1n 1n 1n 10u 20u)\nVVCONTR Vcontr 0 dc 0.9\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  * Power dissipated in the passive network\n  let pwr = -i(VVDD)*1.8 - i(VVCONTR)*0.9\n  print pwr\n  \n  * 2. AC Analysis for Bandwidth\n  ac dec 100 1k 100Meg\n  let gain_db = vdb(N1)\n  meas ac bw_3db when gain_db=-3 fall=1\n  \n  * 3. Transient Analysis for Settling Time\n  tran 10n 5u\n  * Measure time to reach 90% of the 0.1V step (1.8V + 0.09V = 1.89V)\n  meas tran t_settle trig v(VDD) val=1.85 rise=1 targ v(N1) val=1.89 rise=1\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive RC Filter Network\",\n    \"description\": \"A passive RC filter network used for supply decoupling and control voltage filtering in a fractional-N synthesizer. It provides low-pass filtering to suppress high-frequency noise on the supply and control lines.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VDD\",\n        \"Vcontr\"\n      ],\n      \"output\": [\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 700-kHz Bandwidth Fractional Synthesizer With Spurs Compensation and Linearization Techniques for WCDMA Applications\",\n      \"figure\": \"Generic\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the RC low-pass filter\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"700 kHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB = 1 / (2 * pi * R1 * C1). Using R1=22.7kOhm and C1=10pF gives approximately 700 kHz.\",\n        \"range\": {\n          \"min\": \"600k\",\n          \"typical\": \"700k\",\n          \"max\": \"800k\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Targeting the loop bandwidth specified in the paper for the synthesizer.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the filter output to settle to 90% of its final value after a step input\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"7 us\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_settle \u2248 2.3 * R * C for 90% settling of a first-order RC circuit. 2.3 * 22.7k * 10p \u2248 522 ns. The paper's 7 us is for the entire PLL closed-loop settling.\",\n        \"range\": {\n          \"min\": \"400n\",\n          \"typical\": \"500n\",\n          \"max\": \"7u\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The sub-block settling time is much faster than the full PLL loop settling time.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Static DC power dissipation of the filter network\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"28 mW\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = (VDD - Vcontr)^2 / Rx. With VDD=1.8V, Vcontr=0.9V, Rx=22.7kOhm, P = (0.9)^2 / 22.7k = 35.6 uW.\",\n        \"range\": {\n          \"min\": \"30u\",\n          \"typical\": \"35.6u\",\n          \"max\": \"40u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper's 28 mW is for the entire synthesizer. The passive filter only dissipates power due to DC bias differences across its resistors.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the -3dB bandwidth, step response settling time, and DC power dissipation of the passive RC filter network.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"bandwidth\",\n      \"settling_time\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Passive RC Filter Testbench\\n.param R1_val=22.7k Rx_val=22.7k C0_val=10p C1_val=10p Cx_val=10p\\n\\n* DUT\\nR1 VDD N1 {R1_val}\\nRx VDD Vcontr {Rx_val}\\nC0 VDD 0 {C0_val}\\nC1 N1 0 {C1_val}\\nCx Vcontr 0 {Cx_val}\\n\\n* Sources\\n* VDD includes a DC operating point, an AC source for bandwidth, and a small step for transient settling\\nVVDD VDD 0 dc 1.8 ac 1 pulse(1.8 1.9 1n 1n 1n 10u 20u)\\nVVCONTR Vcontr 0 dc 0.9\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  * Power dissipated in the passive network\\n  let pwr = -i(VVDD)*1.8 - i(VVCONTR)*0.9\\n  print pwr\\n  \\n  * 2. AC Analysis for Bandwidth\\n  ac dec 100 1k 100Meg\\n  let gain_db = vdb(N1)\\n  meas ac bw_3db when gain_db=-3 fall=1\\n  \\n  * 3. Transient Analysis for Settling Time\\n  tran 10n 5u\\n  * Measure time to reach 90% of the 0.1V step (1.8V + 0.09V = 1.89V)\\n  meas tran t_settle trig v(VDD) val=1.85 rise=1 targ v(N1) val=1.89 rise=1\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1327741",
+  "_case": "1327741_image_8"
+}

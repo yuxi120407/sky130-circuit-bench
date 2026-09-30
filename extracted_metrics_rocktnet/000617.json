@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascode Current Mirror",
+    "description": "A cascode current mirror circuit that provides high output impedance and accurate current copying by suppressing channel-length modulation effects.",
+    "node_mapping": {
+      "input": [
+        "I_in"
+      ],
+      "output": [
+        "I_out"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Amorphous Silicon Thin Film Transistor Circuit Integration for Organic LED Displays on Glass and Plastic",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "current_ratio": {
+      "description": "Ratio of output current to input current (Efficiency/ratio).",
+      "unit": "A/A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "90%",
+        "technology": "a-Si:H TFT"
+      },
+      "sky130_expected": {
+        "calculation": "With identical W/L for all transistors, the current ratio is approximately 1.0.",
+        "range": {
+          "min": 0.95,
+          "typical": 1.0,
+          "max": 1.05,
+          "unit": "A/A"
+        },
+        "reasoning": "Standard CMOS processes like SKY130 have excellent matching compared to a-Si:H, yielding a ratio very close to 100%."
+      },
+      "importance": "essential"
+    },
+    "output_resistance": {
+      "description": "Small-signal output resistance (Rout).",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "a-Si:H TFT"
+      },
+      "sky130_expected": {
+        "calculation": "Rout \u2248 gm3 * ro3 * ro4. ro \u2248 1/(lambda*Id) = 1/(0.1*10u) = 1M\u03a9. gm \u2248 sqrt(2*270u*10*10u) \u2248 232uS. Rout \u2248 232u * 1M * 1M = 232 M\u03a9.",
+        "range": {
+          "min": 50000000.0,
+          "typical": 200000000.0,
+          "max": 500000000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "The cascode structure significantly boosts output resistance by a factor of the intrinsic gain (gm*ro)."
+      },
+      "importance": "essential"
+    },
+    "compliance_voltage": {
+      "description": "Minimum output voltage required to keep output transistors in saturation.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "a-Si:H TFT"
+      },
+      "sky130_expected": {
+        "calculation": "Vmin = Vdsat3 + Vdsat4 + margin. Vdsat \u2248 86mV. Vgs \u2248 0.5V. Vmin \u2248 Vgs1 - Vth + Vdsat3 \u2248 0.58V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.6,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "Requires two Vdsat drops plus the threshold voltage difference due to the cascode connection."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Frequency at which the AC current gain drops by 3dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "60 Hz",
+        "technology": "a-Si:H TFT"
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole is roughly at gm / Cgs. gm = 232uS, Cgs ~ 10fF -> f_T ~ GHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 100000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 transistors are orders of magnitude faster than a-Si:H TFTs, shifting bandwidth from the Hz to the MHz/GHz range."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure current ratio, output resistance, compliance voltage, and bandwidth of the cascode current mirror.",
+    "analyses": [
+      "DC",
+      "AC",
+      "OP"
+    ],
+    "metrics_measured": [
+      "current_ratio",
+      "output_resistance",
+      "compliance_voltage",
+      "bandwidth"
+    ],
+    "spice": "* Cascode Current Mirror Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=10 L_xm1=1\n.param W_xm2=10 L_xm2=1\n.param W_xm3=10 L_xm3=1\n.param W_xm4=10 L_xm4=1\n\n* DUT (Adapted from generic netlist to SKY130 format)\nXM1 I_in I_in N0 GND sky130_fd_pr_nrf_01v8 w={W_xm1} l={L_xm1}\nXM2 N0 N0 GND GND sky130_fd_pr_nrf_01v8 w={W_xm2} l={L_xm2}\nXM4 N2 N0 GND GND sky130_fd_pr_nrf_01v8 w={W_xm4} l={L_xm4}\nXM3 I_out I_in N2 GND sky130_fd_pr_nrf_01v8 w={W_xm3} l={L_xm3}\n\n* Sources\nIin VDD I_in DC 10u AC 1\nVout I_out GND DC 1.0\nVdd VDD GND DC 1.8\n\n.control\n* 1. DC Operating Point\nop\nlet i_out_op = -i(Vout)\nlet i_in_op = 10u\nlet current_ratio = i_out_op / i_in_op\nlet power = i_in_op * 1.8 + i_out_op * 1.0\nprint current_ratio power\n\n* 2. DC Sweep for Rout and Compliance Voltage\ndc Vout 0 1.8 0.01\nmeas dc iout_10 find i(Vout) at=1.0\nmeas dc iout_11 find i(Vout) at=1.1\nlet rout = 0.1 / (-(iout_11 - iout_10))\nprint rout\n\n* Compliance voltage: when Iout drops by 5% from its value at 1.0V\nlet target_iout = iout_10 * 0.95\nmeas dc v_compliance find v(I_out) when i(Vout)=target_iout fall=1\n\n* 3. DC Sweep for Linearity\ndc Iin 1u 50u 1u\nmeas dc iout_10u find i(Vout) at=10u\nmeas dc iout_40u find i(Vout) at=40u\nlet ratio_10u = -iout_10u / 10u\nlet ratio_40u = -iout_40u / 40u\nprint ratio_10u ratio_40u\n\n* 4. AC Analysis for Bandwidth\nac dec 10 1 1G\nlet current_gain_db = 20*log10(mag(i(Vout)))\nmeas ac max_gain max current_gain_db\nlet target_gain = max_gain - 3\nmeas ac bw_3db when current_gain_db=target_gain fall=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascode Current Mirror\",\n    \"description\": \"A cascode current mirror circuit that provides high output impedance and accurate current copying by suppressing channel-length modulation effects.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"I_in\"\n      ],\n      \"output\": [\n        \"I_out\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Amorphous Silicon Thin Film Transistor Circuit Integration for Organic LED Displays on Glass and Plastic\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"current_ratio\": {\n      \"description\": \"Ratio of output current to input current (Efficiency/ratio).\",\n      \"unit\": \"A/A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"90%\",\n        \"technology\": \"a-Si:H TFT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With identical W/L for all transistors, the current ratio is approximately 1.0.\",\n        \"range\": {\n          \"min\": 0.95,\n          \"typical\": 1.0,\n          \"max\": 1.05,\n          \"unit\": \"A/A\"\n        },\n        \"reasoning\": \"Standard CMOS processes like SKY130 have excellent matching compared to a-Si:H, yielding a ratio very close to 100%.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_resistance\": {\n      \"description\": \"Small-signal output resistance (Rout).\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"a-Si:H TFT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout \u2248 gm3 * ro3 * ro4. ro \u2248 1/(lambda*Id) = 1/(0.1*10u) = 1M\u03a9. gm \u2248 sqrt(2*270u*10*10u) \u2248 232uS. Rout \u2248 232u * 1M * 1M = 232 M\u03a9.\",\n        \"range\": {\n          \"min\": 50e6,\n          \"typical\": 200e6,\n          \"max\": 500e6,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"The cascode structure significantly boosts output resistance by a factor of the intrinsic gain (gm*ro).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"compliance_voltage\": {\n      \"description\": \"Minimum output voltage required to keep output transistors in saturation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"a-Si:H TFT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vmin = Vdsat3 + Vdsat4 + margin. Vdsat \u2248 86mV. Vgs \u2248 0.5V. Vmin \u2248 Vgs1 - Vth + Vdsat3 \u2248 0.58V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.6,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Requires two Vdsat drops plus the threshold voltage difference due to the cascode connection.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Frequency at which the AC current gain drops by 3dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"60 Hz\",\n        \"technology\": \"a-Si:H TFT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole is roughly at gm / Cgs. gm = 232uS, Cgs ~ 10fF -> f_T ~ GHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 100e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 transistors are orders of magnitude faster than a-Si:H TFTs, shifting bandwidth from the Hz to the MHz/GHz range.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure current ratio, output resistance, compliance voltage, and bandwidth of the cascode current mirror.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"current_ratio\",\n      \"output_resistance\",\n      \"compliance_voltage\",\n      \"bandwidth\"\n    ],\n    \"spice\": \"* Cascode Current Mirror Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=10 L_xm1=1\\n.param W_xm2=10 L_xm2=1\\n.param W_xm3=10 L_xm3=1\\n.param W_xm4=10 L_xm4=1\\n\\n* DUT (Adapted from generic netlist to SKY130 format)\\nXM1 I_in I_in N0 GND sky130_fd_pr_nrf_01v8 w={W_xm1} l={L_xm1}\\nXM2 N0 N0 GND GND sky130_fd_pr_nrf_01v8 w={W_xm2} l={L_xm2}\\nXM4 N2 N0 GND GND sky130_fd_pr_nrf_01v8 w={W_xm4} l={L_xm4}\\nXM3 I_out I_in N2 GND sky130_fd_pr_nrf_01v8 w={W_xm3} l={L_xm3}\\n\\n* Sources\\nIin VDD I_in DC 10u AC 1\\nVout I_out GND DC 1.0\\nVdd VDD GND DC 1.8\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet i_out_op = -i(Vout)\\nlet i_in_op = 10u\\nlet current_ratio = i_out_op / i_in_op\\nlet power = i_in_op * 1.8 + i_out_op * 1.0\\nprint current_ratio power\\n\\n* 2. DC Sweep for Rout and Compliance Voltage\\ndc Vout 0 1.8 0.01\\nmeas dc iout_10 find i(Vout) at=1.0\\nmeas dc iout_11 find i(Vout) at=1.1\\nlet rout = 0.1 / (-(iout_11 - iout_10))\\nprint rout\\n\\n* Compliance voltage: when Iout drops by 5% from its value at 1.0V\\nlet target_iout = iout_10 * 0.95\\nmeas dc v_compliance find v(I_out) when i(Vout)=target_iout fall=1\\n\\n* 3. DC Sweep for Linearity\\ndc Iin 1u 50u 1u\\nmeas dc iout_10u find i(Vout) at=10u\\nmeas dc iout_40u find i(Vout) at=40u\\nlet ratio_10u = -iout_10u / 10u\\nlet ratio_40u = -iout_40u / 40u\\nprint ratio_10u ratio_40u\\n\\n* 4. AC Analysis for Bandwidth\\nac dec 10 1 1G\\nlet current_gain_db = 20*log10(mag(i(Vout)))\\nmeas ac max_gain max current_gain_db\\nlet target_gain = max_gain - 3\\nmeas ac bw_3db when current_gain_db=target_gain fall=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1327745",
+  "_case": "1327745_image_9"
+}

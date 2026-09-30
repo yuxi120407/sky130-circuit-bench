@@ -1,0 +1,115 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Temporal Output Coding / Integrate-and-Fire Pixel Output",
+    "description": "This circuit converts an analog state into a temporal pulse width (address-event coding). A memory/threshold node (MEMTH) is reset to ground and then charged by a bias current, while output PMOS switches generate pulses on PULSEX, PULSEY, and FREEZE until MEMTH reaches the threshold.",
+    "node_mapping": {
+      "input": [
+        "RESET",
+        "BIAS",
+        "N6",
+        "VTH"
+      ],
+      "output": [
+        "PULSEX",
+        "PULSEY",
+        "FREEZE",
+        "MEMTH"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS",
+        "N6",
+        "VTH"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 100 100 Pixel Silicon Retina for Gradient Extraction With Steering Filter Capabilities and Temporal Output Coding",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "t_pulse_x": {
+      "description": "Pulse width on PULSEX (time from RESET release to output falling edge)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "60 ns",
+        "technology": "0.5 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Charging current I_chg ~ 1uA (N6=1.4V). C_MEM = 50fF. dV/dt = 20V/us. PMOS turns off at VDD - |Vth| = 1.3V. t = 1.3V / 20V/us = 65ns.",
+        "range": {
+          "min": "40n",
+          "typical": "65n",
+          "max": "90n",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the bias voltage N6 and the parasitic/explicit capacitance on MEMTH. Tuned to match the 60ns delay reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "t_reset": {
+      "description": "Time to discharge MEMTH to ground when RESET is asserted",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "NMOS W=5u L=0.5u has Ron ~ 1kOhm. C_MEM = 50fF. RC time constant = 50ps.",
+        "range": {
+          "min": "10p",
+          "typical": "50p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Discharge is extremely fast due to the large W/L of the reset transistor."
+      },
+      "importance": "recommended"
+    },
+    "avg_current": {
+      "description": "Average supply current during operation",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "I_PX ~ 36uA (VTH=1.0V), I_PY ~ 1uA (N6=1.4V), I_chg ~ 1uA. Total active current ~ 40uA during the pulse.",
+        "range": {
+          "min": "10u",
+          "typical": "40u",
+          "max": "100u",
+          "unit": "A"
+        },
+        "reasoning": "Dominated by the output current on PULSEX which is set by VTH."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the temporal pulse widths generated on the output buses after a reset event.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "t_pulse_x",
+      "t_pulse_y",
+      "t_pulse_f",
+      "t_reset",
+      "avg_current"
+    ],
+    "spice": "* Testbench for Temporal Output Coding Circuit\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmchg=5u L_xmchg=0.5u\n.param W_xmsc=5u L_xmsc=0.5u\n.param W_xmfr=5u L_xmfr=0.5u\n.param W_xmpy=5u L_xmpy=0.5u\n.param W_xmpx=5u L_xmpx=0.5u\n.param W_xmsx=5u L_xmsx=0.5u\n.param W_xmrst=5u L_xmrst=0.5u\n.param W_xmsy=5u L_xmsy=0.5u\n.param W_xmsf=5u L_xmsf=0.5u\n\nVVDD VDD 0 1.8\nVN6 N6 0 1.4\nVVTH VTH 0 1.0\nVBIAS BIAS 0 0.0\nVRESET RESET 0 PULSE(1.8 0 10n 1n 1n 100n 200n)\n\nR_PX PULSEX 0 1Meg\nR_PY PULSEY 0 1Meg\nR_PF FREEZE 0 1Meg\n\nC_MEM MEMTH 0 50f\n\nXMCHG MEMTH BIAS N5 VDD sky130_fd_pr__pfet_01v8 l={L_xmchg} w={W_xmchg}\nXMSC N5 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmsc} w={W_xmsc}\nXMFR N0 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmfr} w={W_xmfr}\nXMPY N3 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpy} w={W_xmpy}\nXMPX N1 VTH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpx} w={W_xmpx}\nXMSX PULSEX MEMTH N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmsx} w={W_xmsx}\nXMRST MEMTH RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xmrst} w={W_xmrst}\nXMSY PULSEY MEMTH N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmsy} w={W_xmsy}\nXMSF FREEZE MEMTH N0 VDD sky130_fd_pr__pfet_01v8 l={L_xmsf} w={W_xmsf}\n\n.control\ntran 1n 200n\nmeas tran t_pulse_x trig v(RESET) val=0.9 fall=1 targ v(PULSEX) val=0.9 fall=1\nmeas tran t_pulse_y trig v(RESET) val=0.9 fall=1 targ v(PULSEY) val=0.5 fall=1\nmeas tran t_pulse_f trig v(RESET) val=0.9 fall=1 targ v(FREEZE) val=0.5 fall=1\nmeas tran t_reset trig v(RESET) val=0.9 rise=1 targ v(MEMTH) val=0.1 fall=1\nmeas tran avg_current avg i(VVDD)\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Temporal Output Coding / Integrate-and-Fire Pixel Output\",\n    \"description\": \"This circuit converts an analog state into a temporal pulse width (address-event coding). A memory/threshold node (MEMTH) is reset to ground and then charged by a bias current, while output PMOS switches generate pulses on PULSEX, PULSEY, and FREEZE until MEMTH reaches the threshold.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RESET\",\n        \"BIAS\",\n        \"N6\",\n        \"VTH\"\n      ],\n      \"output\": [\n        \"PULSEX\",\n        \"PULSEY\",\n        \"FREEZE\",\n        \"MEMTH\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS\",\n        \"N6\",\n        \"VTH\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 100 100 Pixel Silicon Retina for Gradient Extraction With Steering Filter Capabilities and Temporal Output Coding\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"t_pulse_x\": {\n      \"description\": \"Pulse width on PULSEX (time from RESET release to output falling edge)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"60 ns\",\n        \"technology\": \"0.5 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Charging current I_chg ~ 1uA (N6=1.4V). C_MEM = 50fF. dV/dt = 20V/us. PMOS turns off at VDD - |Vth| = 1.3V. t = 1.3V / 20V/us = 65ns.\",\n        \"range\": {\n          \"min\": \"40n\",\n          \"typical\": \"65n\",\n          \"max\": \"90n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the bias voltage N6 and the parasitic/explicit capacitance on MEMTH. Tuned to match the 60ns delay reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_reset\": {\n      \"description\": \"Time to discharge MEMTH to ground when RESET is asserted\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NMOS W=5u L=0.5u has Ron ~ 1kOhm. C_MEM = 50fF. RC time constant = 50ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"50p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Discharge is extremely fast due to the large W/L of the reset transistor.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"avg_current\": {\n      \"description\": \"Average supply current during operation\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_PX ~ 36uA (VTH=1.0V), I_PY ~ 1uA (N6=1.4V), I_chg ~ 1uA. Total active current ~ 40uA during the pulse.\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"40u\",\n          \"max\": \"100u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Dominated by the output current on PULSEX which is set by VTH.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the temporal pulse widths generated on the output buses after a reset event.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"t_pulse_x\",\n      \"t_pulse_y\",\n      \"t_pulse_f\",\n      \"t_reset\",\n      \"avg_current\"\n    ],\n    \"spice\": \"* Testbench for Temporal Output Coding Circuit\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmchg=5u L_xmchg=0.5u\\n.param W_xmsc=5u L_xmsc=0.5u\\n.param W_xmfr=5u L_xmfr=0.5u\\n.param W_xmpy=5u L_xmpy=0.5u\\n.param W_xmpx=5u L_xmpx=0.5u\\n.param W_xmsx=5u L_xmsx=0.5u\\n.param W_xmrst=5u L_xmrst=0.5u\\n.param W_xmsy=5u L_xmsy=0.5u\\n.param W_xmsf=5u L_xmsf=0.5u\\n\\nVVDD VDD 0 1.8\\nVN6 N6 0 1.4\\nVVTH VTH 0 1.0\\nVBIAS BIAS 0 0.0\\nVRESET RESET 0 PULSE(1.8 0 10n 1n 1n 100n 200n)\\n\\nR_PX PULSEX 0 1Meg\\nR_PY PULSEY 0 1Meg\\nR_PF FREEZE 0 1Meg\\n\\nC_MEM MEMTH 0 50f\\n\\nXMCHG MEMTH BIAS N5 VDD sky130_fd_pr__pfet_01v8 l={L_xmchg} w={W_xmchg}\\nXMSC N5 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmsc} w={W_xmsc}\\nXMFR N0 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmfr} w={W_xmfr}\\nXMPY N3 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpy} w={W_xmpy}\\nXMPX N1 VTH VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmpx} w={W_xmpx}\\nXMSX PULSEX MEMTH N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmsx} w={W_xmsx}\\nXMRST MEMTH RESET GND GND sky130_fd_pr__nfet_01v8 l={L_xmrst} w={W_xmrst}\\nXMSY PULSEY MEMTH N3 VDD sky130_fd_pr__pfet_01v8 l={L_xmsy} w={W_xmsy}\\nXMSF FREEZE MEMTH N0 VDD sky130_fd_pr__pfet_01v8 l={L_xmsf} w={W_xmsf}\\n\\n.control\\ntran 1n 200n\\nmeas tran t_pulse_x trig v(RESET) val=0.9 fall=1 targ v(PULSEX) val=0.9 fall=1\\nmeas tran t_pulse_y trig v(RESET) val=0.9 fall=1 targ v(PULSEY) val=0.5 fall=1\\nmeas tran t_pulse_f trig v(RESET) val=0.9 fall=1 targ v(FREEZE) val=0.5 fall=1\\nmeas tran t_reset trig v(RESET) val=0.9 rise=1 targ v(MEMTH) val=0.1 fall=1\\nmeas tran avg_current avg i(VVDD)\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "982422",
+  "_case": "982422_image_9"
+}

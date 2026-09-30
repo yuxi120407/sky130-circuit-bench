@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Injection-Locked Frequency Divider (ILFD) / LC Oscillator Core",
+    "description": "A cross-coupled NMOS pair forming the core of an LC oscillator, with a tail transistor used for direct injection locking. It functions as a high-frequency, low-power frequency divider by locking its oscillation frequency to a sub-harmonic (typically divide-by-2) of the signal injected at the tail.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "Q",
+        "QX"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "IN (DC component)"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Direct Injection-Locked Oscillator Topology as High-Frequency Low-Power Frequency Divider",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "operating_frequency": {
+      "description": "The frequency of the output signal, which should lock to exactly half of the injected input frequency.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 GHz, 40 GHz, 50 GHz",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the LC tank resonance and the injected signal. With L=1nH and C=1pF added in the testbench, f_osc = 1 / (2*pi*sqrt(LC)) \u2248 5.03 GHz. With a 10 GHz input injection, it will lock to exactly 5 GHz.",
+        "range": {
+          "min": 4900000000.0,
+          "typical": 5000000000.0,
+          "max": 5100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The testbench injects a 10 GHz signal, so the divider should lock to 5 GHz."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the circuit from the supply.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3 mW to 23 mW",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current Id = 0.5 * un*Cox * (W/L) * (Vbias - Vth)^2 = 0.5 * 270u * (5/0.15) * (0.9 - 0.42)^2 \u2248 1.03 mA. Power = 1.8V * 1.03mA \u2248 1.85 mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.002,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "Depends on the DC bias of the input signal (0.9V) and the tail transistor dimensions."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak voltage swing at the output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported, but typically >0.5V for subsequent stages.",
+        "technology": "0.13um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Swing \u2248 I_tail * R_tank. With I_tail = 1mA and R_tank = 500 ohms, single-ended swing is ~0.5V (1V peak-to-peak differential).",
+        "range": {
+          "min": 0.2,
+          "typical": 0.5,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Sufficient swing is needed to drive the next stage and ensure robust switching of the cross-coupled pair."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify injection locking (frequency division by 2), measure output frequency, voltage swing, and power consumption. An LC tank is added to complete the oscillator.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "operating_frequency",
+      "output_swing",
+      "power_consumption"
+    ],
+    "spice": "* Injection-Locked Frequency Divider Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm3=5u L_xm3=0.15u\n.param W_xm2=5u L_xm2=0.15u\n.param W_xm1=5u L_xm1=0.15u\n\n* DUT\nXM3 Q QX N_TAIL N_TAIL sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM2 QX Q N_TAIL N_TAIL sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM1 N_TAIL IN VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* LC Tank (added to make the oscillator functional)\nL1 VDD Q 1n\nL2 VDD QX 1n\nC1 Q 0 1p\nC2 QX 0 1p\nR1 Q VDD 500\nR2 QX VDD 500\n\n* Sources\nVVDD VDD 0 1.8\nVVSS VSS 0 0\n* 10 GHz input signal for injection locking (divide-by-2 -> 5 GHz output)\nVIN IN 0 DC 0.9 SIN(0.9 0.5 10G 0 0)\n\n* Initial conditions to kickstart oscillation\n.ic v(Q)=1.9 v(QX)=1.7\n\n.control\n* Run transient analysis\ntran 2p 10n uic\n\n* Measure operating frequency (should be 5 GHz)\nmeas tran t1 trig v(Q) val=1.8 rise=30 targ v(Q) val=1.8 rise=31\nlet freq = 1/t1\nprint freq\n\n* Measure output voltage swing\nmeas tran vmax max v(Q) from=5n to=10n\nmeas tran vmin min v(Q) from=5n to=10n\nlet vpp = vmax - vmin\nprint vpp\n\n* Measure power consumption\nmeas tran iavg avg i(VVDD) from=5n to=10n\nlet power = -iavg * 1.8\nprint power\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Injection-Locked Frequency Divider (ILFD) / LC Oscillator Core\",\n    \"description\": \"A cross-coupled NMOS pair forming the core of an LC oscillator, with a tail transistor used for direct injection locking. It functions as a high-frequency, low-power frequency divider by locking its oscillation frequency to a sub-harmonic (typically divide-by-2) of the signal injected at the tail.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\"\n      ],\n      \"output\": [\n        \"Q\",\n        \"QX\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"IN (DC component)\"\n      ],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Direct Injection-Locked Oscillator Topology as High-Frequency Low-Power Frequency Divider\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"operating_frequency\": {\n      \"description\": \"The frequency of the output signal, which should lock to exactly half of the injected input frequency.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 GHz, 40 GHz, 50 GHz\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the LC tank resonance and the injected signal. With L=1nH and C=1pF added in the testbench, f_osc = 1 / (2*pi*sqrt(LC)) \u2248 5.03 GHz. With a 10 GHz input injection, it will lock to exactly 5 GHz.\",\n        \"range\": {\n          \"min\": 4.9e9,\n          \"typical\": 5.0e9,\n          \"max\": 5.1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The testbench injects a 10 GHz signal, so the divider should lock to 5 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the circuit from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3 mW to 23 mW\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current Id = 0.5 * un*Cox * (W/L) * (Vbias - Vth)^2 = 0.5 * 270u * (5/0.15) * (0.9 - 0.42)^2 \u2248 1.03 mA. Power = 1.8V * 1.03mA \u2248 1.85 mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 2e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on the DC bias of the input signal (0.9V) and the tail transistor dimensions.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported, but typically >0.5V for subsequent stages.\",\n        \"technology\": \"0.13um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing \u2248 I_tail * R_tank. With I_tail = 1mA and R_tank = 500 ohms, single-ended swing is ~0.5V (1V peak-to-peak differential).\",\n        \"range\": {\n          \"min\": 0.2,\n          \"typical\": 0.5,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Sufficient swing is needed to drive the next stage and ensure robust switching of the cross-coupled pair.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify injection locking (frequency division by 2), measure output frequency, voltage swing, and power consumption. An LC tank is added to complete the oscillator.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"operating_frequency\",\n      \"output_swing\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Injection-Locked Frequency Divider Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm3=5u L_xm3=0.15u\\n.param W_xm2=5u L_xm2=0.15u\\n.param W_xm1=5u L_xm1=0.15u\\n\\n* DUT\\nXM3 Q QX N_TAIL N_TAIL sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM2 QX Q N_TAIL N_TAIL sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 N_TAIL IN VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* LC Tank (added to make the oscillator functional)\\nL1 VDD Q 1n\\nL2 VDD QX 1n\\nC1 Q 0 1p\\nC2 QX 0 1p\\nR1 Q VDD 500\\nR2 QX VDD 500\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\n* 10 GHz input signal for injection locking (divide-by-2 -> 5 GHz output)\\nVIN IN 0 DC 0.9 SIN(0.9 0.5 10G 0 0)\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(Q)=1.9 v(QX)=1.7\\n\\n.control\\n* Run transient analysis\\ntran 2p 10n uic\\n\\n* Measure operating frequency (should be 5 GHz)\\nmeas tran t1 trig v(Q) val=1.8 rise=30 targ v(Q) val=1.8 rise=31\\nlet freq = 1/t1\\nprint freq\\n\\n* Measure output voltage swing\\nmeas tran vmax max v(Q) from=5n to=10n\\nmeas tran vmin min v(Q) from=5n to=10n\\nlet vpp = vmax - vmin\\nprint vpp\\n\\n* Measure power consumption\\nmeas tran iavg avg i(VVDD) from=5n to=10n\\nlet power = -iavg * 1.8\\nprint power\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1308592",
+  "_case": "1308592_image_1"
+}

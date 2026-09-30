@@ -1,0 +1,174 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.36",
+    "page": "515",
+    "circuit_type": "Delta-Sigma Modulator (DSM) Sensing Circuit for CMOS Image Sensor",
+    "description": "An NMOS-input delta-sigma modulator sensing circuit using MOSFETs as switched-capacitor charge-metering cups and integrating bucket capacitors, connected to a clocked dynamic comparator with a NOR-based SR latch for feedback modulation."
+  },
+  "step2_metrics": {
+    "shifted_reference_voltage": {
+      "description": "Effective reference voltage shifted by NMOS threshold voltage drop",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "515",
+        "reference": "Fig 17.37"
+      },
+      "equation": {
+        "formula": "V_R,shift = V_R - V_THN",
+        "explanation": "The reference input transistor operates as a source follower, shifting the input level down by V_THN.",
+        "assumptions": "NMOS source follower operated in strong inversion/saturation, body tied to ground."
+      },
+      "sky130_expected": {
+        "calculation": "With V_R = 0.65 V and SKY130 NFET threshold voltage V_THN = 0.42 V: V_R,shift = 0.65 - 0.42 = 0.23 V (230 mV).",
+        "range": {
+          "min": 0.15,
+          "typical": 0.23,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "V_THN varies across process corners between 0.35 V and 0.50 V for the 1.8V standard NFET."
+      },
+      "importance": "essential"
+    },
+    "shifted_intensity_voltage": {
+      "description": "Effective signal intensity voltage shifted by NMOS threshold voltage drop",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "515",
+        "reference": "Fig 17.37"
+      },
+      "equation": {
+        "formula": "V_I,shift = V_I - V_THN",
+        "explanation": "The signal column input transistor shifts the illumination level down by V_THN.",
+        "assumptions": "V_I > V_THN so the device remains turned on."
+      },
+      "sky130_expected": {
+        "calculation": "For an illumination level of V_I = 0.55 V and V_THN = 0.42 V: V_I,shift = 0.55 - 0.42 = 0.13 V (130 mV).",
+        "range": {
+          "min": 0.05,
+          "typical": 0.13,
+          "max": 0.2,
+          "unit": "V"
+        },
+        "reasoning": "Determined by light level input ranging from 450 mV up to Vr = 650 mV."
+      },
+      "importance": "essential"
+    },
+    "converter_resolution": {
+      "description": "Voltage resolution per clock cycle for N oversampling cycles",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "515",
+        "reference": "Eq. (17.43)"
+      },
+      "equation": {
+        "formula": "V_res = V_R,shift / N",
+        "explanation": "Quantization step size across the full-scale range defined by the shifted reference voltage over N cycles.",
+        "assumptions": "Linear charge balancing over N measurement clock cycles."
+      },
+      "sky130_expected": {
+        "calculation": "For N = 100 clock cycles and V_R,shift = 230 mV: V_res = 230 mV / 100 = 2.3 mV.",
+        "range": {
+          "min": 0.0015,
+          "typical": 0.0023,
+          "max": 0.0035,
+          "unit": "V"
+        },
+        "reasoning": "Proportional to V_R,shift divided by oversampling ratio N."
+      },
+      "importance": "essential"
+    },
+    "thermal_noise_hold_cap": {
+      "description": "RMS thermal noise sampled onto the column sample-and-hold capacitor",
+      "unit": "V",
+      "analysis_type": "Noise",
+      "source": {
+        "page": "506",
+        "reference": "Page 506 paragraph 2"
+      },
+      "equation": {
+        "formula": "V_n,rms = sqrt(k * T / C_H)",
+        "explanation": "kT/C sampling noise on the hold capacitor CH during pixel reset and readout.",
+        "assumptions": "T = 300 K, C_H = 1 pF."
+      },
+      "sky130_expected": {
+        "calculation": "V_n,rms = sqrt(1.38e-23 * 300 / 1e-12) = sqrt(4.14e-9) = 64.3 uV. Peak-to-peak is ~6 * 64.3 uV = 386 uV.",
+        "range": {
+          "min": 5e-05,
+          "typical": 6.43e-05,
+          "max": 8e-05,
+          "unit": "V"
+        },
+        "reasoning": "Fundamental thermal limit set purely by capacitor value and temperature."
+      },
+      "importance": "recommended"
+    },
+    "switched_capacitor_equivalent_resistance": {
+      "description": "Effective equivalent resistance of the switched-capacitor reference branch",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "511",
+        "reference": "Eq. (17.37)"
+      },
+      "equation": {
+        "formula": "R_eq = 1 / (f_clk * C_cup)",
+        "explanation": "Equivalent average resistance created by switching the cup capacitance at frequency f_clk.",
+        "assumptions": "Capacitor fully charges and discharges each cycle."
+      },
+      "sky130_expected": {
+        "calculation": "With f_clk = 100 MHz (T = 10 ns), C_cup ~ 100 fF: R_eq = 1 / (100e6 * 100e-15) = 100 kOhm.",
+        "range": {
+          "min": 50000.0,
+          "typical": 100000.0,
+          "max": 250000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Depends on clock switching rate and PMOS inversion capacitance."
+      },
+      "importance": "recommended"
+    },
+    "average_sensing_power": {
+      "description": "Total DC and dynamic power consumption during DSM sensing operation",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "512",
+        "reference": "Fig 17.33 & Fig 17.36"
+      },
+      "equation": {
+        "formula": "P_avg = VDD * I_avg",
+        "explanation": "Total active power from VDD supply including current mirrors, switched caps, and dynamic latch.",
+        "assumptions": "VDD = 1.8 V, continuous clocking at 100 MHz."
+      },
+      "sky130_expected": {
+        "calculation": "Branch currents in mirrors ~ 10 uA - 20 uA, dynamic switching current ~ 20 uA: I_avg ~ 40 uA. P_avg = 1.8 V * 40 uA = 72 uW.",
+        "range": {
+          "min": 3e-05,
+          "typical": 7.2e-05,
+          "max": 0.00015,
+          "unit": "W"
+        },
+        "reasoning": "Low power image sensor column architecture running at 100 MHz."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench simulating 1500 ns of DSM operation with non-overlapping clocks phi1/phi2, evaluating comparator latching, bucket capacitor charge balance, pulse density output Qi, and average power.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "shifted_reference_voltage",
+      "shifted_intensity_voltage",
+      "converter_resolution",
+      "average_sensing_power"
+    ],
+    "spice": "* Sky130 Testbench for Baker Fig 17.36 Delta-Sigma Sensing Circuit\n.lib \"/home/designer/sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Parameter definitions for DUT sizing\n.param W_xm1=1.0u  L_xm1=0.15u\n.param W_xm2=1.0u  L_xm2=0.15u\n.param W_xm3=5.0u  L_xm3=1.5u\n.param W_xm4=1.0u  L_xm4=0.15u\n.param W_xm5=1.0u  L_xm5=0.15u\n.param W_xm6=1.0u  L_xm6=0.15u\n.param W_xm7=1.0u  L_xm7=1.5u\n.param W_xm8=1.0u  L_xm8=0.15u\n.param W_xm9=1.0u  L_xm9=0.15u\n.param W_xm10=1.0u L_xm10=0.15u\n.param W_xm11=5.0u L_xm11=1.5u\n.param W_xm12=1.0u L_xm12=1.5u\n.param W_xm13=50.0u L_xm13=1.5u\n.param W_xm14=50.0u L_xm14=1.5u\n.param W_xm15=2.0u L_xm15=0.15u\n.param W_xm16=2.0u L_xm16=0.15u\n.param W_xm17=2.0u L_xm17=0.15u\n.param W_xm18=2.0u L_xm18=0.15u\n.param W_xm19=2.0u L_xm19=0.15u\n.param W_xm20=2.0u L_xm20=0.15u\n.param W_xm21=1.0u L_xm21=0.15u\n.param W_xm22=1.0u L_xm22=0.15u\n.param W_xm23=1.0u L_xm23=0.15u\n.param W_xm24=1.0u L_xm24=0.15u\n\n* Power Supplies\nVDD VDD 0 1.8\nVr Vr 0 650m\nVi Vi 0 400m\n\n* Non-overlapping two-phase clock generator (100 MHz, T=10ns)\nVphi1 phi1 0 PULSE(0 1.8 0.5n 0.1n 0.1n 3.8n 10n)\nVphi2 phi2 0 PULSE(0 1.8 5.5n 0.1n 0.1n 3.8n 10n)\n\n* DUT Instance\nxm3 VDD N005 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm5 N006 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm7 vbuck vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm1 N005 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm2 N004 phi1 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm4 N003 phi1 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm6 N002 VDD N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm8 N001 Q N003 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxm9 vbuck Vi N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 vbucki Vr N001 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\nxm11 VDD N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm12 vbucki vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\nxm13 0 vbuck 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\nxm14 0 vbucki 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\nxm15 n1 vbuck VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\nxm16 n2 vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\nxm17 n3 Out n1 VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\nxm18 n4 Outi n2 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\nxm19 Outi phi2 n3 VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\nxm20 Out phi2 n4 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\nxm21 Out Outi 0 0 sky130_fd_pr__nfet_01v8 w={W_xm21} l={L_xm21}\nxm22 Outi Out 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\nxm23 Outi phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\nxm24 Out phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\nX_U1 Out Qi Q VDD 0 NOR_2\nX_U2 Q Outi Qi VDD 0 NOR_2\n\n.subckt NOR_2 A B Out VDD GND\n  xm3 out B N001 VDD sky130_fd_pr__pfet_01v8 w=1.0u l=0.15u\n  xm8 N001 A VDD VDD sky130_fd_pr__pfet_01v8 w=1.0u l=0.15u\n  xm11 out B GND 0 sky130_fd_pr__nfet_01v8 w=0.5u l=0.15u\n  xm12 out A 0 0 sky130_fd_pr__nfet_01v8 w=0.5u l=0.15u\n.ends NOR_2\n\n.control\n* Run transient analysis mimicking Baker's setup\ntran 0.1n 1500n uic\n\n* Measure average voltages on bucket capacitors across steady-state sensing window (500n to 1500n)\nmeas tran vbuck_avg avg v(vbuck) from=500n to=1500n\nmeas tran vbucki_avg avg v(vbucki) from=500n to=1500n\nmeas tran vdiff_bucket param='vbuck_avg - vbucki_avg'\n\n* Measure average power consumption from VDD\nmeas tran i_vdd_avg avg i(VDD) from=500n to=1500n\nlet p_avg = -i_vdd_avg * 1.8\nprint p_avg\n\n* Measure high-level duty ratio / average pulse density of DSM output Qi\nmeas tran qi_avg avg v(Qi) from=500n to=1500n\nlet ones_ratio = qi_avg / 1.8\nprint ones_ratio\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.36\",\n    \"page\": \"515\",\n    \"circuit_type\": \"Delta-Sigma Modulator (DSM) Sensing Circuit for CMOS Image Sensor\",\n    \"description\": \"An NMOS-input delta-sigma modulator sensing circuit using MOSFETs as switched-capacitor charge-metering cups and integrating bucket capacitors, connected to a clocked dynamic comparator with a NOR-based SR latch for feedback modulation.\"\n  },\n  \"step2_metrics\": {\n    \"shifted_reference_voltage\": {\n      \"description\": \"Effective reference voltage shifted by NMOS threshold voltage drop\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"515\", \"reference\": \"Fig 17.37\" },\n      \"equation\": {\n        \"formula\": \"V_R,shift = V_R - V_THN\",\n        \"explanation\": \"The reference input transistor operates as a source follower, shifting the input level down by V_THN.\",\n        \"assumptions\": \"NMOS source follower operated in strong inversion/saturation, body tied to ground.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With V_R = 0.65 V and SKY130 NFET threshold voltage V_THN = 0.42 V: V_R,shift = 0.65 - 0.42 = 0.23 V (230 mV).\",\n        \"range\": { \"min\": 0.15, \"typical\": 0.23, \"max\": 0.30, \"unit\": \"V\" },\n        \"reasoning\": \"V_THN varies across process corners between 0.35 V and 0.50 V for the 1.8V standard NFET.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"shifted_intensity_voltage\": {\n      \"description\": \"Effective signal intensity voltage shifted by NMOS threshold voltage drop\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"515\", \"reference\": \"Fig 17.37\" },\n      \"equation\": {\n        \"formula\": \"V_I,shift = V_I - V_THN\",\n        \"explanation\": \"The signal column input transistor shifts the illumination level down by V_THN.\",\n        \"assumptions\": \"V_I > V_THN so the device remains turned on.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For an illumination level of V_I = 0.55 V and V_THN = 0.42 V: V_I,shift = 0.55 - 0.42 = 0.13 V (130 mV).\",\n        \"range\": { \"min\": 0.05, \"typical\": 0.13, \"max\": 0.20, \"unit\": \"V\" },\n        \"reasoning\": \"Determined by light level input ranging from 450 mV up to Vr = 650 mV.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"converter_resolution\": {\n      \"description\": \"Voltage resolution per clock cycle for N oversampling cycles\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"515\", \"reference\": \"Eq. (17.43)\" },\n      \"equation\": {\n        \"formula\": \"V_res = V_R,shift / N\",\n        \"explanation\": \"Quantization step size across the full-scale range defined by the shifted reference voltage over N cycles.\",\n        \"assumptions\": \"Linear charge balancing over N measurement clock cycles.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For N = 100 clock cycles and V_R,shift = 230 mV: V_res = 230 mV / 100 = 2.3 mV.\",\n        \"range\": { \"min\": 0.0015, \"typical\": 0.0023, \"max\": 0.0035, \"unit\": \"V\" },\n        \"reasoning\": \"Proportional to V_R,shift divided by oversampling ratio N.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"thermal_noise_hold_cap\": {\n      \"description\": \"RMS thermal noise sampled onto the column sample-and-hold capacitor\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Noise\",\n      \"source\": { \"page\": \"506\", \"reference\": \"Page 506 paragraph 2\" },\n      \"equation\": {\n        \"formula\": \"V_n,rms = sqrt(k * T / C_H)\",\n        \"explanation\": \"kT/C sampling noise on the hold capacitor CH during pixel reset and readout.\",\n        \"assumptions\": \"T = 300 K, C_H = 1 pF.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_n,rms = sqrt(1.38e-23 * 300 / 1e-12) = sqrt(4.14e-9) = 64.3 uV. Peak-to-peak is ~6 * 64.3 uV = 386 uV.\",\n        \"range\": { \"min\": 5.0e-5, \"typical\": 6.43e-5, \"max\": 8.0e-5, \"unit\": \"V\" },\n        \"reasoning\": \"Fundamental thermal limit set purely by capacitor value and temperature.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"switched_capacitor_equivalent_resistance\": {\n      \"description\": \"Effective equivalent resistance of the switched-capacitor reference branch\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"511\", \"reference\": \"Eq. (17.37)\" },\n      \"equation\": {\n        \"formula\": \"R_eq = 1 / (f_clk * C_cup)\",\n        \"explanation\": \"Equivalent average resistance created by switching the cup capacitance at frequency f_clk.\",\n        \"assumptions\": \"Capacitor fully charges and discharges each cycle.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With f_clk = 100 MHz (T = 10 ns), C_cup ~ 100 fF: R_eq = 1 / (100e6 * 100e-15) = 100 kOhm.\",\n        \"range\": { \"min\": 50e3, \"typical\": 100e3, \"max\": 250e3, \"unit\": \"ohm\" },\n        \"reasoning\": \"Depends on clock switching rate and PMOS inversion capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"average_sensing_power\": {\n      \"description\": \"Total DC and dynamic power consumption during DSM sensing operation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"512\", \"reference\": \"Fig 17.33 & Fig 17.36\" },\n      \"equation\": {\n        \"formula\": \"P_avg = VDD * I_avg\",\n        \"explanation\": \"Total active power from VDD supply including current mirrors, switched caps, and dynamic latch.\",\n        \"assumptions\": \"VDD = 1.8 V, continuous clocking at 100 MHz.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Branch currents in mirrors ~ 10 uA - 20 uA, dynamic switching current ~ 20 uA: I_avg ~ 40 uA. P_avg = 1.8 V * 40 uA = 72 uW.\",\n        \"range\": { \"min\": 3.0e-5, \"typical\": 7.2e-5, \"max\": 1.5e-4, \"unit\": \"W\" },\n        \"reasoning\": \"Low power image sensor column architecture running at 100 MHz.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench simulating 1500 ns of DSM operation with non-overlapping clocks phi1/phi2, evaluating comparator latching, bucket capacitor charge balance, pulse density output Qi, and average power.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\n      \"shifted_reference_voltage\",\n      \"shifted_intensity_voltage\",\n      \"converter_resolution\",\n      \"average_sensing_power\"\n    ],\n    \"spice\": \"* Sky130 Testbench for Baker Fig 17.36 Delta-Sigma Sensing Circuit\\n.lib \\\"/home/designer/sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Parameter definitions for DUT sizing\\n.param W_xm1=1.0u  L_xm1=0.15u\\n.param W_xm2=1.0u  L_xm2=0.15u\\n.param W_xm3=5.0u  L_xm3=1.5u\\n.param W_xm4=1.0u  L_xm4=0.15u\\n.param W_xm5=1.0u  L_xm5=0.15u\\n.param W_xm6=1.0u  L_xm6=0.15u\\n.param W_xm7=1.0u  L_xm7=1.5u\\n.param W_xm8=1.0u  L_xm8=0.15u\\n.param W_xm9=1.0u  L_xm9=0.15u\\n.param W_xm10=1.0u L_xm10=0.15u\\n.param W_xm11=5.0u L_xm11=1.5u\\n.param W_xm12=1.0u L_xm12=1.5u\\n.param W_xm13=50.0u L_xm13=1.5u\\n.param W_xm14=50.0u L_xm14=1.5u\\n.param W_xm15=2.0u L_xm15=0.15u\\n.param W_xm16=2.0u L_xm16=0.15u\\n.param W_xm17=2.0u L_xm17=0.15u\\n.param W_xm18=2.0u L_xm18=0.15u\\n.param W_xm19=2.0u L_xm19=0.15u\\n.param W_xm20=2.0u L_xm20=0.15u\\n.param W_xm21=1.0u L_xm21=0.15u\\n.param W_xm22=1.0u L_xm22=0.15u\\n.param W_xm23=1.0u L_xm23=0.15u\\n.param W_xm24=1.0u L_xm24=0.15u\\n\\n* Power Supplies\\nVDD VDD 0 1.8\\nVr Vr 0 650m\\nVi Vi 0 400m\\n\\n* Non-overlapping two-phase clock generator (100 MHz, T=10ns)\\nVphi1 phi1 0 PULSE(0 1.8 0.5n 0.1n 0.1n 3.8n 10n)\\nVphi2 phi2 0 PULSE(0 1.8 5.5n 0.1n 0.1n 3.8n 10n)\\n\\n* DUT Instance\\nxm3 VDD N005 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm5 N006 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm7 vbuck vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm1 N005 phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 N004 phi1 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm4 N003 phi1 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm6 N002 VDD N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm8 N001 Q N003 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 vbuck Vi N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 vbucki Vr N001 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 VDD N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 vbucki vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 0 vbuck 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 0 vbucki 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 n1 vbuck VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 n2 vbucki VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\\nxm17 n3 Out n1 VDD sky130_fd_pr__pfet_01v8 w={W_xm17} l={L_xm17}\\nxm18 n4 Outi n2 VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\\nxm19 Outi phi2 n3 VDD sky130_fd_pr__pfet_01v8 w={W_xm19} l={L_xm19}\\nxm20 Out phi2 n4 VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\\nxm21 Out Outi 0 0 sky130_fd_pr__nfet_01v8 w={W_xm21} l={L_xm21}\\nxm22 Outi Out 0 0 sky130_fd_pr__nfet_01v8 w={W_xm22} l={L_xm22}\\nxm23 Outi phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm23} l={L_xm23}\\nxm24 Out phi2 0 0 sky130_fd_pr__nfet_01v8 w={W_xm24} l={L_xm24}\\nX_U1 Out Qi Q VDD 0 NOR_2\\nX_U2 Q Outi Qi VDD 0 NOR_2\\n\\n.subckt NOR_2 A B Out VDD GND\\n  xm3 out B N001 VDD sky130_fd_pr__pfet_01v8 w=1.0u l=0.15u\\n  xm8 N001 A VDD VDD sky130_fd_pr__pfet_01v8 w=1.0u l=0.15u\\n  xm11 out B GND 0 sky130_fd_pr__nfet_01v8 w=0.5u l=0.15u\\n  xm12 out A 0 0 sky130_fd_pr__nfet_01v8 w=0.5u l=0.15u\\n.ends NOR_2\\n\\n.control\\n* Run transient analysis mimicking Baker's setup\\ntran 0.1n 1500n uic\\n\\n* Measure average voltages on bucket capacitors across steady-state sensing window (500n to 1500n)\\nmeas tran vbuck_avg avg v(vbuck) from=500n to=1500n\\nmeas tran vbucki_avg avg v(vbucki) from=500n to=1500n\\nmeas tran vdiff_bucket param='vbuck_avg - vbucki_avg'\\n\\n* Measure average power consumption from VDD\\nmeas tran i_vdd_avg avg i(VDD) from=500n to=1500n\\nlet p_avg = -i_vdd_avg * 1.8\\nprint p_avg\\n\\n* Measure high-level duty ratio / average pulse density of DSM output Qi\\nmeas tran qi_avg avg v(Qi) from=500n to=1500n\\nlet ones_ratio = qi_avg / 1.8\\nprint ones_ratio\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

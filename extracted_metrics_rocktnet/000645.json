@@ -1,0 +1,111 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Transimpedance Amplifier (TIA)",
+    "description": "A high-speed differential transimpedance amplifier utilizing a Cherry-Hooper-like topology. It features a differential pair with emitter/source follower buffers in the feedback loop to increase bandwidth, isolate the feedback resistors, and provide DC level shifting.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "INQ"
+      ],
+      "output": [
+        "OUT",
+        "OUTQ"
+      ],
+      "supply": [
+        "GND"
+      ],
+      "bias": [
+        "N12",
+        "N0",
+        "N11"
+      ],
+      "ground": [
+        "Vee"
+      ]
+    },
+    "paper_reference": {
+      "title": "An InGaAs\u2013InP HBT Differential Transimpedance Amplifier With 47-GHz Bandwidth",
+      "figure": "1",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "transimpedance_gain": {
+      "description": "Differential transimpedance gain (Zt) representing the ratio of differential output voltage to differential input current.",
+      "unit": "dB ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "56 dB",
+        "technology": "InGaAs-InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Zt_diff \u2248 2 * Rf. With Rf = 500 ohms, Zt_diff \u2248 1000 ohms. Gain in dB ohm = 20 * log10(1000) = 60 dB ohm.",
+        "range": {
+          "min": 50,
+          "typical": 60,
+          "max": 65,
+          "unit": "dB ohm"
+        },
+        "reasoning": "The transimpedance gain is primarily set by the feedback resistors (R5, R6). 500 ohms is chosen to balance gain and bandwidth, yielding ~60 dB ohm."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3db": {
+      "description": "The frequency at which the transimpedance gain drops by 3 dB from its midband value.",
+      "unit": "GHz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "47 GHz",
+        "technology": "InGaAs-InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "SKY130 180nm NMOS ft is ~40-50 GHz. Closed-loop TIA bandwidth is typically 10-20% of ft.",
+        "range": {
+          "min": 2,
+          "typical": 8,
+          "max": 12,
+          "unit": "GHz"
+        },
+        "reasoning": "The original paper used highly advanced InP HBTs with ft > 200 GHz. SKY130 is a much slower 180nm CMOS process, so the bandwidth will scale down proportionally."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the amplifier.",
+      "unit": "mW",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "50 mW",
+        "technology": "InGaAs-InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. I_total = I_tail + I_buf1 + I_buf2 + I_out \u2248 1mA + 4*(0.7mA) = 3.8mA. 1.8V * 3.8mA = 6.8 mW.",
+        "range": {
+          "min": 5,
+          "typical": 7,
+          "max": 15,
+          "unit": "mW"
+        },
+        "reasoning": "Operating at 1.8V in SKY130 instead of the 5.2V used in the original paper significantly reduces the total power consumption."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure transimpedance gain, -3dB bandwidth, and power consumption. The original NPN BJTs are mapped to SKY130 NMOS devices to match the requested PDK parameters.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "transimpedance_gain",
+      "bandwidth_3db",
+      "power_consumption"
+    ],
+    "spice": "* Differential TIA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_n=40u L_n=0.15u\n\n* Supply Voltages (Mapping netlist 'GND' to VDD and 'Vee' to 0V)\nV_GND GND 0 DC 1.8\nV_Vee Vee 0 DC 0\n\n* Differential AC current input (1A total diff for direct Zt measurement in ohms)\nI_in IN Vee DC 0 AC 0.5 SIN(0 10u 100MEG)\nI_inq INQ Vee DC 0 AC -0.5 SIN(0 -10u 100MEG)\n\n* Modified DUT: 'Q' replaced with 'M', 'npn' replaced with sky130 NMOS model\nM1 GND N0 N2 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nM2 N2 N2 N7 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nI1 N12 Vee 1m\nM3 N11 INQ N12 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nR1 Vee N10 1k\nM4 GND N1 OUT Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nR2 OUTQ Vee 1k\nM5 GND N11 N1 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nM6 N1 N1 N10 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nR3 Vee N7 1k\nR4 OUT Vee 1k\nM7 N0 IN N12 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nR5 INQ N10 500\nR6 N7 IN 500\nM8 GND N2 OUTQ Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\nR7 N0 GND 200\nR8 GND N11 200\n\n.control\n  * DC Operating Point and Power\n  op\n  let power = -i(V_GND) * 1.8\n  print power\n  print v(IN) v(N0) v(N12) v(OUT)\n\n  * AC Analysis for Transimpedance Gain and Bandwidth\n  ac dec 50 1MEG 100G\n  let vdiff = v(OUT) - v(OUTQ)\n  let gain_mag = mag(vdiff)\n  let gain_db = 20 * log10(gain_mag)\n  \n  meas ac midband_gain_db find gain_db at=10MEG\n  let gain_3db = midband_gain_db - 3\n  meas ac bw_3db when gain_db=gain_3db fall=1\n  \n  * Transient Analysis\n  tran 10p 20n\n  meas tran vout_pp pp v(OUT)\n  meas tran voutq_pp pp v(OUTQ)\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Transimpedance Amplifier (TIA)\",\n    \"description\": \"A high-speed differential transimpedance amplifier utilizing a Cherry-Hooper-like topology. It features a differential pair with emitter/source follower buffers in the feedback loop to increase bandwidth, isolate the feedback resistors, and provide DC level shifting.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"INQ\"\n      ],\n      \"output\": [\n        \"OUT\",\n        \"OUTQ\"\n      ],\n      \"supply\": [\n        \"GND\"\n      ],\n      \"bias\": [\n        \"N12\",\n        \"N0\",\n        \"N11\"\n      ],\n      \"ground\": [\n        \"Vee\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An InGaAs\u2013InP HBT Differential Transimpedance Amplifier With 47-GHz Bandwidth\",\n      \"figure\": \"1\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"transimpedance_gain\": {\n      \"description\": \"Differential transimpedance gain (Zt) representing the ratio of differential output voltage to differential input current.\",\n      \"unit\": \"dB ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"56 dB\",\n        \"technology\": \"InGaAs-InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zt_diff \u2248 2 * Rf. With Rf = 500 ohms, Zt_diff \u2248 1000 ohms. Gain in dB ohm = 20 * log10(1000) = 60 dB ohm.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 60,\n          \"max\": 65,\n          \"unit\": \"dB ohm\"\n        },\n        \"reasoning\": \"The transimpedance gain is primarily set by the feedback resistors (R5, R6). 500 ohms is chosen to balance gain and bandwidth, yielding ~60 dB ohm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3db\": {\n      \"description\": \"The frequency at which the transimpedance gain drops by 3 dB from its midband value.\",\n      \"unit\": \"GHz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"47 GHz\",\n        \"technology\": \"InGaAs-InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SKY130 180nm NMOS ft is ~40-50 GHz. Closed-loop TIA bandwidth is typically 10-20% of ft.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 8,\n          \"max\": 12,\n          \"unit\": \"GHz\"\n        },\n        \"reasoning\": \"The original paper used highly advanced InP HBTs with ft > 200 GHz. SKY130 is a much slower 180nm CMOS process, so the bandwidth will scale down proportionally.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the amplifier.\",\n      \"unit\": \"mW\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"50 mW\",\n        \"technology\": \"InGaAs-InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. I_total = I_tail + I_buf1 + I_buf2 + I_out \u2248 1mA + 4*(0.7mA) = 3.8mA. 1.8V * 3.8mA = 6.8 mW.\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 7,\n          \"max\": 15,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"Operating at 1.8V in SKY130 instead of the 5.2V used in the original paper significantly reduces the total power consumption.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure transimpedance gain, -3dB bandwidth, and power consumption. The original NPN BJTs are mapped to SKY130 NMOS devices to match the requested PDK parameters.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"transimpedance_gain\",\n      \"bandwidth_3db\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Differential TIA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_n=40u L_n=0.15u\\n\\n* Supply Voltages (Mapping netlist 'GND' to VDD and 'Vee' to 0V)\\nV_GND GND 0 DC 1.8\\nV_Vee Vee 0 DC 0\\n\\n* Differential AC current input (1A total diff for direct Zt measurement in ohms)\\nI_in IN Vee DC 0 AC 0.5 SIN(0 10u 100MEG)\\nI_inq INQ Vee DC 0 AC -0.5 SIN(0 -10u 100MEG)\\n\\n* Modified DUT: 'Q' replaced with 'M', 'npn' replaced with sky130 NMOS model\\nM1 GND N0 N2 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nM2 N2 N2 N7 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nI1 N12 Vee 1m\\nM3 N11 INQ N12 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nR1 Vee N10 1k\\nM4 GND N1 OUT Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nR2 OUTQ Vee 1k\\nM5 GND N11 N1 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nM6 N1 N1 N10 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nR3 Vee N7 1k\\nR4 OUT Vee 1k\\nM7 N0 IN N12 Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nR5 INQ N10 500\\nR6 N7 IN 500\\nM8 GND N2 OUTQ Vee sky130_fd_pr__nfet_01v8 W='W_n' L='L_n'\\nR7 N0 GND 200\\nR8 GND N11 200\\n\\n.control\\n  * DC Operating Point and Power\\n  op\\n  let power = -i(V_GND) * 1.8\\n  print power\\n  print v(IN) v(N0) v(N12) v(OUT)\\n\\n  * AC Analysis for Transimpedance Gain and Bandwidth\\n  ac dec 50 1MEG 100G\\n  let vdiff = v(OUT) - v(OUTQ)\\n  let gain_mag = mag(vdiff)\\n  let gain_db = 20 * log10(gain_mag)\\n  \\n  meas ac midband_gain_db find gain_db at=10MEG\\n  let gain_3db = midband_gain_db - 3\\n  meas ac bw_3db when gain_db=gain_3db fall=1\\n  \\n  * Transient Analysis\\n  tran 10p 20n\\n  meas tran vout_pp pp v(OUT)\\n  meas tran voutq_pp pp v(OUTQ)\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1337002",
+  "_case": "1337002_image_2"
+}

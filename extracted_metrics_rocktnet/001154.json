@@ -1,0 +1,110 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Comparator Preamplifier (Differential Difference Amplifier)",
+    "description": "A preamplifier stage for a flash ADC comparator. It is designed to amplify the difference between the differential input signal and the differential reference voltage. Note: The provided netlist appears to have an extraction artifact where all input pair drains are shorted to VOUT_MINUS, which would result in zero AC gain in simulation.",
+    "node_mapping": {
+      "input": [
+        "VIN_PLUS",
+        "VIN_MINUS",
+        "VREF_PLUS",
+        "VREF_MINUS",
+        "CLK"
+      ],
+      "output": [
+        "VOUT_MINUS"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 6-b 1.3-Gsample/s A/D Converter in 0.35-m CMOS",
+      "figure": "unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "DC power consumption of the preamplifier stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "500 mW (entire ADC)",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current Id = 0.5 * 270u * 10 * (0.7-0.42)^2 = 105 uA. Two tails = 210 uA. Power = 1.8V * 210uA = 378 uW.",
+        "range": {
+          "min": "200u",
+          "typical": "378u",
+          "max": "600u",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on SKY130 NMOS parameters with Vbias=0.7V. Much lower than the 500mW reported for the entire ADC chip."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Low frequency voltage gain from differential input to output",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 dB (typical for preamps)",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm_in = 550 uA/V, gm_load = 328 uA/V. Ideal differential gain = gm_in / gm_load = 1.67 V/V (4.5 dB). Due to shorted drains in netlist, actual AC gain will be near 0 (<-100 dB).",
+        "range": {
+          "min": "-150",
+          "typical": "-100",
+          "max": "10",
+          "unit": "dB"
+        },
+        "reasoning": "The netlist connects all input drains to VOUT_MINUS, causing the differential AC currents to cancel perfectly. A properly wired version would have ~4.5 dB gain."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the preamplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.3 GHz (operating frequency)",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Rout = 1/(2*gm_load) = 1.5 kOhm. Cout ~ 15 fF. BW = 1 / (2*pi*Rout*Cout) = 7 GHz.",
+        "range": {
+          "min": "1G",
+          "typical": "7G",
+          "max": "15G",
+          "unit": "Hz"
+        },
+        "reasoning": "The low gain and diode-connected loads result in a very wide bandwidth, suitable for the 1.3 GHz operation reported in the paper."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, and transient response of the comparator preamplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain"
+    ],
+    "spice": "* Testbench for Comparator Preamplifier\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xmsw=5u L_xmsw=0.5u\n\nVVDD VDD 0 1.8\nVBIAS BIAS 0 0.7\nVVREF_PLUS VREF_PLUS 0 0.9\nVVREF_MINUS VREF_MINUS 0 0.9\nVVIN_PLUS VIN_PLUS 0 DC 0.9 AC 1\nVVIN_MINUS VIN_MINUS 0 DC 0.9 AC -1\nVCLK CLK 0 PULSE(0 1.8 0 10p 10p 400p 1n)\n\nXM1 VOUT_MINUS VREF_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 VOUT_MINUS VOUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 VOUT_MINUS VIN_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VOUT_MINUS VOUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VOUT_MINUS VIN_MINUS N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N1 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 VOUT_MINUS VREF_MINUS N2 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N2 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXMSW VOUT_MINUS CLK VOUT_MINUS GND sky130_fd_pr__nfet_01v8 l={L_xmsw} w={W_xmsw}\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\nprint v(VOUT_MINUS)\n\nac dec 10 1Meg 10G\nlet gain_db = vdb(VOUT_MINUS)\nmeas ac low_freq_gain find gain_db at=1Meg\n\ntran 10p 2n\nmeas tran vout_max max v(VOUT_MINUS)\nmeas tran vout_min min v(VOUT_MINUS)\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Comparator Preamplifier (Differential Difference Amplifier)\",\n    \"description\": \"A preamplifier stage for a flash ADC comparator. It is designed to amplify the difference between the differential input signal and the differential reference voltage. Note: The provided netlist appears to have an extraction artifact where all input pair drains are shorted to VOUT_MINUS, which would result in zero AC gain in simulation.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN_PLUS\",\n        \"VIN_MINUS\",\n        \"VREF_PLUS\",\n        \"VREF_MINUS\",\n        \"CLK\"\n      ],\n      \"output\": [\n        \"VOUT_MINUS\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 6-b 1.3-Gsample/s A/D Converter in 0.35-m CMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"DC power consumption of the preamplifier stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"500 mW (entire ADC)\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current Id = 0.5 * 270u * 10 * (0.7-0.42)^2 = 105 uA. Two tails = 210 uA. Power = 1.8V * 210uA = 378 uW.\",\n        \"range\": {\n          \"min\": \"200u\",\n          \"typical\": \"378u\",\n          \"max\": \"600u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 NMOS parameters with Vbias=0.7V. Much lower than the 500mW reported for the entire ADC chip.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Low frequency voltage gain from differential input to output\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 dB (typical for preamps)\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm_in = 550 uA/V, gm_load = 328 uA/V. Ideal differential gain = gm_in / gm_load = 1.67 V/V (4.5 dB). Due to shorted drains in netlist, actual AC gain will be near 0 (<-100 dB).\",\n        \"range\": {\n          \"min\": \"-150\",\n          \"typical\": \"-100\",\n          \"max\": \"10\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The netlist connects all input drains to VOUT_MINUS, causing the differential AC currents to cancel perfectly. A properly wired version would have ~4.5 dB gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the preamplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.3 GHz (operating frequency)\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = 1/(2*gm_load) = 1.5 kOhm. Cout ~ 15 fF. BW = 1 / (2*pi*Rout*Cout) = 7 GHz.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"7G\",\n          \"max\": \"15G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The low gain and diode-connected loads result in a very wide bandwidth, suitable for the 1.3 GHz operation reported in the paper.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, and transient response of the comparator preamplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\"\n    ],\n    \"spice\": \"* Testbench for Comparator Preamplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xmsw=5u L_xmsw=0.5u\\n\\nVVDD VDD 0 1.8\\nVBIAS BIAS 0 0.7\\nVVREF_PLUS VREF_PLUS 0 0.9\\nVVREF_MINUS VREF_MINUS 0 0.9\\nVVIN_PLUS VIN_PLUS 0 DC 0.9 AC 1\\nVVIN_MINUS VIN_MINUS 0 DC 0.9 AC -1\\nVCLK CLK 0 PULSE(0 1.8 0 10p 10p 400p 1n)\\n\\nXM1 VOUT_MINUS VREF_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 VOUT_MINUS VOUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 VOUT_MINUS VIN_PLUS N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VOUT_MINUS VOUT_MINUS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VOUT_MINUS VIN_MINUS N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N1 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 VOUT_MINUS VREF_MINUS N2 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N2 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXMSW VOUT_MINUS CLK VOUT_MINUS GND sky130_fd_pr__nfet_01v8 l={L_xmsw} w={W_xmsw}\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\nprint v(VOUT_MINUS)\\n\\nac dec 10 1Meg 10G\\nlet gain_db = vdb(VOUT_MINUS)\\nmeas ac low_freq_gain find gain_db at=1Meg\\n\\ntran 10p 2n\\nmeas tran vout_max max v(VOUT_MINUS)\\nmeas tran vout_min min v(VOUT_MINUS)\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "972135",
+  "_case": "972135_image_10"
+}

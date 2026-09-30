@@ -1,0 +1,125 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig. 11.20 (Assumed from Baker CMOS Chapter 11)",
+    "page": "Chapter 11",
+    "circuit_type": "CMOS Buffer (Cascaded Inverters)",
+    "description": "A two-stage CMOS buffer consisting of two cascaded inverters. The first stage (XM0, XM2) drives the second stage (XM1, XM3), which in turn drives the output load capacitance."
+  },
+  "step2_metrics": {
+    "switching_threshold": {
+      "description": "The input voltage at which the input and output voltages of an inverter stage are equal (V_in = V_out).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq. 11.5"
+      },
+      "equation": {
+        "formula": "V_SP = (V_DD + V_THP + V_THN * sqrt(beta_n / beta_p)) / (1 + sqrt(beta_n / beta_p))",
+        "explanation": "Determines the trip point of the inverter. beta = u * C_ox * (W/L).",
+        "assumptions": "Assumes velocity saturation is not the dominant factor and both transistors are in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming typical sizing where W_p/L_p = 2 * W_n/L_n. beta_n = 270u * 1 = 270uA/V^2. beta_p = 50u * 2 = 100uA/V^2. sqrt(beta_n/beta_p) = sqrt(2.7) = 1.64. V_SP = (1.8 - 0.42 + 0.42 * 1.64) / (1 + 1.64) = 2.068 / 2.64 = 0.78V.",
+        "range": {
+          "min": 0.7,
+          "typical": 0.9,
+          "max": 1.1,
+          "unit": "V"
+        },
+        "reasoning": "Depending on the exact W/L ratios chosen for XM0-XM3, the switching threshold will typically be designed to be near VDD/2 (0.9V) for maximum noise margin."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "The time required for the output to reach 50% of VDD after the input reaches 50% of VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq. 11.18"
+      },
+      "equation": {
+        "formula": "t_pd = 0.35 * R_eq * C_load",
+        "explanation": "Average propagation delay based on the equivalent resistance of the driving transistors and the load capacitance.",
+        "assumptions": "Assumes a step input and linear equivalent resistance for the MOSFETs."
+      },
+      "sky130_expected": {
+        "calculation": "For the second stage NMOS (assuming W/L=4): R_eqn = 2.5 / (270u * 4 * (1.8 - 0.42)) = 1.67 kOhm. t_pdHL = 0.69 * 1.67k * 10fF = 11.5 ps. For PMOS (assuming W/L=8): R_eqp = 2.5 / (50u * 8 * (1.8 - 0.42)) = 4.5 kOhm. t_pdLH = 0.69 * 4.5k * 10fF = 31 ps. Average t_pd for the second stage is ~21 ps. Total buffer delay includes the first stage.",
+        "range": {
+          "min": 1e-11,
+          "typical": 5e-11,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "Delay is highly dependent on the parameterized W/L values and the 10fF load."
+      },
+      "importance": "essential"
+    },
+    "rise_fall_times": {
+      "description": "The time taken for the output signal to transition between 10% and 90% of VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq. 11.22"
+      },
+      "equation": {
+        "formula": "t_r = 2.2 * R_eqp * C_load, t_f = 2.2 * R_eqn * C_load",
+        "explanation": "10% to 90% transition times modeled as an RC circuit.",
+        "assumptions": "Assumes lumped load capacitance and constant equivalent resistance."
+      },
+      "sky130_expected": {
+        "calculation": "Using R_eqn = 1.67 kOhm and R_eqp = 4.5 kOhm (from delay calculation). t_f = 2.2 * 1.67k * 10fF = 36.7 ps. t_r = 2.2 * 4.5k * 10fF = 99 ps.",
+        "range": {
+          "min": 2e-11,
+          "typical": 1e-10,
+          "max": 5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Scales directly with the output stage W/L parameters and the 10fF load."
+      },
+      "importance": "recommended"
+    },
+    "dynamic_power": {
+      "description": "Power dissipated due to charging and discharging the load capacitance.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq. 11.30"
+      },
+      "equation": {
+        "formula": "P_dyn = f * C_load * V_DD^2",
+        "explanation": "Energy per cycle is C*V^2. Power is Energy * frequency.",
+        "assumptions": "Assumes full rail-to-rail swing and ignores short-circuit power."
+      },
+      "sky130_expected": {
+        "calculation": "For a 100 MHz input signal (f = 1e8 Hz), C_load = 10fF, V_DD = 1.8V. P_dyn = 1e8 * 10e-15 * (1.8)^2 = 3.24 uW. (Note: Total power will be slightly higher due to internal node capacitance at OUT1 and short-circuit current).",
+        "range": {
+          "min": 1e-06,
+          "typical": 5e-06,
+          "max": 2e-05,
+          "unit": "W"
+        },
+        "reasoning": "Depends on the input frequency applied during the transient test."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC switching threshold, propagation delay, rise/fall times, and dynamic power of the CMOS buffer.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "switching_threshold",
+      "propagation_delay",
+      "rise_fall_times",
+      "dynamic_power"
+    ],
+    "spice": "* CMOS Buffer Testbench\n.lib \"${SKY130_PDK}\" tt\n.option scale=1e-6\n\n* Define parameters for the parameterized netlist\n.param W_XM0=1 L_XM0=0.15 W_XM2=2 L_XM2=0.15\n.param W_XM1=4 L_XM1=0.15 W_XM3=8 L_XM3=0.15\n\n* Circuit Analysis\n.subckt BUFFER IN OUT VSS VDD\n* First stage inverter\nXM0 OUT1 IN VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM0} l={L_XM0}\nXM2 OUT1 IN VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM2} l={L_XM2}\n* Second stage inverter  \nXM1 OUT OUT1 VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM1} l={L_XM1}\nXM3 OUT OUT1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM3} l={L_XM3}\n.ends BUFFER\n\n* Test circuit\nVdd VDD 0 DC 1.8\nVss VSS 0 DC 0\nXcircuit IN OUT VSS VDD BUFFER\nCout OUT 0 10e-15\n\n* Input Sources\nVin IN 0 DC 0 PULSE(0 1.8 1n 50p 50p 4n 10n)\n\n.control\n* === DC Sweep for Switching Threshold ===\ndc Vin 0 1.8 0.01\nmeas dc vsp_stage1 find v(out1) when v(out1)=v(in)\nmeas dc vsp_buffer find v(in) when v(out)=0.9\n\n* === Transient for Power and Delay ===\ntran 10p 20n\n\n* Rise and Fall Times (10% to 90% of 1.8V)\nmeas tran t_rise trig v(out) val=0.18 rise=1 targ v(out) val=1.62 rise=1\nmeas tran t_fall trig v(out) val=1.62 fall=1 targ v(out) val=0.18 fall=1\n\n* Propagation Delay (50% to 50%)\nmeas tran t_delay_rise trig v(in) val=0.9 rise=1 targ v(out) val=0.9 rise=1\nmeas tran t_delay_fall trig v(in) val=0.9 fall=1 targ v(out) val=0.9 fall=1\nmeas tran t_pd param = '(t_delay_rise + t_delay_fall)/2'\n\n* Dynamic Power\nmeas tran i_avg avg i(Vdd)\nlet power = -i_avg * 1.8\nprint power\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig. 11.20 (Assumed from Baker CMOS Chapter 11)\",\n    \"page\": \"Chapter 11\",\n    \"circuit_type\": \"CMOS Buffer (Cascaded Inverters)\",\n    \"description\": \"A two-stage CMOS buffer consisting of two cascaded inverters. The first stage (XM0, XM2) drives the second stage (XM1, XM3), which in turn drives the output load capacitance.\"\n  },\n  \"step2_metrics\": {\n    \"switching_threshold\": {\n      \"description\": \"The input voltage at which the input and output voltages of an inverter stage are equal (V_in = V_out).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq. 11.5\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = (V_DD + V_THP + V_THN * sqrt(beta_n / beta_p)) / (1 + sqrt(beta_n / beta_p))\",\n        \"explanation\": \"Determines the trip point of the inverter. beta = u * C_ox * (W/L).\",\n        \"assumptions\": \"Assumes velocity saturation is not the dominant factor and both transistors are in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming typical sizing where W_p/L_p = 2 * W_n/L_n. beta_n = 270u * 1 = 270uA/V^2. beta_p = 50u * 2 = 100uA/V^2. sqrt(beta_n/beta_p) = sqrt(2.7) = 1.64. V_SP = (1.8 - 0.42 + 0.42 * 1.64) / (1 + 1.64) = 2.068 / 2.64 = 0.78V.\",\n        \"range\": {\n          \"min\": 0.7,\n          \"typical\": 0.9,\n          \"max\": 1.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depending on the exact W/L ratios chosen for XM0-XM3, the switching threshold will typically be designed to be near VDD/2 (0.9V) for maximum noise margin.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"The time required for the output to reach 50% of VDD after the input reaches 50% of VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq. 11.18\"\n      },\n      \"equation\": {\n        \"formula\": \"t_pd = 0.35 * R_eq * C_load\",\n        \"explanation\": \"Average propagation delay based on the equivalent resistance of the driving transistors and the load capacitance.\",\n        \"assumptions\": \"Assumes a step input and linear equivalent resistance for the MOSFETs.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For the second stage NMOS (assuming W/L=4): R_eqn = 2.5 / (270u * 4 * (1.8 - 0.42)) = 1.67 kOhm. t_pdHL = 0.69 * 1.67k * 10fF = 11.5 ps. For PMOS (assuming W/L=8): R_eqp = 2.5 / (50u * 8 * (1.8 - 0.42)) = 4.5 kOhm. t_pdLH = 0.69 * 4.5k * 10fF = 31 ps. Average t_pd for the second stage is ~21 ps. Total buffer delay includes the first stage.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 50e-12,\n          \"max\": 200e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Delay is highly dependent on the parameterized W/L values and the 10fF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rise_fall_times\": {\n      \"description\": \"The time taken for the output signal to transition between 10% and 90% of VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq. 11.22\"\n      },\n      \"equation\": {\n        \"formula\": \"t_r = 2.2 * R_eqp * C_load, t_f = 2.2 * R_eqn * C_load\",\n        \"explanation\": \"10% to 90% transition times modeled as an RC circuit.\",\n        \"assumptions\": \"Assumes lumped load capacitance and constant equivalent resistance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using R_eqn = 1.67 kOhm and R_eqp = 4.5 kOhm (from delay calculation). t_f = 2.2 * 1.67k * 10fF = 36.7 ps. t_r = 2.2 * 4.5k * 10fF = 99 ps.\",\n        \"range\": {\n          \"min\": 20e-12,\n          \"typical\": 100e-12,\n          \"max\": 500e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Scales directly with the output stage W/L parameters and the 10fF load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dynamic_power\": {\n      \"description\": \"Power dissipated due to charging and discharging the load capacitance.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq. 11.30\"\n      },\n      \"equation\": {\n        \"formula\": \"P_dyn = f * C_load * V_DD^2\",\n        \"explanation\": \"Energy per cycle is C*V^2. Power is Energy * frequency.\",\n        \"assumptions\": \"Assumes full rail-to-rail swing and ignores short-circuit power.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 100 MHz input signal (f = 1e8 Hz), C_load = 10fF, V_DD = 1.8V. P_dyn = 1e8 * 10e-15 * (1.8)^2 = 3.24 uW. (Note: Total power will be slightly higher due to internal node capacitance at OUT1 and short-circuit current).\",\n        \"range\": {\n          \"min\": 1e-6,\n          \"typical\": 5e-6,\n          \"max\": 20e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on the input frequency applied during the transient test.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC switching threshold, propagation delay, rise/fall times, and dynamic power of the CMOS buffer.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"switching_threshold\",\n      \"propagation_delay\",\n      \"rise_fall_times\",\n      \"dynamic_power\"\n    ],\n    \"spice\": \"* CMOS Buffer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.option scale=1e-6\\n\\n* Define parameters for the parameterized netlist\\n.param W_XM0=1 L_XM0=0.15 W_XM2=2 L_XM2=0.15\\n.param W_XM1=4 L_XM1=0.15 W_XM3=8 L_XM3=0.15\\n\\n* Circuit Analysis\\n.subckt BUFFER IN OUT VSS VDD\\n* First stage inverter\\nXM0 OUT1 IN VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM0} l={L_XM0}\\nXM2 OUT1 IN VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM2} l={L_XM2}\\n* Second stage inverter  \\nXM1 OUT OUT1 VSS VSS sky130_fd_pr__nfet_01v8 w={W_XM1} l={L_XM1}\\nXM3 OUT OUT1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XM3} l={L_XM3}\\n.ends BUFFER\\n\\n* Test circuit\\nVdd VDD 0 DC 1.8\\nVss VSS 0 DC 0\\nXcircuit IN OUT VSS VDD BUFFER\\nCout OUT 0 10e-15\\n\\n* Input Sources\\nVin IN 0 DC 0 PULSE(0 1.8 1n 50p 50p 4n 10n)\\n\\n.control\\n* === DC Sweep for Switching Threshold ===\\ndc Vin 0 1.8 0.01\\nmeas dc vsp_stage1 find v(out1) when v(out1)=v(in)\\nmeas dc vsp_buffer find v(in) when v(out)=0.9\\n\\n* === Transient for Power and Delay ===\\ntran 10p 20n\\n\\n* Rise and Fall Times (10% to 90% of 1.8V)\\nmeas tran t_rise trig v(out) val=0.18 rise=1 targ v(out) val=1.62 rise=1\\nmeas tran t_fall trig v(out) val=1.62 fall=1 targ v(out) val=0.18 fall=1\\n\\n* Propagation Delay (50% to 50%)\\nmeas tran t_delay_rise trig v(in) val=0.9 rise=1 targ v(out) val=0.9 rise=1\\nmeas tran t_delay_fall trig v(in) val=0.9 fall=1 targ v(out) val=0.9 fall=1\\nmeas tran t_pd param = '(t_delay_rise + t_delay_fall)/2'\\n\\n* Dynamic Power\\nmeas tran i_avg avg i(Vdd)\\nlet power = -i_avg * 1.8\\nprint power\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

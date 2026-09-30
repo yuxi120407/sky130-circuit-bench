@@ -1,0 +1,146 @@
+{
+  "step1_analysis": {
+    "circuit_type": "PMOS Current Source / Switch",
+    "description": "A single PMOS transistor, likely functioning as a unit current source or switch in a current-steering DAC for a burst-mode laser transmitter.",
+    "node_mapping": {
+      "input": [
+        "I_IN"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A High-Resolution Burst-Mode Laser Transmitter With Fast and Accurate Level Monitoring for 1.25 Gb/s Upstream GPONs",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "I_out": {
+      "description": "Drain current at typical bias (Vsg=0.9V, Vsd=0.9V)",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "0.1 mA resolution / 80 mA max",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * up*Cox * (W/L) * (Vsg - |Vth|)^2 = 0.5 * 50u * 10 * (0.9 - 0.42)^2 = 57.6 uA",
+        "range": {
+          "min": 4e-05,
+          "typical": 5.76e-05,
+          "max": 8e-05,
+          "unit": "A"
+        },
+        "reasoning": "Calculated using square law model for SKY130 PMOS parameters. Represents a unit current cell for the DAC."
+      },
+      "importance": "essential"
+    },
+    "Vth": {
+      "description": "Threshold voltage of the PMOS transistor",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Standard SKY130 PMOS |Vth| is approximately 0.42V",
+        "range": {
+          "min": 0.35,
+          "typical": 0.42,
+          "max": 0.5,
+          "unit": "V"
+        },
+        "reasoning": "Process parameter for SKY130 1.8V devices."
+      },
+      "importance": "essential"
+    },
+    "gm": {
+      "description": "Transconductance at typical bias",
+      "unit": "A/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2 * Id / Vov = 2 * 57.6uA / 0.48V = 240 uS",
+        "range": {
+          "min": 0.00015,
+          "typical": 0.00024,
+          "max": 0.00035,
+          "unit": "A/V"
+        },
+        "reasoning": "Derived from the expected drain current and overdrive voltage."
+      },
+      "importance": "recommended"
+    },
+    "Rout": {
+      "description": "Output resistance at typical bias",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Rout = 1 / (lambda * Id) = 1 / (0.1 * 57.6uA) = 173 kOhm",
+        "range": {
+          "min": 100000.0,
+          "typical": 173000.0,
+          "max": 300000.0,
+          "unit": "ohm"
+        },
+        "reasoning": "Estimated using channel length modulation parameter lambda=0.1/V."
+      },
+      "importance": "essential"
+    },
+    "Settling_Time": {
+      "description": "Time required for the output current to settle after a gate voltage step",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "12.8 ns",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Intrinsic transistor delay is very small, dominated by load capacitance. Without load, expected < 100ps.",
+        "range": {
+          "min": 1e-11,
+          "typical": 5e-11,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "Single transistor intrinsic switching time is much faster than the full DAC settling time reported in the paper."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "DC sweeps and Transient analysis to measure threshold voltage, transconductance, output current, output resistance, and switching delay of the PMOS current source.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "I_out",
+      "Vth",
+      "gm",
+      "Rout",
+      "Settling_Time"
+    ],
+    "spice": "* PMOS Current Source Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\nXM1 N1 I_IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\n\nVVDD VDD 0 1.8\nV_I_IN I_IN 0 DC 0.9 PULSE(1.8 0.9 1n 0.1n 0.1n 10n 20n)\nV_N1 N1 0 DC 0.9\n\n.control\n  * Transient Analysis for Switching Delay\n  tran 10p 20n\n  let id_tran = abs(i(V_N1))\n  meas tran t_delay trig v(I_IN) val=1.35 fall=1 targ id_tran val=50u rise=1\n  print t_delay\n\n  * Sweep V_I_IN to find Vth and gm\n  dc V_I_IN 1.8 0 -0.01\n  let id_sweep = abs(i(V_N1))\n  meas dc vth_v_in find v(I_IN) when id_sweep=1u\n  let vth_calc = 1.8 - vth_v_in\n  \n  meas dc id_900 find id_sweep at=0.90\n  meas dc id_890 find id_sweep at=0.89\n  let gm_calc = (id_890 - id_900)/0.01\n  \n  print vth_calc gm_calc id_900\n\n  * Sweep V_N1 to find Rout\n  dc V_N1 0 1.8 0.01\n  let id_rout = abs(i(V_N1))\n  meas dc id_n1_900 find id_rout at=0.9\n  meas dc id_n1_800 find id_rout at=0.8\n  let rout_calc = 0.1 / (id_n1_800 - id_n1_900)\n  \n  print rout_calc\n  \n  quit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"PMOS Current Source / Switch\",\n    \"description\": \"A single PMOS transistor, likely functioning as a unit current source or switch in a current-steering DAC for a burst-mode laser transmitter.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"I_IN\"\n      ],\n      \"output\": [\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A High-Resolution Burst-Mode Laser Transmitter With Fast and Accurate Level Monitoring for 1.25 Gb/s Upstream GPONs\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"I_out\": {\n      \"description\": \"Drain current at typical bias (Vsg=0.9V, Vsd=0.9V)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"0.1 mA resolution / 80 mA max\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * up*Cox * (W/L) * (Vsg - |Vth|)^2 = 0.5 * 50u * 10 * (0.9 - 0.42)^2 = 57.6 uA\",\n        \"range\": {\n          \"min\": 40e-6,\n          \"typical\": 57.6e-6,\n          \"max\": 80e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Calculated using square law model for SKY130 PMOS parameters. Represents a unit current cell for the DAC.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Vth\": {\n      \"description\": \"Threshold voltage of the PMOS transistor\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard SKY130 PMOS |Vth| is approximately 0.42V\",\n        \"range\": {\n          \"min\": 0.35,\n          \"typical\": 0.42,\n          \"max\": 0.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Process parameter for SKY130 1.8V devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gm\": {\n      \"description\": \"Transconductance at typical bias\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2 * Id / Vov = 2 * 57.6uA / 0.48V = 240 uS\",\n        \"range\": {\n          \"min\": 150e-6,\n          \"typical\": 240e-6,\n          \"max\": 350e-6,\n          \"unit\": \"A/V\"\n        },\n        \"reasoning\": \"Derived from the expected drain current and overdrive voltage.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Rout\": {\n      \"description\": \"Output resistance at typical bias\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout = 1 / (lambda * Id) = 1 / (0.1 * 57.6uA) = 173 kOhm\",\n        \"range\": {\n          \"min\": 100e3,\n          \"typical\": 173e3,\n          \"max\": 300e3,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Estimated using channel length modulation parameter lambda=0.1/V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Settling_Time\": {\n      \"description\": \"Time required for the output current to settle after a gate voltage step\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"12.8 ns\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Intrinsic transistor delay is very small, dominated by load capacitance. Without load, expected < 100ps.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 50e-12,\n          \"max\": 200e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Single transistor intrinsic switching time is much faster than the full DAC settling time reported in the paper.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"DC sweeps and Transient analysis to measure threshold voltage, transconductance, output current, output resistance, and switching delay of the PMOS current source.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"I_out\",\n      \"Vth\",\n      \"gm\",\n      \"Rout\",\n      \"Settling_Time\"\n    ],\n    \"spice\": \"* PMOS Current Source Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\nXM1 N1 I_IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVVDD VDD 0 1.8\\nV_I_IN I_IN 0 DC 0.9 PULSE(1.8 0.9 1n 0.1n 0.1n 10n 20n)\\nV_N1 N1 0 DC 0.9\\n\\n.control\\n  * Transient Analysis for Switching Delay\\n  tran 10p 20n\\n  let id_tran = abs(i(V_N1))\\n  meas tran t_delay trig v(I_IN) val=1.35 fall=1 targ id_tran val=50u rise=1\\n  print t_delay\\n\\n  * Sweep V_I_IN to find Vth and gm\\n  dc V_I_IN 1.8 0 -0.01\\n  let id_sweep = abs(i(V_N1))\\n  meas dc vth_v_in find v(I_IN) when id_sweep=1u\\n  let vth_calc = 1.8 - vth_v_in\\n  \\n  meas dc id_900 find id_sweep at=0.90\\n  meas dc id_890 find id_sweep at=0.89\\n  let gm_calc = (id_890 - id_900)/0.01\\n  \\n  print vth_calc gm_calc id_900\\n\\n  * Sweep V_N1 to find Rout\\n  dc V_N1 0 1.8 0.01\\n  let id_rout = abs(i(V_N1))\\n  meas dc id_n1_900 find id_rout at=0.9\\n  meas dc id_n1_800 find id_rout at=0.8\\n  let rout_calc = 0.1 / (id_n1_800 - id_n1_900)\\n  \\n  print rout_calc\\n  \\n  quit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1435610",
+  "_case": "1435610_image_7"
+}

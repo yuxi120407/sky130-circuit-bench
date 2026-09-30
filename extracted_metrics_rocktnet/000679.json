@@ -1,0 +1,116 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Bias Network / Cascode Amplifier Stage",
+    "description": "This circuit is a sub-block of a Sigma-Delta modulator, likely functioning as a bias network or a folded-cascode amplifier stage. It includes NMOS and PMOS current mirrors and cascode transistors to provide high output impedance and stable bias currents for the operational amplifiers.",
+    "node_mapping": {
+      "input": [
+        "VBN",
+        "N3",
+        "N6",
+        "LABEL_NET_2"
+      ],
+      "output": [
+        "VGS2",
+        "N5",
+        "N2"
+      ],
+      "supply": [
+        "VDD",
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "bias": [
+        "VBN",
+        "N3",
+        "N6"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 25-MS/s 14-b 200-mW Modulator in 0.18-m CMOS",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Gain": {
+      "description": "AC voltage gain of the cascode stage from VBN to VGS2",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "90 dB (Opamp DC gain)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/Vov. Id \u2248 20uA, Vov \u2248 0.12V -> gm \u2248 333uS. With an ideal RL=100k, Gain = gm*RL \u2248 33 V/V = 30 dB. (A fully active load would yield ~60-90 dB).",
+        "range": {
+          "min": 20,
+          "typical": 30,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated based on SKY130 NMOS parameters and a 100kOhm test load."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power consumption of the sub-circuit",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "200 mW (Full chip)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "3 active branches with ~20uA each. Total current \u2248 60uA. Power = 1.8V * 60uA = 108 uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.0001,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Estimated from bias currents in the 3 branches under the forced DC bias conditions."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB frequency of the amplifier stage",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "200 MHz (Opamp GBW)",
+        "technology": "0.18-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2*pi*RL*CL). With RL=100k and CL=1pF, BW \u2248 1.6 MHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 1600000.0,
+          "max": 10000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the load capacitance. Assumed 1pF for typical on-chip routing in the testbench."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, and bandwidth of the cascode stage.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power Consumption",
+      "Gain",
+      "Bandwidth"
+    ],
+    "spice": "* Testbench for Bias Network / Cascode Stage\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xmbc=5u L_xmbc=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm1c=5u L_xm1c=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm2c=5u L_xm2c=0.5u\n.param W_xm1=5u L_xm1=0.5u\n\n* DUT\nXM4 N5 N5 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N2 N6 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXMBC N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmbc} w={W_xmbc}\nXM3 VBN N5 LABEL_NET_1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM1C VGS2 N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1c} w={W_xm1c}\nXM2 N7 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM2C N5 N3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm2c} w={W_xm2c}\nXM1 N4 VBN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* DC Sources\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVVBN VBN 0 0.54 ac 1\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVLABEL_NET_2 LABEL_NET_2 0 0.9\nVN3 N3 0 0.9\nVN6 N6 0 0.9\n\n* Load\nRL VGS2 VDD 100k\nCL VGS2 0 1p\n\n.control\n* DC Operating Point & Power\nop\nlet power = -i(VVDD)*1.8 - i(VLABEL_NET_0)*0.9 - i(VLABEL_NET_1)*0.9 - i(VLABEL_NET_2)*0.9 - i(VN3)*0.9 - i(VN6)*0.9\nprint power\n\n* AC Analysis for Gain and Bandwidth\nac dec 100 1 1G\nlet gain_db = vdb(VGS2)\nmeas ac dc_gain find gain_db at=10\nlet gain_db_3db = dc_gain - 3\nmeas ac bw when gain_db=gain_db_3db fall=1\n\n* Transient Analysis\ntran 1n 1u\nmeas tran v_max max v(VGS2)\nmeas tran v_min min v(VGS2)\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Bias Network / Cascode Amplifier Stage\",\n    \"description\": \"This circuit is a sub-block of a Sigma-Delta modulator, likely functioning as a bias network or a folded-cascode amplifier stage. It includes NMOS and PMOS current mirrors and cascode transistors to provide high output impedance and stable bias currents for the operational amplifiers.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VBN\",\n        \"N3\",\n        \"N6\",\n        \"LABEL_NET_2\"\n      ],\n      \"output\": [\n        \"VGS2\",\n        \"N5\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"bias\": [\n        \"VBN\",\n        \"N3\",\n        \"N6\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 25-MS/s 14-b 200-mW Modulator in 0.18-m CMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Gain\": {\n      \"description\": \"AC voltage gain of the cascode stage from VBN to VGS2\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"90 dB (Opamp DC gain)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/Vov. Id \u2248 20uA, Vov \u2248 0.12V -> gm \u2248 333uS. With an ideal RL=100k, Gain = gm*RL \u2248 33 V/V = 30 dB. (A fully active load would yield ~60-90 dB).\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 30,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 NMOS parameters and a 100kOhm test load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power consumption of the sub-circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"200 mW (Full chip)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"3 active branches with ~20uA each. Total current \u2248 60uA. Power = 1.8V * 60uA = 108 uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 100e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Estimated from bias currents in the 3 branches under the forced DC bias conditions.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB frequency of the amplifier stage\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"200 MHz (Opamp GBW)\",\n        \"technology\": \"0.18-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2*pi*RL*CL). With RL=100k and CL=1pF, BW \u2248 1.6 MHz.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 1.6e6,\n          \"max\": 10e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the load capacitance. Assumed 1pF for typical on-chip routing in the testbench.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, and bandwidth of the cascode stage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power Consumption\",\n      \"Gain\",\n      \"Bandwidth\"\n    ],\n    \"spice\": \"* Testbench for Bias Network / Cascode Stage\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xmbc=5u L_xmbc=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm1c=5u L_xm1c=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm2c=5u L_xm2c=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n\\n* DUT\\nXM4 N5 N5 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N2 N6 LABEL_NET_0 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXMBC N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmbc} w={W_xmbc}\\nXM3 VBN N5 LABEL_NET_1 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM1C VGS2 N3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1c} w={W_xm1c}\\nXM2 N7 LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM2C N5 N3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm2c} w={W_xm2c}\\nXM1 N4 VBN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVVBN VBN 0 0.54 ac 1\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\nVN3 N3 0 0.9\\nVN6 N6 0 0.9\\n\\n* Load\\nRL VGS2 VDD 100k\\nCL VGS2 0 1p\\n\\n.control\\n* DC Operating Point & Power\\nop\\nlet power = -i(VVDD)*1.8 - i(VLABEL_NET_0)*0.9 - i(VLABEL_NET_1)*0.9 - i(VLABEL_NET_2)*0.9 - i(VN3)*0.9 - i(VN6)*0.9\\nprint power\\n\\n* AC Analysis for Gain and Bandwidth\\nac dec 100 1 1G\\nlet gain_db = vdb(VGS2)\\nmeas ac dc_gain find gain_db at=10\\nlet gain_db_3db = dc_gain - 3\\nmeas ac bw when gain_db=gain_db_3db fall=1\\n\\n* Transient Analysis\\ntran 1n 1u\\nmeas tran v_max max v(VGS2)\\nmeas tran v_min min v(VGS2)\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1362825",
+  "_case": "1362825_image_14"
+}

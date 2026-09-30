@@ -1,0 +1,202 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 13.22",
+    "page": "387",
+    "circuit_type": "Edge-triggered D-FF",
+    "description": "A master-slave edge-triggered D flip-flop implemented using transmission gates and cross-coupled inverters. The specific netlist provided includes a DC source of 0.9V on the D input, which is designed to simulate the metastability resolution described in Figure 13.17."
+  },
+  "step2_metrics": {
+    "metastability_delay": {
+      "description": "Time taken for the flip-flop to resolve to a valid logic level when the input is sampled at a metastable voltage (VDD/2).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "384",
+        "reference": "Fig 13.17"
+      },
+      "equation": {
+        "formula": "t_{meta} \\approx \\tau \\ln(\\Delta V_{out} / \\Delta V_{in})",
+        "explanation": "The resolution time depends on the small-signal gain and time constant (tau = Req*C) of the cross-coupled inverters at the switching point.",
+        "assumptions": "Input is near the exact switching point voltage (Vsp)."
+      },
+      "sky130_expected": {
+        "calculation": "With D=0.9V and Vsp ~ 0.78V, the input is not perfectly metastable and will resolve quickly. tau = Req * C ~ 400 ohm * 5 fF = 2 ps. Resolution takes a few time constants.",
+        "range": {
+          "min": "10p",
+          "typical": "50p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on how close the forced 0.9V is to the actual Vsp of the parameterized inverters."
+      },
+      "importance": "essential"
+    },
+    "switching_point_voltage": {
+      "description": "The voltage (Vsp) where the input equals the output of the latch's inverter, representing the metastable point.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "384",
+        "reference": "Text: 'switching-point of the inverters'"
+      },
+      "equation": {
+        "formula": "V_{sp} = \\frac{V_{DD} + V_{tp} + V_{tn} \\sqrt{\\beta_n/\\beta_p}}{1 + \\sqrt{\\beta_n/\\beta_p}}",
+        "explanation": "The voltage where the PMOS and NMOS currents are equal in saturation.",
+        "assumptions": "Both devices are in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Wn=1u, Wp=2u, L=0.15u: beta_n/beta_p = (270*6.67)/(50*13.3) = 2.7. sqrt(2.7) = 1.64. Vsp = (1.8 - 0.42 + 0.42*1.64) / (1 + 1.64) = 0.78V.",
+        "range": {
+          "min": "0.7",
+          "typical": "0.78",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "Varies with exact W/L sizing and process corners."
+      },
+      "importance": "recommended"
+    },
+    "propagation_delay": {
+      "description": "Delay through an internal inverter stage.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "389",
+        "reference": "Ex 13.3"
+      },
+      "equation": {
+        "formula": "t_{PHL} = 0.7 \\cdot R_{eq,n} \\cdot C_{load}",
+        "explanation": "RC delay model for a CMOS inverter.",
+        "assumptions": "Step input, linear effective resistance."
+      },
+      "sky130_expected": {
+        "calculation": "Req,n = 1 / (270u * (1/0.15) * (1.8 - 0.42)) = 403 ohms. Assuming Cload ~ 5fF. tPHL = 0.7 * 403 * 5fF = 1.4 ps.",
+        "range": {
+          "min": "1p",
+          "typical": "10p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "Unloaded delay is extremely small; wiring and fanout will increase it to the 10-50ps range."
+      },
+      "importance": "essential"
+    },
+    "input_capacitance": {
+      "description": "Capacitance looking into an input pin (e.g., clock or D).",
+      "unit": "F",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "389",
+        "reference": "Ex 13.3"
+      },
+      "equation": {
+        "formula": "C_{in} = \\frac{3}{2} (C_{oxn} + C_{oxp})",
+        "explanation": "Approximation of gate capacitance for an inverter input.",
+        "assumptions": "Operating in linear/saturation regions."
+      },
+      "sky130_expected": {
+        "calculation": "Cox = 8.6 fF/um^2. For Wn=1u, Wp=2u, L=0.15u: Cgate = 1.5 * (1u*0.15u + 2u*0.15u) * 8.6 fF/um^2 = 5.8 fF.",
+        "range": {
+          "min": "1f",
+          "typical": "5f",
+          "max": "15f",
+          "unit": "F"
+        },
+        "reasoning": "Depends on device dimensions and layout parasitics."
+      },
+      "importance": "recommended"
+    },
+    "setup_time": {
+      "description": "Minimum time data must be stable before the active clock edge.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "388",
+        "reference": "Fig 13.25"
+      },
+      "equation": {
+        "formula": "t_s = t_{pd,TG} + t_{pd,INV}",
+        "explanation": "Time required for data to propagate through the input transmission gate and the first inverter to the internal storage node.",
+        "assumptions": "None."
+      },
+      "sky130_expected": {
+        "calculation": "Sum of TG and INV delays ~ 10ps + 15ps = 25ps.",
+        "range": {
+          "min": "10p",
+          "typical": "25p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Depends on sizing and internal node capacitance."
+      },
+      "importance": "essential"
+    },
+    "hold_time": {
+      "description": "Minimum time data must be held stable after the active clock edge.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "388",
+        "reference": "Fig 13.26"
+      },
+      "equation": {
+        "formula": "t_h < 0",
+        "explanation": "Because of the propagation delay from the D pin to the internal node, the external D signal can change slightly before the clock edge without corrupting the captured data.",
+        "assumptions": "Specific to this master-slave topology."
+      },
+      "sky130_expected": {
+        "calculation": "Expected to be negative or near zero.",
+        "range": {
+          "min": "-50p",
+          "typical": "-10p",
+          "max": "10p",
+          "unit": "s"
+        },
+        "reasoning": "Inherent to the delay of the input transmission gate."
+      },
+      "importance": "essential"
+    },
+    "clock_to_q_delay": {
+      "description": "Delay from the active clock edge to the Q output changing.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "389",
+        "reference": "Text: 'defined by clock to output'"
+      },
+      "equation": {
+        "formula": "t_{pcq} = t_{pd,TG} + t_{pd,INV}",
+        "explanation": "Delay through the slave stage transmission gate and output inverter.",
+        "assumptions": "None."
+      },
+      "sky130_expected": {
+        "calculation": "Sum of TG and INV delays ~ 10ps + 15ps = 25ps.",
+        "range": {
+          "min": "10p",
+          "typical": "30p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the load capacitance at the Q output."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures metastability resolution delay, internal propagation delay, switching point voltage (Vsp), and attempts to measure normal timing metrics (setup, tpcq) by altering the hardcoded DC source to a pulse.",
+    "analyses": [
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "metastability_delay",
+      "propagation_delay",
+      "input_capacitance",
+      "switching_point_voltage",
+      "clock_to_q_delay",
+      "setup_time"
+    ],
+    "spice": "* D-FF Testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameters used in the netlist\n.param W_xm1=1u L_xm1=0.15u\n.param W_xm2=2u L_xm2=0.15u\n.param W_xm5=1u L_xm5=0.15u\n.param W_xm6=2u L_xm6=0.15u\n.param W_xm7=1u L_xm7=0.15u\n.param W_xm3=2u L_xm3=0.15u\n.param W_xm4=1u L_xm4=0.15u\n.param W_xm8=2u L_xm8=0.15u\n.param W_xm9=1u L_xm9=0.15u\n.param W_xm10=2u L_xm10=0.15u\n.param W_xm11=1u L_xm11=0.15u\n.param W_xm12=2u L_xm12=0.15u\n.param W_xm13=1u L_xm13=0.15u\n.param W_xm14=2u L_xm14=0.15u\n.param W_xm15=1u L_xm15=0.15u\n.param W_xm16=2u L_xm16=0.15u\n\n* DUT Netlist\nxm1 N004 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 N004 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm5 N003 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N003 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 D clock_b N002 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nVD D 0 DC 0.9\nxm3 N002 clock D VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N002 clock N003 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm8 N003 clock_b N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 Q N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 Q N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nxm11 Q_bar Q 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\nxm12 Q_bar Q VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\nxm13 N004 clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\nxm14 N001 clock_b N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\nxm15 N001 clock_b Q_bar 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\nxm16 Q_bar clock N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\n\n* Clock Stimulus\nVclk clock 0 PULSE(0 1.8 2n 50p 50p 2n 4n)\nVclk_b clock_b 0 PULSE(1.8 0 2n 50p 50p 2n 4n)\n\n.control\n* 1. Metastability and Propagation Delay (using default D=0.9V)\ntran 10p 10n uic\nmeas tran metastability_delay trig v(clock) val=0.9 rise=1 targ v(Q) val=1.62 rise=1\nmeas tran propagation_delay trig v(N004) val=0.9 fall=1 targ v(N003) val=0.9 rise=1\nmeas tran q_in integ i(Vclk) from=1.9n to=2.1n\nlet input_capacitance = -q_in / 1.8\nprint input_capacitance\n\n* 2. Switching Point Voltage (Vsp)\ndc VD 0 1.8 0.01\nmeas dc switching_point_voltage find v(N002) when v(N002)=v(N004)\n\n* 3. Setup, Hold, Clock-to-Q\n* Alter the hardcoded DC source to a pulse to measure normal timing\nalter @VD[pulse] = [ 0 1.8 1.8n 10p 10p 4n 8n ]\ntran 10p 10n\nmeas tran clock_to_q_delay trig v(clock) val=0.9 rise=1 targ v(Q) val=0.9 rise=1\n* Measure delay of the setup path (D to internal node N002)\nmeas tran setup_path_delay trig v(D) val=0.9 rise=1 targ v(N002) val=0.9 rise=1\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 13.22\",\n    \"page\": \"387\",\n    \"circuit_type\": \"Edge-triggered D-FF\",\n    \"description\": \"A master-slave edge-triggered D flip-flop implemented using transmission gates and cross-coupled inverters. The specific netlist provided includes a DC source of 0.9V on the D input, which is designed to simulate the metastability resolution described in Figure 13.17.\"\n  },\n  \"step2_metrics\": {\n    \"metastability_delay\": {\n      \"description\": \"Time taken for the flip-flop to resolve to a valid logic level when the input is sampled at a metastable voltage (VDD/2).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Fig 13.17\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{meta} \\\\approx \\\\tau \\\\ln(\\\\Delta V_{out} / \\\\Delta V_{in})\",\n        \"explanation\": \"The resolution time depends on the small-signal gain and time constant (tau = Req*C) of the cross-coupled inverters at the switching point.\",\n        \"assumptions\": \"Input is near the exact switching point voltage (Vsp).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With D=0.9V and Vsp ~ 0.78V, the input is not perfectly metastable and will resolve quickly. tau = Req * C ~ 400 ohm * 5 fF = 2 ps. Resolution takes a few time constants.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"50p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on how close the forced 0.9V is to the actual Vsp of the parameterized inverters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"switching_point_voltage\": {\n      \"description\": \"The voltage (Vsp) where the input equals the output of the latch's inverter, representing the metastable point.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Text: 'switching-point of the inverters'\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{sp} = \\\\frac{V_{DD} + V_{tp} + V_{tn} \\\\sqrt{\\\\beta_n/\\\\beta_p}}{1 + \\\\sqrt{\\\\beta_n/\\\\beta_p}}\",\n        \"explanation\": \"The voltage where the PMOS and NMOS currents are equal in saturation.\",\n        \"assumptions\": \"Both devices are in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Wn=1u, Wp=2u, L=0.15u: beta_n/beta_p = (270*6.67)/(50*13.3) = 2.7. sqrt(2.7) = 1.64. Vsp = (1.8 - 0.42 + 0.42*1.64) / (1 + 1.64) = 0.78V.\",\n        \"range\": {\n          \"min\": \"0.7\",\n          \"typical\": \"0.78\",\n          \"max\": \"0.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Varies with exact W/L sizing and process corners.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Delay through an internal inverter stage.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"389\",\n        \"reference\": \"Ex 13.3\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{PHL} = 0.7 \\\\cdot R_{eq,n} \\\\cdot C_{load}\",\n        \"explanation\": \"RC delay model for a CMOS inverter.\",\n        \"assumptions\": \"Step input, linear effective resistance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Req,n = 1 / (270u * (1/0.15) * (1.8 - 0.42)) = 403 ohms. Assuming Cload ~ 5fF. tPHL = 0.7 * 403 * 5fF = 1.4 ps.\",\n        \"range\": {\n          \"min\": \"1p\",\n          \"typical\": \"10p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Unloaded delay is extremely small; wiring and fanout will increase it to the 10-50ps range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"Capacitance looking into an input pin (e.g., clock or D).\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"389\",\n        \"reference\": \"Ex 13.3\"\n      },\n      \"equation\": {\n        \"formula\": \"C_{in} = \\\\frac{3}{2} (C_{oxn} + C_{oxp})\",\n        \"explanation\": \"Approximation of gate capacitance for an inverter input.\",\n        \"assumptions\": \"Operating in linear/saturation regions.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Cox = 8.6 fF/um^2. For Wn=1u, Wp=2u, L=0.15u: Cgate = 1.5 * (1u*0.15u + 2u*0.15u) * 8.6 fF/um^2 = 5.8 fF.\",\n        \"range\": {\n          \"min\": \"1f\",\n          \"typical\": \"5f\",\n          \"max\": \"15f\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Depends on device dimensions and layout parasitics.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"setup_time\": {\n      \"description\": \"Minimum time data must be stable before the active clock edge.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"388\",\n        \"reference\": \"Fig 13.25\"\n      },\n      \"equation\": {\n        \"formula\": \"t_s = t_{pd,TG} + t_{pd,INV}\",\n        \"explanation\": \"Time required for data to propagate through the input transmission gate and the first inverter to the internal storage node.\",\n        \"assumptions\": \"None.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Sum of TG and INV delays ~ 10ps + 15ps = 25ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"25p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends on sizing and internal node capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"hold_time\": {\n      \"description\": \"Minimum time data must be held stable after the active clock edge.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"388\",\n        \"reference\": \"Fig 13.26\"\n      },\n      \"equation\": {\n        \"formula\": \"t_h < 0\",\n        \"explanation\": \"Because of the propagation delay from the D pin to the internal node, the external D signal can change slightly before the clock edge without corrupting the captured data.\",\n        \"assumptions\": \"Specific to this master-slave topology.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Expected to be negative or near zero.\",\n        \"range\": {\n          \"min\": \"-50p\",\n          \"typical\": \"-10p\",\n          \"max\": \"10p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Inherent to the delay of the input transmission gate.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"clock_to_q_delay\": {\n      \"description\": \"Delay from the active clock edge to the Q output changing.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"389\",\n        \"reference\": \"Text: 'defined by clock to output'\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{pcq} = t_{pd,TG} + t_{pd,INV}\",\n        \"explanation\": \"Delay through the slave stage transmission gate and output inverter.\",\n        \"assumptions\": \"None.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Sum of TG and INV delays ~ 10ps + 15ps = 25ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"30p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the load capacitance at the Q output.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures metastability resolution delay, internal propagation delay, switching point voltage (Vsp), and attempts to measure normal timing metrics (setup, tpcq) by altering the hardcoded DC source to a pulse.\",\n    \"analyses\": [\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"metastability_delay\",\n      \"propagation_delay\",\n      \"input_capacitance\",\n      \"switching_point_voltage\",\n      \"clock_to_q_delay\",\n      \"setup_time\"\n    ],\n    \"spice\": \"* D-FF Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters used in the netlist\\n.param W_xm1=1u L_xm1=0.15u\\n.param W_xm2=2u L_xm2=0.15u\\n.param W_xm5=1u L_xm5=0.15u\\n.param W_xm6=2u L_xm6=0.15u\\n.param W_xm7=1u L_xm7=0.15u\\n.param W_xm3=2u L_xm3=0.15u\\n.param W_xm4=1u L_xm4=0.15u\\n.param W_xm8=2u L_xm8=0.15u\\n.param W_xm9=1u L_xm9=0.15u\\n.param W_xm10=2u L_xm10=0.15u\\n.param W_xm11=1u L_xm11=0.15u\\n.param W_xm12=2u L_xm12=0.15u\\n.param W_xm13=1u L_xm13=0.15u\\n.param W_xm14=2u L_xm14=0.15u\\n.param W_xm15=1u L_xm15=0.15u\\n.param W_xm16=2u L_xm16=0.15u\\n\\n* DUT Netlist\\nxm1 N004 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 N004 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm5 N003 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N003 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 D clock_b N002 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nVD D 0 DC 0.9\\nxm3 N002 clock D VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N002 clock N003 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm8 N003 clock_b N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 Q N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 Q N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 Q_bar Q 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 Q_bar Q VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 N004 clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 N001 clock_b N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 N001 clock_b Q_bar 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 Q_bar clock N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\\n\\n* Clock Stimulus\\nVclk clock 0 PULSE(0 1.8 2n 50p 50p 2n 4n)\\nVclk_b clock_b 0 PULSE(1.8 0 2n 50p 50p 2n 4n)\\n\\n.control\\n* 1. Metastability and Propagation Delay (using default D=0.9V)\\ntran 10p 10n uic\\nmeas tran metastability_delay trig v(clock) val=0.9 rise=1 targ v(Q) val=1.62 rise=1\\nmeas tran propagation_delay trig v(N004) val=0.9 fall=1 targ v(N003) val=0.9 rise=1\\nmeas tran q_in integ i(Vclk) from=1.9n to=2.1n\\nlet input_capacitance = -q_in / 1.8\\nprint input_capacitance\\n\\n* 2. Switching Point Voltage (Vsp)\\ndc VD 0 1.8 0.01\\nmeas dc switching_point_voltage find v(N002) when v(N002)=v(N004)\\n\\n* 3. Setup, Hold, Clock-to-Q\\n* Alter the hardcoded DC source to a pulse to measure normal timing\\nalter @VD[pulse] = [ 0 1.8 1.8n 10p 10p 4n 8n ]\\ntran 10p 10n\\nmeas tran clock_to_q_delay trig v(clock) val=0.9 rise=1 targ v(Q) val=0.9 rise=1\\n* Measure delay of the setup path (D to internal node N002)\\nmeas tran setup_path_delay trig v(D) val=0.9 rise=1 targ v(N002) val=0.9 rise=1\\n\\nquit\\n.endc\"\n  }\n}\n```"
+}

@@ -1,0 +1,201 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 24.17",
+    "page": "784",
+    "circuit_type": "Two-stage operational amplifier with indirect feedback compensation",
+    "description": "The netlist implements a two-stage CMOS op-amp. It uses a common-gate MOSFET (MCG) to indirectly feed back the compensation capacitor current to the output of the first stage, which eliminates the right-half-plane (RHP) zero and improves stability and speed."
+  },
+  "step2_metrics": {
+    "unity_gain_frequency": {
+      "description": "The frequency at which the open-loop voltage gain drops to 0 dB (1 V/V).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "780",
+        "reference": "Eq 24.10 and Eq 24.25"
+      },
+      "equation": {
+        "formula": "f_{un} = g_{m1} / (2\\pi C_c)",
+        "explanation": "Determines the bandwidth of the op-amp, set by the input pair transconductance and the compensation capacitor.",
+        "assumptions": "Assumes the second pole is at a much higher frequency than f_un."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming I_tail = 20uA -> I_D1 = 10uA. With V_GS - V_th \u2248 0.1V, g_m1 = 2*I_D1/(V_GS-V_th) = 200uA/V. f_un = 200uA/V / (2 * pi * 240fF) \u2248 132 MHz.",
+        "range": {
+          "min": 80000000.0,
+          "typical": 130000000.0,
+          "max": 200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the exact W/L sizing of the input pair which sets g_m1, but the 240fF capacitor targets ~100-150 MHz bandwidth."
+      },
+      "importance": "essential"
+    },
+    "open_loop_gain": {
+      "description": "The DC voltage gain of the op-amp without any feedback.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "784",
+        "reference": "Eq 24.15 (implied by transfer function)"
+      },
+      "equation": {
+        "formula": "A_{OL} = g_{m1} R_1 g_{m2} R_2",
+        "explanation": "The product of the intrinsic gains of the first (differential) and second (common-source) stages.",
+        "assumptions": "Low frequency (DC) operation."
+      },
+      "sky130_expected": {
+        "calculation": "R_1 = r_o1 || r_o3 \u2248 500k\u03a9. A_1 = g_m1 * R_1 = 200uA/V * 500k\u03a9 = 100 V/V. Assuming second stage has similar gain A_2 \u2248 100 V/V. A_OL = 100 * 100 = 10000 V/V = 80 dB.",
+        "range": {
+          "min": 60,
+          "typical": 75,
+          "max": 90,
+          "unit": "dB"
+        },
+        "reasoning": "Typical two-stage op-amps in 130nm achieve 60-80 dB depending on channel lengths and cascoding."
+      },
+      "importance": "essential"
+    },
+    "lhp_zero": {
+      "description": "Left-half-plane zero introduced by the indirect compensation scheme.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "785",
+        "reference": "Eq 24.22"
+      },
+      "equation": {
+        "formula": "f_z = g_{mcg} / (2\\pi C_c)",
+        "explanation": "The common-gate transistor MCG creates a zero in the left half plane, which adds positive phase shift and improves phase margin.",
+        "assumptions": "Assumes the resistance looking into MCG source is 1/g_mcg."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming g_mcg is sized similarly to g_m1 (\u2248 200uA/V), f_z = 200uA/V / (2 * pi * 240fF) \u2248 132 MHz.",
+        "range": {
+          "min": 80000000.0,
+          "typical": 130000000.0,
+          "max": 200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Designed to be near or slightly above the unity-gain frequency to boost phase margin."
+      },
+      "importance": "recommended"
+    },
+    "second_pole": {
+      "description": "The second dominant pole of the op-amp, which degrades phase margin.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "785",
+        "reference": "Eq 24.24"
+      },
+      "equation": {
+        "formula": "f_2 \\approx (g_{m2} C_c) / (2\\pi C_1 (C_L + C_c))",
+        "explanation": "The location of the second pole is pushed to a higher frequency compared to standard Miller compensation, allowing for higher bandwidth.",
+        "assumptions": "Assumes R1*g_m2*R2*C_c >> R1*C1 or R2*C2."
+      },
+      "sky130_expected": {
+        "calculation": "With indirect compensation, f_2 is pushed significantly higher than f_un. Expected to be > 2 * f_un to maintain >60 deg phase margin.",
+        "range": {
+          "min": 200000000.0,
+          "typical": 300000000.0,
+          "max": 500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Indirect compensation splits the poles more effectively, moving f_2 to a higher frequency."
+      },
+      "importance": "recommended"
+    },
+    "slew_rate": {
+      "description": "The maximum rate of change of the output voltage during large-signal transients.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "787",
+        "reference": "Text discussion on Slew-Rate Limitations"
+      },
+      "equation": {
+        "formula": "SR = I_{tail} / C_c",
+        "explanation": "Limited by the tail current of the differential pair charging/discharging the compensation capacitor.",
+        "assumptions": "Assumes the second stage can sink/source enough current to not be the bottleneck."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming I_tail = 20uA and C_c = 240fF. SR = 20uA / 240fF = 83.3 V/us.",
+        "range": {
+          "min": 40,
+          "typical": 80,
+          "max": 120,
+          "unit": "V/us"
+        },
+        "reasoning": "The small 240fF compensation capacitor allows for a very high slew rate compared to standard Miller compensation."
+      },
+      "importance": "essential"
+    },
+    "cmrr": {
+      "description": "Common-Mode Rejection Ratio.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "789",
+        "reference": "Eq 24.26"
+      },
+      "equation": {
+        "formula": "CMRR = 20 \\cdot \\log |A_d / A_c|",
+        "explanation": "Ratio of differential gain to common-mode gain.",
+        "assumptions": "Assumes linear operation."
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the output resistance of the tail current source. A_c \u2248 - (R_1 / (2 * R_tail)). With cascode tail, R_tail is very high, yielding CMRR > 60dB.",
+        "range": {
+          "min": 50,
+          "typical": 70,
+          "max": 90,
+          "unit": "dB"
+        },
+        "reasoning": "The use of cascode current sources in the tail significantly improves CMRR."
+      },
+      "importance": "recommended"
+    },
+    "psrr_plus": {
+      "description": "Positive Power Supply Rejection Ratio.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "790",
+        "reference": "Eq 24.28"
+      },
+      "equation": {
+        "formula": "PSRR^+ = A_{OL}(f) / (v_{out}/v^+)",
+        "explanation": "Measures how well the amplifier rejects noise from the positive supply rail.",
+        "assumptions": "Measured with inputs grounded (AC)."
+      },
+      "sky130_expected": {
+        "calculation": "Indirect compensation improves PSRR+ because the compensation capacitor is not tied directly to the VDD-referenced PMOS load.",
+        "range": {
+          "min": 60,
+          "typical": 75,
+          "max": 90,
+          "unit": "dB"
+        },
+        "reasoning": "Typically tracks the open-loop gain at DC."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures Open-Loop Gain, Unity-Gain Frequency, Phase Margin, Slew Rate, and PSRR+ using a single testbench with ngspice alter commands.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "open_loop_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate",
+      "psrr_plus"
+    ],
+    "spice": "* Testbench for Op-Amp\n.lib ${SKY130_PDK} tt\n\n* DUT (Pasted from prompt)\nVDD VDD 0 1.8\nxm2 N002 vp N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 vm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nxm6t N004 Vbias3 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\nxm6b N005 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\nxm7 vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8t vout Vbias3 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm8t} l={L_xm8t}\nxm8b N006 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8b} l={L_xm8b}\nC1 vm 0 1e-05\nR1 vm vout 100000000.0\nCc vout N003 2.4e-13\nC3 vout 0 1e-13\nxm4a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4a} l={L_xm4a}\nxmcg N002 vp N003 0 sky130_fd_pr__nfet_01v8 w={W_xmcg} l={L_xmcg}\nxm9 N003 Vbias3 N007 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N007 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n\n* Stimulus\nVinp vp 0 DC 0.9 AC 1 PULSE(0.5 1.3 10n 1n 1n 1u 2u)\n\n.control\n  * 1. AC Analysis for Open-Loop Gain, fun, PM\n  * The 10uF/100Meg feedback network keeps DC bias stable while allowing open-loop AC measurement.\n  ac dec 100 1 1G\n  let gain_db = vdb(vout)\n  let phase = 180/PI * cph(v(vout))\n  meas ac A_OL_dB find gain_db at=1\n  meas ac f_un when gain_db=0 fall=1\n  meas ac phase_at_fun find phase when gain_db=0 fall=1\n  let PM = phase_at_fun + 180\n  print A_OL_dB f_un PM\n\n  * 2. Transient Analysis for Slew Rate\n  * Convert to unity-gain buffer by altering feedback components\n  alter c1 1e-15\n  alter r1 1\n  tran 1n 2u\n  meas tran v_max max v(vout)\n  meas tran v_min min v(vout)\n  meas tran t_rise1 trig v(vout) val=0.7 rise=1 targ v(vout) val=1.1 rise=1\n  let SR_rise = 0.4 / t_rise1\n  meas tran t_fall1 trig v(vout) val=1.1 fall=1 targ v(vout) val=0.7 fall=1\n  let SR_fall = 0.4 / t_fall1\n  print SR_rise SR_fall\n\n  * 3. PSRR+\n  * Restore feedback for open-loop AC\n  alter c1 1e-5\n  alter r1 100e6\n  * Move AC source to VDD\n  alter @Vinp[ac] = 0\n  alter @VDD[ac] = 1\n  ac dec 100 1 1G\n  let Avdd_db = vdb(vout)\n  meas ac Avdd_DC find Avdd_db at=1\n  let PSRR_plus = A_OL_dB - Avdd_DC\n  print PSRR_plus\n\n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 24.17\",\n    \"page\": \"784\",\n    \"circuit_type\": \"Two-stage operational amplifier with indirect feedback compensation\",\n    \"description\": \"The netlist implements a two-stage CMOS op-amp. It uses a common-gate MOSFET (MCG) to indirectly feed back the compensation capacitor current to the output of the first stage, which eliminates the right-half-plane (RHP) zero and improves stability and speed.\"\n  },\n  \"step2_metrics\": {\n    \"unity_gain_frequency\": {\n      \"description\": \"The frequency at which the open-loop voltage gain drops to 0 dB (1 V/V).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"780\",\n        \"reference\": \"Eq 24.10 and Eq 24.25\"\n      },\n      \"equation\": {\n        \"formula\": \"f_{un} = g_{m1} / (2\\\\pi C_c)\",\n        \"explanation\": \"Determines the bandwidth of the op-amp, set by the input pair transconductance and the compensation capacitor.\",\n        \"assumptions\": \"Assumes the second pole is at a much higher frequency than f_un.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming I_tail = 20uA -> I_D1 = 10uA. With V_GS - V_th \u2248 0.1V, g_m1 = 2*I_D1/(V_GS-V_th) = 200uA/V. f_un = 200uA/V / (2 * pi * 240fF) \u2248 132 MHz.\",\n        \"range\": {\n          \"min\": 80e6,\n          \"typical\": 130e6,\n          \"max\": 200e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the exact W/L sizing of the input pair which sets g_m1, but the 240fF capacitor targets ~100-150 MHz bandwidth.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"open_loop_gain\": {\n      \"description\": \"The DC voltage gain of the op-amp without any feedback.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"784\",\n        \"reference\": \"Eq 24.15 (implied by transfer function)\"\n      },\n      \"equation\": {\n        \"formula\": \"A_{OL} = g_{m1} R_1 g_{m2} R_2\",\n        \"explanation\": \"The product of the intrinsic gains of the first (differential) and second (common-source) stages.\",\n        \"assumptions\": \"Low frequency (DC) operation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_1 = r_o1 || r_o3 \u2248 500k\u03a9. A_1 = g_m1 * R_1 = 200uA/V * 500k\u03a9 = 100 V/V. Assuming second stage has similar gain A_2 \u2248 100 V/V. A_OL = 100 * 100 = 10000 V/V = 80 dB.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 75,\n          \"max\": 90,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical two-stage op-amps in 130nm achieve 60-80 dB depending on channel lengths and cascoding.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"lhp_zero\": {\n      \"description\": \"Left-half-plane zero introduced by the indirect compensation scheme.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"785\",\n        \"reference\": \"Eq 24.22\"\n      },\n      \"equation\": {\n        \"formula\": \"f_z = g_{mcg} / (2\\\\pi C_c)\",\n        \"explanation\": \"The common-gate transistor MCG creates a zero in the left half plane, which adds positive phase shift and improves phase margin.\",\n        \"assumptions\": \"Assumes the resistance looking into MCG source is 1/g_mcg.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming g_mcg is sized similarly to g_m1 (\u2248 200uA/V), f_z = 200uA/V / (2 * pi * 240fF) \u2248 132 MHz.\",\n        \"range\": {\n          \"min\": 80e6,\n          \"typical\": 130e6,\n          \"max\": 200e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Designed to be near or slightly above the unity-gain frequency to boost phase margin.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"second_pole\": {\n      \"description\": \"The second dominant pole of the op-amp, which degrades phase margin.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"785\",\n        \"reference\": \"Eq 24.24\"\n      },\n      \"equation\": {\n        \"formula\": \"f_2 \\\\approx (g_{m2} C_c) / (2\\\\pi C_1 (C_L + C_c))\",\n        \"explanation\": \"The location of the second pole is pushed to a higher frequency compared to standard Miller compensation, allowing for higher bandwidth.\",\n        \"assumptions\": \"Assumes R1*g_m2*R2*C_c >> R1*C1 or R2*C2.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With indirect compensation, f_2 is pushed significantly higher than f_un. Expected to be > 2 * f_un to maintain >60 deg phase margin.\",\n        \"range\": {\n          \"min\": 200e6,\n          \"typical\": 300e6,\n          \"max\": 500e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Indirect compensation splits the poles more effectively, moving f_2 to a higher frequency.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"slew_rate\": {\n      \"description\": \"The maximum rate of change of the output voltage during large-signal transients.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"787\",\n        \"reference\": \"Text discussion on Slew-Rate Limitations\"\n      },\n      \"equation\": {\n        \"formula\": \"SR = I_{tail} / C_c\",\n        \"explanation\": \"Limited by the tail current of the differential pair charging/discharging the compensation capacitor.\",\n        \"assumptions\": \"Assumes the second stage can sink/source enough current to not be the bottleneck.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming I_tail = 20uA and C_c = 240fF. SR = 20uA / 240fF = 83.3 V/us.\",\n        \"range\": {\n          \"min\": 40,\n          \"typical\": 80,\n          \"max\": 120,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"The small 240fF compensation capacitor allows for a very high slew rate compared to standard Miller compensation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cmrr\": {\n      \"description\": \"Common-Mode Rejection Ratio.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"789\",\n        \"reference\": \"Eq 24.26\"\n      },\n      \"equation\": {\n        \"formula\": \"CMRR = 20 \\\\cdot \\\\log |A_d / A_c|\",\n        \"explanation\": \"Ratio of differential gain to common-mode gain.\",\n        \"assumptions\": \"Assumes linear operation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the output resistance of the tail current source. A_c \u2248 - (R_1 / (2 * R_tail)). With cascode tail, R_tail is very high, yielding CMRR > 60dB.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 70,\n          \"max\": 90,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The use of cascode current sources in the tail significantly improves CMRR.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"psrr_plus\": {\n      \"description\": \"Positive Power Supply Rejection Ratio.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"790\",\n        \"reference\": \"Eq 24.28\"\n      },\n      \"equation\": {\n        \"formula\": \"PSRR^+ = A_{OL}(f) / (v_{out}/v^+)\",\n        \"explanation\": \"Measures how well the amplifier rejects noise from the positive supply rail.\",\n        \"assumptions\": \"Measured with inputs grounded (AC).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Indirect compensation improves PSRR+ because the compensation capacitor is not tied directly to the VDD-referenced PMOS load.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 75,\n          \"max\": 90,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typically tracks the open-loop gain at DC.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures Open-Loop Gain, Unity-Gain Frequency, Phase Margin, Slew Rate, and PSRR+ using a single testbench with ngspice alter commands.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"open_loop_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\",\n      \"psrr_plus\"\n    ],\n    \"spice\": \"* Testbench for Op-Amp\\n.lib ${SKY130_PDK} tt\\n\\n* DUT (Pasted from prompt)\\nVDD VDD 0 1.8\\nxm2 N002 vp N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 vm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nxm6t N004 Vbias3 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\\nxm6b N005 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\\nxm7 vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8t vout Vbias3 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm8t} l={L_xm8t}\\nxm8b N006 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8b} l={L_xm8b}\\nC1 vm 0 1e-05\\nR1 vm vout 100000000.0\\nCc vout N003 2.4e-13\\nC3 vout 0 1e-13\\nxm4a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4a} l={L_xm4a}\\nxmcg N002 vp N003 0 sky130_fd_pr__nfet_01v8 w={W_xmcg} l={L_xmcg}\\nxm9 N003 Vbias3 N007 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N007 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n\\n* Stimulus\\nVinp vp 0 DC 0.9 AC 1 PULSE(0.5 1.3 10n 1n 1n 1u 2u)\\n\\n.control\\n  * 1. AC Analysis for Open-Loop Gain, fun, PM\\n  * The 10uF/100Meg feedback network keeps DC bias stable while allowing open-loop AC measurement.\\n  ac dec 100 1 1G\\n  let gain_db = vdb(vout)\\n  let phase = 180/PI * cph(v(vout))\\n  meas ac A_OL_dB find gain_db at=1\\n  meas ac f_un when gain_db=0 fall=1\\n  meas ac phase_at_fun find phase when gain_db=0 fall=1\\n  let PM = phase_at_fun + 180\\n  print A_OL_dB f_un PM\\n\\n  * 2. Transient Analysis for Slew Rate\\n  * Convert to unity-gain buffer by altering feedback components\\n  alter c1 1e-15\\n  alter r1 1\\n  tran 1n 2u\\n  meas tran v_max max v(vout)\\n  meas tran v_min min v(vout)\\n  meas tran t_rise1 trig v(vout) val=0.7 rise=1 targ v(vout) val=1.1 rise=1\\n  let SR_rise = 0.4 / t_rise1\\n  meas tran t_fall1 trig v(vout) val=1.1 fall=1 targ v(vout) val=0.7 fall=1\\n  let SR_fall = 0.4 / t_fall1\\n  print SR_rise SR_fall\\n\\n  * 3. PSRR+\\n  * Restore feedback for open-loop AC\\n  alter c1 1e-5\\n  alter r1 100e6\\n  * Move AC source to VDD\\n  alter @Vinp[ac] = 0\\n  alter @VDD[ac] = 1\\n  ac dec 100 1 1G\\n  let Avdd_db = vdb(vout)\\n  meas ac Avdd_DC find Avdd_db at=1\\n  let PSRR_plus = A_OL_dB - Avdd_DC\\n  print PSRR_plus\\n\\n  quit\\n.endc\\n\"\n  }\n}\n```"
+}

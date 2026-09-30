@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "6T SRAM Cell / D-Latch",
+    "description": "A standard 6-transistor cross-coupled inverter latch with two NMOS access transistors. It serves as the baseline standard latch for comparing soft-error rate (SER) tolerance, energy, and area penalties against a proposed SER-tolerant design.",
+    "node_mapping": {
+      "input": [
+        "D",
+        "D_PRIME",
+        "CK"
+      ],
+      "output": [
+        "X0",
+        "X1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Measurements and Analysis of SER-Tolerant Latch in a 90-nm Dual-VT CMOS Process",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "delay_write_1": {
+      "description": "Delay from clock rising edge to internal node X0 rising to 50% VDD (Write 1 operation)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "No speed degradation reported",
+        "technology": "90-nm"
+      },
+      "sky130_expected": {
+        "calculation": "C_load at X0 is approx 100fF. I_on for W=5u NMOS is approx 2.5mA. Delay \u2248 C_load * (VDD/2) / I_on = 100fF * 0.9V / 2.5mA = 36ps.",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "The transistors are very wide (W=5u) for a standard cell, leading to high drive strength and very low delay."
+      },
+      "importance": "essential"
+    },
+    "delay_write_0": {
+      "description": "Delay from clock rising edge to internal node X0 falling to 50% VDD (Write 0 operation)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "No speed degradation reported",
+        "technology": "90-nm"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to write 1, pulling down X0 through the access NMOS. Delay \u2248 36ps.",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Symmetric operation to write 1, dominated by the strong NMOS access transistor."
+      },
+      "importance": "essential"
+    },
+    "avg_power": {
+      "description": "Average power consumption during write operations at 100MHz",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "39% energy penalty (relative)",
+        "technology": "90-nm"
+      },
+      "sky130_expected": {
+        "calculation": "P_dyn = f * C * V^2 = 100MHz * 200fF * (1.8V)^2 = 64uW. Adding short-circuit power yields ~100uW.",
+        "range": {
+          "min": "50u",
+          "typical": "100u",
+          "max": "200u",
+          "unit": "W"
+        },
+        "reasoning": "Dynamic power dominates at 100MHz. The paper reports a 39% energy penalty for the SER-tolerant version, making baseline energy/power a critical metric."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure write delays and average power consumption of the latch.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_write_1",
+      "delay_write_0",
+      "avg_power"
+    ],
+    "spice": "* SER-Tolerant Latch Baseline (6T Latch)\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 X0 X1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 X1 X0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 X0 X1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 X1 X0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 X0 CK D GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 D_PRIME CK X1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\nVVDD VDD 0 1.8\nVGND GND 0 0\n\n* Stimuli\nVD D 0 PWL(0 1.8 4.9n 1.8 5n 0 10n 0)\nVD_PRIME D_PRIME 0 PWL(0 0 4.9n 0 5n 1.8 10n 1.8)\nVCK CK 0 PWL(0 0 0.9n 0 1n 1.8 3n 1.8 3.1n 0 5.9n 0 6n 1.8 8n 1.8 8.1n 0 10n 0)\n\n* Initialize nodes to avoid metastability\n.ic v(X0)=0 v(X1)=1.8\n\n.control\ntran 10p 10n\n\n* Measure write 1 delay (CK rise to X0 rise)\nmeas tran delay_write_1 trig v(CK) val=0.9 rise=1 targ v(X0) val=0.9 rise=1\n\n* Measure write 0 delay (CK rise to X0 fall)\nmeas tran delay_write_0 trig v(CK) val=0.9 rise=2 targ v(X0) val=0.9 fall=1\n\n* Measure average power\nlet power = -i(VVDD)*1.8\nmeas tran avg_power avg power from=0 to=10n\n\nprint delay_write_1 delay_write_0 avg_power\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"6T SRAM Cell / D-Latch\",\n    \"description\": \"A standard 6-transistor cross-coupled inverter latch with two NMOS access transistors. It serves as the baseline standard latch for comparing soft-error rate (SER) tolerance, energy, and area penalties against a proposed SER-tolerant design.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"D\",\n        \"D_PRIME\",\n        \"CK\"\n      ],\n      \"output\": [\n        \"X0\",\n        \"X1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Measurements and Analysis of SER-Tolerant Latch in a 90-nm Dual-VT CMOS Process\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"delay_write_1\": {\n      \"description\": \"Delay from clock rising edge to internal node X0 rising to 50% VDD (Write 1 operation)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"No speed degradation reported\",\n        \"technology\": \"90-nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C_load at X0 is approx 100fF. I_on for W=5u NMOS is approx 2.5mA. Delay \u2248 C_load * (VDD/2) / I_on = 100fF * 0.9V / 2.5mA = 36ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The transistors are very wide (W=5u) for a standard cell, leading to high drive strength and very low delay.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_write_0\": {\n      \"description\": \"Delay from clock rising edge to internal node X0 falling to 50% VDD (Write 0 operation)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"No speed degradation reported\",\n        \"technology\": \"90-nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to write 1, pulling down X0 through the access NMOS. Delay \u2248 36ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Symmetric operation to write 1, dominated by the strong NMOS access transistor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"avg_power\": {\n      \"description\": \"Average power consumption during write operations at 100MHz\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"39% energy penalty (relative)\",\n        \"technology\": \"90-nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_dyn = f * C * V^2 = 100MHz * 200fF * (1.8V)^2 = 64uW. Adding short-circuit power yields ~100uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"100u\",\n          \"max\": \"200u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dynamic power dominates at 100MHz. The paper reports a 39% energy penalty for the SER-tolerant version, making baseline energy/power a critical metric.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure write delays and average power consumption of the latch.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay_write_1\",\n      \"delay_write_0\",\n      \"avg_power\"\n    ],\n    \"spice\": \"* SER-Tolerant Latch Baseline (6T Latch)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 X0 X1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 X1 X0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 X0 X1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 X1 X0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 X0 CK D GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 D_PRIME CK X1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVVDD VDD 0 1.8\\nVGND GND 0 0\\n\\n* Stimuli\\nVD D 0 PWL(0 1.8 4.9n 1.8 5n 0 10n 0)\\nVD_PRIME D_PRIME 0 PWL(0 0 4.9n 0 5n 1.8 10n 1.8)\\nVCK CK 0 PWL(0 0 0.9n 0 1n 1.8 3n 1.8 3.1n 0 5.9n 0 6n 1.8 8n 1.8 8.1n 0 10n 0)\\n\\n* Initialize nodes to avoid metastability\\n.ic v(X0)=0 v(X1)=1.8\\n\\n.control\\ntran 10p 10n\\n\\n* Measure write 1 delay (CK rise to X0 rise)\\nmeas tran delay_write_1 trig v(CK) val=0.9 rise=1 targ v(X0) val=0.9 rise=1\\n\\n* Measure write 0 delay (CK rise to X0 fall)\\nmeas tran delay_write_0 trig v(CK) val=0.9 rise=2 targ v(X0) val=0.9 fall=1\\n\\n* Measure average power\\nlet power = -i(VVDD)*1.8\\nmeas tran avg_power avg power from=0 to=10n\\n\\nprint delay_write_1 delay_write_0 avg_power\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1327752",
+  "_case": "1327752_image_1_a"
+}

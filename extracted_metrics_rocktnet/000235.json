@@ -1,0 +1,155 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Baseband Variable Gain Amplifier (VGA) with Common-Mode Feedback (CMFB)",
+    "description": "A pseudo-differential amplifier (XM15, XM12) with triode-region source degeneration (XM8, XM9) used for gain control. It features a continuous-time common-mode feedback (CMFB) loop (XM10, XM3, XM5, XM13) that senses the output common-mode and injects correction currents via cascode transistors (XM2, XM6) to stabilize the output DC voltage.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_6",
+        "LABEL_NET_4"
+      ],
+      "output": [
+        "N3",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N5",
+        "N12",
+        "LABEL_NET_5",
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5-GHz CMOS Transceiver for IEEE 802.11a Wireless LAN Systems",
+      "figure": "Not specified",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "gain_max": {
+      "description": "Maximum differential voltage gain (when gain control voltage N12 is high).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "17 dB to 30 dB (various baseband blocks)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With N12=1.8V, XM8/XM9 are in deep triode (Rdeg ~ 260 ohm). Gm = gm / (1 + gm*Rdeg) ~ 0.6 mS. Rout = ro_p || ro_n ~ 33 kOhm. Av = Gm * Rout ~ 20 V/V = 26 dB.",
+        "range": {
+          "min": 20,
+          "typical": 26,
+          "max": 32,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on the exact output resistance of the PMOS loads and NMOS cascodes in SKY130."
+      },
+      "importance": "essential"
+    },
+    "gain_min": {
+      "description": "Minimum differential voltage gain (when gain control voltage N12 is low).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "With N12=0.6V, XM8/XM9 enter saturation, acting as current sources with high output resistance (Rdeg > 50 kOhm). Gm drops significantly, reducing gain.",
+        "range": {
+          "min": -10,
+          "typical": 5,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "VGA gain tuning range is typically >20dB for WLAN baseband circuits."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "3-dB bandwidth of the amplifier at maximum gain.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20 MHz (channel bandwidth)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rout * Cout). With Rout ~ 33 kOhm and parasitic Cout ~ 10 fF, BW ~ 480 MHz.",
+        "range": {
+          "min": 100000000.0,
+          "typical": 500000000.0,
+          "max": 1000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Without explicit load capacitors in the netlist, the bandwidth is limited only by device parasitics, which is much higher than the 10MHz baseband requirement."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption from the 1.8V supply.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "4 PMOS branches at ~150 uA each + CMFB tail at ~50 uA = 650 uA total. Power = 650 uA * 1.8 V = 1.17 mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.0012,
+          "max": 0.003,
+          "unit": "W"
+        },
+        "reasoning": "Scales with the chosen PMOS bias voltage (N5)."
+      },
+      "importance": "recommended"
+    },
+    "vout_cm": {
+      "description": "Output common-mode DC voltage regulated by the CMFB loop.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "CMFB loop settles when N2 is ~0.7V to sink the required current. XM10/XM3 need Vgs ~ 0.55V. Vout_cm = 0.7V + 0.55V = 1.25V.",
+        "range": {
+          "min": 1.0,
+          "typical": 1.25,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "The CMFB loop automatically adjusts the output DC level to balance the PMOS source currents and NMOS sink currents."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point (power, Vout_cm), AC maximum gain and bandwidth, AC minimum gain (VGA tuning), and transient response.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "gain_max",
+      "gain_min",
+      "bw_3db",
+      "power",
+      "vout_cm"
+    ],
+    "spice": "* Baseband VGA with CMFB Testbench\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm15=5u L_xm15=0.5u\n\n* DUT\nXM1 N4 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 LABEL_NET_0 N9 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N4 N3 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N9 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 LABEL_NET_1 N11 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N8 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 N12 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N10 N12 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N8 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N3 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N3 LABEL_NET_4 N10 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\nXM13 N11 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\nXM14 N2 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\nXM15 N0 LABEL_NET_6 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\n\n* DC Biases\nVVDD VDD 0 1.8\nVN5 N5 0 0.4\nVN12 N12 0 1.8\nVLABEL_NET_5 LABEL_NET_5 0 0.6\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\n\n* Inputs (DC + AC + Transient Sine)\nV_INP LABEL_NET_6 0 dc 0.9 ac 0.5 sin(0.9 0.01 10Meg)\nV_INN LABEL_NET_4 0 dc 0.9 ac -0.5 sin(0.9 -0.01 10Meg)\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  * 1. DC Operating Point\n  op\n  let vout_cm = (v(N0) + v(N3))/2\n  let power = -i(VVDD) * 1.8\n  print vout_cm power\n\n  * 2. AC Analysis (Max Gain, N12=1.8V)\n  ac dec 20 10k 10G\n  let vout_diff = v(N3) - v(N0)\n  let gain_db = 20*log10(mag(vout_diff))\n  meas ac gain_max MAX gain_db\n  meas ac bw_3db when gain_db='gain_max - 3' fall=1\n\n  * 3. AC Analysis (Min Gain, N12=0.6V)\n  alter VN12 0.6\n  ac dec 20 10k 10G\n  let vout_diff_low = v(N3) - v(N0)\n  let gain_db_low = 20*log10(mag(vout_diff_low))\n  meas ac gain_min MAX gain_db_low\n\n  * 4. Transient Analysis\n  alter VN12 1.8\n  tran 1n 200n\n  meas tran vout_max max v(N3)\n  meas tran vout_min min v(N3)\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Baseband Variable Gain Amplifier (VGA) with Common-Mode Feedback (CMFB)\",\n    \"description\": \"A pseudo-differential amplifier (XM15, XM12) with triode-region source degeneration (XM8, XM9) used for gain control. It features a continuous-time common-mode feedback (CMFB) loop (XM10, XM3, XM5, XM13) that senses the output common-mode and injects correction currents via cascode transistors (XM2, XM6) to stabilize the output DC voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_6\",\n        \"LABEL_NET_4\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N5\",\n        \"N12\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5-GHz CMOS Transceiver for IEEE 802.11a Wireless LAN Systems\",\n      \"figure\": \"Not specified\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"gain_max\": {\n      \"description\": \"Maximum differential voltage gain (when gain control voltage N12 is high).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"17 dB to 30 dB (various baseband blocks)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With N12=1.8V, XM8/XM9 are in deep triode (Rdeg ~ 260 ohm). Gm = gm / (1 + gm*Rdeg) ~ 0.6 mS. Rout = ro_p || ro_n ~ 33 kOhm. Av = Gm * Rout ~ 20 V/V = 26 dB.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 26,\n          \"max\": 32,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on the exact output resistance of the PMOS loads and NMOS cascodes in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_min\": {\n      \"description\": \"Minimum differential voltage gain (when gain control voltage N12 is low).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With N12=0.6V, XM8/XM9 enter saturation, acting as current sources with high output resistance (Rdeg > 50 kOhm). Gm drops significantly, reducing gain.\",\n        \"range\": {\n          \"min\": -10,\n          \"typical\": 5,\n          \"max\": 15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"VGA gain tuning range is typically >20dB for WLAN baseband circuits.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"3-dB bandwidth of the amplifier at maximum gain.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20 MHz (channel bandwidth)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rout * Cout). With Rout ~ 33 kOhm and parasitic Cout ~ 10 fF, BW ~ 480 MHz.\",\n        \"range\": {\n          \"min\": 100e6,\n          \"typical\": 500e6,\n          \"max\": 1e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Without explicit load capacitors in the netlist, the bandwidth is limited only by device parasitics, which is much higher than the 10MHz baseband requirement.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption from the 1.8V supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"4 PMOS branches at ~150 uA each + CMFB tail at ~50 uA = 650 uA total. Power = 650 uA * 1.8 V = 1.17 mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 1.2e-3,\n          \"max\": 3.0e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scales with the chosen PMOS bias voltage (N5).\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"vout_cm\": {\n      \"description\": \"Output common-mode DC voltage regulated by the CMFB loop.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"CMFB loop settles when N2 is ~0.7V to sink the required current. XM10/XM3 need Vgs ~ 0.55V. Vout_cm = 0.7V + 0.55V = 1.25V.\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.25,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The CMFB loop automatically adjusts the output DC level to balance the PMOS source currents and NMOS sink currents.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point (power, Vout_cm), AC maximum gain and bandwidth, AC minimum gain (VGA tuning), and transient response.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"gain_max\",\n      \"gain_min\",\n      \"bw_3db\",\n      \"power\",\n      \"vout_cm\"\n    ],\n    \"spice\": \"* Baseband VGA with CMFB Testbench\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm15=5u L_xm15=0.5u\\n\\n* DUT\\nXM1 N4 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 LABEL_NET_0 N9 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N4 N3 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N9 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 LABEL_NET_1 N11 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N8 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 N12 GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N10 N12 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N8 N0 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N3 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N3 LABEL_NET_4 N10 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 N11 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\\nXM14 N2 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14}\\nXM15 N0 LABEL_NET_6 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\\n\\n* DC Biases\\nVVDD VDD 0 1.8\\nVN5 N5 0 0.4\\nVN12 N12 0 1.8\\nVLABEL_NET_5 LABEL_NET_5 0 0.6\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\n\\n* Inputs (DC + AC + Transient Sine)\\nV_INP LABEL_NET_6 0 dc 0.9 ac 0.5 sin(0.9 0.01 10Meg)\\nV_INN LABEL_NET_4 0 dc 0.9 ac -0.5 sin(0.9 -0.01 10Meg)\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let vout_cm = (v(N0) + v(N3))/2\\n  let power = -i(VVDD) * 1.8\\n  print vout_cm power\\n\\n  * 2. AC Analysis (Max Gain, N12=1.8V)\\n  ac dec 20 10k 10G\\n  let vout_diff = v(N3) - v(N0)\\n  let gain_db = 20*log10(mag(vout_diff))\\n  meas ac gain_max MAX gain_db\\n  meas ac bw_3db when gain_db='gain_max - 3' fall=1\\n\\n  * 3. AC Analysis (Min Gain, N12=0.6V)\\n  alter VN12 0.6\\n  ac dec 20 10k 10G\\n  let vout_diff_low = v(N3) - v(N0)\\n  let gain_db_low = 20*log10(mag(vout_diff_low))\\n  meas ac gain_min MAX gain_db_low\\n\\n  * 4. Transient Analysis\\n  alter VN12 1.8\\n  tran 1n 200n\\n  meas tran vout_max max v(N3)\\n  meas tran vout_min min v(N3)\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1088096",
+  "_case": "1088096_image_10"
+}

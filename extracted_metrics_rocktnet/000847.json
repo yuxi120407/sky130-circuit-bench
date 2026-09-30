@@ -1,0 +1,167 @@
+{
+  "step1_analysis": {
+    "circuit_type": "NMOS Switch / Inductive Load Driver",
+    "description": "A single NMOS transistor acting as a low-side switch for an inductive load. The active feedback clamping circuit described in the paper is not present in this extracted netlist, leaving only the core driver transistor.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "N0",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Novel Active Feedback Flyback With Only 100-mV Inductive Overshoot for a Standard Low-Voltage CMOS Inductive Load Driver, in a Single-Chip Controller for 73 Relays in a POTS/ADSL",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "rdson": {
+      "description": "On-resistance of the NMOS switch",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Rds(on) = 1 / (u_n * C_ox * (W/L) * (Vgs - Vth)). With W=5u, L=0.5u, Vgs=1.8V, Vth=0.42V, u_n*C_ox=270uA/V^2, Rds(on) ~= 1 / (270e-6 * 10 * 1.38) ~= 268 ohms.",
+        "range": {
+          "min": 200,
+          "typical": 268,
+          "max": 400,
+          "unit": "ohm"
+        },
+        "reasoning": "Standard calculation for linear region operation."
+      },
+      "importance": "essential"
+    },
+    "vth": {
+      "description": "Threshold voltage of the NMOS",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Standard threshold voltage for sky130 1.8V NMOS.",
+        "range": {
+          "min": 0.3,
+          "typical": 0.42,
+          "max": 0.6,
+          "unit": "V"
+        },
+        "reasoning": "Process parameter."
+      },
+      "importance": "essential"
+    },
+    "ioff": {
+      "description": "Off-state leakage current",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Subthreshold leakage at Vgs=0V.",
+        "range": {
+          "min": 1e-12,
+          "typical": 1e-11,
+          "max": 1e-09,
+          "unit": "A"
+        },
+        "reasoning": "Typical leakage for a small W/L NMOS in 130nm."
+      },
+      "importance": "essential"
+    },
+    "inductive_overshoot": {
+      "description": "Voltage overshoot at the drain when switching off an inductive load",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 mV",
+        "technology": "Standard low-voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "V"
+        },
+        "reasoning": "The active feedback clamping circuit is missing from the extracted netlist, so this metric cannot be measured here. An unclamped inductor would cause a massive voltage spike."
+      },
+      "importance": "essential"
+    },
+    "supply_voltage": {
+      "description": "Nominal supply voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "5.5 V",
+        "technology": "Standard low-voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": 1.7,
+          "typical": 1.8,
+          "max": 1.9,
+          "unit": "V"
+        },
+        "reasoning": "Adapted to SKY130 standard 1.8V devices."
+      },
+      "importance": "recommended"
+    },
+    "efficiency": {
+      "description": "Power efficiency of the driver",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10%",
+        "technology": "Standard low-voltage CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "%"
+        },
+        "reasoning": "Cannot be measured without the full system and load."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC characteristics (Vth, Rdson, Ioff) and transient switching times of the NMOS switch.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "rdson",
+      "vth",
+      "ioff",
+      "t_on",
+      "t_off"
+    ],
+    "spice": "* NMOS Switch Testbench\n.param W_xm1=5u L_xm1=0.5u\n\nXM1 N1 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* Sources\nVGS LABEL_NET_0 0 DC 0 PULSE(0 1.8 1n 1n 1n 10u 20u)\nVVDD VDD 0 1.8\nRload VDD N1 1k\nVN0 N0 0 0\nVGND GND 0 0\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n* 1. DC Sweep for Vth and Rdson\ndc VGS 0 1.8 0.01\nlet id = -i(VVDD)\nlet rdson = v(N1) / id\nmeas dc vth find v(LABEL_NET_0) when id=1u\nmeas dc ioff find id at=0\nmeas dc rdson_val find rdson at=1.8\n\n* 2. Transient for switching times\ntran 10n 20u\nmeas tran t_on trig v(LABEL_NET_0) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\nmeas tran t_off trig v(LABEL_NET_0) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\n\nprint vth ioff rdson_val t_on t_off\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"NMOS Switch / Inductive Load Driver\",\n    \"description\": \"A single NMOS transistor acting as a low-side switch for an inductive load. The active feedback clamping circuit described in the paper is not present in this extracted netlist, leaving only the core driver transistor.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\"\n      ],\n      \"output\": [\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"N0\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Novel Active Feedback Flyback With Only 100-mV Inductive Overshoot for a Standard Low-Voltage CMOS Inductive Load Driver, in a Single-Chip Controller for 73 Relays in a POTS/ADSL\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"rdson\": {\n      \"description\": \"On-resistance of the NMOS switch\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rds(on) = 1 / (u_n * C_ox * (W/L) * (Vgs - Vth)). With W=5u, L=0.5u, Vgs=1.8V, Vth=0.42V, u_n*C_ox=270uA/V^2, Rds(on) ~= 1 / (270e-6 * 10 * 1.38) ~= 268 ohms.\",\n        \"range\": {\n          \"min\": 200,\n          \"typical\": 268,\n          \"max\": 400,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Standard calculation for linear region operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"vth\": {\n      \"description\": \"Threshold voltage of the NMOS\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Standard threshold voltage for sky130 1.8V NMOS.\",\n        \"range\": {\n          \"min\": 0.3,\n          \"typical\": 0.42,\n          \"max\": 0.6,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Process parameter.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"ioff\": {\n      \"description\": \"Off-state leakage current\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Subthreshold leakage at Vgs=0V.\",\n        \"range\": {\n          \"min\": 1e-12,\n          \"typical\": 1e-11,\n          \"max\": 1e-09,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Typical leakage for a small W/L NMOS in 130nm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"inductive_overshoot\": {\n      \"description\": \"Voltage overshoot at the drain when switching off an inductive load\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 mV\",\n        \"technology\": \"Standard low-voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The active feedback clamping circuit is missing from the extracted netlist, so this metric cannot be measured here. An unclamped inductor would cause a massive voltage spike.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"supply_voltage\": {\n      \"description\": \"Nominal supply voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"5.5 V\",\n        \"technology\": \"Standard low-voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": 1.7,\n          \"typical\": 1.8,\n          \"max\": 1.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Adapted to SKY130 standard 1.8V devices.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"efficiency\": {\n      \"description\": \"Power efficiency of the driver\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10%\",\n        \"technology\": \"Standard low-voltage CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Cannot be measured without the full system and load.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC characteristics (Vth, Rdson, Ioff) and transient switching times of the NMOS switch.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"rdson\",\n      \"vth\",\n      \"ioff\",\n      \"t_on\",\n      \"t_off\"\n    ],\n    \"spice\": \"* NMOS Switch Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM1 N1 LABEL_NET_0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Sources\\nVGS LABEL_NET_0 0 DC 0 PULSE(0 1.8 1n 1n 1n 10u 20u)\\nVVDD VDD 0 1.8\\nRload VDD N1 1k\\nVN0 N0 0 0\\nVGND GND 0 0\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n* 1. DC Sweep for Vth and Rdson\\ndc VGS 0 1.8 0.01\\nlet id = -i(VVDD)\\nlet rdson = v(N1) / id\\nmeas dc vth find v(LABEL_NET_0) when id=1u\\nmeas dc ioff find id at=0\\nmeas dc rdson_val find rdson at=1.8\\n\\n* 2. Transient for switching times\\ntran 10n 20u\\nmeas tran t_on trig v(LABEL_NET_0) val=0.9 rise=1 targ v(N1) val=0.9 fall=1\\nmeas tran t_off trig v(LABEL_NET_0) val=0.9 fall=1 targ v(N1) val=0.9 rise=1\\n\\nprint vth ioff rdson_val t_on t_off\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1458999",
+  "_case": "1458999_image_2_b"
+}

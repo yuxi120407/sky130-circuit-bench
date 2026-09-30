@@ -1,0 +1,104 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Colpitts Oscillator (Subcircuit)",
+    "description": "A single-transistor Colpitts oscillator subcircuit. In the context of the paper, three of these identical subcircuits are coupled together with a 120-degree phase shift to form a triple-push oscillator, which combines the third harmonic at the output while canceling the fundamental and second harmonics.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "RF_Output"
+      ],
+      "supply": [
+        "Vcc"
+      ],
+      "bias": [
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Triple-Push Oscillator Approach: Theory and Experiments",
+      "figure": "unspecified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "f_osc": {
+      "description": "Fundamental oscillation frequency of the subcircuit.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "4.9 GHz / 28.4 GHz",
+        "technology": "BJT / HBT MMIC"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the LC tank resonance: f = 1 / (2 * pi * sqrt(L1 * C_eq)), where C_eq = (C1*C2)/(C1+C2). For L1=1nH and C1=C2=2pF, C_eq=1pF, yielding f_osc \u2248 5.03 GHz.",
+        "range": {
+          "min": "4.5G",
+          "typical": "5.0G",
+          "max": "5.5G",
+          "unit": "Hz"
+        },
+        "reasoning": "Targeted to match the 4.9 GHz BJT implementation from the paper using standard SKY130 passives."
+      },
+      "importance": "essential"
+    },
+    "P_out": {
+      "description": "Output power delivered to a 50-ohm load at the fundamental frequency.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.0 dBm",
+        "technology": "BJT"
+      },
+      "sky130_expected": {
+        "calculation": "P_out (dBm) = 10 * log10( (V_pk^2 / (2 * R_load)) / 1mW ). Assuming a voltage swing of ~0.6V peak across a 50-ohm load, P_out \u2248 10 * log10(3.6mW / 1mW) \u2248 5.5 dBm.",
+        "range": {
+          "min": "-5",
+          "typical": "1.0",
+          "max": "10",
+          "unit": "dBm"
+        },
+        "reasoning": "Depends heavily on the bias current and transistor sizing. Expected to be in the low single-digit dBm range, similar to the paper's 1.0 dBm."
+      },
+      "importance": "essential"
+    },
+    "P_DC": {
+      "description": "DC power consumption of the oscillator.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Not explicitly listed, but implied by typical RF oscillator efficiency.",
+        "technology": "BJT"
+      },
+      "sky130_expected": {
+        "calculation": "P_DC = VDD * I_DC. With VDD=1.8V and an estimated bias current of 5-10mA, P_DC \u2248 9-18mW.",
+        "range": {
+          "min": "5m",
+          "typical": "15m",
+          "max": "30m",
+          "unit": "W"
+        },
+        "reasoning": "Standard power consumption for a single-stage 5GHz LC oscillator in 130nm CMOS."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify oscillation startup, measure the fundamental frequency, calculate output power in dBm, and determine DC power consumption.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "f_osc",
+      "P_out",
+      "P_DC"
+    ],
+    "spice": "* Triple-Push Oscillator Subcircuit (Colpitts)\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param VDD=1.8\n.param L_val=1n\n.param C1_val=2p\n.param C2_val=2p\n.param W_m1=50u\n.param L_m1=0.15u\n\n* Supply and Bias\nV1 Vcc GND {VDD}\nRB1 Vcc N3 8k\nRB2 N3 GND 10k\n\n* LC Tank and Transistor (Replaced NPN with SKY130 NMOS)\nL1 N0 Vcc {L_val}\nC1 N0 N1 {C1_val}\nC2 N1 GND {C2_val}\nM1 N0 N3 N1 GND sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\n\n* Emitter/Source Degeneration and Bypass\nRE N1 GND 200\nCB N3 GND 10p\n\n* Output Coupling and Load\nC3 N0 N4 1p\nR4 N4 RF_Output 50\nRload RF_Output GND 50\n\n* Initial condition to kickstart oscillation\n.ic v(N0)=0\n\n.control\n* Transient analysis for oscillation\ntran 5p 20n\n\n* Measure Oscillation Frequency (f_osc)\nmeas tran t_period trig v(RF_Output) val=0 rise=10 targ v(RF_Output) val=0 rise=11\nlet f_osc = 1 / t_period\nprint f_osc\n\n* Measure Output Power (P_out in dBm)\nmeas tran v_max max v(RF_Output) from=10n to=20n\nmeas tran v_min min v(RF_Output) from=10n to=20n\nlet v_pk = (v_max - v_min) / 2\nlet p_out_w = (v_pk * v_pk) / (2 * 50)\nlet p_out_dbm = 10 * log10(p_out_w / 1e-3)\nprint p_out_dbm\n\n* Measure DC Power Consumption (P_DC)\nop\nlet p_dc = -i(V1) * {VDD}\nprint p_dc\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Colpitts Oscillator (Subcircuit)\",\n    \"description\": \"A single-transistor Colpitts oscillator subcircuit. In the context of the paper, three of these identical subcircuits are coupled together with a 120-degree phase shift to form a triple-push oscillator, which combines the third harmonic at the output while canceling the fundamental and second harmonics.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"RF_Output\"],\n      \"supply\": [\"Vcc\"],\n      \"bias\": [\"N3\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Triple-Push Oscillator Approach: Theory and Experiments\",\n      \"figure\": \"unspecified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"f_osc\": {\n      \"description\": \"Fundamental oscillation frequency of the subcircuit.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"4.9 GHz / 28.4 GHz\",\n        \"technology\": \"BJT / HBT MMIC\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the LC tank resonance: f = 1 / (2 * pi * sqrt(L1 * C_eq)), where C_eq = (C1*C2)/(C1+C2). For L1=1nH and C1=C2=2pF, C_eq=1pF, yielding f_osc \u2248 5.03 GHz.\",\n        \"range\": {\n          \"min\": \"4.5G\",\n          \"typical\": \"5.0G\",\n          \"max\": \"5.5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Targeted to match the 4.9 GHz BJT implementation from the paper using standard SKY130 passives.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"P_out\": {\n      \"description\": \"Output power delivered to a 50-ohm load at the fundamental frequency.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.0 dBm\",\n        \"technology\": \"BJT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_out (dBm) = 10 * log10( (V_pk^2 / (2 * R_load)) / 1mW ). Assuming a voltage swing of ~0.6V peak across a 50-ohm load, P_out \u2248 10 * log10(3.6mW / 1mW) \u2248 5.5 dBm.\",\n        \"range\": {\n          \"min\": \"-5\",\n          \"typical\": \"1.0\",\n          \"max\": \"10\",\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Depends heavily on the bias current and transistor sizing. Expected to be in the low single-digit dBm range, similar to the paper's 1.0 dBm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"P_DC\": {\n      \"description\": \"DC power consumption of the oscillator.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed, but implied by typical RF oscillator efficiency.\",\n        \"technology\": \"BJT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P_DC = VDD * I_DC. With VDD=1.8V and an estimated bias current of 5-10mA, P_DC \u2248 9-18mW.\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"15m\",\n          \"max\": \"30m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Standard power consumption for a single-stage 5GHz LC oscillator in 130nm CMOS.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify oscillation startup, measure the fundamental frequency, calculate output power in dBm, and determine DC power consumption.\",\n    \"analyses\": [\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"f_osc\",\n      \"P_out\",\n      \"P_DC\"\n    ],\n    \"spice\": \"* Triple-Push Oscillator Subcircuit (Colpitts)\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param VDD=1.8\\n.param L_val=1n\\n.param C1_val=2p\\n.param C2_val=2p\\n.param W_m1=50u\\n.param L_m1=0.15u\\n\\n* Supply and Bias\\nV1 Vcc GND {VDD}\\nRB1 Vcc N3 8k\\nRB2 N3 GND 10k\\n\\n* LC Tank and Transistor (Replaced NPN with SKY130 NMOS)\\nL1 N0 Vcc {L_val}\\nC1 N0 N1 {C1_val}\\nC2 N1 GND {C2_val}\\nM1 N0 N3 N1 GND sky130_fd_pr__nfet_01v8 w={W_m1} l={L_m1}\\n\\n* Emitter/Source Degeneration and Bypass\\nRE N1 GND 200\\nCB N3 GND 10p\\n\\n* Output Coupling and Load\\nC3 N0 N4 1p\\nR4 N4 RF_Output 50\\nRload RF_Output GND 50\\n\\n* Initial condition to kickstart oscillation\\n.ic v(N0)=0\\n\\n.control\\n* Transient analysis for oscillation\\ntran 5p 20n\\n\\n* Measure Oscillation Frequency (f_osc)\\nmeas tran t_period trig v(RF_Output) val=0 rise=10 targ v(RF_Output) val=0 rise=11\\nlet f_osc = 1 / t_period\\nprint f_osc\\n\\n* Measure Output Power (P_out in dBm)\\nmeas tran v_max max v(RF_Output) from=10n to=20n\\nmeas tran v_min min v(RF_Output) from=10n to=20n\\nlet v_pk = (v_max - v_min) / 2\\nlet p_out_w = (v_pk * v_pk) / (2 * 50)\\nlet p_out_dbm = 10 * log10(p_out_w / 1e-3)\\nprint p_out_dbm\\n\\n* Measure DC Power Consumption (P_DC)\\nop\\nlet p_dc = -i(V1) * {VDD}\\nprint p_dc\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "953475",
+  "_case": "953475_image_4"
+}

@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Tuned Differential Amplifier / LO Buffer",
+    "description": "A differential amplifier with an LC tuned load and source-follower output buffers, used to amplify and buffer the local oscillator (LO) signal at 17 GHz.",
+    "node_mapping": {
+      "input": [
+        "IN_PLUS",
+        "IN_MINUS"
+      ],
+      "output": [
+        "LO_PLUS",
+        "LO_MINUS"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "IBIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 17.1\u201317.3-GHz Image-Reject Downconverter Subharmonic With Phase-Tunable LO Using 3 Injection Locking",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the buffer stage",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "62.5 mW (entire receiver)",
+        "technology": "100-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "4 current branches (bias, diff pair tail, 2x EF tails). Vbias=0.75V, Vth=0.42V, Rdeg=50 ohm -> I_branch ~ 3mA. Total I ~ 12mA. Power = 1.8V * 12mA = 21.6mW.",
+        "range": {
+          "min": "15m",
+          "typical": "20m",
+          "max": "30m",
+          "unit": "W"
+        },
+        "reasoning": "Depends on exact Vth and Rdeg, but expected to be a fraction of the total receiver power."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Differential voltage gain at the resonant frequency (17 GHz)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "17.3 dB (entire receiver conversion gain)",
+        "technology": "100-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/Vov ~ 15mS. Rload = 200 ohm. Gain = gm * Rload * EF_gain = 15m * 200 * 0.8 = 2.4 V/V = 7.6 dB.",
+        "range": {
+          "min": "5",
+          "typical": "8",
+          "max": "12",
+          "unit": "dB"
+        },
+        "reasoning": "Gain is determined by the LC tank's parallel resistance at resonance and the diff pair transconductance."
+      },
+      "importance": "essential"
+    },
+    "center_frequency": {
+      "description": "Frequency of maximum gain (LC resonance)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "17.2 GHz",
+        "technology": "100-GHz SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). With L=1.75nH and C_parasitic+C_load ~ 50fF, f ~ 17 GHz.",
+        "range": {
+          "min": "16G",
+          "typical": "17G",
+          "max": "18G",
+          "unit": "Hz"
+        },
+        "reasoning": "The circuit is designed to operate at the LO frequency of 17 GHz."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain profile, and transient output swing of the 17GHz tuned LO buffer.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "center_frequency"
+    ],
+    "spice": "* 17GHz Tuned LO Buffer Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_diff=20 L_diff=0.15\n.param W_tail=20 L_tail=0.15\n.param W_ef=10 L_ef=0.15\n.param R_load=200 L_load=1.75n\n.param R_deg=50\n\nVCC VCC 0 DC 1.8\nVIN_MINUS IN_MINUS 0 DC 0.9 AC 0.5 180 SIN(0.9 0.1 17G 0 0)\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 0.5 0 SIN(0.9 0.1 17G 0 0)\nVIBIAS IBIAS 0 DC 0.75\n\n* Modified DUT: NPNs replaced with SKY130 NMOS\nR1 VCC N1 {R_load}\nR2 VCC N2 {R_load}\nR3 N4 0 {R_deg}\nR4 N5 0 {R_deg}\nR5 N6 0 {R_deg}\nR6 N7 0 {R_deg}\nL1 VCC N1 {L_load}\nL2 VCC N2 {L_load}\n\nXM11 N1 IN_MINUS N3 0 sky130_fd_pr__nfet_01v8 w={W_diff} l={L_diff}\nXM12 N2 IN_PLUS N3 0 sky130_fd_pr__nfet_01v8 w={W_diff} l={L_diff}\nXM13 IBIAS IBIAS N7 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nXM14 LO_PLUS IBIAS N4 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nXM15 N3 IBIAS N5 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nXM16 LO_MINUS IBIAS N6 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\nXM17 VCC N1 LO_PLUS 0 sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\nXM28 VCC N2 LO_MINUS 0 sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\n\n* Load capacitance to simulate next stage\nC1 LO_PLUS 0 50f\nC2 LO_MINUS 0 50f\n\n.control\nop\nlet power = -i(VCC) * 1.8\nprint power\nmeas dc power_mw param power*1000\n\nac dec 40 1G 100G\nlet vout_diff = v(LO_PLUS) - v(LO_MINUS)\nlet gain_db = 20*log10(mag(vout_diff))\nlet phase_diff = 180/PI * (cph(v(LO_PLUS)) - cph(v(LO_MINUS)))\n\nmeas ac max_gain MAX gain_db\nmeas ac gain_17g FIND gain_db AT=17G\nmeas ac phase_17g FIND phase_diff AT=17G\n\ntran 1p 200p\nmeas tran vpp_out_plus PP v(LO_PLUS)\nmeas tran vpp_out_minus PP v(LO_MINUS)\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Tuned Differential Amplifier / LO Buffer\",\n    \"description\": \"A differential amplifier with an LC tuned load and source-follower output buffers, used to amplify and buffer the local oscillator (LO) signal at 17 GHz.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN_PLUS\",\n        \"IN_MINUS\"\n      ],\n      \"output\": [\n        \"LO_PLUS\",\n        \"LO_MINUS\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"IBIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 17.1\u201317.3-GHz Image-Reject Downconverter Subharmonic With Phase-Tunable LO Using 3 Injection Locking\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the buffer stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"62.5 mW (entire receiver)\",\n        \"technology\": \"100-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"4 current branches (bias, diff pair tail, 2x EF tails). Vbias=0.75V, Vth=0.42V, Rdeg=50 ohm -> I_branch ~ 3mA. Total I ~ 12mA. Power = 1.8V * 12mA = 21.6mW.\",\n        \"range\": {\n          \"min\": \"15m\",\n          \"typical\": \"20m\",\n          \"max\": \"30m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on exact Vth and Rdeg, but expected to be a fraction of the total receiver power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Differential voltage gain at the resonant frequency (17 GHz)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"17.3 dB (entire receiver conversion gain)\",\n        \"technology\": \"100-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/Vov ~ 15mS. Rload = 200 ohm. Gain = gm * Rload * EF_gain = 15m * 200 * 0.8 = 2.4 V/V = 7.6 dB.\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"8\",\n          \"max\": \"12\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain is determined by the LC tank's parallel resistance at resonance and the diff pair transconductance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"center_frequency\": {\n      \"description\": \"Frequency of maximum gain (LC resonance)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"17.2 GHz\",\n        \"technology\": \"100-GHz SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). With L=1.75nH and C_parasitic+C_load ~ 50fF, f ~ 17 GHz.\",\n        \"range\": {\n          \"min\": \"16G\",\n          \"typical\": \"17G\",\n          \"max\": \"18G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The circuit is designed to operate at the LO frequency of 17 GHz.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain profile, and transient output swing of the 17GHz tuned LO buffer.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"center_frequency\"\n    ],\n    \"spice\": \"* 17GHz Tuned LO Buffer Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_diff=20 L_diff=0.15\\n.param W_tail=20 L_tail=0.15\\n.param W_ef=10 L_ef=0.15\\n.param R_load=200 L_load=1.75n\\n.param R_deg=50\\n\\nVCC VCC 0 DC 1.8\\nVIN_MINUS IN_MINUS 0 DC 0.9 AC 0.5 180 SIN(0.9 0.1 17G 0 0)\\nVIN_PLUS IN_PLUS 0 DC 0.9 AC 0.5 0 SIN(0.9 0.1 17G 0 0)\\nVIBIAS IBIAS 0 DC 0.75\\n\\n* Modified DUT: NPNs replaced with SKY130 NMOS\\nR1 VCC N1 {R_load}\\nR2 VCC N2 {R_load}\\nR3 N4 0 {R_deg}\\nR4 N5 0 {R_deg}\\nR5 N6 0 {R_deg}\\nR6 N7 0 {R_deg}\\nL1 VCC N1 {L_load}\\nL2 VCC N2 {L_load}\\n\\nXM11 N1 IN_MINUS N3 0 sky130_fd_pr__nfet_01v8 w={W_diff} l={L_diff}\\nXM12 N2 IN_PLUS N3 0 sky130_fd_pr__nfet_01v8 w={W_diff} l={L_diff}\\nXM13 IBIAS IBIAS N7 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nXM14 LO_PLUS IBIAS N4 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nXM15 N3 IBIAS N5 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nXM16 LO_MINUS IBIAS N6 0 sky130_fd_pr__nfet_01v8 w={W_tail} l={L_tail}\\nXM17 VCC N1 LO_PLUS 0 sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\\nXM28 VCC N2 LO_MINUS 0 sky130_fd_pr__nfet_01v8 w={W_ef} l={L_ef}\\n\\n* Load capacitance to simulate next stage\\nC1 LO_PLUS 0 50f\\nC2 LO_MINUS 0 50f\\n\\n.control\\nop\\nlet power = -i(VCC) * 1.8\\nprint power\\nmeas dc power_mw param power*1000\\n\\nac dec 40 1G 100G\\nlet vout_diff = v(LO_PLUS) - v(LO_MINUS)\\nlet gain_db = 20*log10(mag(vout_diff))\\nlet phase_diff = 180/PI * (cph(v(LO_PLUS)) - cph(v(LO_MINUS)))\\n\\nmeas ac max_gain MAX gain_db\\nmeas ac gain_17g FIND gain_db AT=17G\\nmeas ac phase_17g FIND phase_diff AT=17G\\n\\ntran 1p 200p\\nmeas tran vpp_out_plus PP v(LO_PLUS)\\nmeas tran vpp_out_minus PP v(LO_MINUS)\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1362840",
+  "_case": "1362840_image_14"
+}

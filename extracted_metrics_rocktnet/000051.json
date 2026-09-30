@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Pseudo-differential delay cell",
+    "description": "A differential delay cell typically used in a Voltage-Controlled Delay Line (VCDL) for a Delay-Locked Loop (DLL). It features a cross-coupled PMOS pair for fast transitions and full output swing, along with tunable PMOS loads controlled by a bias voltage to adjust the propagation delay.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "output": [
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 500-Mb/s Quadruple Data Rate SDRAM Interface Using a Skew Cancellation Technique",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "propagation_delay": {
+      "description": "Average time delay between the differential input transitions and the corresponding output transitions.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "250 ps (skew)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay \u2248 C_load * VDD / I_avg. With C_load \u2248 50fF (parasitics + load) and I_avg \u2248 1mA, Delay \u2248 50fF * 1.8V / 1mA = 90ps.",
+        "range": {
+          "min": "50p",
+          "typical": "100p",
+          "max": "300p",
+          "unit": "s"
+        },
+        "reasoning": "SKY130 (130nm) is significantly faster than the original 0.35um process, so the intrinsic delay of a single cell will be shorter than the 250ps skew reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumption of the delay cell during continuous switching.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "570 mW (entire interface)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_avg. I_avg \u2248 0.5mA to 1mA. P \u2248 1.8V * 0.75mA = 1.35mW.",
+        "range": {
+          "min": "0.5m",
+          "typical": "1.5m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "The 570 mW reported is for the entire SDRAM interface. A single delay cell consumes a very small fraction of that total power."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak voltage swing of the output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.8 V",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The cross-coupled PMOS pulls the high node to VDD (1.8V), and the NMOS pulls the low node to GND (0V).",
+        "range": {
+          "min": "1.6",
+          "typical": "1.8",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "The cross-coupled PMOS load ensures near rail-to-rail swing, overcoming the threshold voltage drops seen in purely diode-connected loads."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures propagation delay, output voltage swing, and average power consumption of the differential delay cell under a 250 MHz (500 Mb/s) differential input stimulus.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "propagation_delay",
+      "output_swing",
+      "power_consumption"
+    ],
+    "spice": "* Testbench for Differential Delay Cell\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM1 N0 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\n\nVVDD VDD 0 1.8\nVN2 N2 0 0.9\nVIN_P LABEL_NET_0 0 PULSE(0 1.8 0 100p 100p 1.9n 4n)\nVIN_N LABEL_NET_1 0 PULSE(1.8 0 0 100p 100p 1.9n 4n)\n\nC0 N0 0 50f\nC1 N1 0 50f\n\n.control\ntran 10p 20n\n\n* Measure propagation delay\nmeas tran delay_fall trig v(LABEL_NET_0) val=0.9 rise=2 targ v(N0) val=0.9 fall=2\nmeas tran delay_rise trig v(LABEL_NET_0) val=0.9 fall=2 targ v(N0) val=0.9 rise=2\nlet tpd = (delay_fall + delay_rise) / 2\nprint tpd\n\n* Measure output voltage swing\nmeas tran v_max max v(N0)\nmeas tran v_min min v(N0)\nlet v_swing = v_max - v_min\nprint v_swing\n\n* Measure average power consumption\nmeas tran power_avg avg i(VVDD) from=4n to=16n\nlet power_mw = -power_avg * 1.8 * 1000\nprint power_mw\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Pseudo-differential delay cell\",\n    \"description\": \"A differential delay cell typically used in a Voltage-Controlled Delay Line (VCDL) for a Delay-Locked Loop (DLL). It features a cross-coupled PMOS pair for fast transitions and full output swing, along with tunable PMOS loads controlled by a bias voltage to adjust the propagation delay.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 500-Mb/s Quadruple Data Rate SDRAM Interface Using a Skew Cancellation Technique\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"propagation_delay\": {\n      \"description\": \"Average time delay between the differential input transitions and the corresponding output transitions.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"250 ps (skew)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay \u2248 C_load * VDD / I_avg. With C_load \u2248 50fF (parasitics + load) and I_avg \u2248 1mA, Delay \u2248 50fF * 1.8V / 1mA = 90ps.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"100p\",\n          \"max\": \"300p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"SKY130 (130nm) is significantly faster than the original 0.35um process, so the intrinsic delay of a single cell will be shorter than the 250ps skew reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumption of the delay cell during continuous switching.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"570 mW (entire interface)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_avg. I_avg \u2248 0.5mA to 1mA. P \u2248 1.8V * 0.75mA = 1.35mW.\",\n        \"range\": {\n          \"min\": \"0.5m\",\n          \"typical\": \"1.5m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 570 mW reported is for the entire SDRAM interface. A single delay cell consumes a very small fraction of that total power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.8 V\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The cross-coupled PMOS pulls the high node to VDD (1.8V), and the NMOS pulls the low node to GND (0V).\",\n        \"range\": {\n          \"min\": \"1.6\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The cross-coupled PMOS load ensures near rail-to-rail swing, overcoming the threshold voltage drops seen in purely diode-connected loads.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures propagation delay, output voltage swing, and average power consumption of the differential delay cell under a 250 MHz (500 Mb/s) differential input stimulus.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"propagation_delay\",\n      \"output_swing\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Testbench for Differential Delay Cell\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM1 N0 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVVDD VDD 0 1.8\\nVN2 N2 0 0.9\\nVIN_P LABEL_NET_0 0 PULSE(0 1.8 0 100p 100p 1.9n 4n)\\nVIN_N LABEL_NET_1 0 PULSE(1.8 0 0 100p 100p 1.9n 4n)\\n\\nC0 N0 0 50f\\nC1 N1 0 50f\\n\\n.control\\ntran 10p 20n\\n\\n* Measure propagation delay\\nmeas tran delay_fall trig v(LABEL_NET_0) val=0.9 rise=2 targ v(N0) val=0.9 fall=2\\nmeas tran delay_rise trig v(LABEL_NET_0) val=0.9 fall=2 targ v(N0) val=0.9 rise=2\\nlet tpd = (delay_fall + delay_rise) / 2\\nprint tpd\\n\\n* Measure output voltage swing\\nmeas tran v_max max v(N0)\\nmeas tran v_min min v(N0)\\nlet v_swing = v_max - v_min\\nprint v_swing\\n\\n* Measure average power consumption\\nmeas tran power_avg avg i(VVDD) from=4n to=16n\\nlet power_mw = -power_avg * 1.8 * 1000\\nprint power_mw\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "913743",
+  "_case": "913743_image_11"
+}

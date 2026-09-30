@@ -1,0 +1,150 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 17.6",
+    "page": "488",
+    "circuit_type": "Delta-Sigma Modulation (DSM) Current Sensing Circuit for Flash Memory",
+    "description": "Figure 17.6 illustrates sensing a Flash memory cell using DSM, where the bitline capacitance acts as the integrating sigma bucket, a clocked comparator compares the bitline voltage to a reference, and PMOS switches steer feedback charge (Icup) onto the bitline whenever the bitline voltage falls below the reference."
+  },
+  "step2_metrics": {
+    "delta_vbit_max": {
+      "description": "Maximum voltage increase on the bitline during a clock cycle when charging current is steered to the bitline",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "489",
+        "reference": "Eq (17.8)"
+      },
+      "equation": {
+        "formula": "Delta_Vbit,max = (Icup - Ibit) * T / Cbit",
+        "explanation": "When the comparator detects Vbit < VREF, Icup is switched into Cbit while Ibit discharges it, giving a net charging current of (Icup - Ibit) for one clock period T.",
+        "assumptions": "T = 10 ns (100 MHz clock), Cbit = 500 fF, Icup = 10 uA, Ibit = 1 uA"
+      },
+      "sky130_expected": {
+        "calculation": "Delta_Vbit,max = (10uA - 1uA) * 10ns / 500fF = 9uA * 10ns / 500fF = 180 mV (0.18 V). Without cell discharge: 10uA * 10ns / 500fF = 200 mV (0.20 V).",
+        "range": {
+          "min": 0.15,
+          "typical": 0.18,
+          "max": 0.22,
+          "unit": "V"
+        },
+        "reasoning": "Determined by feedback current Icup, cell sink current Ibit, clock period T = 10 ns, and integrating capacitance Cbit = 500 fF."
+      },
+      "importance": "essential"
+    },
+    "delta_vbit_drop": {
+      "description": "Bitline voltage drop during one clock cycle when no feedback charge is added",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "488",
+        "reference": "Eq (17.3), Eq (17.4)"
+      },
+      "equation": {
+        "formula": "Delta_Vbit,drop = Ibit * T / Cbit",
+        "explanation": "When the comparator output is low, only the programmed cell current Ibit discharges the bitline capacitance Cbit during clock period T.",
+        "assumptions": "T = 10 ns, Cbit = 500 fF, Ibit = 1 uA"
+      },
+      "sky130_expected": {
+        "calculation": "Delta_Vbit,drop = 1uA * 10ns / 500fF = 20 mV (0.02 V).",
+        "range": {
+          "min": 0.015,
+          "typical": 0.02,
+          "max": 0.025,
+          "unit": "V"
+        },
+        "reasoning": "Determined by constant memory cell current of 1 uA draining 500 fF capacitance over 10 ns."
+      },
+      "importance": "essential"
+    },
+    "output_ratio": {
+      "description": "Average pulse density / ratio of DSM 'Yes' outputs to total clock cycles (M/N)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "489",
+        "reference": "Eq (17.7)"
+      },
+      "equation": {
+        "formula": "M / N = Ibit / Icup",
+        "explanation": "In steady state, the average feedback current added equals the current removed by the Flash cell.",
+        "assumptions": "Ibit = 1 uA, Icup = 10 uA"
+      },
+      "sky130_expected": {
+        "calculation": "M / N = 1 uA / 10 uA = 0.10 (10% duty cycle of output high pulses). Normalized logic average voltage is 0.10 * 1.8 V = 0.18 V.",
+        "range": {
+          "min": 0.08,
+          "typical": 0.1,
+          "max": 0.14,
+          "unit": "V"
+        },
+        "reasoning": "Delta-sigma modulation balances input current Ibit and feedback current Icup."
+      },
+      "importance": "essential"
+    },
+    "dynamic_range": {
+      "description": "Dynamic range of the sensing operation for N clock cycles",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "490",
+        "reference": "Eq (17.9)"
+      },
+      "equation": {
+        "formula": "DR = 20 * log10(N)",
+        "explanation": "Dynamic range is defined as the ratio of maximum counter output code (N) to smallest nonzero code (1) expressed in dB.",
+        "assumptions": "N = 60 clock cycles over 600 ns simulation time (T = 10 ns)"
+      },
+      "sky130_expected": {
+        "calculation": "DR = 20 * log10(60) = 35.56 dB. For Baker's 15-cycle example: 20 * log10(15) = 23.52 dB.",
+        "range": {
+          "min": 23.5,
+          "typical": 35.56,
+          "max": 60.0,
+          "unit": "dB"
+        },
+        "reasoning": "Direct function of sensing duration / number of clocked decision cycles N."
+      },
+      "importance": "recommended"
+    },
+    "minimum_resolvable_signal": {
+      "description": "Minimum resolvable programmed current for N clock cycles",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "491",
+        "reference": "Eq (17.10)"
+      },
+      "equation": {
+        "formula": "I_min = Icup / N",
+        "explanation": "The smallest resolvable current corresponds to a single counter count (M=1) over N clock cycles.",
+        "assumptions": "Icup = 10 uA, N = 60"
+      },
+      "sky130_expected": {
+        "calculation": "I_min = 10 uA / 60 = 166.7 nA. For N = 15 cycles: 10 uA / 15 = 666.7 nA.",
+        "range": {
+          "min": 1e-07,
+          "typical": 1.667e-07,
+          "max": 6.667e-07,
+          "unit": "A"
+        },
+        "reasoning": "Resolution scales inversely with number of averaging cycles N."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient simulation of DSM flash sensing circuit over 600 ns (60 clock cycles at 100 MHz) measuring bitline ripple, charge step, discharge drop, average output ratio, dynamic range, and resolution.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delta_vbit_max",
+      "delta_vbit_drop",
+      "output_ratio",
+      "dynamic_range",
+      "minimum_resolvable_signal"
+    ],
+    "spice": "* DSM Flash Memory Sensing Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=1u   L_xm1=0.15u\n.param W_xm2=2u   L_xm2=0.15u\n.param W_xm3=2u   L_xm3=0.15u\n.param W_xm4=2u   L_xm4=0.5u\n.param W_xm5=2u   L_xm5=0.5u\n.param W_xm6=1u   L_xm6=0.15u\n.param W_xm7=2u   L_xm7=0.15u\n.param W_xm8=1u   L_xm8=0.15u\n.param W_xm9=1u   L_xm9=0.15u\n.param W_xm10=1u  L_xm10=0.15u\n.param W_xm11=1u  L_xm11=0.15u\n.param W_xm12=1u  L_xm12=0.15u\n\nVDD VDD 0 1.8\nxm3 0 0 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm1 vbit Outi N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\nVREF VREF 0 500m\nCbit vbit 0 5e-13\nX_U1 vbit VREF Outi Out clock VDD 0 SUB_1\nI1 vbit 0 1u\nxm2 N003 Out N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nIbias N001 0 10u\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\n\n.subckt SUB_1 inp inm q qi clock VDD GND\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  X_U1 Outp q qi VDD 0 NAND_2\n  X_U2 qi Outm q VDD 0 NAND_2\n.ends SUB_1\n\n.subckt NAND_2 A B Out VDD GND\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NAND_2\n\nVclk clock 0 PULSE(0 1.8 0 100p 100p 4.9n 10n)\n.ic v(vbit) = 0.5\n\n.control\ntran 0.1n 600n\n\n* Measure maximum and minimum bitline voltage\nmeas tran vbit_max MAX v(vbit) from=100n to=600n\nmeas tran vbit_min MIN v(vbit) from=100n to=600n\nlet delta_vbit_max = vbit_max - vbit_min\nprint delta_vbit_max\n\n* Measure single cycle discharge drop during non-charge phase (between 30ns and 40ns)\nmeas tran v_t30 find v(vbit) at=30n\nmeas tran v_t40 find v(vbit) at=40n\nlet delta_vbit_drop = v_t30 - v_t40\nprint delta_vbit_drop\n\n* Measure average output voltage and compute M/N ratio\nmeas tran vout_avg AVG v(out) from=100n to=600n\nlet output_ratio = vout_avg / 1.8\nprint output_ratio\n\n* Compute Dynamic Range and Minimum Resolvable Signal for N = 60 cycles\nlet N_cycles = 60\nlet dynamic_range = 20 * log10(N_cycles)\nlet min_resolvable_signal = 10e-6 / N_cycles\nprint dynamic_range\nprint min_resolvable_signal\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 17.6\",\n    \"page\": \"488\",\n    \"circuit_type\": \"Delta-Sigma Modulation (DSM) Current Sensing Circuit for Flash Memory\",\n    \"description\": \"Figure 17.6 illustrates sensing a Flash memory cell using DSM, where the bitline capacitance acts as the integrating sigma bucket, a clocked comparator compares the bitline voltage to a reference, and PMOS switches steer feedback charge (Icup) onto the bitline whenever the bitline voltage falls below the reference.\"\n  },\n  \"step2_metrics\": {\n    \"delta_vbit_max\": {\n      \"description\": \"Maximum voltage increase on the bitline during a clock cycle when charging current is steered to the bitline\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"489\", \"reference\": \"Eq (17.8)\" },\n      \"equation\": {\n        \"formula\": \"Delta_Vbit,max = (Icup - Ibit) * T / Cbit\",\n        \"explanation\": \"When the comparator detects Vbit < VREF, Icup is switched into Cbit while Ibit discharges it, giving a net charging current of (Icup - Ibit) for one clock period T.\",\n        \"assumptions\": \"T = 10 ns (100 MHz clock), Cbit = 500 fF, Icup = 10 uA, Ibit = 1 uA\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta_Vbit,max = (10uA - 1uA) * 10ns / 500fF = 9uA * 10ns / 500fF = 180 mV (0.18 V). Without cell discharge: 10uA * 10ns / 500fF = 200 mV (0.20 V).\",\n        \"range\": { \"min\": 0.15, \"typical\": 0.18, \"max\": 0.22, \"unit\": \"V\" },\n        \"reasoning\": \"Determined by feedback current Icup, cell sink current Ibit, clock period T = 10 ns, and integrating capacitance Cbit = 500 fF.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delta_vbit_drop\": {\n      \"description\": \"Bitline voltage drop during one clock cycle when no feedback charge is added\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"488\", \"reference\": \"Eq (17.3), Eq (17.4)\" },\n      \"equation\": {\n        \"formula\": \"Delta_Vbit,drop = Ibit * T / Cbit\",\n        \"explanation\": \"When the comparator output is low, only the programmed cell current Ibit discharges the bitline capacitance Cbit during clock period T.\",\n        \"assumptions\": \"T = 10 ns, Cbit = 500 fF, Ibit = 1 uA\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta_Vbit,drop = 1uA * 10ns / 500fF = 20 mV (0.02 V).\",\n        \"range\": { \"min\": 0.015, \"typical\": 0.02, \"max\": 0.025, \"unit\": \"V\" },\n        \"reasoning\": \"Determined by constant memory cell current of 1 uA draining 500 fF capacitance over 10 ns.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_ratio\": {\n      \"description\": \"Average pulse density / ratio of DSM 'Yes' outputs to total clock cycles (M/N)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"489\", \"reference\": \"Eq (17.7)\" },\n      \"equation\": {\n        \"formula\": \"M / N = Ibit / Icup\",\n        \"explanation\": \"In steady state, the average feedback current added equals the current removed by the Flash cell.\",\n        \"assumptions\": \"Ibit = 1 uA, Icup = 10 uA\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"M / N = 1 uA / 10 uA = 0.10 (10% duty cycle of output high pulses). Normalized logic average voltage is 0.10 * 1.8 V = 0.18 V.\",\n        \"range\": { \"min\": 0.08, \"typical\": 0.10, \"max\": 0.14, \"unit\": \"V\" },\n        \"reasoning\": \"Delta-sigma modulation balances input current Ibit and feedback current Icup.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dynamic_range\": {\n      \"description\": \"Dynamic range of the sensing operation for N clock cycles\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"490\", \"reference\": \"Eq (17.9)\" },\n      \"equation\": {\n        \"formula\": \"DR = 20 * log10(N)\",\n        \"explanation\": \"Dynamic range is defined as the ratio of maximum counter output code (N) to smallest nonzero code (1) expressed in dB.\",\n        \"assumptions\": \"N = 60 clock cycles over 600 ns simulation time (T = 10 ns)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"DR = 20 * log10(60) = 35.56 dB. For Baker's 15-cycle example: 20 * log10(15) = 23.52 dB.\",\n        \"range\": { \"min\": 23.5, \"typical\": 35.56, \"max\": 60.0, \"unit\": \"dB\" },\n        \"reasoning\": \"Direct function of sensing duration / number of clocked decision cycles N.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"minimum_resolvable_signal\": {\n      \"description\": \"Minimum resolvable programmed current for N clock cycles\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"491\", \"reference\": \"Eq (17.10)\" },\n      \"equation\": {\n        \"formula\": \"I_min = Icup / N\",\n        \"explanation\": \"The smallest resolvable current corresponds to a single counter count (M=1) over N clock cycles.\",\n        \"assumptions\": \"Icup = 10 uA, N = 60\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_min = 10 uA / 60 = 166.7 nA. For N = 15 cycles: 10 uA / 15 = 666.7 nA.\",\n        \"range\": { \"min\": 1e-7, \"typical\": 1.667e-7, \"max\": 6.667e-7, \"unit\": \"A\" },\n        \"reasoning\": \"Resolution scales inversely with number of averaging cycles N.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient simulation of DSM flash sensing circuit over 600 ns (60 clock cycles at 100 MHz) measuring bitline ripple, charge step, discharge drop, average output ratio, dynamic range, and resolution.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\n      \"delta_vbit_max\",\n      \"delta_vbit_drop\",\n      \"output_ratio\",\n      \"dynamic_range\",\n      \"minimum_resolvable_signal\"\n    ],\n    \"spice\": \"* DSM Flash Memory Sensing Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=1u   L_xm1=0.15u\\n.param W_xm2=2u   L_xm2=0.15u\\n.param W_xm3=2u   L_xm3=0.15u\\n.param W_xm4=2u   L_xm4=0.5u\\n.param W_xm5=2u   L_xm5=0.5u\\n.param W_xm6=1u   L_xm6=0.15u\\n.param W_xm7=2u   L_xm7=0.15u\\n.param W_xm8=1u   L_xm8=0.15u\\n.param W_xm9=1u   L_xm9=0.15u\\n.param W_xm10=1u  L_xm10=0.15u\\n.param W_xm11=1u  L_xm11=0.15u\\n.param W_xm12=1u  L_xm12=0.15u\\n\\nVDD VDD 0 1.8\\nxm3 0 0 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm1 vbit Outi N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm1} l={L_xm1}\\nVREF VREF 0 500m\\nCbit vbit 0 5e-13\\nX_U1 vbit VREF Outi Out clock VDD 0 SUB_1\\nI1 vbit 0 1u\\nxm2 N003 Out N002 VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nIbias N001 0 10u\\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\n\\n.subckt SUB_1 inp inm q qi clock VDD GND\\n  xm1 N003 inp GND 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n  xm3 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm5 N002 Outm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 N001 Outp N003 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm4 Outm clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm7 Outp clock VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm8 Outm clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Outp clock N002 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 N004 inm 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  X_U1 Outp q qi VDD 0 NAND_2\\n  X_U2 qi Outm q VDD 0 NAND_2\\n.ends SUB_1\\n\\n.subckt NAND_2 A B Out VDD GND\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B GND 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NAND_2\\n\\nVclk clock 0 PULSE(0 1.8 0 100p 100p 4.9n 10n)\\n.ic v(vbit) = 0.5\\n\\n.control\\ntran 0.1n 600n\\n\\n* Measure maximum and minimum bitline voltage\\nmeas tran vbit_max MAX v(vbit) from=100n to=600n\\nmeas tran vbit_min MIN v(vbit) from=100n to=600n\\nlet delta_vbit_max = vbit_max - vbit_min\\nprint delta_vbit_max\\n\\n* Measure single cycle discharge drop during non-charge phase (between 30ns and 40ns)\\nmeas tran v_t30 find v(vbit) at=30n\\nmeas tran v_t40 find v(vbit) at=40n\\nlet delta_vbit_drop = v_t30 - v_t40\\nprint delta_vbit_drop\\n\\n* Measure average output voltage and compute M/N ratio\\nmeas tran vout_avg AVG v(out) from=100n to=600n\\nlet output_ratio = vout_avg / 1.8\\nprint output_ratio\\n\\n* Compute Dynamic Range and Minimum Resolvable Signal for N = 60 cycles\\nlet N_cycles = 60\\nlet dynamic_range = 20 * log10(N_cycles)\\nlet min_resolvable_signal = 10e-6 / N_cycles\\nprint dynamic_range\\nprint min_resolvable_signal\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

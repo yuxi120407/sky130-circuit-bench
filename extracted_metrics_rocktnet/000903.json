@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Sub-Harmonic Balanced Mixer",
+    "description": "A millimeter-wave sub-harmonic mixer that uses a compact input LC network to achieve high LO-RF and 2LO-RF isolation. It mixes an RF signal with the second harmonic of the LO signal to produce an IF output.",
+    "node_mapping": {
+      "input": [
+        "n3",
+        "n0"
+      ],
+      "output": [
+        "n12",
+        "n9"
+      ],
+      "supply": [
+        "n10"
+      ],
+      "bias": [
+        "label_net_0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 77 GHz SiGe Sub-Harmonic Balanced Mixer",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Ratio of IF output voltage to RF input voltage",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.7 dB",
+        "technology": "SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming gm ~ 10mS, load R=1k, and sub-harmonic mixing efficiency of ~0.3, voltage gain ~ gm * R * 0.3 ~ 3 (9.5 dB).",
+        "range": {
+          "min": -5,
+          "typical": 5,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "Scaled to 5 GHz RF for SKY130. Gain depends heavily on LO drive amplitude and mixing efficiency."
+      },
+      "importance": "essential"
+    },
+    "lo_rf_isolation": {
+      "description": "Leakage of LO signal to the RF port",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": ">30 dB",
+        "technology": "SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the passive LC isolation network between n0 and n3.",
+        "range": {
+          "min": -40,
+          "typical": -30,
+          "max": -20,
+          "unit": "dB"
+        },
+        "reasoning": "Passive network provides significant attenuation at the LO frequency."
+      },
+      "importance": "essential"
+    },
+    "2lo_rf_isolation": {
+      "description": "Leakage of the 2nd harmonic of LO to the RF port",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "25 dB",
+        "technology": "SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the passive LC isolation network at 2*LO frequency.",
+        "range": {
+          "min": -40,
+          "typical": -25,
+          "max": -15,
+          "unit": "dB"
+        },
+        "reasoning": "Passive filtering at 2LO frequency."
+      },
+      "importance": "essential"
+    },
+    "dc_power": {
+      "description": "Total DC power consumption from the supply",
+      "unit": "mW",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "22 mW (4.4 mA at 5V)",
+        "technology": "SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "VDD=1.8V. Tail current ~ (0.9V - 0.42V) / 500 ohm ~ 1 mA. Total current ~ 2-3 mA. Power = 1.8V * 2.5mA = 4.5 mW.",
+        "range": {
+          "min": 2,
+          "typical": 4.5,
+          "max": 10,
+          "unit": "mW"
+        },
+        "reasoning": "Lower supply voltage (1.8V vs 5V) and scaled bias currents for SKY130."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, LO-RF isolation, 2LO-RF isolation, and Conversion Gain. The circuit is scaled to 5 GHz RF and 2.4 GHz LO for SKY130 compatibility.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "lo_rf_isolation",
+      "2lo_rf_isolation",
+      "conversion_gain"
+    ],
+    "spice": "* 77 GHz SiGe Sub-Harmonic Balanced Mixer (Scaled for SKY130)\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Replace npn with NMOS for SKY130 compatibility\nM1 n12 n8 n4 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM2 n1 n7 GND GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM3 n2 n11 GND GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\nM4 n9 n6 n4 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\n\n* Passives (Values estimated for ~5GHz operation)\nR1 n1 n10 1k\nR2 n10 n12 1k\nR3 n2 n10 1k\nR4 n4 GND 500\nR5 n9 n10 1k\nC1 n3 n5 1p\nC2 n0 n11 1p\nC3 n5 GND 1p\nC4 n7 GND 1p\nC5 n11 n13 1p\nC6 n1 n8 1p\nC7 n2 n6 1p\nC8 n5 label_net_0 1p\nC9 n11 n13 1p\nL1 n3 n5 1n\nL2 n5 n7 1n\nL3 n0 n11 1n\nL4 n5 n11 1n\n\n* Sources\nVVDD n10 0 dc 1.8\nVLABEL_NET_0 label_net_0 0 dc 0.9\nVRF n3 0 dc 0 sin(0 10m 5G) ac 0\nVLO n0 0 dc 0 sin(0 300m 2.4G) ac 1\n\n* Differential Output and Low-Pass Filter (fc ~ 500 MHz)\nEout out_diff 0 vol='v(n12)-v(n9)'\nR_lpf out_diff out_if 1k\nC_lpf out_if 0 0.3p\n\n.control\n* 1. DC Analysis\nop\nlet power_mw = -i(VVDD) * 1.8 * 1000\nprint power_mw\n\n* 2. AC Analysis for Isolation\nac dec 50 1G 10G\nlet iso_db = vdb(n3)\nmeas ac lo_rf_iso find iso_db at=2.4G\nmeas ac 2lo_rf_iso find iso_db at=4.8G\n\n* 3. Transient Analysis for Conversion Gain\n* IF = |5G - 2*2.4G| = 200 MHz (Period = 5ns)\ntran 10p 20n\n* Measure over exactly two IF periods to find peak-to-peak\nmeas tran out_max max v(out_if) from=10n to=20n\nmeas tran out_min min v(out_if) from=10n to=20n\nlet out_pp = out_max - out_min\n* Input RF is 10mV peak = 20mV peak-to-peak\nlet cg_linear = out_pp / 0.02\nlet cg_db = 20 * log10(cg_linear)\nprint cg_db\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Sub-Harmonic Balanced Mixer\",\n    \"description\": \"A millimeter-wave sub-harmonic mixer that uses a compact input LC network to achieve high LO-RF and 2LO-RF isolation. It mixes an RF signal with the second harmonic of the LO signal to produce an IF output.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n3\",\n        \"n0\"\n      ],\n      \"output\": [\n        \"n12\",\n        \"n9\"\n      ],\n      \"supply\": [\n        \"n10\"\n      ],\n      \"bias\": [\n        \"label_net_0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 77 GHz SiGe Sub-Harmonic Balanced Mixer\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Ratio of IF output voltage to RF input voltage\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.7 dB\",\n        \"technology\": \"SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming gm ~ 10mS, load R=1k, and sub-harmonic mixing efficiency of ~0.3, voltage gain ~ gm * R * 0.3 ~ 3 (9.5 dB).\",\n        \"range\": {\n          \"min\": -5,\n          \"typical\": 5,\n          \"max\": 15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Scaled to 5 GHz RF for SKY130. Gain depends heavily on LO drive amplitude and mixing efficiency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"lo_rf_isolation\": {\n      \"description\": \"Leakage of LO signal to the RF port\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \">30 dB\",\n        \"technology\": \"SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the passive LC isolation network between n0 and n3.\",\n        \"range\": {\n          \"min\": -40,\n          \"typical\": -30,\n          \"max\": -20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Passive network provides significant attenuation at the LO frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"2lo_rf_isolation\": {\n      \"description\": \"Leakage of the 2nd harmonic of LO to the RF port\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"25 dB\",\n        \"technology\": \"SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the passive LC isolation network at 2*LO frequency.\",\n        \"range\": {\n          \"min\": -40,\n          \"typical\": -25,\n          \"max\": -15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Passive filtering at 2LO frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption from the supply\",\n      \"unit\": \"mW\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"22 mW (4.4 mA at 5V)\",\n        \"technology\": \"SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD=1.8V. Tail current ~ (0.9V - 0.42V) / 500 ohm ~ 1 mA. Total current ~ 2-3 mA. Power = 1.8V * 2.5mA = 4.5 mW.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 4.5,\n          \"max\": 10,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"Lower supply voltage (1.8V vs 5V) and scaled bias currents for SKY130.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, LO-RF isolation, 2LO-RF isolation, and Conversion Gain. The circuit is scaled to 5 GHz RF and 2.4 GHz LO for SKY130 compatibility.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"lo_rf_isolation\",\n      \"2lo_rf_isolation\",\n      \"conversion_gain\"\n    ],\n    \"spice\": \"* 77 GHz SiGe Sub-Harmonic Balanced Mixer (Scaled for SKY130)\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Replace npn with NMOS for SKY130 compatibility\\nM1 n12 n8 n4 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM2 n1 n7 GND GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM3 n2 n11 GND GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\nM4 n9 n6 n4 GND sky130_fd_pr__nfet_01v8 w=10u l=0.15u\\n\\n* Passives (Values estimated for ~5GHz operation)\\nR1 n1 n10 1k\\nR2 n10 n12 1k\\nR3 n2 n10 1k\\nR4 n4 GND 500\\nR5 n9 n10 1k\\nC1 n3 n5 1p\\nC2 n0 n11 1p\\nC3 n5 GND 1p\\nC4 n7 GND 1p\\nC5 n11 n13 1p\\nC6 n1 n8 1p\\nC7 n2 n6 1p\\nC8 n5 label_net_0 1p\\nC9 n11 n13 1p\\nL1 n3 n5 1n\\nL2 n5 n7 1n\\nL3 n0 n11 1n\\nL4 n5 n11 1n\\n\\n* Sources\\nVVDD n10 0 dc 1.8\\nVLABEL_NET_0 label_net_0 0 dc 0.9\\nVRF n3 0 dc 0 sin(0 10m 5G) ac 0\\nVLO n0 0 dc 0 sin(0 300m 2.4G) ac 1\\n\\n* Differential Output and Low-Pass Filter (fc ~ 500 MHz)\\nEout out_diff 0 vol='v(n12)-v(n9)'\\nR_lpf out_diff out_if 1k\\nC_lpf out_if 0 0.3p\\n\\n.control\\n* 1. DC Analysis\\nop\\nlet power_mw = -i(VVDD) * 1.8 * 1000\\nprint power_mw\\n\\n* 2. AC Analysis for Isolation\\nac dec 50 1G 10G\\nlet iso_db = vdb(n3)\\nmeas ac lo_rf_iso find iso_db at=2.4G\\nmeas ac 2lo_rf_iso find iso_db at=4.8G\\n\\n* 3. Transient Analysis for Conversion Gain\\n* IF = |5G - 2*2.4G| = 200 MHz (Period = 5ns)\\ntran 10p 20n\\n* Measure over exactly two IF periods to find peak-to-peak\\nmeas tran out_max max v(out_if) from=10n to=20n\\nmeas tran out_min min v(out_if) from=10n to=20n\\nlet out_pp = out_max - out_min\\n* Input RF is 10mV peak = 20mV peak-to-peak\\nlet cg_linear = out_pp / 0.02\\nlet cg_db = 20 * log10(cg_linear)\\nprint cg_db\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1522556",
+  "_case": "1522556_image_2"
+}

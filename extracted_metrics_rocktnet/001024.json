@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Bootstrapped Switch",
+    "description": "A locally bootstrapped symmetrical switch used in a switched-capacitor delta-sigma modulator. It utilizes a bootstrap capacitor (XM7) to maintain a constant gate-source voltage across the main switch (XM3), avoiding gate dielectric overstress and improving linearity for rail-to-rail signals.",
+    "node_mapping": {
+      "input": [
+        "N2"
+      ],
+      "output": [
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "LABEL_NET_3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Very Low-Voltage Digital-Audio Modulator with 88-dB Dynamic Range Using Local Switch Bootstrapping",
+      "figure": "Unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "dynamic_range": {
+      "description": "Dynamic range of the modulator using this switch",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "88",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on kT/C noise and switch linearity. Assuming a 1pF sampling cap, SNR = 10*log10((0.4^2/2) / (kT/C)) ~= 80 dB.",
+        "range": {
+          "min": 75,
+          "typical": 80,
+          "max": 90,
+          "unit": "dB"
+        },
+        "reasoning": "Sky130 at 1.8V allows larger signal swing than the paper's 1V, potentially improving DR, but it is ultimately limited by thermal noise and switch THD."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Power consumption of the switch and its bootstrapping circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "7u",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dynamic power P = f * C * V^2. With VDD=1.8V instead of 1V, power increases by (1.8/1)^2 = 3.24x. 7uW * 3.24 = 22.6uW.",
+        "range": {
+          "min": 1e-05,
+          "typical": 2.2e-05,
+          "max": 5e-05,
+          "unit": "W"
+        },
+        "reasoning": "Higher supply voltage in Sky130 leads to increased dynamic power consumption during clock transitions."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Signal bandwidth of the modulator",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "25k",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Switch bandwidth is much higher: (Ron * Cload)^-1. For Ron=1k, Cload=1pF, BW > 100MHz. The 25kHz is the application signal bandwidth.",
+        "range": {
+          "min": 20000.0,
+          "typical": 25000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The switch itself supports much higher frequencies, but the target application is audio (25kHz)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power consumption, transient switching behavior, and AC bandwidth of the bootstrapped switch.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "bandwidth",
+      "dynamic_range"
+    ],
+    "spice": "* Bootstrapped Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\n* DUT\nXM1 N3 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 LABEL_NET_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 N4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 VDD N4 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 LABEL_NET_2 LABEL_NET_3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N0 N1 N1 sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N2 N4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\n* Sources\nVVDD VDD 0 1.8\n* Clocks for switching (100kHz)\nVLABEL_NET_0 LABEL_NET_0 0 dc 1.8 pulse(0 1.8 0 1n 1n 5u 10u)\nVLABEL_NET_1 LABEL_NET_1 0 dc 1.8 pulse(0 1.8 0 1n 1n 5u 10u)\nVLABEL_NET_2 LABEL_NET_2 0 dc 0\nVLABEL_NET_3 LABEL_NET_3 0 dc 0 pulse(1.8 0 0 1n 1n 5u 10u)\n\n* Input signal (1kHz sine wave)\nVin N2 0 dc 0.9 ac 1 sin(0.9 0.4 1k)\n* Load capacitor\nCload N3 0 1p\n\n.control\n* === Transient Analysis ===\ntran 100n 2m\nlet power = -i(VVDD) * 1.8\nmeas tran avg_power avg power\nmeas tran v_max max v(N3)\nmeas tran v_min min v(N3)\n* Measure THD to estimate SNDR/Dynamic Range\nfourier 1k v(N3)\n\n* === AC Analysis ===\n* Force clocks to DC states that keep the switch ON\nalter VLABEL_NET_0 dc=0\nalter VLABEL_NET_1 dc=0\nalter VLABEL_NET_3 dc=0\nop\nac dec 10 1 1G\nlet gain_db = vdb(N3)\nmeas ac dc_gain find gain_db at=1k\nmeas ac bw when gain_db=-3 fall=1\n\nprint avg_power dc_gain bw\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Bootstrapped Switch\",\n    \"description\": \"A locally bootstrapped symmetrical switch used in a switched-capacitor delta-sigma modulator. It utilizes a bootstrap capacitor (XM7) to maintain a constant gate-source voltage across the main switch (XM3), avoiding gate dielectric overstress and improving linearity for rail-to-rail signals.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\"\n      ],\n      \"output\": [\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Very Low-Voltage Digital-Audio Modulator with 88-dB Dynamic Range Using Local Switch Bootstrapping\",\n      \"figure\": \"Unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"dynamic_range\": {\n      \"description\": \"Dynamic range of the modulator using this switch\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"88\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on kT/C noise and switch linearity. Assuming a 1pF sampling cap, SNR = 10*log10((0.4^2/2) / (kT/C)) ~= 80 dB.\",\n        \"range\": {\n          \"min\": 75,\n          \"typical\": 80,\n          \"max\": 90,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Sky130 at 1.8V allows larger signal swing than the paper's 1V, potentially improving DR, but it is ultimately limited by thermal noise and switch THD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Power consumption of the switch and its bootstrapping circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"7u\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dynamic power P = f * C * V^2. With VDD=1.8V instead of 1V, power increases by (1.8/1)^2 = 3.24x. 7uW * 3.24 = 22.6uW.\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 22e-6,\n          \"max\": 50e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Higher supply voltage in Sky130 leads to increased dynamic power consumption during clock transitions.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Signal bandwidth of the modulator\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"25k\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Switch bandwidth is much higher: (Ron * Cload)^-1. For Ron=1k, Cload=1pF, BW > 100MHz. The 25kHz is the application signal bandwidth.\",\n        \"range\": {\n          \"min\": 20e3,\n          \"typical\": 25e3,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The switch itself supports much higher frequencies, but the target application is audio (25kHz).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power consumption, transient switching behavior, and AC bandwidth of the bootstrapped switch.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"bandwidth\",\n      \"dynamic_range\"\n    ],\n    \"spice\": \"* Bootstrapped Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\n* DUT\\nXM1 N3 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 LABEL_NET_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 N4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 VDD N4 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 LABEL_NET_2 LABEL_NET_3 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N0 N1 N1 sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N2 N4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Sources\\nVVDD VDD 0 1.8\\n* Clocks for switching (100kHz)\\nVLABEL_NET_0 LABEL_NET_0 0 dc 1.8 pulse(0 1.8 0 1n 1n 5u 10u)\\nVLABEL_NET_1 LABEL_NET_1 0 dc 1.8 pulse(0 1.8 0 1n 1n 5u 10u)\\nVLABEL_NET_2 LABEL_NET_2 0 dc 0\\nVLABEL_NET_3 LABEL_NET_3 0 dc 0 pulse(1.8 0 0 1n 1n 5u 10u)\\n\\n* Input signal (1kHz sine wave)\\nVin N2 0 dc 0.9 ac 1 sin(0.9 0.4 1k)\\n* Load capacitor\\nCload N3 0 1p\\n\\n.control\\n* === Transient Analysis ===\\ntran 100n 2m\\nlet power = -i(VVDD) * 1.8\\nmeas tran avg_power avg power\\nmeas tran v_max max v(N3)\\nmeas tran v_min min v(N3)\\n* Measure THD to estimate SNDR/Dynamic Range\\nfourier 1k v(N3)\\n\\n* === AC Analysis ===\\n* Force clocks to DC states that keep the switch ON\\nalter VLABEL_NET_0 dc=0\\nalter VLABEL_NET_1 dc=0\\nalter VLABEL_NET_3 dc=0\\nop\\nac dec 10 1 1G\\nlet gain_db = vdb(N3)\\nmeas ac dc_gain find gain_db at=1k\\nmeas ac bw when gain_db=-3 fall=1\\n\\nprint avg_power dc_gain bw\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "910473",
+  "_case": "910473_image_7"
+}

@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CMOS Amplifier Stage with Bias Network",
+    "description": "A common-source amplifier stage with parallel input transistors (XM8, XM9) and an active PMOS load (XM2). It includes a bias generation network (XM1, XM3, XM5-XM7) likely intended for a current-driven bulk (CDB) technique, though the bulk terminals of the main transistors are tied to standard supplies in this extracted netlist.",
+    "node_mapping": {
+      "input": [
+        "INp",
+        "INn"
+      ],
+      "output": [
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBIAS1",
+        "VBIAS",
+        "VBIAS2",
+        "N1",
+        "N2",
+        "N5"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "1-V Power Supply CMOS Cascode Amplifier",
+      "figure": "unknown",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low-frequency voltage gain of the amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "69 dB",
+        "technology": "standard CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * (ro_n || ro_p). With L=0.5u, the intrinsic gain of a single stage is typically 20-40 dB.",
+        "range": {
+          "min": 10,
+          "typical": 25,
+          "max": 40,
+          "unit": "dB"
+        },
+        "reasoning": "The extracted netlist represents a single stage rather than the full folded cascode described in the paper, so the gain will be significantly lower than the reported 69 dB."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB cutoff frequency of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2 MHz",
+        "technology": "standard CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * R_out * C_out). Without an explicit load capacitor, C_out is dominated by parasitic capacitances (~10-50fF).",
+        "range": {
+          "min": 1000000.0,
+          "typical": 50000000.0,
+          "max": 500000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The bandwidth will be much higher than the paper's 2 MHz due to the lack of a large load capacitor in the testbench and the use of a modern 130nm process."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total static power dissipation of the circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1-V power supply",
+        "technology": "standard CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_total. I_total is roughly I_XM1 + I_XM2. With VBIAS1=0.99V, PMOS current is ~30-40uA per branch. Total current ~80uA. Power = 1.8V * 80uA = 144uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.00015,
+          "max": 0.0003,
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply and the provided bias voltages."
+      },
+      "importance": "essential"
+    },
+    "Output_Swing": {
+      "description": "Peak-to-peak voltage swing at the output node",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "compatible input and output voltage levels",
+        "technology": "standard CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vout_max - Vout_min during a transient simulation with a 0.1V amplitude input.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.5,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on the exact DC operating point and whether the output node (N4) is saturated or pushed into triode by the bias mismatch."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, -3dB bandwidth, power consumption, and transient output swing of the amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Gain",
+      "Bandwidth",
+      "Power_Consumption",
+      "Output_Swing"
+    ],
+    "spice": "* Testbench for CMOS Amplifier\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\nXM1 N1 VBIAS1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N4 VBIAS1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 VBIAS VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N5 VBIAS VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VBIAS N2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N2 VBIAS2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N2 N2 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N4 INp N5 VSS sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N4 INn N5 VSS sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\n* Voltage Sources\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVBIAS1 VBIAS1 0 0.99\nVVBIAS VBIAS 0 0.54\nVVBIAS2 VBIAS2 0 0.54\nVINp INp 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\nVINn INn 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\n\n.control\n* DC Operating Point & Power\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\n* AC Analysis for Gain and Bandwidth\nac dec 100 1 1G\nlet gain_db = vdb(N4)\nmeas ac dc_gain max gain_db\nmeas ac bw_3db when gain_db=(dc_gain-3) fall=1\n\n* Transient Analysis for Output Swing\ntran 1n 2u\nmeas tran vout_max max v(N4)\nmeas tran vout_min min v(N4)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CMOS Amplifier Stage with Bias Network\",\n    \"description\": \"A common-source amplifier stage with parallel input transistors (XM8, XM9) and an active PMOS load (XM2). It includes a bias generation network (XM1, XM3, XM5-XM7) likely intended for a current-driven bulk (CDB) technique, though the bulk terminals of the main transistors are tied to standard supplies in this extracted netlist.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INp\",\n        \"INn\"\n      ],\n      \"output\": [\n        \"N4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBIAS1\",\n        \"VBIAS\",\n        \"VBIAS2\",\n        \"N1\",\n        \"N2\",\n        \"N5\"\n      ],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"1-V Power Supply CMOS Cascode Amplifier\",\n      \"figure\": \"unknown\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low-frequency voltage gain of the amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"69 dB\",\n        \"technology\": \"standard CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * (ro_n || ro_p). With L=0.5u, the intrinsic gain of a single stage is typically 20-40 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 25,\n          \"max\": 40,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The extracted netlist represents a single stage rather than the full folded cascode described in the paper, so the gain will be significantly lower than the reported 69 dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2 MHz\",\n        \"technology\": \"standard CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * R_out * C_out). Without an explicit load capacitor, C_out is dominated by parasitic capacitances (~10-50fF).\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 50e6,\n          \"max\": 500e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The bandwidth will be much higher than the paper's 2 MHz due to the lack of a large load capacitor in the testbench and the use of a modern 130nm process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total static power dissipation of the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1-V power supply\",\n        \"technology\": \"standard CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_total. I_total is roughly I_XM1 + I_XM2. With VBIAS1=0.99V, PMOS current is ~30-40uA per branch. Total current ~80uA. Power = 1.8V * 80uA = 144uW.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 150e-6,\n          \"max\": 300e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply and the provided bias voltages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_Swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output node\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"compatible input and output voltage levels\",\n        \"technology\": \"standard CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vout_max - Vout_min during a transient simulation with a 0.1V amplitude input.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.5,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on the exact DC operating point and whether the output node (N4) is saturated or pushed into triode by the bias mismatch.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, -3dB bandwidth, power consumption, and transient output swing of the amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Gain\",\n      \"Bandwidth\",\n      \"Power_Consumption\",\n      \"Output_Swing\"\n    ],\n    \"spice\": \"* Testbench for CMOS Amplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\nXM1 N1 VBIAS1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N4 VBIAS1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 VBIAS VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N5 VBIAS VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VBIAS N2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N2 VBIAS2 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N2 N2 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N4 INp N5 VSS sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N4 INn N5 VSS sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\n* Voltage Sources\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVBIAS1 VBIAS1 0 0.99\\nVVBIAS VBIAS 0 0.54\\nVVBIAS2 VBIAS2 0 0.54\\nVINp INp 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\nVINn INn 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\n\\n.control\\n* DC Operating Point & Power\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\n* AC Analysis for Gain and Bandwidth\\nac dec 100 1 1G\\nlet gain_db = vdb(N4)\\nmeas ac dc_gain max gain_db\\nmeas ac bw_3db when gain_db=(dc_gain-3) fall=1\\n\\n* Transient Analysis for Output Swing\\ntran 1n 2u\\nmeas tran vout_max max v(N4)\\nmeas tran vout_min min v(N4)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "933464",
+  "_case": "933464_image_3"
+}

@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "8T SRAM / CAM cell (Extracted with shorted internal nodes)",
+    "description": "This netlist appears to be an extracted 8-transistor memory cell (likely part of a CAM or SRAM) where the internal cross-coupled nodes have been shorted together into a single node (N2) during extraction. It includes read and write wordline access transistors, but due to the shorted internal nodes, it acts as a static voltage divider.",
+    "node_mapping": {
+      "input": [
+        "W_WL",
+        "R_WL"
+      ],
+      "output": [
+        "R_BL_BAR",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 128-kb Four-Way Set-Associative CMOS Cache Memory Using Wordline-Oriented Tag-Compare (WLOTC) Structure with the Content-Addressable-Memory",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "static_power": {
+      "description": "Static power consumption due to the shorted inverters",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "4.1 mW (total at 50 MHz)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "I = 270u * 10 * (0.71 - 0.42)^2 = 113 uA. Power = 1.8V * 113uA = 203 uW.",
+        "range": {
+          "min": "100u",
+          "typical": "200u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the short-circuit current of the diode-connected PMOS and NMOS transistors at N2."
+      },
+      "importance": "essential"
+    },
+    "v_n2": {
+      "description": "DC voltage of the shorted internal node N2",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Voltage divider between PMOS and NMOS: 50 * (1.8 - V_N2 - 0.42)^2 = 270 * (V_N2 - 0.42)^2 -> V_N2 = 0.71V",
+        "range": {
+          "min": "0.5",
+          "typical": "0.71",
+          "max": "0.9",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the ratio of NMOS to PMOS drive strength."
+      },
+      "importance": "essential"
+    },
+    "read_delay": {
+      "description": "Delay from read wordline (R_WL) activation to bitline (R_BL_BAR) discharge",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.5 ns (hit access time)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "I = 1.2 mA. dV/dt = I/C = 1.2mA / 10fF = 1.2e11 V/s. Time to drop 0.4V is ~3.3 ps.",
+        "range": {
+          "min": "1p",
+          "typical": "10p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Very fast discharge due to large W/L (5u/0.5u) and small load capacitance (10fF)."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure static power, N2 node voltage, and read delay of the extracted memory cell.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "static_power",
+      "v_n2",
+      "read_delay"
+    ],
+    "spice": "* Testbench for Extracted Memory Cell\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmp0=5u L_xmp0=0.5u\n.param W_xmn0=5u L_xmn0=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmn3=5u L_xmn3=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmn5=5u L_xmn5=0.5u\n.param W_xmn4=5u L_xmn4=0.5u\n\nVVDD VDD 0 1.8\nVW_WL W_WL 0 0\nVR_WL R_WL 0 PULSE(0 1.8 1n 50p 50p 5n 10n)\n\n* Precharge circuit for R_BL_BAR\nMPRE R_BL_BAR PRE_EN VDD VDD sky130_fd_pr__pfet_01v8 w=1u l=0.15u\nVPRE_EN PRE_EN 0 PULSE(0 1.8 0.5n 50p 50p 10n 20n)\nCBL R_BL_BAR 0 10f\n\n* DUT\nXMP0 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp0} w={W_xmp0}\nXMN0 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn0} w={W_xmn0}\nXMP1 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\nXMN1 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMN3 N2 W_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\nXMN2 N2 W_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMN5 R_BL_BAR R_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn5} w={W_xmn5}\nXMN4 N2 R_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn4} w={W_xmn4}\n\n.control\nop\nlet static_power = -i(VVDD) * 1.8\nlet v_n2 = v(N2)\nprint v_n2 static_power\n\ntran 10p 10n\nmeas tran read_delay trig v(R_WL) val=0.9 rise=1 targ v(R_BL_BAR) val=1.4 fall=1\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"8T SRAM / CAM cell (Extracted with shorted internal nodes)\",\n    \"description\": \"This netlist appears to be an extracted 8-transistor memory cell (likely part of a CAM or SRAM) where the internal cross-coupled nodes have been shorted together into a single node (N2) during extraction. It includes read and write wordline access transistors, but due to the shorted internal nodes, it acts as a static voltage divider.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"W_WL\",\n        \"R_WL\"\n      ],\n      \"output\": [\n        \"R_BL_BAR\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 128-kb Four-Way Set-Associative CMOS Cache Memory Using Wordline-Oriented Tag-Compare (WLOTC) Structure with the Content-Addressable-Memory\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"static_power\": {\n      \"description\": \"Static power consumption due to the shorted inverters\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"4.1 mW (total at 50 MHz)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I = 270u * 10 * (0.71 - 0.42)^2 = 113 uA. Power = 1.8V * 113uA = 203 uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"200u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the short-circuit current of the diode-connected PMOS and NMOS transistors at N2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_n2\": {\n      \"description\": \"DC voltage of the shorted internal node N2\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Voltage divider between PMOS and NMOS: 50 * (1.8 - V_N2 - 0.42)^2 = 270 * (V_N2 - 0.42)^2 -> V_N2 = 0.71V\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"0.71\",\n          \"max\": \"0.9\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the ratio of NMOS to PMOS drive strength.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"read_delay\": {\n      \"description\": \"Delay from read wordline (R_WL) activation to bitline (R_BL_BAR) discharge\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.5 ns (hit access time)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I = 1.2 mA. dV/dt = I/C = 1.2mA / 10fF = 1.2e11 V/s. Time to drop 0.4V is ~3.3 ps.\",\n        \"range\": {\n          \"min\": \"1p\",\n          \"typical\": \"10p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Very fast discharge due to large W/L (5u/0.5u) and small load capacitance (10fF).\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure static power, N2 node voltage, and read delay of the extracted memory cell.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"static_power\",\n      \"v_n2\",\n      \"read_delay\"\n    ],\n    \"spice\": \"* Testbench for Extracted Memory Cell\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmp0=5u L_xmp0=0.5u\\n.param W_xmn0=5u L_xmn0=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmn3=5u L_xmn3=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmn5=5u L_xmn5=0.5u\\n.param W_xmn4=5u L_xmn4=0.5u\\n\\nVVDD VDD 0 1.8\\nVW_WL W_WL 0 0\\nVR_WL R_WL 0 PULSE(0 1.8 1n 50p 50p 5n 10n)\\n\\n* Precharge circuit for R_BL_BAR\\nMPRE R_BL_BAR PRE_EN VDD VDD sky130_fd_pr__pfet_01v8 w=1u l=0.15u\\nVPRE_EN PRE_EN 0 PULSE(0 1.8 0.5n 50p 50p 10n 20n)\\nCBL R_BL_BAR 0 10f\\n\\n* DUT\\nXMP0 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp0} w={W_xmp0}\\nXMN0 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn0} w={W_xmn0}\\nXMP1 N2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMN1 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMN3 N2 W_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\\nXMN2 N2 W_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMN5 R_BL_BAR R_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn5} w={W_xmn5}\\nXMN4 N2 R_WL N2 GND sky130_fd_pr__nfet_01v8 l={L_xmn4} w={W_xmn4}\\n\\n.control\\nop\\nlet static_power = -i(VVDD) * 1.8\\nlet v_n2 = v(N2)\\nprint v_n2 static_power\\n\\ntran 10p 10n\\nmeas tran read_delay trig v(R_WL) val=0.9 rise=1 targ v(R_BL_BAR) val=1.4 fall=1\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "913745",
+  "_case": "913745_image_5_a"
+}

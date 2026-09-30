@@ -1,0 +1,170 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Charge Pump for Phase-Locked Loop (PLL)",
+    "description": "A CMOS charge pump circuit that converts UP and DOWN phase error signals into current pulses. It uses a PMOS current mirror for the UP current and an NMOS current mirror for the DOWN current, with switches to steer the current to the output node (ICP). Note: In this extracted netlist, the node named 'VSS' is actually the positive supply and 'VDD' is ground, as evidenced by the PMOS/NMOS bulk connections.",
+    "node_mapping": {
+      "input": [
+        "VSOURCE",
+        "VSINK",
+        "IREF_SOURCE",
+        "IREF_SINK"
+      ],
+      "output": [
+        "ICP"
+      ],
+      "supply": [
+        "VSS"
+      ],
+      "bias": [
+        "IREF_SOURCE",
+        "IREF_SINK"
+      ],
+      "ground": [
+        "VDD"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10-GHz SiGe BiCMOS Phase-Locked-Loop Frequency Synthesizer",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "operating_frequency": {
+      "description": "Maximum oscillation frequency of the PLL",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "10 GHz",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for isolated charge pump",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "Hz"
+        },
+        "reasoning": "This metric applies to the full PLL (VCO + divider), not the isolated charge pump."
+      },
+      "importance": "optional"
+    },
+    "power_consumption": {
+      "description": "Total power consumption of the circuit",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "17 mW",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = V * I. For the charge pump alone with 50uA bias: P = 1.8V * (50uA + 50uA) = 180uW.",
+        "range": {
+          "min": "100u",
+          "typical": "180u",
+          "max": "300u",
+          "unit": "W"
+        },
+        "reasoning": "The 17mW reported is for the entire PLL. The charge pump alone consumes a small fraction of this, primarily dictated by the bias currents."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "In-band phase noise of the PLL",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-79 dBc/Hz @ 2kHz",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Applies to the full PLL system."
+      },
+      "importance": "optional"
+    },
+    "cp_i_up": {
+      "description": "Charge pump UP current",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Mirrors the 50uA bias current. Due to channel length modulation (lambda=0.1) and Vds mismatch, I_up \u2248 50uA * (1 + 0.1*0.8) / (1 + 0.1*0.87) = 49.6uA.",
+        "range": {
+          "min": "45u",
+          "typical": "50u",
+          "max": "55u",
+          "unit": "A"
+        },
+        "reasoning": "Directly proportional to the provided bias current, with minor deviations due to finite output resistance."
+      },
+      "importance": "essential"
+    },
+    "cp_i_down": {
+      "description": "Charge pump DOWN current",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Mirrors the 50uA bias current. I_down \u2248 50uA * (1 + 0.1*0.86) / (1 + 0.1*0.61) = 51.1uA.",
+        "range": {
+          "min": "45u",
+          "typical": "51u",
+          "max": "55u",
+          "unit": "A"
+        },
+        "reasoning": "Mirrors bias current, slightly higher due to Vds mismatch in the NMOS mirror."
+      },
+      "importance": "essential"
+    },
+    "cp_leakage": {
+      "description": "Leakage current at the output when both switches are OFF",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Subthreshold leakage of OFF transistors.",
+        "range": {
+          "min": "-1n",
+          "typical": "0",
+          "max": "1n",
+          "unit": "A"
+        },
+        "reasoning": "In 130nm, OFF state leakage is typically in the pA to nA range."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure charge pump UP/DOWN currents, leakage, and transient switching behavior.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "cp_i_up",
+      "cp_i_down",
+      "cp_leakage"
+    ],
+    "spice": "* Charge Pump Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\n* NOTE: In this extracted netlist, VSS is the positive supply and VDD is ground\n* based on the PMOS/NMOS bulk connections.\nVVDD VDD 0 0\nVVSS VSS 0 1.8\n\n* Bias currents (50uA)\nI_UP_BIAS IREF_SOURCE VDD 50u\nI_DN_BIAS VSS IREF_SINK 50u\n\n* Switches (Pulse for Tran, DC altered later)\nV_VSOURCE VSOURCE 0 dc 1.8 pulse(1.8 0 5n 0.1n 0.1n 10n 40n)\nV_VSINK VSINK 0 dc 0 pulse(0 1.8 20n 0.1n 0.1n 10n 40n)\n\n* Output voltage source\nV_ICP ICP 0 0.9\n\n* DUT\nXM2 IREF_SOURCE IREF_SOURCE VSS VSS sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM1 SOURCE IREF_SOURCE VSS VSS sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM4 ICP VSOURCE SOURCE VSS sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM3 ICP VSINK SINK VDD sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM5 IREF_SINK IREF_SINK VDD VDD sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 SINK IREF_SINK VDD VDD sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n.control\n  * 1. Transient analysis\n  tran 0.1n 40n\n  let i_out = i(V_ICP)\n  meas tran i_up_avg avg i_out from=6n to=14n\n  meas tran i_down_avg avg i_out from=21n to=29n\n  \n  * 2. DC sweeps for compliance and leakage\n  alter V_VSOURCE 0\n  alter V_VSINK 0\n  dc V_ICP 0 1.8 0.01\n  let i_up = -i(V_ICP)\n  meas dc i_up_09 find i_up at=0.9\n  \n  alter V_VSOURCE 1.8\n  alter V_VSINK 1.8\n  dc V_ICP 0 1.8 0.01\n  let i_down = i(V_ICP)\n  meas dc i_down_09 find i_down at=0.9\n  \n  alter V_VSOURCE 1.8\n  alter V_VSINK 0\n  dc V_ICP 0 1.8 0.01\n  let i_leak = i(V_ICP)\n  meas dc i_leak_09 find i_leak at=0.9\n  \n  quit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Charge Pump for Phase-Locked Loop (PLL)\",\n    \"description\": \"A CMOS charge pump circuit that converts UP and DOWN phase error signals into current pulses. It uses a PMOS current mirror for the UP current and an NMOS current mirror for the DOWN current, with switches to steer the current to the output node (ICP). Note: In this extracted netlist, the node named 'VSS' is actually the positive supply and 'VDD' is ground, as evidenced by the PMOS/NMOS bulk connections.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VSOURCE\",\n        \"VSINK\",\n        \"IREF_SOURCE\",\n        \"IREF_SINK\"\n      ],\n      \"output\": [\n        \"ICP\"\n      ],\n      \"supply\": [\n        \"VSS\"\n      ],\n      \"bias\": [\n        \"IREF_SOURCE\",\n        \"IREF_SINK\"\n      ],\n      \"ground\": [\n        \"VDD\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10-GHz SiGe BiCMOS Phase-Locked-Loop Frequency Synthesizer\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"operating_frequency\": {\n      \"description\": \"Maximum oscillation frequency of the PLL\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"10 GHz\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for isolated charge pump\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"This metric applies to the full PLL (VCO + divider), not the isolated charge pump.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumption of the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"17 mW\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = V * I. For the charge pump alone with 50uA bias: P = 1.8V * (50uA + 50uA) = 180uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"180u\",\n          \"max\": \"300u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The 17mW reported is for the entire PLL. The charge pump alone consumes a small fraction of this, primarily dictated by the bias currents.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"In-band phase noise of the PLL\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-79 dBc/Hz @ 2kHz\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"Applies to the full PLL system.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"cp_i_up\": {\n      \"description\": \"Charge pump UP current\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mirrors the 50uA bias current. Due to channel length modulation (lambda=0.1) and Vds mismatch, I_up \u2248 50uA * (1 + 0.1*0.8) / (1 + 0.1*0.87) = 49.6uA.\",\n        \"range\": {\n          \"min\": \"45u\",\n          \"typical\": \"50u\",\n          \"max\": \"55u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Directly proportional to the provided bias current, with minor deviations due to finite output resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cp_i_down\": {\n      \"description\": \"Charge pump DOWN current\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mirrors the 50uA bias current. I_down \u2248 50uA * (1 + 0.1*0.86) / (1 + 0.1*0.61) = 51.1uA.\",\n        \"range\": {\n          \"min\": \"45u\",\n          \"typical\": \"51u\",\n          \"max\": \"55u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Mirrors bias current, slightly higher due to Vds mismatch in the NMOS mirror.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"cp_leakage\": {\n      \"description\": \"Leakage current at the output when both switches are OFF\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Subthreshold leakage of OFF transistors.\",\n        \"range\": {\n          \"min\": \"-1n\",\n          \"typical\": \"0\",\n          \"max\": \"1n\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"In 130nm, OFF state leakage is typically in the pA to nA range.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure charge pump UP/DOWN currents, leakage, and transient switching behavior.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"cp_i_up\",\n      \"cp_i_down\",\n      \"cp_leakage\"\n    ],\n    \"spice\": \"* Charge Pump Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\n* NOTE: In this extracted netlist, VSS is the positive supply and VDD is ground\\n* based on the PMOS/NMOS bulk connections.\\nVVDD VDD 0 0\\nVVSS VSS 0 1.8\\n\\n* Bias currents (50uA)\\nI_UP_BIAS IREF_SOURCE VDD 50u\\nI_DN_BIAS VSS IREF_SINK 50u\\n\\n* Switches (Pulse for Tran, DC altered later)\\nV_VSOURCE VSOURCE 0 dc 1.8 pulse(1.8 0 5n 0.1n 0.1n 10n 40n)\\nV_VSINK VSINK 0 dc 0 pulse(0 1.8 20n 0.1n 0.1n 10n 40n)\\n\\n* Output voltage source\\nV_ICP ICP 0 0.9\\n\\n* DUT\\nXM2 IREF_SOURCE IREF_SOURCE VSS VSS sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 SOURCE IREF_SOURCE VSS VSS sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM4 ICP VSOURCE SOURCE VSS sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM3 ICP VSINK SINK VDD sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM5 IREF_SINK IREF_SINK VDD VDD sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 SINK IREF_SINK VDD VDD sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n.control\\n  * 1. Transient analysis\\n  tran 0.1n 40n\\n  let i_out = i(V_ICP)\\n  meas tran i_up_avg avg i_out from=6n to=14n\\n  meas tran i_down_avg avg i_out from=21n to=29n\\n  \\n  * 2. DC sweeps for compliance and leakage\\n  alter V_VSOURCE 0\\n  alter V_VSINK 0\\n  dc V_ICP 0 1.8 0.01\\n  let i_up = -i(V_ICP)\\n  meas dc i_up_09 find i_up at=0.9\\n  \\n  alter V_VSOURCE 1.8\\n  alter V_VSINK 1.8\\n  dc V_ICP 0 1.8 0.01\\n  let i_down = i(V_ICP)\\n  meas dc i_down_09 find i_down at=0.9\\n  \\n  alter V_VSOURCE 1.8\\n  alter V_VSINK 0\\n  dc V_ICP 0 1.8 0.01\\n  let i_leak = i(V_ICP)\\n  meas dc i_leak_09 find i_leak at=0.9\\n  \\n  quit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "987084",
+  "_case": "987084_image_4"
+}

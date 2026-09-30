@@ -1,0 +1,123 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive interconnect model (RLC network)",
+    "description": "A lumped-element RLC circuit modeling an on-chip digital interconnect. It uses parallel RL branches to capture frequency-dependent resistance and inductance (such as skin effect and proximity effects) and a capacitor to model parasitic capacitance to ground.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "High-Frequency Characterization of On-Chip Digital Interconnects",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "bandwidth": {
+      "description": "-3dB cutoff frequency of the interconnect model",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20 GHz",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "f_3dB \u2248 1 / (2 * \u03c0 * sqrt(L_eq * C)) where L_eq is the parallel combination of L1 and L2.",
+        "range": {
+          "min": "10G",
+          "typical": "25G",
+          "max": "50G",
+          "unit": "Hz"
+        },
+        "reasoning": "Assuming typical on-chip interconnect parasitics (L_eq ~ 0.3nH, C ~ 100fF), the resonance/cutoff frequency falls in the tens of GHz range."
+      },
+      "importance": "essential"
+    },
+    "delay": {
+      "description": "Propagation delay from input to output (50% to 50% voltage level)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "t_pd \u2248 sqrt(L_eq * C) + R_eq * C",
+        "range": {
+          "min": "1p",
+          "typical": "10p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "For short to medium on-chip interconnects, the time of flight and RC delay combined are typically in the picosecond range."
+      },
+      "importance": "essential"
+    },
+    "rise_time": {
+      "description": "20% to 80% rise time at the output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "t_rise \u2248 sqrt(t_rise_in^2 + (2.2 * R_eq * C)^2)",
+        "range": {
+          "min": "10p",
+          "typical": "25p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Output rise time is limited by the input driver's rise time (assumed 20ps) and the low-pass filtering effect of the interconnect."
+      },
+      "importance": "recommended"
+    },
+    "overshoot": {
+      "description": "Maximum voltage at the output during a step response",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the damping factor \u03b6 = (R_eq / 2) * sqrt(C / L_eq)",
+        "range": {
+          "min": "1.8",
+          "typical": "1.85",
+          "max": "2.2",
+          "unit": "V"
+        },
+        "reasoning": "If the interconnect is underdamped (low resistance, high inductance), the voltage can overshoot the 1.8V supply slightly."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure bandwidth, propagation delay, rise time, and overshoot of the interconnect model.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "bandwidth",
+      "delay",
+      "rise_time",
+      "overshoot"
+    ],
+    "spice": "* Interconnect Model Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized component values for the interconnect model\n.param r1_val=50 r2_val=100 l1_val=1n l2_val=0.5n c1_val=100f\n\n* DUT (Interconnect Model)\nR1 IN N1 {r1_val}\nL1 N1 VOUT {l1_val}\nR2 IN N2 {r2_val}\nL2 N2 VOUT {l2_val}\nC1 VOUT GND {c1_val}\n\n* Stimulus Sources\n* AC source for bandwidth measurement, Pulse source for transient step response\nVIN IN 0 DC 0 AC 1 PULSE(0 1.8 100p 20p 20p 500p 1n)\n\n.control\n  * AC Analysis\n  ac dec 100 1Meg 100G\n  let gain_db = vdb(VOUT)\n  meas ac bandwidth when gain_db=-3 fall=1\n  \n  * Transient Analysis\n  tran 1p 2n\n  meas tran delay trig v(IN) val=0.9 rise=1 targ v(VOUT) val=0.9 rise=1\n  meas tran rise_time trig v(VOUT) val=0.36 rise=1 targ v(VOUT) val=1.44 rise=1\n  meas tran overshoot max v(VOUT)\n  \n  print bandwidth delay rise_time overshoot\n  quit\n.endc\n\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive interconnect model (RLC network)\",\n    \"description\": \"A lumped-element RLC circuit modeling an on-chip digital interconnect. It uses parallel RL branches to capture frequency-dependent resistance and inductance (such as skin effect and proximity effects) and a capacitor to model parasitic capacitance to ground.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"VOUT\"],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"High-Frequency Characterization of On-Chip Digital Interconnects\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"bandwidth\": {\n      \"description\": \"-3dB cutoff frequency of the interconnect model\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20 GHz\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3dB \u2248 1 / (2 * \u03c0 * sqrt(L_eq * C)) where L_eq is the parallel combination of L1 and L2.\",\n        \"range\": {\n          \"min\": \"10G\",\n          \"typical\": \"25G\",\n          \"max\": \"50G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Assuming typical on-chip interconnect parasitics (L_eq ~ 0.3nH, C ~ 100fF), the resonance/cutoff frequency falls in the tens of GHz range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay\": {\n      \"description\": \"Propagation delay from input to output (50% to 50% voltage level)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_pd \u2248 sqrt(L_eq * C) + R_eq * C\",\n        \"range\": {\n          \"min\": \"1p\",\n          \"typical\": \"10p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"For short to medium on-chip interconnects, the time of flight and RC delay combined are typically in the picosecond range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rise_time\": {\n      \"description\": \"20% to 80% rise time at the output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise \u2248 sqrt(t_rise_in^2 + (2.2 * R_eq * C)^2)\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"25p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Output rise time is limited by the input driver's rise time (assumed 20ps) and the low-pass filtering effect of the interconnect.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"overshoot\": {\n      \"description\": \"Maximum voltage at the output during a step response\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the damping factor \u03b6 = (R_eq / 2) * sqrt(C / L_eq)\",\n        \"range\": {\n          \"min\": \"1.8\",\n          \"typical\": \"1.85\",\n          \"max\": \"2.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"If the interconnect is underdamped (low resistance, high inductance), the voltage can overshoot the 1.8V supply slightly.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure bandwidth, propagation delay, rise time, and overshoot of the interconnect model.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"bandwidth\",\n      \"delay\",\n      \"rise_time\",\n      \"overshoot\"\n    ],\n    \"spice\": \"* Interconnect Model Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized component values for the interconnect model\\n.param r1_val=50 r2_val=100 l1_val=1n l2_val=0.5n c1_val=100f\\n\\n* DUT (Interconnect Model)\\nR1 IN N1 {r1_val}\\nL1 N1 VOUT {l1_val}\\nR2 IN N2 {r2_val}\\nL2 N2 VOUT {l2_val}\\nC1 VOUT GND {c1_val}\\n\\n* Stimulus Sources\\n* AC source for bandwidth measurement, Pulse source for transient step response\\nVIN IN 0 DC 0 AC 1 PULSE(0 1.8 100p 20p 20p 500p 1n)\\n\\n.control\\n  * AC Analysis\\n  ac dec 100 1Meg 100G\\n  let gain_db = vdb(VOUT)\\n  meas ac bandwidth when gain_db=-3 fall=1\\n  \\n  * Transient Analysis\\n  tran 1p 2n\\n  meas tran delay trig v(IN) val=0.9 rise=1 targ v(VOUT) val=0.9 rise=1\\n  meas tran rise_time trig v(VOUT) val=0.36 rise=1 targ v(VOUT) val=1.44 rise=1\\n  meas tran overshoot max v(VOUT)\\n  \\n  print bandwidth delay rise_time overshoot\\n  quit\\n.endc\\n\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1004576",
+  "_case": "1004576_image_9_b"
+}

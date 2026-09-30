@@ -1,0 +1,109 @@
+{
+  "step1_analysis": {
+    "circuit_type": "RF Power Amplifier with VSWR Protection",
+    "description": "A silicon bipolar RF power amplifier featuring a feedback control system for load mismatch protection. The protection circuit (Q2, Q3) detects peak voltage at the output collector node and clamps it by varying the circuit gain to prevent breakdown during overvoltage conditions.",
+    "node_mapping": {
+      "input": [
+        "RFin"
+      ],
+      "output": [
+        "RFout"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A VSWR-Protected Silicon Bipolar RF Power Amplifier With Soft-Slope Power Control",
+      "figure": "Schematic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Small-signal voltage gain at the operating frequency (1.8 GHz)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "80 dB",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Single stage CE amplifier gain ~ gm * Rload. With a 50 ohm load and typical gm, the gain of a single stage is around 10-20 dB.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "The 80 dB reported in the paper likely refers to the entire multi-stage amplifier chain or control loop gain. A single RF stage will provide much less gain."
+      },
+      "importance": "essential"
+    },
+    "output_power": {
+      "description": "RF output power delivered to a 50-ohm load at 1.8 GHz",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 dBm",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = Vpeak^2 / (2*R). For VDD=1.8V, max Vpeak ~ 1.5V. Pout = 1.5^2 / 100 = 22.5 mW = 13.5 dBm.",
+        "range": {
+          "min": 10,
+          "typical": 13,
+          "max": 16,
+          "unit": "dBm"
+        },
+        "reasoning": "Limited by the 1.8V supply voltage in SKY130 compared to higher voltages (7V/16V) in the original paper."
+      },
+      "importance": "essential"
+    },
+    "efficiency": {
+      "description": "Collector efficiency (RF output power / DC input power)",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "46% - 57%",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Class A/AB amplifiers typically achieve 30-50% efficiency depending on the bias point and voltage swing.",
+        "range": {
+          "min": 30,
+          "typical": 40,
+          "max": 55,
+          "unit": "%"
+        },
+        "reasoning": "Expected to be similar to the paper's reported values, though slightly lower due to lower VDD and headroom constraints."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC voltage gain, output power, and efficiency of the RF PA at 1.8 GHz.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "output_power",
+      "efficiency",
+      "dc_power"
+    ],
+    "spice": "* VSWR-Protected Silicon Bipolar RF Power Amplifier\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model (used since standard SKY130 NPNs require specific subcircuit calls)\n.model npn npn (bf=100 is=1e-16)\n\n* DUT (Resistor values appended to make valid SPICE)\nR1 N1 LABEL_NET_0 1k\nR2 N3 LABEL_NET_1 1k\nR3 RFout N3 1k\nR4 N1 N3 1k\nQ1 RFout RFin GND npn\nQ2 RFout LABEL_NET_1 N1 npn\nQ3 N1 LABEL_NET_0 RFin npn\n\n* Biasing and Supply\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\n\n* RF Choke and Load\nLchoke VDD RFout 100n\nCblock RFout OUT 10p\nRload OUT 0 50\n\n* Input Signal\nVbias RFin_bias 0 0.85\nLbias RFin_bias RFin 100n\nCblock_in IN RFin 10p\nVin IN 0 dc 0 ac 1 sin(0 0.5 1.8G)\n\n.control\n  * DC Operating Point\n  op\n  let dc_pwr = -i(VVDD) * 1.8\n  print dc_pwr\n\n  * AC Analysis for Gain\n  ac dec 20 100M 10G\n  let gain = vdb(out) - vdb(in)\n  meas ac gain_18g find gain at=1.8G\n\n  * Transient Analysis for Power and Efficiency\n  tran 10p 10n\n  meas tran vout_pk max v(out) from=5n to=10n\n  meas tran vout_min min v(out) from=5n to=10n\n  let vout_amp = (vout_pk - vout_min) / 2\n  let pout_w = (vout_amp * vout_amp) / (2 * 50)\n  let pout_dbm = 10 * log10(pout_w * 1000)\n  print pout_dbm\n\n  meas tran idc_avg avg i(VVDD) from=5n to=10n\n  let pdc = -idc_avg * 1.8\n  let eff = (pout_w / pdc) * 100\n  print eff\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"RF Power Amplifier with VSWR Protection\",\n    \"description\": \"A silicon bipolar RF power amplifier featuring a feedback control system for load mismatch protection. The protection circuit (Q2, Q3) detects peak voltage at the output collector node and clamps it by varying the circuit gain to prevent breakdown during overvoltage conditions.\",\n    \"node_mapping\": {\n      \"input\": [\"RFin\"],\n      \"output\": [\"RFout\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"LABEL_NET_0\", \"LABEL_NET_1\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A VSWR-Protected Silicon Bipolar RF Power Amplifier With Soft-Slope Power Control\",\n      \"figure\": \"Schematic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Small-signal voltage gain at the operating frequency (1.8 GHz)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"80 dB\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Single stage CE amplifier gain ~ gm * Rload. With a 50 ohm load and typical gm, the gain of a single stage is around 10-20 dB.\",\n        \"range\": { \"min\": 10, \"typical\": 15, \"max\": 25, \"unit\": \"dB\" },\n        \"reasoning\": \"The 80 dB reported in the paper likely refers to the entire multi-stage amplifier chain or control loop gain. A single RF stage will provide much less gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_power\": {\n      \"description\": \"RF output power delivered to a 50-ohm load at 1.8 GHz\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 dBm\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = Vpeak^2 / (2*R). For VDD=1.8V, max Vpeak ~ 1.5V. Pout = 1.5^2 / 100 = 22.5 mW = 13.5 dBm.\",\n        \"range\": { \"min\": 10, \"typical\": 13, \"max\": 16, \"unit\": \"dBm\" },\n        \"reasoning\": \"Limited by the 1.8V supply voltage in SKY130 compared to higher voltages (7V/16V) in the original paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"efficiency\": {\n      \"description\": \"Collector efficiency (RF output power / DC input power)\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"46% - 57%\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Class A/AB amplifiers typically achieve 30-50% efficiency depending on the bias point and voltage swing.\",\n        \"range\": { \"min\": 30, \"typical\": 40, \"max\": 55, \"unit\": \"%\" },\n        \"reasoning\": \"Expected to be similar to the paper's reported values, though slightly lower due to lower VDD and headroom constraints.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC voltage gain, output power, and efficiency of the RF PA at 1.8 GHz.\",\n    \"analyses\": [\"AC\", \"Tran\", \"OP\"],\n    \"metrics_measured\": [\"voltage_gain\", \"output_power\", \"efficiency\", \"dc_power\"],\n    \"spice\": \"* VSWR-Protected Silicon Bipolar RF Power Amplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model (used since standard SKY130 NPNs require specific subcircuit calls)\\n.model npn npn (bf=100 is=1e-16)\\n\\n* DUT (Resistor values appended to make valid SPICE)\\nR1 N1 LABEL_NET_0 1k\\nR2 N3 LABEL_NET_1 1k\\nR3 RFout N3 1k\\nR4 N1 N3 1k\\nQ1 RFout RFin GND npn\\nQ2 RFout LABEL_NET_1 N1 npn\\nQ3 N1 LABEL_NET_0 RFin npn\\n\\n* Biasing and Supply\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\n\\n* RF Choke and Load\\nLchoke VDD RFout 100n\\nCblock RFout OUT 10p\\nRload OUT 0 50\\n\\n* Input Signal\\nVbias RFin_bias 0 0.85\\nLbias RFin_bias RFin 100n\\nCblock_in IN RFin 10p\\nVin IN 0 dc 0 ac 1 sin(0 0.5 1.8G)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let dc_pwr = -i(VVDD) * 1.8\\n  print dc_pwr\\n\\n  * AC Analysis for Gain\\n  ac dec 20 100M 10G\\n  let gain = vdb(out) - vdb(in)\\n  meas ac gain_18g find gain at=1.8G\\n\\n  * Transient Analysis for Power and Efficiency\\n  tran 10p 10n\\n  meas tran vout_pk max v(out) from=5n to=10n\\n  meas tran vout_min min v(out) from=5n to=10n\\n  let vout_amp = (vout_pk - vout_min) / 2\\n  let pout_w = (vout_amp * vout_amp) / (2 * 50)\\n  let pout_dbm = 10 * log10(pout_w * 1000)\\n  print pout_dbm\\n\\n  meas tran idc_avg avg i(VVDD) from=5n to=10n\\n  let pdc = -idc_avg * 1.8\\n  let eff = (pout_w / pdc) * 100\\n  print eff\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1408081",
+  "_case": "1408081_image_6_a"
+}

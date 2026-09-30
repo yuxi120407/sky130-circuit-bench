@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascode Differential Amplifier",
+    "description": "A high-speed differential amplifier stage featuring cascode transistors and emitter degeneration. It serves as a core building block for the limiting amplifier and transimpedance amplifier mentioned in the paper.",
+    "node_mapping": {
+      "input": [
+        "DINP",
+        "DINN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "IBUF"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "6-k 43-Gb/s Differential Transimpedance-Limiting Amplifier With Auto-Zero Feedback and High Dynamic Range",
+      "figure": "Schematic extracted from text",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the amplifier stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "450 mW (entire TIALA)",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "With IBUF=0.8V and 30 ohm emitter resistors, each of the 5 current source branches draws ~3.3mA. Total current ~16.5mA. Power = 16.5mA * 3.3V = 54.4mW.",
+        "range": {
+          "min": 0.04,
+          "typical": 0.055,
+          "max": 0.08,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the bias network and a 3.3V supply, which is required to keep the stacked cascode and input transistors in the active region."
+      },
+      "importance": "essential"
+    },
+    "differential_gain": {
+      "description": "Low-frequency differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 dB (entire limiting amp)",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Effective transconductance Gm ~ 1/(Re + re) ~ 1/(10 + 8) = 55 mS. Differential gain = Gm * Rload = 55mS * 55 ohm = 3.02 V/V = 9.6 dB.",
+        "range": {
+          "min": 6,
+          "typical": 10,
+          "max": 14,
+          "unit": "dB"
+        },
+        "reasoning": "Single stage gain is determined by the ratio of the load resistor (55 ohm) to the emitter degeneration resistor (10 ohm) plus intrinsic emitter resistance."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "35 GHz",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Bandwidth is dominated by the output pole: BW = 1 / (2 * pi * Rload * C_parasitic). Assuming C_parasitic ~ 100fF and Rload = 55 ohm, BW ~ 29 GHz.",
+        "range": {
+          "min": 10000000000.0,
+          "typical": 20000000000.0,
+          "max": 40000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Highly dependent on the specific NPN model's parasitic capacitances. Estimated using generic high-speed NPN parameters."
+      },
+      "importance": "essential"
+    },
+    "transient_swing": {
+      "description": "Peak-to-peak differential output voltage swing for a given input.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 mVpp sensitivity",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "For a 200mVpp differential input and a gain of ~3 V/V, the output swing should be ~600mVpp.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.6,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "Derived from the expected linear gain before limiting occurs."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC differential gain, bandwidth, and transient response of the cascode differential amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "differential_gain",
+      "bandwidth",
+      "transient_swing"
+    ],
+    "spice": "* Cascode Differential Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model for high-speed simulation\n.model npn npn (is=1e-16 bf=100 cjc=10f cje=10f tf=10p)\n\n* Power supplies and bias (3.3V required for headroom of the cascode stack)\nVVDD VDD 0 3.3\nVIBUF IBUF 0 0.8\n\n* Input signals (Common mode = 1.8V, AC = 1V diff, Tran = 200mVpp diff at 1GHz)\nVDINP DINP 0 dc 1.8 ac 0.5 sin(1.8 0.05 1G)\nVDINN DINN 0 dc 1.8 ac -0.5 sin(1.8 -0.05 1G)\n\n* Dependent source for differential output measurement\nE1 OUT_DIFF 0 OUTP OUTN 1\n\n* DUT\nQ1 N_E_LEFT IBUF N_Q1_E npn\nQ2 N_BIAS N_BIAS N_Q2_E npn\nQ3 N_Q7_E DINN N_E_RIGHT npn\nQ4 N_R2 N_Q7_B N_Q7_E npn\nQ5 VDD VDD N_BIAS npn\nQ6 IBUF IBUF N_Q6_E npn\nQ7 N_R2 N_Q7_B N_Q7_E npn\nQ8 N_E_RIGHT IBUF N_Q8_E npn\nQ9 N_E_LEFT IBUF N_Q9_E npn\nQ10 N_R4 N_Q15_B N_Q15_E npn\nQ11 N_Q15_E DINP N_E_LEFT npn\nQ12 N_Q7_E DINN N_E_RIGHT npn\nQ13 N_E_RIGHT IBUF N_Q13_E npn\nQ14 N_Q15_E DINP N_E_LEFT npn\nQ15 N_R4 N_Q15_B N_Q15_E npn\nQ16 N_Q16_C IBUF N_Q16_E npn\nR1 N_Q8_E GND 30\nR2 VDD N_R2 55\nR3 N_Q6_E GND 30\nR4 VDD N_R4 55\nR5 N_Q13_E GND 30\nR6 N_Q9_E GND 30\nR7 N_Q1_E GND 30\nR8 N_BIAS N_Q7_B 5\nR9 N_Q16_E GND 30\nR10 N_Q2_E N_Q16_C 90\nR11 N_BIAS N_Q15_B 5\nR12 N_R4 OUTN 5\nR13 N_R2 OUTP 5\nR14 N_E_LEFT N_MID 10\nR15 N_MID N_E_RIGHT 10\nC1 N_BIAS GND 1.1p\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 3.3\n  print power\n  print v(OUTP) v(OUTN) v(N_BIAS) v(N_E_LEFT) v(N_E_RIGHT)\n\n  * AC Analysis\n  ac dec 100 1M 100G\n  let gain_db = vdb(OUT_DIFF)\n  meas ac dc_gain find gain_db at=1M\n  let gain_3db = dc_gain - 3\n  meas ac bw_3db when gain_db=$&gain_3db fall=1\n\n  * Transient Analysis\n  tran 1p 5n\n  meas tran vout_max max v(OUT_DIFF)\n  meas tran vout_min min v(OUT_DIFF)\n  let vout_pp = vout_max - vout_min\n  print vout_pp\n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascode Differential Amplifier\",\n    \"description\": \"A high-speed differential amplifier stage featuring cascode transistors and emitter degeneration. It serves as a core building block for the limiting amplifier and transimpedance amplifier mentioned in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"DINP\",\n        \"DINN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"IBUF\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"6-k 43-Gb/s Differential Transimpedance-Limiting Amplifier With Auto-Zero Feedback and High Dynamic Range\",\n      \"figure\": \"Schematic extracted from text\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the amplifier stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"450 mW (entire TIALA)\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With IBUF=0.8V and 30 ohm emitter resistors, each of the 5 current source branches draws ~3.3mA. Total current ~16.5mA. Power = 16.5mA * 3.3V = 54.4mW.\",\n        \"range\": {\n          \"min\": 0.04,\n          \"typical\": 0.055,\n          \"max\": 0.08,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the bias network and a 3.3V supply, which is required to keep the stacked cascode and input transistors in the active region.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"differential_gain\": {\n      \"description\": \"Low-frequency differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 dB (entire limiting amp)\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Effective transconductance Gm ~ 1/(Re + re) ~ 1/(10 + 8) = 55 mS. Differential gain = Gm * Rload = 55mS * 55 ohm = 3.02 V/V = 9.6 dB.\",\n        \"range\": {\n          \"min\": 6,\n          \"typical\": 10,\n          \"max\": 14,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Single stage gain is determined by the ratio of the load resistor (55 ohm) to the emitter degeneration resistor (10 ohm) plus intrinsic emitter resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"35 GHz\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bandwidth is dominated by the output pole: BW = 1 / (2 * pi * Rload * C_parasitic). Assuming C_parasitic ~ 100fF and Rload = 55 ohm, BW ~ 29 GHz.\",\n        \"range\": {\n          \"min\": 10e9,\n          \"typical\": 20e9,\n          \"max\": 40e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Highly dependent on the specific NPN model's parasitic capacitances. Estimated using generic high-speed NPN parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transient_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing for a given input.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 mVpp sensitivity\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 200mVpp differential input and a gain of ~3 V/V, the output swing should be ~600mVpp.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.6,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Derived from the expected linear gain before limiting occurs.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC differential gain, bandwidth, and transient response of the cascode differential amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"differential_gain\",\n      \"bandwidth\",\n      \"transient_swing\"\n    ],\n    \"spice\": \"* Cascode Differential Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model for high-speed simulation\\n.model npn npn (is=1e-16 bf=100 cjc=10f cje=10f tf=10p)\\n\\n* Power supplies and bias (3.3V required for headroom of the cascode stack)\\nVVDD VDD 0 3.3\\nVIBUF IBUF 0 0.8\\n\\n* Input signals (Common mode = 1.8V, AC = 1V diff, Tran = 200mVpp diff at 1GHz)\\nVDINP DINP 0 dc 1.8 ac 0.5 sin(1.8 0.05 1G)\\nVDINN DINN 0 dc 1.8 ac -0.5 sin(1.8 -0.05 1G)\\n\\n* Dependent source for differential output measurement\\nE1 OUT_DIFF 0 OUTP OUTN 1\\n\\n* DUT\\nQ1 N_E_LEFT IBUF N_Q1_E npn\\nQ2 N_BIAS N_BIAS N_Q2_E npn\\nQ3 N_Q7_E DINN N_E_RIGHT npn\\nQ4 N_R2 N_Q7_B N_Q7_E npn\\nQ5 VDD VDD N_BIAS npn\\nQ6 IBUF IBUF N_Q6_E npn\\nQ7 N_R2 N_Q7_B N_Q7_E npn\\nQ8 N_E_RIGHT IBUF N_Q8_E npn\\nQ9 N_E_LEFT IBUF N_Q9_E npn\\nQ10 N_R4 N_Q15_B N_Q15_E npn\\nQ11 N_Q15_E DINP N_E_LEFT npn\\nQ12 N_Q7_E DINN N_E_RIGHT npn\\nQ13 N_E_RIGHT IBUF N_Q13_E npn\\nQ14 N_Q15_E DINP N_E_LEFT npn\\nQ15 N_R4 N_Q15_B N_Q15_E npn\\nQ16 N_Q16_C IBUF N_Q16_E npn\\nR1 N_Q8_E GND 30\\nR2 VDD N_R2 55\\nR3 N_Q6_E GND 30\\nR4 VDD N_R4 55\\nR5 N_Q13_E GND 30\\nR6 N_Q9_E GND 30\\nR7 N_Q1_E GND 30\\nR8 N_BIAS N_Q7_B 5\\nR9 N_Q16_E GND 30\\nR10 N_Q2_E N_Q16_C 90\\nR11 N_BIAS N_Q15_B 5\\nR12 N_R4 OUTN 5\\nR13 N_R2 OUTP 5\\nR14 N_E_LEFT N_MID 10\\nR15 N_MID N_E_RIGHT 10\\nC1 N_BIAS GND 1.1p\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 3.3\\n  print power\\n  print v(OUTP) v(OUTN) v(N_BIAS) v(N_E_LEFT) v(N_E_RIGHT)\\n\\n  * AC Analysis\\n  ac dec 100 1M 100G\\n  let gain_db = vdb(OUT_DIFF)\\n  meas ac dc_gain find gain_db at=1M\\n  let gain_3db = dc_gain - 3\\n  meas ac bw_3db when gain_db=$&gain_3db fall=1\\n\\n  * Transient Analysis\\n  tran 1p 5n\\n  meas tran vout_max max v(OUT_DIFF)\\n  meas tran vout_min min v(OUT_DIFF)\\n  let vout_pp = vout_max - vout_min\\n  print vout_pp\\n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1336996",
+  "_case": "1336996_image_8"
+}

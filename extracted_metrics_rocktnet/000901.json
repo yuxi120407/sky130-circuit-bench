@@ -1,0 +1,104 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive RC Sampling Network (Equivalent Circuit)",
+    "description": "An equivalent circuit model representing the sampling switch (Ron) and hold capacitor (Ch) of a sub-sampling mixer, including source and matching resistances. It is used to analyze the tracking bandwidth and noise filtering properties of the sampling network.",
+    "node_mapping": {
+      "input": [
+        "N2"
+      ],
+      "output": [
+        "Vout_2"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND",
+        "N0",
+        "N3"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.4 GHz CMOS Sub-Sampling Mixer With Integrated Filtering",
+      "figure": "Generic equivalent circuit",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "bandwidth": {
+      "description": "-3dB bandwidth of the RC sampling network",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.4 GHz (Operating frequency)",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * Ron * Ch) = 1 / (2 * pi * 50 * 1pF) = 3.18 GHz",
+        "range": {
+          "min": 2000000000.0,
+          "typical": 3180000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Based on a typical 50 ohm switch on-resistance and 1pF hold capacitor required for tracking a 2.4GHz RF signal."
+      },
+      "importance": "essential"
+    },
+    "insertion_loss_2_4G": {
+      "description": "Signal attenuation at the 2.4 GHz RF frequency",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "21.8 dB (Mixer Noise Figure)",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(1 / sqrt(1 + (2.4G/3.18G)^2)) = -1.9 dB",
+        "range": {
+          "min": -3.0,
+          "typical": -1.9,
+          "max": -1.0,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated from the first-order RC low-pass filter response at 2.4 GHz."
+      },
+      "importance": "essential"
+    },
+    "rise_time": {
+      "description": "Step response rise time (10% to 90%)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 MHz (Sampling frequency)",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "2.2 * Ron * Ch = 2.2 * 50 * 1pF = 110 ps",
+        "range": {
+          "min": 5e-11,
+          "typical": 1.1e-10,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "Standard 10-90% rise time for a first-order RC circuit."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the bandwidth, insertion loss at 2.4 GHz, and step response rise time of the equivalent RC sampling network.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "bandwidth",
+      "loss_2_4G",
+      "rise_time"
+    ],
+    "spice": "* RC Sampling Network Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param R_val=50\n.param C_val=1p\n\n* DUT (with component values appended to generic netlist)\nV_en_Rsrc_2 N2 N0 dc 0\nV_en_Ron N1 Vout_2 dc 0\nV_en_Rmatch N2 N3 dc 0\nRmatch N3 GND {R_val}\nRon N1 N2 {R_val}\nRsrc_2 N0 GND {R_val}\nCh Vout_2 GND {C_val}\n\n* Sources\nVDD vdd 0 1.8\nVin N2 0 dc 0.9 ac 1 pulse(0 1.8 0 10p 10p 5n 10n)\n\n.control\n  * AC Analysis\n  ac dec 100 10M 10G\n  let gain_db = vdb(Vout_2)\n  meas ac bandwidth when gain_db=-3 fall=1\n  meas ac loss_2_4G find gain_db at=2.4G\n  print bandwidth loss_2_4G\n\n  * Transient Analysis\n  tran 1p 10n\n  meas tran rise_time trig v(Vout_2) val=0.18 rise=1 targ v(Vout_2) val=1.62 rise=1\n  print rise_time\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive RC Sampling Network (Equivalent Circuit)\",\n    \"description\": \"An equivalent circuit model representing the sampling switch (Ron) and hold capacitor (Ch) of a sub-sampling mixer, including source and matching resistances. It is used to analyze the tracking bandwidth and noise filtering properties of the sampling network.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\"\n      ],\n      \"output\": [\n        \"Vout_2\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\",\n        \"N0\",\n        \"N3\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.4 GHz CMOS Sub-Sampling Mixer With Integrated Filtering\",\n      \"figure\": \"Generic equivalent circuit\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the RC sampling network\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.4 GHz (Operating frequency)\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * Ron * Ch) = 1 / (2 * pi * 50 * 1pF) = 3.18 GHz\",\n        \"range\": {\n          \"min\": 2000000000.0,\n          \"typical\": 3180000000.0,\n          \"max\": 5000000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Based on a typical 50 ohm switch on-resistance and 1pF hold capacitor required for tracking a 2.4GHz RF signal.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"insertion_loss_2_4G\": {\n      \"description\": \"Signal attenuation at the 2.4 GHz RF frequency\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"21.8 dB (Mixer Noise Figure)\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(1 / sqrt(1 + (2.4G/3.18G)^2)) = -1.9 dB\",\n        \"range\": {\n          \"min\": -3.0,\n          \"typical\": -1.9,\n          \"max\": -1.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated from the first-order RC low-pass filter response at 2.4 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"rise_time\": {\n      \"description\": \"Step response rise time (10% to 90%)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 MHz (Sampling frequency)\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2.2 * Ron * Ch = 2.2 * 50 * 1pF = 110 ps\",\n        \"range\": {\n          \"min\": 50e-12,\n          \"typical\": 110e-12,\n          \"max\": 200e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard 10-90% rise time for a first-order RC circuit.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the bandwidth, insertion loss at 2.4 GHz, and step response rise time of the equivalent RC sampling network.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"bandwidth\",\n      \"loss_2_4G\",\n      \"rise_time\"\n    ],\n    \"spice\": \"* RC Sampling Network Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param R_val=50\\n.param C_val=1p\\n\\n* DUT (with component values appended to generic netlist)\\nV_en_Rsrc_2 N2 N0 dc 0\\nV_en_Ron N1 Vout_2 dc 0\\nV_en_Rmatch N2 N3 dc 0\\nRmatch N3 GND {R_val}\\nRon N1 N2 {R_val}\\nRsrc_2 N0 GND {R_val}\\nCh Vout_2 GND {C_val}\\n\\n* Sources\\nVDD vdd 0 1.8\\nVin N2 0 dc 0.9 ac 1 pulse(0 1.8 0 10p 10p 5n 10n)\\n\\n.control\\n  * AC Analysis\\n  ac dec 100 10M 10G\\n  let gain_db = vdb(Vout_2)\\n  meas ac bandwidth when gain_db=-3 fall=1\\n  meas ac loss_2_4G find gain_db at=2.4G\\n  print bandwidth loss_2_4G\\n\\n  * Transient Analysis\\n  tran 1p 10n\\n  meas tran rise_time trig v(Vout_2) val=0.18 rise=1 targ v(Vout_2) val=1.62 rise=1\\n  print rise_time\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1522555",
+  "_case": "1522555_image_4"
+}

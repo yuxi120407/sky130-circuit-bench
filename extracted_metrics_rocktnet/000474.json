@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Amplifier with Input Switches",
+    "description": "This circuit is a differential pair (XM1, XM2) with an NMOS tail current source (XM4). The inputs are routed through PMOS transistors (XM3, XM5) with grounded gates, which act as closed switches forming part of the configurable interleaver routing network in the analog turbo decoder.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_4",
+        "LABEL_NET_6"
+      ],
+      "output": [
+        "LABEL_NET_0",
+        "LABEL_NET_3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_5"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 13.3Mb/s 0.35\u00b5m CMOS Analog Turbo Decoder IC with a Configurable Interleaver",
+      "figure": "unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low frequency differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0.1dB (likely refers to ripple or error, not raw gain)",
+        "technology": "0.35\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current I_tail \u2248 210\u00b5A for Vbias=0.9V. I_d = 105\u00b5A per branch. gm \u2248 2*I_d/Vov \u2248 777\u00b5S. With an assumed 10k\u03a9 load, Gain = gm*RL = 7.77 V/V = 17.8 dB.",
+        "range": {
+          "min": 15,
+          "typical": 18,
+          "max": 22,
+          "unit": "dB"
+        },
+        "reasoning": "Gain depends heavily on the load applied. Using a standard 10k\u03a9 test load yields ~18dB."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "-3dB bandwidth of the differential amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "13.3Mb/s (system data rate)",
+        "technology": "0.35\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Dominant pole at output: BW = 1 / (2 * \u03c0 * RL * Cout). With RL=10k\u03a9 and Cout \u2248 20fF (parasitics + 10fF load), BW \u2248 800 MHz.",
+        "range": {
+          "min": 500000000.0,
+          "typical": 800000000.0,
+          "max": 1200000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Must be significantly higher than the 13.3Mb/s data rate to avoid intersymbol interference."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_tail = 1.8V * 210\u00b5A = 378\u00b5W.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.00038,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Calculated directly from the tail current source bias and dimensions."
+      },
+      "importance": "essential"
+    },
+    "delay": {
+      "description": "Propagation delay from differential input to differential output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "150ns / 250ns / 800ns (likely system-level iteration delays)",
+        "technology": "0.35\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Delay \u2248 0.35 / BW \u2248 0.35 / 800MHz \u2248 0.44 ns.",
+        "range": {
+          "min": 2e-10,
+          "typical": 5e-10,
+          "max": 2e-09,
+          "unit": "s"
+        },
+        "reasoning": "The paper's reported delays are for the full decoder loop. A single diff pair stage will have sub-nanosecond delay in 130nm."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC differential gain, bandwidth, and transient propagation delay of the differential amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "bw_3db",
+      "delay"
+    ],
+    "spice": "* Testbench for Analog Turbo Decoder Diff Pair\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\n* DUT\nXM1 LABEL_NET_0 N2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 LABEL_NET_3 N1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N2 GND LABEL_NET_4 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 GND LABEL_NET_6 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\n\n* Power and Bias\nVVDD VDD 0 1.8\nVBIAS LABEL_NET_5 0 0.9\n\n* Loads (Added to convert OTA currents to measurable voltages)\nRL1 VDD LABEL_NET_0 10k\nRL2 VDD LABEL_NET_3 10k\nCL1 LABEL_NET_0 0 10f\nCL2 LABEL_NET_3 0 10f\n\n* Inputs\nV_INP LABEL_NET_4 0 DC 0.9 AC 0.5 SIN(0.9 0.1 10Meg)\nV_INN LABEL_NET_6 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 10Meg)\n\n* Differential signal extractors (VCVS)\nE_diff OUT_DIFF 0 LABEL_NET_3 LABEL_NET_0 1.0\nE_indiff IN_DIFF 0 LABEL_NET_4 LABEL_NET_6 1.0\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 100 1k 10G\n  let gain_db = vdb(OUT_DIFF)\n  meas ac dc_gain find gain_db at=10k\n  let gain_3db = dc_gain - 3\n  meas ac bw_3db when gain_db=gain_3db fall=1\n\n  * Transient Analysis\n  tran 0.1n 200n\n  meas tran delay trig v(IN_DIFF) val=0 rise=1 targ v(OUT_DIFF) val=0 rise=1\n  meas tran vout_max max v(OUT_DIFF)\n  meas tran vout_min min v(OUT_DIFF)\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Amplifier with Input Switches\",\n    \"description\": \"This circuit is a differential pair (XM1, XM2) with an NMOS tail current source (XM4). The inputs are routed through PMOS transistors (XM3, XM5) with grounded gates, which act as closed switches forming part of the configurable interleaver routing network in the analog turbo decoder.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_4\",\n        \"LABEL_NET_6\"\n      ],\n      \"output\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_5\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 13.3Mb/s 0.35\u00b5m CMOS Analog Turbo Decoder IC with a Configurable Interleaver\",\n      \"figure\": \"unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low frequency differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0.1dB (likely refers to ripple or error, not raw gain)\",\n        \"technology\": \"0.35\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current I_tail \u2248 210\u00b5A for Vbias=0.9V. I_d = 105\u00b5A per branch. gm \u2248 2*I_d/Vov \u2248 777\u00b5S. With an assumed 10k\u03a9 load, Gain = gm*RL = 7.77 V/V = 17.8 dB.\",\n        \"range\": {\n          \"min\": 15,\n          \"typical\": 18,\n          \"max\": 22,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain depends heavily on the load applied. Using a standard 10k\u03a9 test load yields ~18dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"-3dB bandwidth of the differential amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"13.3Mb/s (system data rate)\",\n        \"technology\": \"0.35\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominant pole at output: BW = 1 / (2 * \u03c0 * RL * Cout). With RL=10k\u03a9 and Cout \u2248 20fF (parasitics + 10fF load), BW \u2248 800 MHz.\",\n        \"range\": {\n          \"min\": 500e6,\n          \"typical\": 800e6,\n          \"max\": 1.2e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Must be significantly higher than the 13.3Mb/s data rate to avoid intersymbol interference.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_tail = 1.8V * 210\u00b5A = 378\u00b5W.\",\n        \"range\": {\n          \"min\": 300e-6,\n          \"typical\": 380e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated directly from the tail current source bias and dimensions.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay\": {\n      \"description\": \"Propagation delay from differential input to differential output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"150ns / 250ns / 800ns (likely system-level iteration delays)\",\n        \"technology\": \"0.35\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay \u2248 0.35 / BW \u2248 0.35 / 800MHz \u2248 0.44 ns.\",\n        \"range\": {\n          \"min\": 0.2e-9,\n          \"typical\": 0.5e-9,\n          \"max\": 2e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The paper's reported delays are for the full decoder loop. A single diff pair stage will have sub-nanosecond delay in 130nm.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC differential gain, bandwidth, and transient propagation delay of the differential amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"bw_3db\",\n      \"delay\"\n    ],\n    \"spice\": \"* Testbench for Analog Turbo Decoder Diff Pair\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\n* DUT\\nXM1 LABEL_NET_0 N2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 LABEL_NET_3 N1 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N2 GND LABEL_NET_4 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 LABEL_NET_5 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 GND LABEL_NET_6 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\n\\n* Power and Bias\\nVVDD VDD 0 1.8\\nVBIAS LABEL_NET_5 0 0.9\\n\\n* Loads (Added to convert OTA currents to measurable voltages)\\nRL1 VDD LABEL_NET_0 10k\\nRL2 VDD LABEL_NET_3 10k\\nCL1 LABEL_NET_0 0 10f\\nCL2 LABEL_NET_3 0 10f\\n\\n* Inputs\\nV_INP LABEL_NET_4 0 DC 0.9 AC 0.5 SIN(0.9 0.1 10Meg)\\nV_INN LABEL_NET_6 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 10Meg)\\n\\n* Differential signal extractors (VCVS)\\nE_diff OUT_DIFF 0 LABEL_NET_3 LABEL_NET_0 1.0\\nE_indiff IN_DIFF 0 LABEL_NET_4 LABEL_NET_6 1.0\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 100 1k 10G\\n  let gain_db = vdb(OUT_DIFF)\\n  meas ac dc_gain find gain_db at=10k\\n  let gain_3db = dc_gain - 3\\n  meas ac bw_3db when gain_db=gain_3db fall=1\\n\\n  * Transient Analysis\\n  tran 0.1n 200n\\n  meas tran delay trig v(IN_DIFF) val=0 rise=1 targ v(OUT_DIFF) val=0 rise=1\\n  meas tran vout_max max v(OUT_DIFF)\\n  meas tran vout_min min v(OUT_DIFF)\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1234243",
+  "_case": "1234243_image_2_a"
+}

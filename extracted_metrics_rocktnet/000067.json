@@ -1,0 +1,148 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Double-Balanced Mixer with PMOS Buffer",
+    "description": "The circuit is a Gilbert cell double-balanced mixer core (XM2, XM3, XM5, XM7-XM9) with a pseudo-differential RF input and a diode-connected bias transistor (XM4). The mixer outputs drive a pair of PMOS common-source amplifiers (XM1, XM6) that act as an IF buffer.",
+    "node_mapping": {
+      "input": [
+        "N0",
+        "N6",
+        "N9",
+        "N10"
+      ],
+      "output": [
+        "N5",
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5.2-GHz CMOS Receiver with 62-dB Image Rejection",
+      "figure": "Not specified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Voltage conversion gain from RF to IF",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "43 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mixer transconductance Gc ~ 470uA/V, R_L=8k -> Gain ~ 3.76 V/V. PMOS buffer gm ~ 190uA/V, R_L=10k -> Gain ~ 1.9 V/V. Total Gain ~ 7.14 V/V = 17 dB.",
+        "range": {
+          "min": 10,
+          "typical": 17,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "The paper reports 43 dB for the entire receiver (including LNA and baseband). The isolated mixer and buffer will have a lower gain."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption",
+      "unit": "mW",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "29 mW",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mixer core: 200uA. Bias: 100uA. Buffers: 72uA. Total current ~ 372uA. Power = 372uA * 1.8V = 0.67 mW.",
+        "range": {
+          "min": 0.5,
+          "typical": 0.7,
+          "max": 1.5,
+          "unit": "mW"
+        },
+        "reasoning": "The paper's 29 mW includes the LNA, VCO, and baseband amplifiers. The isolated mixer block consumes significantly less power."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Noise Figure of the circuit",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "6.4 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mixer NF is typically dominated by the switching quad and RF transconductor thermal noise.",
+        "range": {
+          "min": 10,
+          "typical": 14,
+          "max": 18,
+          "unit": "dB"
+        },
+        "reasoning": "The paper's 6.4 dB is for the full receiver, dominated by the LNA. An isolated active mixer typically has a higher NF (10-15 dB)."
+      },
+      "importance": "essential"
+    },
+    "iip3": {
+      "description": "Input Third-Order Intercept Point",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 dBm",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RF transconductance stage linearity. With Vov ~ 0.27V, IIP3 ~ 10 * log10( (4/3 * Vov^2 / 50) * 1000 ) ~ +5 dBm.",
+        "range": {
+          "min": 0,
+          "typical": 5,
+          "max": 10,
+          "unit": "dBm"
+        },
+        "reasoning": "A typical Gilbert cell mixer has an IIP3 around 0 to +10 dBm depending on the tail current and degeneration."
+      },
+      "importance": "essential"
+    },
+    "image_rejection": {
+      "description": "Image Rejection Ratio",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "62 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for a single mixer.",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "The extracted netlist is just a single mixer core, not the full image-reject architecture (e.g., Hartley or Weaver) described in the paper."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient testbench to measure the voltage conversion gain and power consumption of the mixer. It applies a 5.3 GHz RF signal and a 2.6 GHz LO signal, extracting the 2.7 GHz IF amplitude using behavioral I/Q downconversion.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "conversion_gain",
+      "power_consumption"
+    ],
+    "spice": "* 5.2-GHz CMOS Receiver Mixer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\n* DUT\nXM1 N5 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 N9 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N8 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 N10 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N3 N10 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 N9 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N7 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\n* Biasing and Loads\nVVDD VDD 0 1.8\nIbias VDD N2 100u\n\n* RF Bias\nR_RF1 N2 N0 10k\nR_RF2 N2 N6 10k\n\n* LO Bias\nV_LOBIAS N_LOBIAS 0 1.2\nR_LO1 N_LOBIAS N9 10k\nR_LO2 N_LOBIAS N10 10k\n\n* Mixer Loads (8k to set V(N1,N3) ~ 1.0V for PMOS bias)\nR_L1 VDD N1 8k\nR_L2 VDD N3 8k\n\n* PMOS Loads (10k to GND)\nR_L3 N5 0 10k\nR_L4 N4 0 10k\n\n* AC Coupling and Sources\n* RF Sources (5.3 GHz, 10mV peak each -> 20mV diff)\nV_RF_P N_RFP 0 dc 0 sin(0 10m 5.3G 0 0 0)\nV_RF_N N_RFN 0 dc 0 sin(0 10m 5.3G 0 0 180)\nC_RF1 N_RFP N0 1p\nC_RF2 N_RFN N6 1p\n\n* LO Sources (2.6 GHz, 300mV peak each)\nV_LO_P N_LOP 0 dc 0 sin(0 300m 2.6G 0 0 0)\nV_LO_N N_LON 0 dc 0 sin(0 300m 2.6G 0 0 180)\nC_LO1 N_LOP N9 1p\nC_LO2 N_LON N10 1p\n\n* Behavioral mixers for IF extraction (IF = 5.3G - 2.6G = 2.7G)\n* 2 * pi * 2.7G = 16.9646G\nB_mix_i V_mix_i 0 V = (v(N5) - v(N4)) * sin(16.9646G * time)\nB_mix_q V_mix_q 0 V = (v(N5) - v(N4)) * cos(16.9646G * time)\n\n.control\ntran 10p 20n\n\n* Measure Power\nmeas tran I_vdd avg i(VVDD) from=10n to=20n\nlet power_mW = -I_vdd * 1.8 * 1000\nprint power_mW\n\n* Measure Conversion Gain\nmeas tran I_avg avg v(V_mix_i) from=10n to=20n\nmeas tran Q_avg avg v(V_mix_q) from=10n to=20n\nlet IF_amp = 2 * sqrt(I_avg*I_avg + Q_avg*Q_avg)\nlet conv_gain = IF_amp / 20m\nlet conv_gain_db = 20 * log10(conv_gain)\nprint conv_gain_db\n\n* Measure DC bias at mixer output\nmeas tran V_N1_dc avg v(N1) from=10n to=20n\nprint V_N1_dc\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Double-Balanced Mixer with PMOS Buffer\",\n    \"description\": \"The circuit is a Gilbert cell double-balanced mixer core (XM2, XM3, XM5, XM7-XM9) with a pseudo-differential RF input and a diode-connected bias transistor (XM4). The mixer outputs drive a pair of PMOS common-source amplifiers (XM1, XM6) that act as an IF buffer.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\",\n        \"N6\",\n        \"N9\",\n        \"N10\"\n      ],\n      \"output\": [\n        \"N5\",\n        \"N4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5.2-GHz CMOS Receiver with 62-dB Image Rejection\",\n      \"figure\": \"Not specified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Voltage conversion gain from RF to IF\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"43 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mixer transconductance Gc ~ 470uA/V, R_L=8k -> Gain ~ 3.76 V/V. PMOS buffer gm ~ 190uA/V, R_L=10k -> Gain ~ 1.9 V/V. Total Gain ~ 7.14 V/V = 17 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 17,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper reports 43 dB for the entire receiver (including LNA and baseband). The isolated mixer and buffer will have a lower gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"mW\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"29 mW\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mixer core: 200uA. Bias: 100uA. Buffers: 72uA. Total current ~ 372uA. Power = 372uA * 1.8V = 0.67 mW.\",\n        \"range\": {\n          \"min\": 0.5,\n          \"typical\": 0.7,\n          \"max\": 1.5,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"The paper's 29 mW includes the LNA, VCO, and baseband amplifiers. The isolated mixer block consumes significantly less power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Noise Figure of the circuit\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"6.4 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mixer NF is typically dominated by the switching quad and RF transconductor thermal noise.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 14,\n          \"max\": 18,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper's 6.4 dB is for the full receiver, dominated by the LNA. An isolated active mixer typically has a higher NF (10-15 dB).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"iip3\": {\n      \"description\": \"Input Third-Order Intercept Point\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 dBm\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RF transconductance stage linearity. With Vov ~ 0.27V, IIP3 ~ 10 * log10( (4/3 * Vov^2 / 50) * 1000 ) ~ +5 dBm.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 5,\n          \"max\": 10,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"A typical Gilbert cell mixer has an IIP3 around 0 to +10 dBm depending on the tail current and degeneration.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"image_rejection\": {\n      \"description\": \"Image Rejection Ratio\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"62 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for a single mixer.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The extracted netlist is just a single mixer core, not the full image-reject architecture (e.g., Hartley or Weaver) described in the paper.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient testbench to measure the voltage conversion gain and power consumption of the mixer. It applies a 5.3 GHz RF signal and a 2.6 GHz LO signal, extracting the 2.7 GHz IF amplitude using behavioral I/Q downconversion.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"conversion_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* 5.2-GHz CMOS Receiver Mixer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\n* DUT\\nXM1 N5 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 N9 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N8 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 N10 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N3 N10 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 N9 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N7 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\n* Biasing and Loads\\nVVDD VDD 0 1.8\\nIbias VDD N2 100u\\n\\n* RF Bias\\nR_RF1 N2 N0 10k\\nR_RF2 N2 N6 10k\\n\\n* LO Bias\\nV_LOBIAS N_LOBIAS 0 1.2\\nR_LO1 N_LOBIAS N9 10k\\nR_LO2 N_LOBIAS N10 10k\\n\\n* Mixer Loads (8k to set V(N1,N3) ~ 1.0V for PMOS bias)\\nR_L1 VDD N1 8k\\nR_L2 VDD N3 8k\\n\\n* PMOS Loads (10k to GND)\\nR_L3 N5 0 10k\\nR_L4 N4 0 10k\\n\\n* AC Coupling and Sources\\n* RF Sources (5.3 GHz, 10mV peak each -> 20mV diff)\\nV_RF_P N_RFP 0 dc 0 sin(0 10m 5.3G 0 0 0)\\nV_RF_N N_RFN 0 dc 0 sin(0 10m 5.3G 0 0 180)\\nC_RF1 N_RFP N0 1p\\nC_RF2 N_RFN N6 1p\\n\\n* LO Sources (2.6 GHz, 300mV peak each)\\nV_LO_P N_LOP 0 dc 0 sin(0 300m 2.6G 0 0 0)\\nV_LO_N N_LON 0 dc 0 sin(0 300m 2.6G 0 0 180)\\nC_LO1 N_LOP N9 1p\\nC_LO2 N_LON N10 1p\\n\\n* Behavioral mixers for IF extraction (IF = 5.3G - 2.6G = 2.7G)\\n* 2 * pi * 2.7G = 16.9646G\\nB_mix_i V_mix_i 0 V = (v(N5) - v(N4)) * sin(16.9646G * time)\\nB_mix_q V_mix_q 0 V = (v(N5) - v(N4)) * cos(16.9646G * time)\\n\\n.control\\ntran 10p 20n\\n\\n* Measure Power\\nmeas tran I_vdd avg i(VVDD) from=10n to=20n\\nlet power_mW = -I_vdd * 1.8 * 1000\\nprint power_mW\\n\\n* Measure Conversion Gain\\nmeas tran I_avg avg v(V_mix_i) from=10n to=20n\\nmeas tran Q_avg avg v(V_mix_q) from=10n to=20n\\nlet IF_amp = 2 * sqrt(I_avg*I_avg + Q_avg*Q_avg)\\nlet conv_gain = IF_amp / 20m\\nlet conv_gain_db = 20 * log10(conv_gain)\\nprint conv_gain_db\\n\\n* Measure DC bias at mixer output\\nmeas tran V_N1_dc avg v(N1) from=10n to=20n\\nprint V_N1_dc\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "918919",
+  "_case": "918919_image_7"
+}

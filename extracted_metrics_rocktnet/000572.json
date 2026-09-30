@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "NMOS Differential Pair",
+    "description": "A basic NMOS differential pair with a tail current source. In the context of a 10-Gb/s transceiver, this topology is typically used as a high-speed amplifier, buffer, or as the core of a Current Mode Logic (CML) gate.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "IN_HASH"
+      ],
+      "output": [
+        "N2",
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS 10-Gb/s SONET Transceiver",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "Total DC power consumption of the differential pair stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1.65 W (entire transceiver)",
+        "technology": "90nm"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail * VDD. With VBIAS=1.0V, I_tail \u2248 0.45mA. Power = 0.45mA * 1.8V = 0.81mW.",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.0008,
+          "max": 0.0015,
+          "unit": "W"
+        },
+        "reasoning": "Based on typical bias current for a small differential pair in SKY130."
+      },
+      "importance": "essential"
+    },
+    "tail_current": {
+      "description": "DC bias current provided by the tail current source (XM3).",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": "90nm"
+      },
+      "sky130_expected": {
+        "calculation": "0.5 * un*Cox * (W/L) * (VGS - Vth)^2 = 0.5 * 270u * 10 * (1.0 - 0.42)^2 \u2248 0.45mA",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00045,
+          "max": 0.001,
+          "unit": "A"
+        },
+        "reasoning": "Determined by the VBIAS voltage and the dimensions of XM3."
+      },
+      "importance": "essential"
+    },
+    "diff_gain": {
+      "description": "Low-frequency differential voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "90nm"
+      },
+      "sky130_expected": {
+        "calculation": "gm * RL. gm \u2248 1.1mA/V (at Id=0.225mA). With added RL=2kOhm, Gain = 2.2 V/V = 6.8 dB.",
+        "range": {
+          "min": 3,
+          "typical": 6.8,
+          "max": 12,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the chosen load resistor and bias current."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 GHz (operating frequency)",
+        "technology": "90nm"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * RL * CL). With RL=2kOhm and CL=10fF, BW \u2248 7.9 GHz.",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 8000000000.0,
+          "max": 15000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the RC time constant of the output node. Adjusted for a generic load to demonstrate high-speed capability."
+      },
+      "importance": "essential"
+    },
+    "tran_vout_pp": {
+      "description": "Peak-to-peak differential output voltage for a 400mVpp differential input at 100MHz.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "90nm"
+      },
+      "sky130_expected": {
+        "calculation": "Input Vpp * linear gain = 0.4V * 2.2 = 0.88V.",
+        "range": {
+          "min": 0.5,
+          "typical": 0.88,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Transient large-signal swing, limited by tail current and load resistors (I_tail * RL = 0.9V max swing)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, tail current, differential AC gain, bandwidth, and transient output swing of the differential pair. Ideal load resistors and capacitors are added to make the circuit functional.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "tail_current",
+      "diff_gain",
+      "bandwidth",
+      "tran_vout_pp"
+    ],
+    "spice": "* Testbench for Differential Pair\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\nXM1 N2 IN N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 IN_HASH N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* Loads (Added for testbench functionality)\nRL1 VDD N2 2k\nRL2 VDD N3 2k\nCL1 N2 0 10f\nCL2 N3 0 10f\n\n* Sources\nVVDD VDD 0 1.8\nVBIAS BIAS 0 1.0\n\n* Input Signal Generation (Common Mode + Differential Mode)\nVCM VCM 0 0.9\nVDM VDM 0 DC 0 AC 1 SIN(0 0.2 100MEG)\nE1 IN VCM VDM 0 0.5\nE2 IN_HASH VCM VDM 0 -0.5\n\n.control\n  * DC Operating Point\n  op\n  let itail = -i(VVDD)\n  let power = itail * 1.8\n  print itail power\n\n  * AC Analysis\n  ac dec 100 1MEG 100G\n  let vout_diff = v(N2) - v(N3)\n  let gain_mag = mag(vout_diff)\n  let gain_db = 20 * log10(gain_mag)\n  meas ac dc_gain find gain_db at=1MEG\n  let gain_3db = dc_gain - 3\n  meas ac bw when gain_db=gain_3db fall=1\n\n  * Transient Analysis\n  tran 10p 20n\n  let vout_diff_tran = v(N2) - v(N3)\n  meas tran vout_max max vout_diff_tran from=10n to=20n\n  meas tran vout_min min vout_diff_tran from=10n to=20n\n  let vout_pp = vout_max - vout_min\n  print vout_pp\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"NMOS Differential Pair\",\n    \"description\": \"A basic NMOS differential pair with a tail current source. In the context of a 10-Gb/s transceiver, this topology is typically used as a high-speed amplifier, buffer, or as the core of a Current Mode Logic (CML) gate.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"IN_HASH\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS 10-Gb/s SONET Transceiver\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"Total DC power consumption of the differential pair stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1.65 W (entire transceiver)\",\n        \"technology\": \"90nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail * VDD. With VBIAS=1.0V, I_tail \u2248 0.45mA. Power = 0.45mA * 1.8V = 0.81mW.\",\n        \"range\": {\n          \"min\": 0.5e-3,\n          \"typical\": 0.8e-3,\n          \"max\": 1.5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on typical bias current for a small differential pair in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tail_current\": {\n      \"description\": \"DC bias current provided by the tail current source (XM3).\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"0.5 * un*Cox * (W/L) * (VGS - Vth)^2 = 0.5 * 270u * 10 * (1.0 - 0.42)^2 \u2248 0.45mA\",\n        \"range\": {\n          \"min\": 0.2e-3,\n          \"typical\": 0.45e-3,\n          \"max\": 1.0e-3,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Determined by the VBIAS voltage and the dimensions of XM3.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"diff_gain\": {\n      \"description\": \"Low-frequency differential voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm * RL. gm \u2248 1.1mA/V (at Id=0.225mA). With added RL=2kOhm, Gain = 2.2 V/V = 6.8 dB.\",\n        \"range\": {\n          \"min\": 3,\n          \"typical\": 6.8,\n          \"max\": 12,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen load resistor and bias current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 GHz (operating frequency)\",\n        \"technology\": \"90nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * RL * CL). With RL=2kOhm and CL=10fF, BW \u2248 7.9 GHz.\",\n        \"range\": {\n          \"min\": 5e9,\n          \"typical\": 8e9,\n          \"max\": 15e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the RC time constant of the output node. Adjusted for a generic load to demonstrate high-speed capability.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"tran_vout_pp\": {\n      \"description\": \"Peak-to-peak differential output voltage for a 400mVpp differential input at 100MHz.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input Vpp * linear gain = 0.4V * 2.2 = 0.88V.\",\n        \"range\": {\n          \"min\": 0.5,\n          \"typical\": 0.88,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Transient large-signal swing, limited by tail current and load resistors (I_tail * RL = 0.9V max swing).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, tail current, differential AC gain, bandwidth, and transient output swing of the differential pair. Ideal load resistors and capacitors are added to make the circuit functional.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"tail_current\",\n      \"diff_gain\",\n      \"bandwidth\",\n      \"tran_vout_pp\"\n    ],\n    \"spice\": \"* Testbench for Differential Pair\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\nXM1 N2 IN N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 IN_HASH N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Loads (Added for testbench functionality)\\nRL1 VDD N2 2k\\nRL2 VDD N3 2k\\nCL1 N2 0 10f\\nCL2 N3 0 10f\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVBIAS BIAS 0 1.0\\n\\n* Input Signal Generation (Common Mode + Differential Mode)\\nVCM VCM 0 0.9\\nVDM VDM 0 DC 0 AC 1 SIN(0 0.2 100MEG)\\nE1 IN VCM VDM 0 0.5\\nE2 IN_HASH VCM VDM 0 -0.5\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let itail = -i(VVDD)\\n  let power = itail * 1.8\\n  print itail power\\n\\n  * AC Analysis\\n  ac dec 100 1MEG 100G\\n  let vout_diff = v(N2) - v(N3)\\n  let gain_mag = mag(vout_diff)\\n  let gain_db = 20 * log10(gain_mag)\\n  meas ac dc_gain find gain_db at=1MEG\\n  let gain_3db = dc_gain - 3\\n  meas ac bw when gain_db=gain_3db fall=1\\n\\n  * Transient Analysis\\n  tran 10p 20n\\n  let vout_diff_tran = v(N2) - v(N3)\\n  meas tran vout_max max vout_diff_tran from=10n to=20n\\n  meas tran vout_min min vout_diff_tran from=10n to=20n\\n  let vout_pp = vout_max - vout_min\\n  print vout_pp\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1308576",
+  "_case": "1308576_image_8"
+}

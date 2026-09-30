@@ -1,0 +1,175 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 18.23",
+    "page": "7",
+    "circuit_type": "Rail-to-rail input buffer",
+    "description": "A high-speed rail-to-rail input buffer that combines an n-flavor and a p-flavor self-biased differential amplifier driving a common output inverter. It provides robust data slicing over a wide range of input common-mode voltages."
+  },
+  "step2_metrics": {
+    "logic_high_state": {
+      "description": "The logical condition for the buffer output to transition to a high state.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "4",
+        "reference": "Eq 18.22"
+      },
+      "equation": {
+        "formula": "Vinp > Vinm -> out = '1'",
+        "explanation": "When the positive input exceeds the negative reference input, the output transitions to VDD.",
+        "assumptions": "Assumes ideal matching and zero offset."
+      },
+      "sky130_expected": {
+        "calculation": "For VDD=1.8V, '1' corresponds to 1.8V. The transition occurs when Vinp crosses Vinm + Vos.",
+        "range": {
+          "min": "1.7",
+          "typical": "1.8",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "The output inverter restores the signal to full CMOS logic levels (VDD)."
+      },
+      "importance": "essential"
+    },
+    "logic_low_state": {
+      "description": "The logical condition for the buffer output to transition to a low state.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "4",
+        "reference": "Eq 18.23"
+      },
+      "equation": {
+        "formula": "Vinp < Vinm -> out = '0'",
+        "explanation": "When the positive input falls below the negative reference input, the output transitions to ground.",
+        "assumptions": "Assumes ideal matching and zero offset."
+      },
+      "sky130_expected": {
+        "calculation": "For VDD=1.8V, '0' corresponds to 0V. The transition occurs when Vinp crosses Vinm - Vos.",
+        "range": {
+          "min": "0.0",
+          "typical": "0.0",
+          "max": "0.1",
+          "unit": "V"
+        },
+        "reasoning": "The output inverter pulls the signal down to ground."
+      },
+      "importance": "essential"
+    },
+    "input_offset_voltage": {
+      "description": "The voltage difference between Vinp and Vinm required to switch the output state to VDD/2.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "4",
+        "reference": "Text discussion and Fig 18.18 / 18.24"
+      },
+      "equation": {
+        "formula": "Vos = Vinp - Vinm @ Vout = VDD/2",
+        "explanation": "Systematic offset arises because the gain from Vinp to the output is larger than the gain from Vinm (due to the diode-connected load vs. current source load).",
+        "assumptions": "Measured at the switching threshold."
+      },
+      "sky130_expected": {
+        "calculation": "The text notes a ~15mV offset for the n-flavor buffer (415mV threshold for 400mV reference). The rail-to-rail topology reduces this, but systematic asymmetry remains. With typical SKY130 sizing, expect tens of millivolts.",
+        "range": {
+          "min": "-0.05",
+          "typical": "0.015",
+          "max": "0.05",
+          "unit": "V"
+        },
+        "reasoning": "Offset is highly dependent on the exact W/L ratios chosen for the current mirrors vs. the differential pair."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay_tPLH": {
+      "description": "Low-to-high propagation delay from the input crossing the reference to the output crossing VDD/2.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Fig 18.19 and Fig 18.20"
+      },
+      "equation": {
+        "formula": "tPLH = t(Vout=VDD/2) - t(Vinp=Vinm)",
+        "explanation": "Time required to charge the internal nodes and the output load capacitance.",
+        "assumptions": "Step input applied to Vinp."
+      },
+      "sky130_expected": {
+        "calculation": "Self-bias tail current: VG_tail = VG_diode. 2*(1/2)*up*Cox*(W/L)p*(VDD-VG-|Vthp|)^2 = (1/2)*un*Cox*(W/L)n*(VG-Vthn)^2. Using SKY130 params (un*Cox=270u, up*Cox=50u, Vth=0.42V), VG \u2248 0.86V. Tail current Itail \u2248 26uA. Internal node delay: dt1 = C_int * (VDD/2) / Itail \u2248 10fF * 0.9V / 26uA \u2248 346ps. Output inverter delay driving 50fF: dt2 \u2248 50fF * 0.9V / 250uA \u2248 180ps. Total tPLH \u2248 526ps.",
+        "range": {
+          "min": "200p",
+          "typical": "500p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "Calculated based on the self-biased tail current charging the internal parasitic capacitance, followed by the output inverter charging the 50fF load."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay_tPHL": {
+      "description": "High-to-low propagation delay from the input crossing the reference to the output crossing VDD/2.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Fig 18.19 and Fig 18.20"
+      },
+      "equation": {
+        "formula": "tPHL = t(Vout=VDD/2) - t(Vinp=Vinm)",
+        "explanation": "Time required to discharge the internal nodes and the output load capacitance.",
+        "assumptions": "Step input applied to Vinp."
+      },
+      "sky130_expected": {
+        "calculation": "Similar to tPLH, the discharge path relies on the tail current and the NMOS of the output inverter. With symmetric sizing, tPHL is designed to closely match tPLH.",
+        "range": {
+          "min": "200p",
+          "typical": "500p",
+          "max": "1n",
+          "unit": "s"
+        },
+        "reasoning": "The rail-to-rail complementary structure helps equalize rise and fall times across different common-mode voltages."
+      },
+      "importance": "essential"
+    },
+    "delay_skew": {
+      "description": "The difference between the low-to-high and high-to-low propagation delays.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "2",
+        "reference": "Text discussion and Fig 18.13 / 18.14"
+      },
+      "equation": {
+        "formula": "Skew = |tPLH - tPHL|",
+        "explanation": "Unwanted pulse width variations introduced by differences in rise and fall times.",
+        "assumptions": "Measured at VDD/2."
+      },
+      "sky130_expected": {
+        "calculation": "Ideally 0s. In practice, mismatch between PMOS and NMOS drive strengths and internal node capacitances causes skew.",
+        "range": {
+          "min": "0",
+          "typical": "50p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "Proper sizing of the output inverter (e.g., PMOS W = 2 * NMOS W) minimizes this skew."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the DC transfer characteristic, input offset voltage, and transient propagation delays (tPLH, tPHL) of the rail-to-rail input buffer.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "input_offset_voltage",
+      "propagation_delay_tPLH",
+      "propagation_delay_tPHL",
+      "delay_skew"
+    ],
+    "spice": "* Rail-to-rail input buffer testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameters for the parameterized netlist\n.param W_xm1=1.5u L_xm1=0.15u\n.param W_xm2=1.5u L_xm2=0.15u\n.param W_xm3=3.0u L_xm3=0.15u\n.param W_xm4=3.0u L_xm4=0.15u\n.param W_xm5=3.0u L_xm5=0.15u\n.param W_xm6=1.5u L_xm6=0.15u\n.param W_xm7=1.5u L_xm7=0.15u\n.param W_xm8=1.5u L_xm8=0.15u\n.param W_xm9=3.0u L_xm9=0.15u\n.param W_xm10=3.0u L_xm10=0.15u\n.param W_xm11=1.5u L_xm11=0.15u\n.param W_xm12=3.0u L_xm12=0.15u\n\n* --- DUT START ---\nxm1 N004 Vinm N005 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVinp Vinp 0 0\nVDD VDD 0 1.8\nxm3 N004 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N002 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm2 N002 Vinp N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nVinm Vinm 0 200m\nxm6 N005 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm5 Vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm7 Vout N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nCload Vout 0 5e-14\nxm8 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N003 Vinm N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N002 Vinp N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\nxm12 N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\n* --- DUT END ---\n\n.control\n* 1. DC Analysis for Offset Voltage\nalter Vinm = 0.9\ndc Vinp 0.8 1.0 0.001\nmeas dc vos_cross when v(Vout)=0.9\nlet offset = vos_cross - 0.9\nprint offset\n\n* 2. Transient Analysis for Propagation Delay\n* Change Vinp to a pulse source for transient analysis\nalter @Vinp[pulse] = [ 0 1.8 1n 100p 100p 2n 4n ]\ntran 10p 5n\nmeas tran tPLH trig v(Vinp) val=0.9 rise=1 targ v(Vout) val=0.9 rise=1\nmeas tran tPHL trig v(Vinp) val=0.9 fall=1 targ v(Vout) val=0.9 fall=1\nlet delay_skew = abs(tPLH - tPHL)\nprint tPLH tPHL delay_skew\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 18.23\",\n    \"page\": \"7\",\n    \"circuit_type\": \"Rail-to-rail input buffer\",\n    \"description\": \"A high-speed rail-to-rail input buffer that combines an n-flavor and a p-flavor self-biased differential amplifier driving a common output inverter. It provides robust data slicing over a wide range of input common-mode voltages.\"\n  },\n  \"step2_metrics\": {\n    \"logic_high_state\": {\n      \"description\": \"The logical condition for the buffer output to transition to a high state.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"4\",\n        \"reference\": \"Eq 18.22\"\n      },\n      \"equation\": {\n        \"formula\": \"Vinp > Vinm -> out = '1'\",\n        \"explanation\": \"When the positive input exceeds the negative reference input, the output transitions to VDD.\",\n        \"assumptions\": \"Assumes ideal matching and zero offset.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For VDD=1.8V, '1' corresponds to 1.8V. The transition occurs when Vinp crosses Vinm + Vos.\",\n        \"range\": {\n          \"min\": \"1.7\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The output inverter restores the signal to full CMOS logic levels (VDD).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"logic_low_state\": {\n      \"description\": \"The logical condition for the buffer output to transition to a low state.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"4\",\n        \"reference\": \"Eq 18.23\"\n      },\n      \"equation\": {\n        \"formula\": \"Vinp < Vinm -> out = '0'\",\n        \"explanation\": \"When the positive input falls below the negative reference input, the output transitions to ground.\",\n        \"assumptions\": \"Assumes ideal matching and zero offset.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For VDD=1.8V, '0' corresponds to 0V. The transition occurs when Vinp crosses Vinm - Vos.\",\n        \"range\": {\n          \"min\": \"0.0\",\n          \"typical\": \"0.0\",\n          \"max\": \"0.1\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The output inverter pulls the signal down to ground.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_offset_voltage\": {\n      \"description\": \"The voltage difference between Vinp and Vinm required to switch the output state to VDD/2.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"4\",\n        \"reference\": \"Text discussion and Fig 18.18 / 18.24\"\n      },\n      \"equation\": {\n        \"formula\": \"Vos = Vinp - Vinm @ Vout = VDD/2\",\n        \"explanation\": \"Systematic offset arises because the gain from Vinp to the output is larger than the gain from Vinm (due to the diode-connected load vs. current source load).\",\n        \"assumptions\": \"Measured at the switching threshold.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The text notes a ~15mV offset for the n-flavor buffer (415mV threshold for 400mV reference). The rail-to-rail topology reduces this, but systematic asymmetry remains. With typical SKY130 sizing, expect tens of millivolts.\",\n        \"range\": {\n          \"min\": \"-0.05\",\n          \"typical\": \"0.015\",\n          \"max\": \"0.05\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Offset is highly dependent on the exact W/L ratios chosen for the current mirrors vs. the differential pair.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay_tPLH\": {\n      \"description\": \"Low-to-high propagation delay from the input crossing the reference to the output crossing VDD/2.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Fig 18.19 and Fig 18.20\"\n      },\n      \"equation\": {\n        \"formula\": \"tPLH = t(Vout=VDD/2) - t(Vinp=Vinm)\",\n        \"explanation\": \"Time required to charge the internal nodes and the output load capacitance.\",\n        \"assumptions\": \"Step input applied to Vinp.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Self-bias tail current: VG_tail = VG_diode. 2*(1/2)*up*Cox*(W/L)p*(VDD-VG-|Vthp|)^2 = (1/2)*un*Cox*(W/L)n*(VG-Vthn)^2. Using SKY130 params (un*Cox=270u, up*Cox=50u, Vth=0.42V), VG \u2248 0.86V. Tail current Itail \u2248 26uA. Internal node delay: dt1 = C_int * (VDD/2) / Itail \u2248 10fF * 0.9V / 26uA \u2248 346ps. Output inverter delay driving 50fF: dt2 \u2248 50fF * 0.9V / 250uA \u2248 180ps. Total tPLH \u2248 526ps.\",\n        \"range\": {\n          \"min\": \"200p\",\n          \"typical\": \"500p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated based on the self-biased tail current charging the internal parasitic capacitance, followed by the output inverter charging the 50fF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay_tPHL\": {\n      \"description\": \"High-to-low propagation delay from the input crossing the reference to the output crossing VDD/2.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Fig 18.19 and Fig 18.20\"\n      },\n      \"equation\": {\n        \"formula\": \"tPHL = t(Vout=VDD/2) - t(Vinp=Vinm)\",\n        \"explanation\": \"Time required to discharge the internal nodes and the output load capacitance.\",\n        \"assumptions\": \"Step input applied to Vinp.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to tPLH, the discharge path relies on the tail current and the NMOS of the output inverter. With symmetric sizing, tPHL is designed to closely match tPLH.\",\n        \"range\": {\n          \"min\": \"200p\",\n          \"typical\": \"500p\",\n          \"max\": \"1n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The rail-to-rail complementary structure helps equalize rise and fall times across different common-mode voltages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_skew\": {\n      \"description\": \"The difference between the low-to-high and high-to-low propagation delays.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"2\",\n        \"reference\": \"Text discussion and Fig 18.13 / 18.14\"\n      },\n      \"equation\": {\n        \"formula\": \"Skew = |tPLH - tPHL|\",\n        \"explanation\": \"Unwanted pulse width variations introduced by differences in rise and fall times.\",\n        \"assumptions\": \"Measured at VDD/2.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideally 0s. In practice, mismatch between PMOS and NMOS drive strengths and internal node capacitances causes skew.\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"50p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Proper sizing of the output inverter (e.g., PMOS W = 2 * NMOS W) minimizes this skew.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the DC transfer characteristic, input offset voltage, and transient propagation delays (tPLH, tPHL) of the rail-to-rail input buffer.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"input_offset_voltage\",\n      \"propagation_delay_tPLH\",\n      \"propagation_delay_tPHL\",\n      \"delay_skew\"\n    ],\n    \"spice\": \"* Rail-to-rail input buffer testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm1=1.5u L_xm1=0.15u\\n.param W_xm2=1.5u L_xm2=0.15u\\n.param W_xm3=3.0u L_xm3=0.15u\\n.param W_xm4=3.0u L_xm4=0.15u\\n.param W_xm5=3.0u L_xm5=0.15u\\n.param W_xm6=1.5u L_xm6=0.15u\\n.param W_xm7=1.5u L_xm7=0.15u\\n.param W_xm8=1.5u L_xm8=0.15u\\n.param W_xm9=3.0u L_xm9=0.15u\\n.param W_xm10=3.0u L_xm10=0.15u\\n.param W_xm11=1.5u L_xm11=0.15u\\n.param W_xm12=3.0u L_xm12=0.15u\\n\\n* --- DUT START ---\\nxm1 N004 Vinm N005 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVinp Vinp 0 0\\nVDD VDD 0 1.8\\nxm3 N004 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N002 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm2 N002 Vinp N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nVinm Vinm 0 200m\\nxm6 N005 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm5 Vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm7 Vout N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nCload Vout 0 5e-14\\nxm8 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N003 Vinm N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N002 Vinp N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\n* --- DUT END ---\\n\\n.control\\n* 1. DC Analysis for Offset Voltage\\nalter Vinm = 0.9\\ndc Vinp 0.8 1.0 0.001\\nmeas dc vos_cross when v(Vout)=0.9\\nlet offset = vos_cross - 0.9\\nprint offset\\n\\n* 2. Transient Analysis for Propagation Delay\\n* Change Vinp to a pulse source for transient analysis\\nalter @Vinp[pulse] = [ 0 1.8 1n 100p 100p 2n 4n ]\\ntran 10p 5n\\nmeas tran tPLH trig v(Vinp) val=0.9 rise=1 targ v(Vout) val=0.9 rise=1\\nmeas tran tPHL trig v(Vinp) val=0.9 fall=1 targ v(Vout) val=0.9 fall=1\\nlet delay_skew = abs(tPLH - tPHL)\\nprint tPLH tPHL delay_skew\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

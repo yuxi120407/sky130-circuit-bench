@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Folded Downconversion Mixer",
+    "description": "A folded active mixer designed to downconvert a 5 GHz RF signal to an IF frequency using a 5 GHz LO. It utilizes an NMOS differential transconductor (XM1, XM4) and a PMOS switching quad (XM5-XM8) with PMOS current sources (XM2, XM3), though the extracted netlist appears to contain topological errors (e.g., all switches routed to a single output node, and XM5's gate connected to F_PLUS instead of LO_P).",
+    "node_mapping": {
+      "input": [
+        "RFIN_P",
+        "RFIN_N",
+        "LO_P",
+        "LO_N"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Single-Chip Digitally Calibrated 5.15\u20135.825-GHz 0.18-um CMOS Transceiver for 802.11a Wireless LAN",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Ratio of the IF output voltage amplitude to the RF input voltage amplitude.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5.2 dB",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 270u * 10 * (0.6 - 0.42) = 486 uS. Gc = 2/pi * gm = 309 uS. Gain = Gc * RL = 0.309 V/V -> -10.2 dB. Due to the likely extraction error shorting all switches to a single OUT node, the differential IF currents will cancel, resulting in a very low or negative gain.",
+        "range": {
+          "min": -60,
+          "typical": -40,
+          "max": -10,
+          "unit": "dB"
+        },
+        "reasoning": "Theoretical gain is around -10 dB with a 1k load, but signal cancellation at the single output node will severely degrade this in simulation."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the mixer from the supply.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly isolated",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "PMOS current sources (N3=0.6V) supply approx 152 uA each. Total current = 304 uA. Power = 1.8V * 304 uA = 0.55 mW.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.00055,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Based on the square-law model for SKY130 PMOS with Vsg=1.2V and W/L=10."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "The RF frequency range the mixer is designed to operate in.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5.15 - 5.825 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RF input matching and transistor fT. SKY130 fT is >40 GHz, so 5 GHz operation is well within limits.",
+        "range": {
+          "min": 5150000000.0,
+          "typical": 5500000000.0,
+          "max": 5825000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the 802.11a WLAN band specified in the paper."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure conversion gain and power consumption by applying a 5.25 GHz RF signal and 5.24 GHz LO signal, extracting the 10 MHz IF at the output.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "conversion_gain",
+      "power_consumption"
+    ],
+    "spice": "* Folded Downconversion Mixer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n* DUT\nXM1 F_MINUS RFIN_N GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 F_PLUS N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 F_MINUS N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 F_PLUS RFIN_P GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUT F_PLUS F_MINUS VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUT LO_P F_PLUS VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 OUT LO_N F_PLUS VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 OUT LO_N F_MINUS VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\n\n* Biasing and Sources\nVVDD VDD 0 1.8\nVN3 N3 0 0.6\nVRF_bias RF_BIAS 0 0.6\nVLO_bias LO_BIAS 0 0.6\n\n* LO signals (5.24 GHz)\nVLO_P LO_P LO_BIAS dc 0 sin(0 0.5 5.24G)\nVLO_N LO_N LO_BIAS dc 0 sin(0 0.5 5.24G 0 0 180)\n\n* RF signals (5.25 GHz)\nVRF_P RFIN_P RF_BIAS dc 0 sin(0 0.01 5.25G)\nVRF_N RFIN_N RF_BIAS dc 0 sin(0 0.01 5.25G 0 0 180)\n\n* IF Load (Low pass filter for 10 MHz IF)\nRL OUT GND 1k\nCL OUT GND 1p\n\n.control\n* Transient analysis for 5 IF cycles (10 MHz -> 100ns period)\ntran 10p 500n\n\n* Measure power consumption\nmeas tran I_vdd avg i(VVDD) from=200n to=500n\nlet power = -I_vdd * 1.8\nprint power\n\n* Measure Conversion Gain\nmeas tran vout_max max v(out) from=200n to=500n\nmeas tran vout_min min v(out) from=200n to=500n\nlet vout_amp = (vout_max - vout_min) / 2\nlet cg = vout_amp / 0.01\nlet cg_db = 20 * log10(cg + 1e-15)\nprint cg_db\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Folded Downconversion Mixer\",\n    \"description\": \"A folded active mixer designed to downconvert a 5 GHz RF signal to an IF frequency using a 5 GHz LO. It utilizes an NMOS differential transconductor (XM1, XM4) and a PMOS switching quad (XM5-XM8) with PMOS current sources (XM2, XM3), though the extracted netlist appears to contain topological errors (e.g., all switches routed to a single output node, and XM5's gate connected to F_PLUS instead of LO_P).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RFIN_P\",\n        \"RFIN_N\",\n        \"LO_P\",\n        \"LO_N\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Single-Chip Digitally Calibrated 5.15\u20135.825-GHz 0.18-um CMOS Transceiver for 802.11a Wireless LAN\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Ratio of the IF output voltage amplitude to the RF input voltage amplitude.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5.2 dB\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 270u * 10 * (0.6 - 0.42) = 486 uS. Gc = 2/pi * gm = 309 uS. Gain = Gc * RL = 0.309 V/V -> -10.2 dB. Due to the likely extraction error shorting all switches to a single OUT node, the differential IF currents will cancel, resulting in a very low or negative gain.\",\n        \"range\": {\n          \"min\": -60,\n          \"typical\": -40,\n          \"max\": -10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Theoretical gain is around -10 dB with a 1k load, but signal cancellation at the single output node will severely degrade this in simulation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the mixer from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly isolated\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PMOS current sources (N3=0.6V) supply approx 152 uA each. Total current = 304 uA. Power = 1.8V * 304 uA = 0.55 mW.\",\n        \"range\": {\n          \"min\": 0.3e-3,\n          \"typical\": 0.55e-3,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the square-law model for SKY130 PMOS with Vsg=1.2V and W/L=10.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"The RF frequency range the mixer is designed to operate in.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5.15 - 5.825 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RF input matching and transistor fT. SKY130 fT is >40 GHz, so 5 GHz operation is well within limits.\",\n        \"range\": {\n          \"min\": 5.15e9,\n          \"typical\": 5.5e9,\n          \"max\": 5.825e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the 802.11a WLAN band specified in the paper.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure conversion gain and power consumption by applying a 5.25 GHz RF signal and 5.24 GHz LO signal, extracting the 10 MHz IF at the output.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"conversion_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Folded Downconversion Mixer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n* DUT\\nXM1 F_MINUS RFIN_N GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 F_PLUS N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 F_MINUS N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 F_PLUS RFIN_P GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUT F_PLUS F_MINUS VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUT LO_P F_PLUS VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 OUT LO_N F_PLUS VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 OUT LO_N F_MINUS VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* Biasing and Sources\\nVVDD VDD 0 1.8\\nVN3 N3 0 0.6\\nVRF_bias RF_BIAS 0 0.6\\nVLO_bias LO_BIAS 0 0.6\\n\\n* LO signals (5.24 GHz)\\nVLO_P LO_P LO_BIAS dc 0 sin(0 0.5 5.24G)\\nVLO_N LO_N LO_BIAS dc 0 sin(0 0.5 5.24G 0 0 180)\\n\\n* RF signals (5.25 GHz)\\nVRF_P RFIN_P RF_BIAS dc 0 sin(0 0.01 5.25G)\\nVRF_N RFIN_N RF_BIAS dc 0 sin(0 0.01 5.25G 0 0 180)\\n\\n* IF Load (Low pass filter for 10 MHz IF)\\nRL OUT GND 1k\\nCL OUT GND 1p\\n\\n.control\\n* Transient analysis for 5 IF cycles (10 MHz -> 100ns period)\\ntran 10p 500n\\n\\n* Measure power consumption\\nmeas tran I_vdd avg i(VVDD) from=200n to=500n\\nlet power = -I_vdd * 1.8\\nprint power\\n\\n* Measure Conversion Gain\\nmeas tran vout_max max v(out) from=200n to=500n\\nmeas tran vout_min min v(out) from=200n to=500n\\nlet vout_amp = (vout_max - vout_min) / 2\\nlet cg = vout_amp / 0.01\\nlet cg_db = 20 * log10(cg + 1e-15)\\nprint cg_db\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1253869",
+  "_case": "1253869_image_8"
+}

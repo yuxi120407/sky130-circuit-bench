@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Frame Buffer Pixel Circuit",
+    "description": "A two-transistor sample-and-hold circuit used as a frame buffer pixel in LCOS microdisplays. It writes analog data to an intermediate storage capacitor (node N1) and later transfers it to the pixel electrode (node N0) to maximize image view time and brightness.",
+    "node_mapping": {
+      "input": [
+        "DATA",
+        "WRITE",
+        "READ"
+      ],
+      "output": [
+        "N0"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ],
+      "intermediate": [
+        "N1"
+      ]
+    },
+    "paper_reference": {
+      "title": "Novel Frame Buffer Pixel Circuits for Liquid-Crystal-on-Silicon Microdisplays",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "write_rise_time": {
+      "description": "Time required for the intermediate buffer node (N1) to charge from 10% to 90% of the DATA voltage during a write operation.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "100 MHz pixel clock",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "R_on \u2248 1 / (u_n * C_ox * (W/L) * (V_GS - V_TH)). For W/L=10, V_GS=1.8V, V_DATA=1.0V, R_on \u2248 1k\u03a9. With C1=200fF, \u03c4 \u2248 200ps. Rise time (2.2\u03c4) \u2248 440ps.",
+        "range": {
+          "min": "200p",
+          "typical": "500p",
+          "max": "2n",
+          "unit": "s"
+        },
+        "reasoning": "Depends on the transistor sizing and the buffer capacitance (200fF reported in paper)."
+      },
+      "importance": "essential"
+    },
+    "read_rise_time": {
+      "description": "Time required for the pixel electrode (N0) to charge from 10% to 90% of its final value during a read operation.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to write, but driving C0=400fF from C1=200fF. \u03c4 \u2248 400ps. Rise time (2.2\u03c4) \u2248 880ps.",
+        "range": {
+          "min": "400p",
+          "typical": "1n",
+          "max": "4n",
+          "unit": "s"
+        },
+        "reasoning": "Pixel capacitance is typically larger than buffer capacitance, leading to a slower time constant."
+      },
+      "importance": "essential"
+    },
+    "write_charge_injection": {
+      "description": "Voltage error introduced on the buffer node (N1) when the WRITE transistor turns off.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "\u0394V = Q_ch / (2 * C1). Q_ch \u2248 W*L*C_ox*(V_GS-V_TH) \u2248 2.5um\u00b2 * 10fF/um\u00b2 * 0.4V \u2248 10fC. \u0394V \u2248 5fC / 200fF = 25mV.",
+        "range": {
+          "min": "10m",
+          "typical": "25m",
+          "max": "50m",
+          "unit": "V"
+        },
+        "reasoning": "Charge injection is a primary source of error in sample-and-hold circuits, causing a slight voltage drop when the switch opens."
+      },
+      "importance": "essential"
+    },
+    "hold_voltage_drop": {
+      "description": "Voltage drop on the buffer node over a hold period due to subthreshold leakage and junction leakage.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "< 1%",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "\u0394V = I_leak * t_hold / C1. Assuming I_leak = 1pA, t_hold = 1.8us (in testbench), \u0394V = 1pA * 1.8us / 200fF = 9uV.",
+        "range": {
+          "min": "1u",
+          "typical": "10u",
+          "max": "1m",
+          "unit": "V"
+        },
+        "reasoning": "The paper reports less than 1% drop over a full frame time (e.g., 180Hz = 5.5ms). In a short transient simulation, the drop will be very small."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure write/read rise times, charge injection errors, and hold voltage drop in the frame buffer pixel.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "write_rise_time",
+      "read_rise_time",
+      "write_charge_injection",
+      "hold_voltage_drop"
+    ],
+    "spice": "* Frame Buffer Pixel Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 DATA WRITE N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 READ N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Load Capacitors (from paper: 200fF buffer, 400fF pixel)\nC1 N1 GND 200f\nC0 N0 GND 400f\n\n* Voltage Sources\nVDD VDD GND 1.8\nVDATA DATA GND 1.0\n\n* Control Signals\n* WRITE: High from 1us to 2us\nVWRITE WRITE GND PULSE(0 1.8 1u 1n 1n 1u 10u)\n* READ: High from 4us to 5us\nVREAD READ GND PULSE(0 1.8 4u 1n 1n 1u 10u)\n\n.control\ntran 1n 6u\n\n* Measure Write Rise Time (10% to 90% of 1.0V)\nmeas tran t_write_rise trig v(N1) val=0.1 rise=1 targ v(N1) val=0.9 rise=1\n\n* Measure Write Charge Injection (Voltage drop when WRITE turns off)\nmeas tran v_n1_before_off find v(N1) at=1.99u\nmeas tran v_n1_after_off find v(N1) at=2.01u\nlet write_charge_inj = v_n1_before_off - v_n1_after_off\nprint write_charge_inj\n\n* Measure Hold Voltage Drop (from 2.1us to 3.9us)\nmeas tran v_n1_hold_start find v(N1) at=2.1u\nmeas tran v_n1_hold_end find v(N1) at=3.9u\nlet hold_voltage_drop = v_n1_hold_start - v_n1_hold_end\nprint hold_voltage_drop\n\n* Measure Read Rise Time (10% to 90% of expected 0.33V due to charge sharing between 200fF and 400fF)\nmeas tran t_read_rise trig v(N0) val=0.033 rise=1 targ v(N0) val=0.30 rise=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Frame Buffer Pixel Circuit\",\n    \"description\": \"A two-transistor sample-and-hold circuit used as a frame buffer pixel in LCOS microdisplays. It writes analog data to an intermediate storage capacitor (node N1) and later transfers it to the pixel electrode (node N0) to maximize image view time and brightness.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"DATA\",\n        \"WRITE\",\n        \"READ\"\n      ],\n      \"output\": [\n        \"N0\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"intermediate\": [\n        \"N1\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Novel Frame Buffer Pixel Circuits for Liquid-Crystal-on-Silicon Microdisplays\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"write_rise_time\": {\n      \"description\": \"Time required for the intermediate buffer node (N1) to charge from 10% to 90% of the DATA voltage during a write operation.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"100 MHz pixel clock\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_on \u2248 1 / (u_n * C_ox * (W/L) * (V_GS - V_TH)). For W/L=10, V_GS=1.8V, V_DATA=1.0V, R_on \u2248 1k\u03a9. With C1=200fF, \u03c4 \u2248 200ps. Rise time (2.2\u03c4) \u2248 440ps.\",\n        \"range\": {\n          \"min\": \"200p\",\n          \"typical\": \"500p\",\n          \"max\": \"2n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends on the transistor sizing and the buffer capacitance (200fF reported in paper).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"read_rise_time\": {\n      \"description\": \"Time required for the pixel electrode (N0) to charge from 10% to 90% of its final value during a read operation.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to write, but driving C0=400fF from C1=200fF. \u03c4 \u2248 400ps. Rise time (2.2\u03c4) \u2248 880ps.\",\n        \"range\": {\n          \"min\": \"400p\",\n          \"typical\": \"1n\",\n          \"max\": \"4n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Pixel capacitance is typically larger than buffer capacitance, leading to a slower time constant.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"write_charge_injection\": {\n      \"description\": \"Voltage error introduced on the buffer node (N1) when the WRITE transistor turns off.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"\u0394V = Q_ch / (2 * C1). Q_ch \u2248 W*L*C_ox*(V_GS-V_TH) \u2248 2.5um\u00b2 * 10fF/um\u00b2 * 0.4V \u2248 10fC. \u0394V \u2248 5fC / 200fF = 25mV.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"25m\",\n          \"max\": \"50m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Charge injection is a primary source of error in sample-and-hold circuits, causing a slight voltage drop when the switch opens.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"hold_voltage_drop\": {\n      \"description\": \"Voltage drop on the buffer node over a hold period due to subthreshold leakage and junction leakage.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"< 1%\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"\u0394V = I_leak * t_hold / C1. Assuming I_leak = 1pA, t_hold = 1.8us (in testbench), \u0394V = 1pA * 1.8us / 200fF = 9uV.\",\n        \"range\": {\n          \"min\": \"1u\",\n          \"typical\": \"10u\",\n          \"max\": \"1m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The paper reports less than 1% drop over a full frame time (e.g., 180Hz = 5.5ms). In a short transient simulation, the drop will be very small.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure write/read rise times, charge injection errors, and hold voltage drop in the frame buffer pixel.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"write_rise_time\",\n      \"read_rise_time\",\n      \"write_charge_injection\",\n      \"hold_voltage_drop\"\n    ],\n    \"spice\": \"* Frame Buffer Pixel Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 DATA WRITE N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 READ N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Load Capacitors (from paper: 200fF buffer, 400fF pixel)\\nC1 N1 GND 200f\\nC0 N0 GND 400f\\n\\n* Voltage Sources\\nVDD VDD GND 1.8\\nVDATA DATA GND 1.0\\n\\n* Control Signals\\n* WRITE: High from 1us to 2us\\nVWRITE WRITE GND PULSE(0 1.8 1u 1n 1n 1u 10u)\\n* READ: High from 4us to 5us\\nVREAD READ GND PULSE(0 1.8 4u 1n 1n 1u 10u)\\n\\n.control\\ntran 1n 6u\\n\\n* Measure Write Rise Time (10% to 90% of 1.0V)\\nmeas tran t_write_rise trig v(N1) val=0.1 rise=1 targ v(N1) val=0.9 rise=1\\n\\n* Measure Write Charge Injection (Voltage drop when WRITE turns off)\\nmeas tran v_n1_before_off find v(N1) at=1.99u\\nmeas tran v_n1_after_off find v(N1) at=2.01u\\nlet write_charge_inj = v_n1_before_off - v_n1_after_off\\nprint write_charge_inj\\n\\n* Measure Hold Voltage Drop (from 2.1us to 3.9us)\\nmeas tran v_n1_hold_start find v(N1) at=2.1u\\nmeas tran v_n1_hold_end find v(N1) at=3.9u\\nlet hold_voltage_drop = v_n1_hold_start - v_n1_hold_end\\nprint hold_voltage_drop\\n\\n* Measure Read Rise Time (10% to 90% of expected 0.33V due to charge sharing between 200fF and 400fF)\\nmeas tran t_read_rise trig v(N0) val=0.033 rise=1 targ v(N0) val=0.30 rise=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1261295",
+  "_case": "1261295_image_3_a"
+}

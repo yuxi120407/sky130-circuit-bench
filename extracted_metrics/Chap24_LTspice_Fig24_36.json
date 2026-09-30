@@ -1,0 +1,203 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 24.35",
+    "page": "798",
+    "circuit_type": "Cascode Operational Transconductance Amplifier (Cascode OTA)",
+    "description": "A fully cascoded operational transconductance amplifier with an NMOS differential input pair, cascoded PMOS current mirror active loads, cascoded NMOS current mirrors, and a 4-transistor cascoded NMOS tail current source."
+  },
+  "step2_metrics": {
+    "transconductance": {
+      "description": "Effective transconductance of the OTA from differential input to short-circuit output current",
+      "unit": "A/V",
+      "analysis_type": "AC",
+      "source": {
+        "page": "796",
+        "reference": "Eq. (24.41)"
+      },
+      "equation": {
+        "formula": "gmOTA = K * gmn",
+        "explanation": "Transconductance relates differential input voltage to small-signal output current. For unity mirror ratio K = 1, gmOTA equals the transconductance of the input differential pair NMOS transistors.",
+        "assumptions": "Matched input pair (M1, M2), matched current mirrors with mirror ratio K = 1."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming tail current Iss \u2248 20 uA, so each input transistor M1, M2 carries ID \u2248 10 uA. With typical (W/L) \u2248 10 to 20, gmn = sqrt(2 * unCox * (W/L) * ID) = sqrt(2 * 270e-6 * 10 * 10e-6) \u2248 232 uA/V.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0002,
+          "max": 0.0004,
+          "unit": "A/V"
+        },
+        "reasoning": "Standard biasing provides 10 uA branch current; gmn scales with sqrt(ID * W/L)."
+      },
+      "importance": "essential"
+    },
+    "open_loop_gain": {
+      "description": "Low-frequency open-loop differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "798",
+        "reference": "Eq. (24.46)"
+      },
+      "equation": {
+        "formula": "Av = gmn * (Rocasn || Rocasp)",
+        "explanation": "Low-frequency gain is determined by the input transconductance multiplied by the parallel output resistance of the NMOS and PMOS cascode branches.",
+        "assumptions": "Both NMOS and PMOS cascodes operate in active/saturation region with infinite load resistance (capacitive load only)."
+      },
+      "sky130_expected": {
+        "calculation": "For ID \u2248 10 uA: ro \u2248 1 / (lambda * ID) = 1 / (0.1 * 10u) = 1 MOhm. Cascode output resistance Rocas \u2248 gm * ro^2. With gm \u2248 150 uA/V to 200 uA/V, Rocas \u2248 150e-6 * (1e6)^2 = 150 MOhm. Rout = Rocasn || Rocasp \u2248 75 MOhm. Av = gmn * Rout \u2248 200e-6 * 75e6 = 15,000 \u2248 83.5 dB.",
+        "range": {
+          "min": 60.0,
+          "typical": 75.0,
+          "max": 90.0,
+          "unit": "dB"
+        },
+        "reasoning": "Cascode stages multiply transistor output impedance by intrinsic gain gm*ro, providing 60-90 dB of open-loop DC gain in SKY130."
+      },
+      "importance": "essential"
+    },
+    "dominant_pole_3dB_frequency": {
+      "description": "Open-loop 3-dB corner bandwidth set by the output resistance and load capacitor",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "798",
+        "reference": "Eq. (24.47)"
+      },
+      "equation": {
+        "formula": "f3dB = 1 / (2 * pi * (Rocasn || Rocasp) * CL)",
+        "explanation": "Because the cascode OTA has high impedance only at its output node, the dominant pole is formed by the parallel cascode output resistance and load capacitance CL.",
+        "assumptions": "Output node dominates frequency response; internal nodes are low impedance."
+      },
+      "sky130_expected": {
+        "calculation": "Rout \u2248 75 MOhm, CL = 1 pF: f3dB = 1 / (2 * pi * 75e6 * 1e-12) \u2248 2.12 kHz.",
+        "range": {
+          "min": 500.0,
+          "typical": 2500.0,
+          "max": 10000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Very high cascode output impedance with 1 pF load capacitance places the dominant pole in the low-kHz range."
+      },
+      "importance": "recommended"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency where the open-loop voltage gain drops to 0 dB (gain-bandwidth product)",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "797",
+        "reference": "Eq. (24.44)"
+      },
+      "equation": {
+        "formula": "fun = gmn / (2 * pi * CL)",
+        "explanation": "The product of DC gain and 3-dB bandwidth yields the unity-gain frequency fun, which depends directly on input pair transconductance and load capacitor CL.",
+        "assumptions": "Single dominant-pole roll-off at 20 dB/decade until unity gain."
+      },
+      "sky130_expected": {
+        "calculation": "With gmn \u2248 200 uA/V and CL = 1 pF: fun = 200e-6 / (2 * pi * 1e-12) \u2248 31.8 MHz (Baker textbook example gives ~24 MHz for gmn=150 uA/V).",
+        "range": {
+          "min": 15000000.0,
+          "typical": 30000000.0,
+          "max": 60000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "For a 1 pF load and ~150-300 uA/V transconductance, unity-gain frequency falls squarely between 15 MHz and 60 MHz."
+      },
+      "importance": "essential"
+    },
+    "maximum_output_current": {
+      "description": "Maximum bidirectional current the OTA can source or sink into the load",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "798",
+        "reference": "Text before Eq. (24.46)"
+      },
+      "equation": {
+        "formula": "iout_max = K * Iss",
+        "explanation": "When driven with a large differential input, one half of the input pair steers the total tail current Iss into the mirror, producing K * Iss at the output.",
+        "assumptions": "Complete current steering in diff pair under large differential signal; K = 1."
+      },
+      "sky130_expected": {
+        "calculation": "Total tail current Iss \u2248 20 uA. With K = 1, iout_max \u2248 20 uA.",
+        "range": {
+          "min": 1e-05,
+          "typical": 2e-05,
+          "max": 4e-05,
+          "unit": "A"
+        },
+        "reasoning": "The tail current source provides ~20 uA in nominal bias condition."
+      },
+      "importance": "recommended"
+    },
+    "slew_rate": {
+      "description": "Large-signal rate of change of the output voltage limited by maximum charging current and load capacitance",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "798",
+        "reference": "Text on page 798 regarding Iss driving CL"
+      },
+      "equation": {
+        "formula": "SR = iout_max / CL = (K * Iss) / CL",
+        "explanation": "The maximum rate at which the OTA can charge or discharge the load capacitor CL is limited by its available output current.",
+        "assumptions": "Slew rate determined by external capacitive load charging/discharging."
+      },
+      "sky130_expected": {
+        "calculation": "SR = 20 uA / 1 pF = 20 V/us.",
+        "range": {
+          "min": 10.0,
+          "typical": 20.0,
+          "max": 40.0,
+          "unit": "V/us"
+        },
+        "reasoning": "With 20 uA driving 1 pF load, maximum slewing speed is nominally 20 V/us."
+      },
+      "importance": "recommended"
+    },
+    "power_dissipation": {
+      "description": "Total quiescent DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "798",
+        "reference": "Fig. 24.35"
+      },
+      "equation": {
+        "formula": "Pdc = VDD * Itotal",
+        "explanation": "Total static power drawn from the 1.8V power supply by the OTA core and bias network.",
+        "assumptions": "Quiescent state with zero differential input."
+      },
+      "sky130_expected": {
+        "calculation": "Core current is Iss + 2 * branch currents \u2248 20 uA + 2 * 10 uA = 40 uA. Bias circuit SUB_1 draws ~60-80 uA. Itotal \u2248 100-120 uA. Pdc = 1.8 V * 110 uA \u2248 200 uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00022,
+          "max": 0.0004,
+          "unit": "W"
+        },
+        "reasoning": "Biased at nominal current levels in SKY130 1.8V process."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Comprehensive ngspice testbench simulating DC operating point, open-loop AC response with DC stability feedback network (Fig. 24.34), and large-signal transient slewing.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "transconductance",
+      "open_loop_gain",
+      "dominant_pole_3dB_frequency",
+      "unity_gain_frequency",
+      "slew_rate",
+      "power_dissipation"
+    ],
+    "spice": "* Cascode OTA Testbench for SKY130 (Fig. 24.35)\n.lib \"/home/user/pdk/sky130A/libs.tech/combined/sky130.lib.spice\" tt\n\n* Default transistor dimensions for sky130\n.param W_xm1=10u L_xm1=1u\n.param W_xm2=10u L_xm2=1u\n.param W_xm3=10u L_xm3=1u\n.param W_xm4=10u L_xm4=1u\n.param W_xm31=10u L_xm31=1u\n.param W_xm41=10u L_xm41=1u\n.param W_xm5=10u L_xm5=1u\n.param W_xm51=10u L_xm51=1u\n.param W_xm6=10u L_xm6=1u\n.param W_xm6b=10u L_xm6b=1u\n.param W_xm7=10u L_xm7=1u\n.param W_xm8=10u L_xm8=1u\n.param W_xm9=10u L_xm9=1u\n.param W_xm10=10u L_xm10=1u\n.param W_xm11=10u L_xm11=1u\n.param W_xm12=10u L_xm12=1u\n.param W_xm13=10u L_xm13=1u\n.param W_xm14=10u L_xm14=1u\n\n.param W_xmsu1=5u L_xmsu1=1u\n.param W_xmsu2=5u L_xmsu2=1u\n.param W_xmsu3=5u L_xmsu3=1u\n.param W_xmsu4=5u L_xmsu4=1u\n.param W_xm1=5u L_xm1=1u\n.param W_xm2=5u L_xm2=1u\n.param W_xm3=5u L_xm3=1u\n.param W_xm4=5u L_xm4=1u\n.param W_xm5=5u L_xm5=1u\n.param W_xm6=5u L_xm6=1u\n.param W_xm7=5u L_xm7=1u\n.param W_xm8=5u L_xm8=1u\n.param W_xm9=5u L_xm9=1u\n.param W_xm10=5u L_xm10=1u\n.param W_xm11=5u L_xm11=1u\n.param W_xm12=5u L_xm12=1u\n.param W_xm13=5u L_xm13=1u\n.param W_xm14=5u L_xm14=1u\n.param W_xm15=5u L_xm15=1u\n.param W_xm16=5u L_xm16=1u\n.param W_xm17=5u L_xm17=1u\n.param W_xm18=5u L_xm18=1u\n.param W_xma1=10u L_xma1=1u\n.param W_xma2=10u L_xma2=1u\n.param W_xma3=10u L_xma3=1u\n.param W_xma4=10u L_xma4=1u\n.param W_xma5=10u L_xma5=1u\n.param W_xma6=10u L_xma6=1u\n.param W_xma7=10u L_xma7=1u\n.param W_xma8=10u L_xma8=1u\n.param W_xma9=10u L_xma9=1u\n.param W_xma10=10u L_xma10=1u\n.param W_xma11=10u L_xma11=1u\n.param W_xma12=10u L_xma12=1u\n\n* Bias Generation Subcircuit\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n\n* DUT Instance\nVDD VDD 0 DC 1.8\nxm2 N002 vp N007 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 vm N007 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm3 N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nxm6b N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\nxm51 N011 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm51} l={L_xm51}\nxm4 N006 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 N012 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n\n* DC Biasing and AC Stability Network (Fig. 24.34)\nR1 vm Vout 100000000.0\nC1 vm 0 0.0001\nCL Vout 0 1e-12\n\nxm31 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\nxm41 N005 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm41} l={L_xm41}\nxm6 N007 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm7 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nxm8 N007 Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N008 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 Vout Vbias3 N012 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N008 Vbias2 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm12 Vout Vbias2 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\nxm13 N001 Vbias2 N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm13} l={L_xm13}\nxm14 N002 Vbias2 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\n\n* Signal source on vp (non-inverting input)\nVin vp 0 DC 0.9 AC 1 PULSE(0.8 1.0 10n 1n 1n 200n 500n)\n\n.control\n* 1. Operating Point\nop\nlet pwr = -i(VDD) * 1.8\nprint pwr\n\n* 2. AC Open-Loop Analysis\nac dec 100 10 100MEG\nlet aol_db = vdb(Vout)\nlet phase = 180/PI * cph(v(Vout))\n\nmeas ac dc_gain find aol_db at=10\nmeas ac f_3db when aol_db=dc_gain-3 fall=1\nmeas ac fun when aol_db=0 fall=1\nmeas ac phase_fun find phase when aol_db=0 fall=1\nlet pm = phase_fun + 180\nprint pm\n\n* Transconductance estimation: gm = 2 * PI * fun * CL\nlet gm_calc = 2 * PI * fun * 1e-12\nprint gm_calc\n\n* 3. Transient Slewing\ntran 1n 600n\nmeas tran vout_init find v(Vout) at=10n\nmeas tran vout_peak max v(Vout)\nmeas tran slew_rate trig v(Vout) val=0.85 rise=1 targ v(Vout) val=0.95 rise=1\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 24.35\",\n    \"page\": \"798\",\n    \"circuit_type\": \"Cascode Operational Transconductance Amplifier (Cascode OTA)\",\n    \"description\": \"A fully cascoded operational transconductance amplifier with an NMOS differential input pair, cascoded PMOS current mirror active loads, cascoded NMOS current mirrors, and a 4-transistor cascoded NMOS tail current source.\"\n  },\n  \"step2_metrics\": {\n    \"transconductance\": {\n      \"description\": \"Effective transconductance of the OTA from differential input to short-circuit output current\",\n      \"unit\": \"A/V\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"796\", \"reference\": \"Eq. (24.41)\" },\n      \"equation\": {\n        \"formula\": \"gmOTA = K * gmn\",\n        \"explanation\": \"Transconductance relates differential input voltage to small-signal output current. For unity mirror ratio K = 1, gmOTA equals the transconductance of the input differential pair NMOS transistors.\",\n        \"assumptions\": \"Matched input pair (M1, M2), matched current mirrors with mirror ratio K = 1.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming tail current Iss \u2248 20 uA, so each input transistor M1, M2 carries ID \u2248 10 uA. With typical (W/L) \u2248 10 to 20, gmn = sqrt(2 * unCox * (W/L) * ID) = sqrt(2 * 270e-6 * 10 * 10e-6) \u2248 232 uA/V.\",\n        \"range\": { \"min\": 100e-6, \"typical\": 200e-6, \"max\": 400e-6, \"unit\": \"A/V\" },\n        \"reasoning\": \"Standard biasing provides 10 uA branch current; gmn scales with sqrt(ID * W/L).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"open_loop_gain\": {\n      \"description\": \"Low-frequency open-loop differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"798\", \"reference\": \"Eq. (24.46)\" },\n      \"equation\": {\n        \"formula\": \"Av = gmn * (Rocasn || Rocasp)\",\n        \"explanation\": \"Low-frequency gain is determined by the input transconductance multiplied by the parallel output resistance of the NMOS and PMOS cascode branches.\",\n        \"assumptions\": \"Both NMOS and PMOS cascodes operate in active/saturation region with infinite load resistance (capacitive load only).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For ID \u2248 10 uA: ro \u2248 1 / (lambda * ID) = 1 / (0.1 * 10u) = 1 MOhm. Cascode output resistance Rocas \u2248 gm * ro^2. With gm \u2248 150 uA/V to 200 uA/V, Rocas \u2248 150e-6 * (1e6)^2 = 150 MOhm. Rout = Rocasn || Rocasp \u2248 75 MOhm. Av = gmn * Rout \u2248 200e-6 * 75e6 = 15,000 \u2248 83.5 dB.\",\n        \"range\": { \"min\": 60.0, \"typical\": 75.0, \"max\": 90.0, \"unit\": \"dB\" },\n        \"reasoning\": \"Cascode stages multiply transistor output impedance by intrinsic gain gm*ro, providing 60-90 dB of open-loop DC gain in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dominant_pole_3dB_frequency\": {\n      \"description\": \"Open-loop 3-dB corner bandwidth set by the output resistance and load capacitor\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"798\", \"reference\": \"Eq. (24.47)\" },\n      \"equation\": {\n        \"formula\": \"f3dB = 1 / (2 * pi * (Rocasn || Rocasp) * CL)\",\n        \"explanation\": \"Because the cascode OTA has high impedance only at its output node, the dominant pole is formed by the parallel cascode output resistance and load capacitance CL.\",\n        \"assumptions\": \"Output node dominates frequency response; internal nodes are low impedance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout \u2248 75 MOhm, CL = 1 pF: f3dB = 1 / (2 * pi * 75e6 * 1e-12) \u2248 2.12 kHz.\",\n        \"range\": { \"min\": 500.0, \"typical\": 2500.0, \"max\": 10000.0, \"unit\": \"Hz\" },\n        \"reasoning\": \"Very high cascode output impedance with 1 pF load capacitance places the dominant pole in the low-kHz range.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency where the open-loop voltage gain drops to 0 dB (gain-bandwidth product)\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": { \"page\": \"797\", \"reference\": \"Eq. (24.44)\" },\n      \"equation\": {\n        \"formula\": \"fun = gmn / (2 * pi * CL)\",\n        \"explanation\": \"The product of DC gain and 3-dB bandwidth yields the unity-gain frequency fun, which depends directly on input pair transconductance and load capacitor CL.\",\n        \"assumptions\": \"Single dominant-pole roll-off at 20 dB/decade until unity gain.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With gmn \u2248 200 uA/V and CL = 1 pF: fun = 200e-6 / (2 * pi * 1e-12) \u2248 31.8 MHz (Baker textbook example gives ~24 MHz for gmn=150 uA/V).\",\n        \"range\": { \"min\": 15e6, \"typical\": 30e6, \"max\": 60e6, \"unit\": \"Hz\" },\n        \"reasoning\": \"For a 1 pF load and ~150-300 uA/V transconductance, unity-gain frequency falls squarely between 15 MHz and 60 MHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"maximum_output_current\": {\n      \"description\": \"Maximum bidirectional current the OTA can source or sink into the load\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": { \"page\": \"798\", \"reference\": \"Text before Eq. (24.46)\" },\n      \"equation\": {\n        \"formula\": \"iout_max = K * Iss\",\n        \"explanation\": \"When driven with a large differential input, one half of the input pair steers the total tail current Iss into the mirror, producing K * Iss at the output.\",\n        \"assumptions\": \"Complete current steering in diff pair under large differential signal; K = 1.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total tail current Iss \u2248 20 uA. With K = 1, iout_max \u2248 20 uA.\",\n        \"range\": { \"min\": 10e-6, \"typical\": 20e-6, \"max\": 40e-6, \"unit\": \"A\" },\n        \"reasoning\": \"The tail current source provides ~20 uA in nominal bias condition.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Large-signal rate of change of the output voltage limited by maximum charging current and load capacitance\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"798\", \"reference\": \"Text on page 798 regarding Iss driving CL\" },\n      \"equation\": {\n        \"formula\": \"SR = iout_max / CL = (K * Iss) / CL\",\n        \"explanation\": \"The maximum rate at which the OTA can charge or discharge the load capacitor CL is limited by its available output current.\",\n        \"assumptions\": \"Slew rate determined by external capacitive load charging/discharging.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = 20 uA / 1 pF = 20 V/us.\",\n        \"range\": { \"min\": 10.0, \"typical\": 20.0, \"max\": 40.0, \"unit\": \"V/us\" },\n        \"reasoning\": \"With 20 uA driving 1 pF load, maximum slewing speed is nominally 20 V/us.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total quiescent DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": { \"page\": \"798\", \"reference\": \"Fig. 24.35\" },\n      \"equation\": {\n        \"formula\": \"Pdc = VDD * Itotal\",\n        \"explanation\": \"Total static power drawn from the 1.8V power supply by the OTA core and bias network.\",\n        \"assumptions\": \"Quiescent state with zero differential input.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Core current is Iss + 2 * branch currents \u2248 20 uA + 2 * 10 uA = 40 uA. Bias circuit SUB_1 draws ~60-80 uA. Itotal \u2248 100-120 uA. Pdc = 1.8 V * 110 uA \u2248 200 uW.\",\n        \"range\": { \"min\": 100e-6, \"typical\": 220e-6, \"max\": 400e-6, \"unit\": \"W\" },\n        \"reasoning\": \"Biased at nominal current levels in SKY130 1.8V process.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Comprehensive ngspice testbench simulating DC operating point, open-loop AC response with DC stability feedback network (Fig. 24.34), and large-signal transient slewing.\",\n    \"analyses\": [\"OP\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\n      \"transconductance\",\n      \"open_loop_gain\",\n      \"dominant_pole_3dB_frequency\",\n      \"unity_gain_frequency\",\n      \"slew_rate\",\n      \"power_dissipation\"\n    ],\n    \"spice\": \"* Cascode OTA Testbench for SKY130 (Fig. 24.35)\\n.lib \\\"/home/user/pdk/sky130A/libs.tech/combined/sky130.lib.spice\\\" tt\\n\\n* Default transistor dimensions for sky130\\n.param W_xm1=10u L_xm1=1u\\n.param W_xm2=10u L_xm2=1u\\n.param W_xm3=10u L_xm3=1u\\n.param W_xm4=10u L_xm4=1u\\n.param W_xm31=10u L_xm31=1u\\n.param W_xm41=10u L_xm41=1u\\n.param W_xm5=10u L_xm5=1u\\n.param W_xm51=10u L_xm51=1u\\n.param W_xm6=10u L_xm6=1u\\n.param W_xm6b=10u L_xm6b=1u\\n.param W_xm7=10u L_xm7=1u\\n.param W_xm8=10u L_xm8=1u\\n.param W_xm9=10u L_xm9=1u\\n.param W_xm10=10u L_xm10=1u\\n.param W_xm11=10u L_xm11=1u\\n.param W_xm12=10u L_xm12=1u\\n.param W_xm13=10u L_xm13=1u\\n.param W_xm14=10u L_xm14=1u\\n\\n.param W_xmsu1=5u L_xmsu1=1u\\n.param W_xmsu2=5u L_xmsu2=1u\\n.param W_xmsu3=5u L_xmsu3=1u\\n.param W_xmsu4=5u L_xmsu4=1u\\n.param W_xm1=5u L_xm1=1u\\n.param W_xm2=5u L_xm2=1u\\n.param W_xm3=5u L_xm3=1u\\n.param W_xm4=5u L_xm4=1u\\n.param W_xm5=5u L_xm5=1u\\n.param W_xm6=5u L_xm6=1u\\n.param W_xm7=5u L_xm7=1u\\n.param W_xm8=5u L_xm8=1u\\n.param W_xm9=5u L_xm9=1u\\n.param W_xm10=5u L_xm10=1u\\n.param W_xm11=5u L_xm11=1u\\n.param W_xm12=5u L_xm12=1u\\n.param W_xm13=5u L_xm13=1u\\n.param W_xm14=5u L_xm14=1u\\n.param W_xm15=5u L_xm15=1u\\n.param W_xm16=5u L_xm16=1u\\n.param W_xm17=5u L_xm17=1u\\n.param W_xm18=5u L_xm18=1u\\n.param W_xma1=10u L_xma1=1u\\n.param W_xma2=10u L_xma2=1u\\n.param W_xma3=10u L_xma3=1u\\n.param W_xma4=10u L_xma4=1u\\n.param W_xma5=10u L_xma5=1u\\n.param W_xma6=10u L_xma6=1u\\n.param W_xma7=10u L_xma7=1u\\n.param W_xma8=10u L_xma8=1u\\n.param W_xma9=10u L_xma9=1u\\n.param W_xma10=10u L_xma10=1u\\n.param W_xma11=10u L_xma11=1u\\n.param W_xma12=10u L_xma12=1u\\n\\n* Bias Generation Subcircuit\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n\\n* DUT Instance\\nVDD VDD 0 DC 1.8\\nxm2 N002 vp N007 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 vm N007 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm3 N003 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nxm6b N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\\nxm51 N011 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm51} l={L_xm51}\\nxm4 N006 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 N012 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n\\n* DC Biasing and AC Stability Network (Fig. 24.34)\\nR1 vm Vout 100000000.0\\nC1 vm 0 0.0001\\nCL Vout 0 1e-12\\n\\nxm31 N004 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm31} l={L_xm31}\\nxm41 N005 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm41} l={L_xm41}\\nxm6 N007 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 N007 Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N008 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 Vout Vbias3 N012 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N008 Vbias2 N003 VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 Vout Vbias2 N006 VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 N001 Vbias2 N004 VDD sky130_fd_pr__pfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 N002 Vbias2 N005 VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\\n\\n* Signal source on vp (non-inverting input)\\nVin vp 0 DC 0.9 AC 1 PULSE(0.8 1.0 10n 1n 1n 200n 500n)\\n\\n.control\\n* 1. Operating Point\\nop\\nlet pwr = -i(VDD) * 1.8\\nprint pwr\\n\\n* 2. AC Open-Loop Analysis\\nac dec 100 10 100MEG\\nlet aol_db = vdb(Vout)\\nlet phase = 180/PI * cph(v(Vout))\\n\\nmeas ac dc_gain find aol_db at=10\\nmeas ac f_3db when aol_db=dc_gain-3 fall=1\\nmeas ac fun when aol_db=0 fall=1\\nmeas ac phase_fun find phase when aol_db=0 fall=1\\nlet pm = phase_fun + 180\\nprint pm\\n\\n* Transconductance estimation: gm = 2 * PI * fun * CL\\nlet gm_calc = 2 * PI * fun * 1e-12\\nprint gm_calc\\n\\n* 3. Transient Slewing\\ntran 1n 600n\\nmeas tran vout_init find v(Vout) at=10n\\nmeas tran vout_peak max v(Vout)\\nmeas tran slew_rate trig v(Vout) val=0.85 rise=1 targ v(Vout) val=0.95 rise=1\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-capacitor switch with local clock buffer",
+    "description": "The circuit is a switch driven by a local two-stage clock buffer (XM1-XM4). Due to both switch transistors (XM5, XM6) being NMOS in the extracted netlist, it acts as an always-on switch that alternates conduction between the two transistors depending on the clock phase. This was likely intended as a complementary transmission gate where the PMOS was misidentified during extraction.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "CLK"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "N4",
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "N5",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 140-W 88-dB Audio Sigma-Delta Modulator in 90-nm CMOS",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Ron_high": {
+      "description": "ON resistance of the switch when CLK is high",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ron = 1 / (un*Cox * W/L * (Vgs - Vth)). Vgs = 1.8V - 0.9V = 0.9V. Vth = 0.42V. Ron = 1 / (270uA/V^2 * 10 * 0.48V) = 771 ohms.",
+        "range": {
+          "min": 500,
+          "typical": 770,
+          "max": 1000,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using SKY130 NMOS parameters in the linear region with a 0.9V DC input."
+      },
+      "importance": "essential"
+    },
+    "Ron_low": {
+      "description": "ON resistance of the switch when CLK is low",
+      "unit": "ohm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Same as Ron_high, as XM6 is driven by the inverted clock (N6) and has the same dimensions.",
+        "range": {
+          "min": 500,
+          "typical": 770,
+          "max": 1000,
+          "unit": "ohm"
+        },
+        "reasoning": "Symmetry in the extracted netlist causes the switch to remain ON during the low clock phase via XM6."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "-3dB bandwidth of the switch in the ON state with a 1pF load",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Ron * Cload) = 1 / (2 * 3.1416 * 771 * 1e-12) = 206 MHz.",
+        "range": {
+          "min": 150000000.0,
+          "typical": 200000000.0,
+          "max": 300000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Based on the calculated Ron and a standard 1pF test load."
+      },
+      "importance": "recommended"
+    },
+    "Power": {
+      "description": "Dynamic power consumption of the clock buffer at 50 MHz",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "140 uW (total modulator)",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = C_total * VDD^2 * f. C_total ~ 100fF. P = 100e-15 * 1.8^2 * 50e6 = 16.2 uW.",
+        "range": {
+          "min": 1e-05,
+          "typical": 1.6e-05,
+          "max": 2.5e-05,
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 140 uW (typoed as 140 W in metadata) for the entire ADC at 1V. The clock buffer alone in 1.8V SKY130 will consume a fraction of this."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure ON resistance in both clock phases, AC bandwidth, and dynamic power consumption.",
+    "analyses": [
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Ron_high",
+      "Ron_low",
+      "Bandwidth",
+      "Power"
+    ],
+    "spice": "* Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nVVDD VDD 0 1.8\nVN4 N4 0 1.8\nVN5 N5 0 0\n\nVCLK CLK 0 DC 1.8 PULSE(0 1.8 1n 0.1n 0.1n 10n 20n)\nVIN IN 0 DC 0.9 AC 1\nI_test OUT 0 10u\nCLOAD OUT 0 1p\n\nXM1 N6 CLK N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 N6 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N3 N6 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N6 CLK N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 IN N3 OUT GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUT N6 IN GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n.control\n  * AC Analysis for Bandwidth\n  ac dec 10 1Meg 10G\n  let gain_db = vdb(OUT)\n  meas ac bw_high when gain_db=-3 fall=1\n  \n  * Transient Analysis for Ron and Power\n  tran 0.1n 40n\n  \n  * Measure Ron when CLK is high (t=5n)\n  meas tran v_in_high find v(IN) at=5n\n  meas tran v_out_high find v(OUT) at=5n\n  let ron_high = (v_in_high - v_out_high) / 10u\n  print ron_high\n  \n  * Measure Ron when CLK is low (t=15n)\n  meas tran v_in_low find v(IN) at=15n\n  meas tran v_out_low find v(OUT) at=15n\n  let ron_low = (v_in_low - v_out_low) / 10u\n  print ron_low\n  \n  * Measure dynamic power of the clock buffer\n  meas tran i_vdd_integ integ i(VN4) from=0 to=40n\n  let avg_power = - (i_vdd_integ / 40n) * 1.8\n  print avg_power\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-capacitor switch with local clock buffer\",\n    \"description\": \"The circuit is a switch driven by a local two-stage clock buffer (XM1-XM4). Due to both switch transistors (XM5, XM6) being NMOS in the extracted netlist, it acts as an always-on switch that alternates conduction between the two transistors depending on the clock phase. This was likely intended as a complementary transmission gate where the PMOS was misidentified during extraction.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"CLK\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"N4\",\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"N5\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 140-W 88-dB Audio Sigma-Delta Modulator in 90-nm CMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Ron_high\": {\n      \"description\": \"ON resistance of the switch when CLK is high\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron = 1 / (un*Cox * W/L * (Vgs - Vth)). Vgs = 1.8V - 0.9V = 0.9V. Vth = 0.42V. Ron = 1 / (270uA/V^2 * 10 * 0.48V) = 771 ohms.\",\n        \"range\": {\n          \"min\": 500,\n          \"typical\": 770,\n          \"max\": 1000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Calculated using SKY130 NMOS parameters in the linear region with a 0.9V DC input.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Ron_low\": {\n      \"description\": \"ON resistance of the switch when CLK is low\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Same as Ron_high, as XM6 is driven by the inverted clock (N6) and has the same dimensions.\",\n        \"range\": {\n          \"min\": 500,\n          \"typical\": 770,\n          \"max\": 1000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Symmetry in the extracted netlist causes the switch to remain ON during the low clock phase via XM6.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"-3dB bandwidth of the switch in the ON state with a 1pF load\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Ron * Cload) = 1 / (2 * 3.1416 * 771 * 1e-12) = 206 MHz.\",\n        \"range\": {\n          \"min\": 150e6,\n          \"typical\": 200e6,\n          \"max\": 300e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Based on the calculated Ron and a standard 1pF test load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Power\": {\n      \"description\": \"Dynamic power consumption of the clock buffer at 50 MHz\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"140 uW (total modulator)\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C_total * VDD^2 * f. C_total ~ 100fF. P = 100e-15 * 1.8^2 * 50e6 = 16.2 uW.\",\n        \"range\": {\n          \"min\": 10e-6,\n          \"typical\": 16e-6,\n          \"max\": 25e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 140 uW (typoed as 140 W in metadata) for the entire ADC at 1V. The clock buffer alone in 1.8V SKY130 will consume a fraction of this.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure ON resistance in both clock phases, AC bandwidth, and dynamic power consumption.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Ron_high\",\n      \"Ron_low\",\n      \"Bandwidth\",\n      \"Power\"\n    ],\n    \"spice\": \"* Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nVVDD VDD 0 1.8\\nVN4 N4 0 1.8\\nVN5 N5 0 0\\n\\nVCLK CLK 0 DC 1.8 PULSE(0 1.8 1n 0.1n 0.1n 10n 20n)\\nVIN IN 0 DC 0.9 AC 1\\nI_test OUT 0 10u\\nCLOAD OUT 0 1p\\n\\nXM1 N6 CLK N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 N6 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N3 N6 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N6 CLK N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 IN N3 OUT GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUT N6 IN GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n.control\\n  * AC Analysis for Bandwidth\\n  ac dec 10 1Meg 10G\\n  let gain_db = vdb(OUT)\\n  meas ac bw_high when gain_db=-3 fall=1\\n  \\n  * Transient Analysis for Ron and Power\\n  tran 0.1n 40n\\n  \\n  * Measure Ron when CLK is high (t=5n)\\n  meas tran v_in_high find v(IN) at=5n\\n  meas tran v_out_high find v(OUT) at=5n\\n  let ron_high = (v_in_high - v_out_high) / 10u\\n  print ron_high\\n  \\n  * Measure Ron when CLK is low (t=15n)\\n  meas tran v_in_low find v(IN) at=15n\\n  meas tran v_out_low find v(OUT) at=15n\\n  let ron_low = (v_in_low - v_out_low) / 10u\\n  print ron_low\\n  \\n  * Measure dynamic power of the clock buffer\\n  meas tran i_vdd_integ integ i(VN4) from=0 to=40n\\n  let avg_power = - (i_vdd_integ / 40n) * 1.8\\n  print avg_power\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1347312",
+  "_case": "1347312_image_13"
+}

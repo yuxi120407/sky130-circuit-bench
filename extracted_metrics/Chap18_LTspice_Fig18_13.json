@@ -1,0 +1,150 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 18.13",
+    "page": "532",
+    "circuit_type": "Cascaded inverters with asymmetric capacitive loading",
+    "description": "A circuit demonstrating how timing skew is introduced into a high-speed digital signal due to mismatched rise and fall times caused by asymmetric loading (a 100fF capacitor on the first inverter's output)."
+  },
+  "step2_metrics": {
+    "t_PHL_inv1": {
+      "description": "High-to-low propagation delay of the first inverter.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "532",
+        "reference": "Discussion of Fig 18.13 and Eq 18.7 (adapted for standard inverter)"
+      },
+      "equation": {
+        "formula": "t_PHL \u2248 0.7 * R_eq,n * C_load",
+        "explanation": "The time it takes for the NMOS to discharge the load capacitor to VDD/2.",
+        "assumptions": "R_eq,n is the equivalent resistance of the NMOS in saturation/triode, roughly (3/4)*(VDD/I_DSATn)."
+      },
+      "sky130_expected": {
+        "calculation": "1. I_DSATn = 0.5 * un*Cox * (W/L) * (VDD - Vthn)^2 = 0.5 * 270uA/V^2 * 10 * (1.8V - 0.42V)^2 = 2.57 mA.\n2. R_eq,n \u2248 0.75 * (1.8V / 2.57mA) = 525 ohms.\n3. t_PHL \u2248 0.69 * 525 ohms * 100fF = 36.2 ps.",
+        "range": {
+          "min": "30p",
+          "typical": "36p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "Based on the dominant 100fF load and the strong NMOS drive current."
+      },
+      "importance": "essential"
+    },
+    "t_PLH_inv1": {
+      "description": "Low-to-high propagation delay of the first inverter.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "532",
+        "reference": "Discussion of Fig 18.13 and Eq 18.8 (adapted for standard inverter)"
+      },
+      "equation": {
+        "formula": "t_PLH \u2248 0.7 * R_eq,p * C_load",
+        "explanation": "The time it takes for the PMOS to charge the load capacitor to VDD/2.",
+        "assumptions": "R_eq,p is the equivalent resistance of the PMOS, roughly (3/4)*(VDD/I_DSATp)."
+      },
+      "sky130_expected": {
+        "calculation": "1. I_DSATp = 0.5 * up*Cox * (W/L) * (VDD - |Vthp|)^2 = 0.5 * 50uA/V^2 * 10 * (1.8V - 0.42V)^2 = 0.476 mA.\n2. R_eq,p \u2248 0.75 * (1.8V / 0.476mA) = 2836 ohms.\n3. t_PLH \u2248 0.69 * 2836 ohms * 100fF = 195.7 ps.",
+        "range": {
+          "min": "150p",
+          "typical": "195p",
+          "max": "250p",
+          "unit": "s"
+        },
+        "reasoning": "The PMOS is much weaker than the NMOS (lower mobility), leading to a significantly longer rise time for the same 100fF load."
+      },
+      "importance": "essential"
+    },
+    "t_delay_rise": {
+      "description": "Total propagation delay from the input going high to the final output (out2) going high.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "532",
+        "reference": "Text discussion of Fig 18.14: 'The total delay is the sum of t_PHL + t_PLH'"
+      },
+      "equation": {
+        "formula": "t_delay_rise = t_PHL1 + t_PLH2",
+        "explanation": "When Vin goes high, inv1 output goes low (t_PHL1), causing inv2 output to go high (t_PLH2).",
+        "assumptions": "t_PLH2 is very small because the second inverter has minimal capacitive loading."
+      },
+      "sky130_expected": {
+        "calculation": "1. t_PHL1 \u2248 36.2 ps.\n2. Assuming inv2 load is ~5fF (intrinsic), t_PLH2 \u2248 0.69 * 2836 * 5fF \u2248 9.8 ps.\n3. t_delay_rise = 36.2ps + 9.8ps = 46 ps.",
+        "range": {
+          "min": "40p",
+          "typical": "46p",
+          "max": "60p",
+          "unit": "s"
+        },
+        "reasoning": "Dominated by the fast high-to-low transition of the first inverter."
+      },
+      "importance": "essential"
+    },
+    "t_delay_fall": {
+      "description": "Total propagation delay from the input going low to the final output (out2) going low.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "532",
+        "reference": "Text discussion of Fig 18.14: 'resulting in the same sum (t_PHL + t_PLH)'"
+      },
+      "equation": {
+        "formula": "t_delay_fall = t_PLH1 + t_PHL2",
+        "explanation": "When Vin goes low, inv1 output goes high (t_PLH1), causing inv2 output to go low (t_PHL2).",
+        "assumptions": "t_PHL2 is very small because the second inverter has minimal capacitive loading."
+      },
+      "sky130_expected": {
+        "calculation": "1. t_PLH1 \u2248 195.7 ps.\n2. Assuming inv2 load is ~5fF (intrinsic), t_PHL2 \u2248 0.69 * 525 * 5fF \u2248 1.8 ps.\n3. t_delay_fall = 195.7ps + 1.8ps = 197.5 ps.",
+        "range": {
+          "min": "160p",
+          "typical": "197p",
+          "max": "250p",
+          "unit": "s"
+        },
+        "reasoning": "Dominated by the slow low-to-high transition of the first inverter due to the weak PMOS driving 100fF."
+      },
+      "importance": "essential"
+    },
+    "skew": {
+      "description": "The time skew added to the input signal, calculated as the difference between the total rise delay and total fall delay.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "532",
+        "reference": "Text discussion of Fig 18.13: 'the time skew added to the input signal can add up and result in timing errors'"
+      },
+      "equation": {
+        "formula": "Skew = |t_delay_rise - t_delay_fall|",
+        "explanation": "Measures the asymmetry in propagation delays which alters the pulse width of the transmitted signal.",
+        "assumptions": "Input signal has 50% duty cycle."
+      },
+      "sky130_expected": {
+        "calculation": "Skew = |46 ps - 197.5 ps| = 151.5 ps.",
+        "range": {
+          "min": "100p",
+          "typical": "151p",
+          "max": "200p",
+          "unit": "s"
+        },
+        "reasoning": "The large difference is directly caused by the mobility difference between NMOS and PMOS when driving a heavy asymmetric load."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure propagation delays and skew of the cascaded inverters with asymmetric loading.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "t_PHL_inv1",
+      "t_PLH_inv1",
+      "t_delay_rise",
+      "t_delay_fall",
+      "skew"
+    ],
+    "spice": "* Testbench for Fig 18.13 Skew Circuit\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for W/L=10\n.param W_xm1=1.5 L_xm1=0.15\n.param W_xm2=1.5 L_xm2=0.15\n.param W_xm3=1.5 L_xm3=0.15\n.param W_xm4=1.5 L_xm4=0.15\n\n* DUT\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nC1 Vout 0 1e-13\nxm3 Vout2 Vout 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 Vout2 Vout VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n\n* Stimulus\nVin Vin 0 PULSE(0 1.8 1n 50p 50p 2n 5n)\n\n.control\ntran 10p 5n\n\n* Measure t_PHL_inv1 (Vin rising, Vout falling)\nmeas tran t_PHL_inv1 trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\n\n* Measure t_PLH_inv1 (Vin falling, Vout rising)\nmeas tran t_PLH_inv1 trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\n\n* Measure t_delay_rise (Vin rising, Vout2 rising)\nmeas tran t_delay_rise trig v(Vin) val=0.9 rise=1 targ v(Vout2) val=0.9 rise=1\n\n* Measure t_delay_fall (Vin falling, Vout2 falling)\nmeas tran t_delay_fall trig v(Vin) val=0.9 fall=1 targ v(Vout2) val=0.9 fall=1\n\n* Calculate skew\nlet skew = abs(t_delay_rise - t_delay_fall)\nprint skew\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 18.13\",\n    \"page\": \"532\",\n    \"circuit_type\": \"Cascaded inverters with asymmetric capacitive loading\",\n    \"description\": \"A circuit demonstrating how timing skew is introduced into a high-speed digital signal due to mismatched rise and fall times caused by asymmetric loading (a 100fF capacitor on the first inverter's output).\"\n  },\n  \"step2_metrics\": {\n    \"t_PHL_inv1\": {\n      \"description\": \"High-to-low propagation delay of the first inverter.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"532\",\n        \"reference\": \"Discussion of Fig 18.13 and Eq 18.7 (adapted for standard inverter)\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL \u2248 0.7 * R_eq,n * C_load\",\n        \"explanation\": \"The time it takes for the NMOS to discharge the load capacitor to VDD/2.\",\n        \"assumptions\": \"R_eq,n is the equivalent resistance of the NMOS in saturation/triode, roughly (3/4)*(VDD/I_DSATn).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. I_DSATn = 0.5 * un*Cox * (W/L) * (VDD - Vthn)^2 = 0.5 * 270uA/V^2 * 10 * (1.8V - 0.42V)^2 = 2.57 mA.\\n2. R_eq,n \u2248 0.75 * (1.8V / 2.57mA) = 525 ohms.\\n3. t_PHL \u2248 0.69 * 525 ohms * 100fF = 36.2 ps.\",\n        \"range\": {\n          \"min\": \"30p\",\n          \"typical\": \"36p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Based on the dominant 100fF load and the strong NMOS drive current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_PLH_inv1\": {\n      \"description\": \"Low-to-high propagation delay of the first inverter.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"532\",\n        \"reference\": \"Discussion of Fig 18.13 and Eq 18.8 (adapted for standard inverter)\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PLH \u2248 0.7 * R_eq,p * C_load\",\n        \"explanation\": \"The time it takes for the PMOS to charge the load capacitor to VDD/2.\",\n        \"assumptions\": \"R_eq,p is the equivalent resistance of the PMOS, roughly (3/4)*(VDD/I_DSATp).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. I_DSATp = 0.5 * up*Cox * (W/L) * (VDD - |Vthp|)^2 = 0.5 * 50uA/V^2 * 10 * (1.8V - 0.42V)^2 = 0.476 mA.\\n2. R_eq,p \u2248 0.75 * (1.8V / 0.476mA) = 2836 ohms.\\n3. t_PLH \u2248 0.69 * 2836 ohms * 100fF = 195.7 ps.\",\n        \"range\": {\n          \"min\": \"150p\",\n          \"typical\": \"195p\",\n          \"max\": \"250p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The PMOS is much weaker than the NMOS (lower mobility), leading to a significantly longer rise time for the same 100fF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_delay_rise\": {\n      \"description\": \"Total propagation delay from the input going high to the final output (out2) going high.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"532\",\n        \"reference\": \"Text discussion of Fig 18.14: 'The total delay is the sum of t_PHL + t_PLH'\"\n      },\n      \"equation\": {\n        \"formula\": \"t_delay_rise = t_PHL1 + t_PLH2\",\n        \"explanation\": \"When Vin goes high, inv1 output goes low (t_PHL1), causing inv2 output to go high (t_PLH2).\",\n        \"assumptions\": \"t_PLH2 is very small because the second inverter has minimal capacitive loading.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. t_PHL1 \u2248 36.2 ps.\\n2. Assuming inv2 load is ~5fF (intrinsic), t_PLH2 \u2248 0.69 * 2836 * 5fF \u2248 9.8 ps.\\n3. t_delay_rise = 36.2ps + 9.8ps = 46 ps.\",\n        \"range\": {\n          \"min\": \"40p\",\n          \"typical\": \"46p\",\n          \"max\": \"60p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Dominated by the fast high-to-low transition of the first inverter.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_delay_fall\": {\n      \"description\": \"Total propagation delay from the input going low to the final output (out2) going low.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"532\",\n        \"reference\": \"Text discussion of Fig 18.14: 'resulting in the same sum (t_PHL + t_PLH)'\"\n      },\n      \"equation\": {\n        \"formula\": \"t_delay_fall = t_PLH1 + t_PHL2\",\n        \"explanation\": \"When Vin goes low, inv1 output goes high (t_PLH1), causing inv2 output to go low (t_PHL2).\",\n        \"assumptions\": \"t_PHL2 is very small because the second inverter has minimal capacitive loading.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1. t_PLH1 \u2248 195.7 ps.\\n2. Assuming inv2 load is ~5fF (intrinsic), t_PHL2 \u2248 0.69 * 525 * 5fF \u2248 1.8 ps.\\n3. t_delay_fall = 195.7ps + 1.8ps = 197.5 ps.\",\n        \"range\": {\n          \"min\": \"160p\",\n          \"typical\": \"197p\",\n          \"max\": \"250p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Dominated by the slow low-to-high transition of the first inverter due to the weak PMOS driving 100fF.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"skew\": {\n      \"description\": \"The time skew added to the input signal, calculated as the difference between the total rise delay and total fall delay.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"532\",\n        \"reference\": \"Text discussion of Fig 18.13: 'the time skew added to the input signal can add up and result in timing errors'\"\n      },\n      \"equation\": {\n        \"formula\": \"Skew = |t_delay_rise - t_delay_fall|\",\n        \"explanation\": \"Measures the asymmetry in propagation delays which alters the pulse width of the transmitted signal.\",\n        \"assumptions\": \"Input signal has 50% duty cycle.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Skew = |46 ps - 197.5 ps| = 151.5 ps.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"151p\",\n          \"max\": \"200p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The large difference is directly caused by the mobility difference between NMOS and PMOS when driving a heavy asymmetric load.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure propagation delays and skew of the cascaded inverters with asymmetric loading.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"t_PHL_inv1\",\n      \"t_PLH_inv1\",\n      \"t_delay_rise\",\n      \"t_delay_fall\",\n      \"skew\"\n    ],\n    \"spice\": \"* Testbench for Fig 18.13 Skew Circuit\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for W/L=10\\n.param W_xm1=1.5 L_xm1=0.15\\n.param W_xm2=1.5 L_xm2=0.15\\n.param W_xm3=1.5 L_xm3=0.15\\n.param W_xm4=1.5 L_xm4=0.15\\n\\n* DUT\\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nC1 Vout 0 1e-13\\nxm3 Vout2 Vout 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 Vout2 Vout VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n\\n* Stimulus\\nVin Vin 0 PULSE(0 1.8 1n 50p 50p 2n 5n)\\n\\n.control\\ntran 10p 5n\\n\\n* Measure t_PHL_inv1 (Vin rising, Vout falling)\\nmeas tran t_PHL_inv1 trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\\n\\n* Measure t_PLH_inv1 (Vin falling, Vout rising)\\nmeas tran t_PLH_inv1 trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\\n\\n* Measure t_delay_rise (Vin rising, Vout2 rising)\\nmeas tran t_delay_rise trig v(Vin) val=0.9 rise=1 targ v(Vout2) val=0.9 rise=1\\n\\n* Measure t_delay_fall (Vin falling, Vout2 falling)\\nmeas tran t_delay_fall trig v(Vin) val=0.9 fall=1 targ v(Vout2) val=0.9 fall=1\\n\\n* Calculate skew\\nlet skew = abs(t_delay_rise - t_delay_fall)\\nprint skew\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

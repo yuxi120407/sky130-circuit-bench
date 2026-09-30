@@ -1,0 +1,156 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential Folded-Cascode OTA",
+    "description": "A continuous-time fully differential folded-cascode operational transconductance amplifier (OTA). Based on the paper context, this amplifier is used as a continuous-time common-mode feedback (CMFB) error amplifier to replace conventional switched-capacitor CMFB circuits for high-speed operation.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_2 (INP)",
+        "LABEL_NET_5 (INN)"
+      ],
+      "output": [
+        "N7 (OUTP)",
+        "N6 (OUTN)"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0 (VBN1 - NMOS current source bias)",
+        "LABEL_NET_0 (VBN2 - NMOS cascode bias)",
+        "LABEL_NET_4 (VBN2 - NMOS cascode bias)",
+        "LABEL_NET_1 (VBP2 - PMOS cascode bias)",
+        "LABEL_NET_3 (VBP2 - PMOS cascode bias)",
+        "N5 (VBP1 - PMOS current source bias / CMFB control)"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Continuous-Time Common-Mode Feedback for High-Speed Switched-Capacitor Networks",
+      "figure": "1",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency differential open-loop gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "59 dB",
+        "technology": "Not specified (likely 0.18um or similar based on year)"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rout. gm ~ 358 uS (based on 21.5uA tail current per branch). Rout is the parallel combination of PMOS and NMOS cascode output resistances (~5.8 MOhm). Gain = 358uS * 5.8MOhm = 2076 V/V = 66 dB.",
+        "range": {
+          "min": 55,
+          "typical": 65,
+          "max": 75,
+          "unit": "dB"
+        },
+        "reasoning": "Expected to be slightly higher than the paper's 59 dB due to ideal current source biasing in the testbench and SKY130 intrinsic gain characteristics."
+      },
+      "importance": "essential"
+    },
+    "gbw": {
+      "description": "Unity gain bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "72 MHz",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "GBW = gm / (2 * pi * CL). With gm = 358 uS and CL = 1 pF, GBW = 358e-6 / (2 * 3.1415 * 1e-12) = 57 MHz.",
+        "range": {
+          "min": 40000000.0,
+          "typical": 60000000.0,
+          "max": 80000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Matches closely with the paper's reported 72 MHz, assuming a 1 pF load capacitance as stated in the abstract."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase margin at unity gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the non-dominant pole at the folded node (N1, N3). Assuming parasitic capacitance at folded node is ~50fF and resistance is ~1/gm_cascode, the non-dominant pole is > 500 MHz.",
+        "range": {
+          "min": 60,
+          "typical": 75,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "A well-designed single-stage folded cascode with a 1 pF load typically exhibits a phase margin > 60 degrees."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_tail / CL. With I_tail ~ 43 uA (based on VBN1=0.6V) and CL = 1 pF, SR = 43 uA / 1 pF = 43 V/us.",
+        "range": {
+          "min": 30,
+          "typical": 45,
+          "max": 60,
+          "unit": "V/us"
+        },
+        "reasoning": "Directly dependent on the tail current set by the bias voltage VBN1 and the load capacitance."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Total current = I_M8 + I_M11 = 64.5 uA + 64.5 uA = 129 uA. Power = 129 uA * 1.8 V = 232 uW.",
+        "range": {
+          "min": 0.00015,
+          "typical": 0.00025,
+          "max": 0.00035,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the estimated bias currents required to keep all transistors in saturation with the given W/L ratios."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, differential AC gain, GBW, phase margin, and transient slew rate of the fully differential folded-cascode OTA. An ideal behavioral CMFB is included to stabilize the output common-mode voltage.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "gbw",
+      "phase_margin",
+      "slew_rate"
+    ],
+    "spice": "* Fully Differential Folded-Cascode OTA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n\n* DUT\nXM1 N4 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N6 LABEL_NET_0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N7 LABEL_NET_1 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N1 LABEL_NET_2 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N6 LABEL_NET_3 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N8 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N1 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N7 LABEL_NET_4 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N3 LABEL_NET_5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N3 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\n\n* Power Supply and Biases\nVDD VDD 0 1.8\nVBN1 N0 0 0.6\nVBN2_0 LABEL_NET_0 0 0.9\nVBN2_4 LABEL_NET_4 0 0.9\nVBP2_1 LABEL_NET_1 0 0.5\nVBP2_3 LABEL_NET_3 0 0.5\n\n* Ideal Common-Mode Feedback (CMFB) to stabilize outputs to 0.9V\nBcmfb N5 0 V=0.88+20*((v(N6)+v(N7))/2-0.9)\n\n* Input Signals\nVCM VCM 0 0.9\nVIND VIND 0 dc 0 ac 1 pulse(-0.5 0.5 5n 100p 100p 20n 40n)\nE_INP LABEL_NET_2 VCM VIND 0 0.5\nE_INN LABEL_NET_5 VCM VIND 0 -0.5\n\n* Load Capacitors (1 pF as per paper)\nCL1 N6 0 1p\nCL2 N7 0 1p\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VDD) * 1.8\nprint power\n\n* 2. AC Analysis (Gain, GBW, Phase Margin)\nac dec 20 10 10G\nlet vout_diff = v(N7) - v(N6)\nlet gain_db = 20*log10(mag(vout_diff))\nlet phase = 180/PI * cph(vout_diff)\nmeas ac dc_gain find gain_db at=10\nmeas ac gbw when gain_db=0 fall=1\nmeas ac phase_at_gbw find phase when gain_db=0 fall=1\nlet pm = 180 + phase_at_gbw\nprint pm\n\n* 3. Transient Analysis (Slew Rate)\ntran 10p 50n\n* Measure rise slew rate on OUTP (N7)\nmeas tran t_rise trig v(N7) val=0.6 rise=1 targ v(N7) val=1.2 rise=1\nlet sr_rise = (1.2 - 0.6) / t_rise\nprint sr_rise\n* Measure fall slew rate on OUTN (N6)\nmeas tran t_fall trig v(N6) val=1.2 fall=1 targ v(N6) val=0.6 fall=1\nlet sr_fall = (1.2 - 0.6) / t_fall\nprint sr_fall\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential Folded-Cascode OTA\",\n    \"description\": \"A continuous-time fully differential folded-cascode operational transconductance amplifier (OTA). Based on the paper context, this amplifier is used as a continuous-time common-mode feedback (CMFB) error amplifier to replace conventional switched-capacitor CMFB circuits for high-speed operation.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_2 (INP)\",\n        \"LABEL_NET_5 (INN)\"\n      ],\n      \"output\": [\n        \"N7 (OUTP)\",\n        \"N6 (OUTN)\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0 (VBN1 - NMOS current source bias)\",\n        \"LABEL_NET_0 (VBN2 - NMOS cascode bias)\",\n        \"LABEL_NET_4 (VBN2 - NMOS cascode bias)\",\n        \"LABEL_NET_1 (VBP2 - PMOS cascode bias)\",\n        \"LABEL_NET_3 (VBP2 - PMOS cascode bias)\",\n        \"N5 (VBP1 - PMOS current source bias / CMFB control)\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Continuous-Time Common-Mode Feedback for High-Speed Switched-Capacitor Networks\",\n      \"figure\": \"1\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency differential open-loop gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"59 dB\",\n        \"technology\": \"Not specified (likely 0.18um or similar based on year)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rout. gm ~ 358 uS (based on 21.5uA tail current per branch). Rout is the parallel combination of PMOS and NMOS cascode output resistances (~5.8 MOhm). Gain = 358uS * 5.8MOhm = 2076 V/V = 66 dB.\",\n        \"range\": {\n          \"min\": 55,\n          \"typical\": 65,\n          \"max\": 75,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Expected to be slightly higher than the paper's 59 dB due to ideal current source biasing in the testbench and SKY130 intrinsic gain characteristics.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gbw\": {\n      \"description\": \"Unity gain bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"72 MHz\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"GBW = gm / (2 * pi * CL). With gm = 358 uS and CL = 1 pF, GBW = 358e-6 / (2 * 3.1415 * 1e-12) = 57 MHz.\",\n        \"range\": {\n          \"min\": 40e6,\n          \"typical\": 60e6,\n          \"max\": 80e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches closely with the paper's reported 72 MHz, assuming a 1 pF load capacitance as stated in the abstract.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase margin at unity gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the non-dominant pole at the folded node (N1, N3). Assuming parasitic capacitance at folded node is ~50fF and resistance is ~1/gm_cascode, the non-dominant pole is > 500 MHz.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 75,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"A well-designed single-stage folded cascode with a 1 pF load typically exhibits a phase margin > 60 degrees.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_tail / CL. With I_tail ~ 43 uA (based on VBN1=0.6V) and CL = 1 pF, SR = 43 uA / 1 pF = 43 V/us.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 45,\n          \"max\": 60,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Directly dependent on the tail current set by the bias voltage VBN1 and the load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Total current = I_M8 + I_M11 = 64.5 uA + 64.5 uA = 129 uA. Power = 129 uA * 1.8 V = 232 uW.\",\n        \"range\": {\n          \"min\": 150e-6,\n          \"typical\": 250e-6,\n          \"max\": 350e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the estimated bias currents required to keep all transistors in saturation with the given W/L ratios.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, differential AC gain, GBW, phase margin, and transient slew rate of the fully differential folded-cascode OTA. An ideal behavioral CMFB is included to stabilize the output common-mode voltage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"gbw\",\n      \"phase_margin\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Fully Differential Folded-Cascode OTA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n\\n* DUT\\nXM1 N4 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N6 LABEL_NET_0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N7 LABEL_NET_1 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N1 LABEL_NET_2 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N6 LABEL_NET_3 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N8 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N1 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N7 LABEL_NET_4 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N3 LABEL_NET_5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N3 N5 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\n\\n* Power Supply and Biases\\nVDD VDD 0 1.8\\nVBN1 N0 0 0.6\\nVBN2_0 LABEL_NET_0 0 0.9\\nVBN2_4 LABEL_NET_4 0 0.9\\nVBP2_1 LABEL_NET_1 0 0.5\\nVBP2_3 LABEL_NET_3 0 0.5\\n\\n* Ideal Common-Mode Feedback (CMFB) to stabilize outputs to 0.9V\\nBcmfb N5 0 V=0.88+20*((v(N6)+v(N7))/2-0.9)\\n\\n* Input Signals\\nVCM VCM 0 0.9\\nVIND VIND 0 dc 0 ac 1 pulse(-0.5 0.5 5n 100p 100p 20n 40n)\\nE_INP LABEL_NET_2 VCM VIND 0 0.5\\nE_INN LABEL_NET_5 VCM VIND 0 -0.5\\n\\n* Load Capacitors (1 pF as per paper)\\nCL1 N6 0 1p\\nCL2 N7 0 1p\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Gain, GBW, Phase Margin)\\nac dec 20 10 10G\\nlet vout_diff = v(N7) - v(N6)\\nlet gain_db = 20*log10(mag(vout_diff))\\nlet phase = 180/PI * cph(vout_diff)\\nmeas ac dc_gain find gain_db at=10\\nmeas ac gbw when gain_db=0 fall=1\\nmeas ac phase_at_gbw find phase when gain_db=0 fall=1\\nlet pm = 180 + phase_at_gbw\\nprint pm\\n\\n* 3. Transient Analysis (Slew Rate)\\ntran 10p 50n\\n* Measure rise slew rate on OUTP (N7)\\nmeas tran t_rise trig v(N7) val=0.6 rise=1 targ v(N7) val=1.2 rise=1\\nlet sr_rise = (1.2 - 0.6) / t_rise\\nprint sr_rise\\n* Measure fall slew rate on OUTN (N6)\\nmeas tran t_fall trig v(N6) val=1.2 fall=1 targ v(N6) val=0.6 fall=1\\nlet sr_fall = (1.2 - 0.6) / t_fall\\nprint sr_fall\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1487604",
+  "_case": "1487604_image_2_a"
+}

@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CMOS Bandgap Reference Without Resistors",
+    "description": "A resistorless bandgap reference core that utilizes diode-connected and linear-region MOS transistors to generate a temperature-independent reference voltage, avoiding the large area of passive resistors.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD",
+        "N1",
+        "N3"
+      ],
+      "bias": [
+        "VD2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Bandgap Reference Without Resistors",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "v_ref": {
+      "description": "Output reference voltage at room temperature.",
+      "unit": "V",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1.1219 V",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VOUT is determined by the intersection of the load lines of XM1 (diode-connected PMOS) and XM5 (NMOS current sink). With N1=N3=VDD, VD2 settles to ~0.7V. Since XM1/XM5 match XM4/XM7, VOUT mirrors VD2.",
+        "range": {
+          "min": 0.6,
+          "typical": 0.7,
+          "max": 0.8,
+          "unit": "V"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply and Vth (~0.42V). The original paper used a 3.7V supply, allowing for a higher reference voltage."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total power consumption of the reference circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1.4 mW",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Sum of currents in all branches. XM3 draws ~475uA, XM4/7 ~100uA, XM2 ~115uA, XM1/5 ~100uA. Total current ~790uA. Power = 1.8V * 790uA = 1.42mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0014,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "Matches the paper's reported 1.4mW closely, assuming N1 and N3 are tied to VDD."
+      },
+      "importance": "essential"
+    },
+    "temp_variation": {
+      "description": "Peak-to-peak output voltage change over the temperature range (0 C to 70 C).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "9.4 mV",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The circuit balances PTAT and CTAT currents to minimize temperature drift. Expected to be in the mV range.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.01,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Expected to be similar to the paper's 9.4mV, though exact cancellation depends heavily on precise W/L trimming which is not present in the parameterized netlist."
+      },
+      "importance": "essential"
+    },
+    "psrr": {
+      "description": "Power Supply Rejection Ratio at 100 Hz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "AC gain from VDD to VOUT at 100Hz. Without a high-gain op-amp, PSRR is moderate, determined by channel length modulation (lambda=0.1).",
+        "range": {
+          "min": -40,
+          "typical": -20,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "Standard metric for bandgap references. A simple resistorless topology typically achieves -20 to -40 dB PSRR without additional regulation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC reference voltage, power consumption, temperature variation (0-70C), and PSRR.",
+    "analyses": [
+      "OP",
+      "DC",
+      "AC"
+    ],
+    "metrics_measured": [
+      "v_ref",
+      "power",
+      "temp_variation",
+      "psrr"
+    ],
+    "spice": "* CMOS Bandgap Reference Without Resistors Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\nXM1 VOUT VOUT N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM7 VD2 VD2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM2 GND VD2 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM4 VD2 VD2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM3 GND GND N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM5 VOUT VD2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\n* Power supply with AC component for PSRR measurement\nVVDD VDD 0 1.8 ac 1\n\n* Connect N1 and N3 to VDD (acting as supply rails for the sub-circuit)\nR1 VDD N1 0.001\nR2 VDD N3 0.001\n\n.control\n  * 1. DC Operating Point (v_ref and power)\n  op\n  let power = -i(VVDD) * 1.8\n  let v_ref = v(VOUT)\n  print v_ref\n  print power\n\n  * 2. Temperature Sweep (0 C to 70 C)\n  dc temp 0 70 1\n  meas dc vout_max max v(VOUT)\n  meas dc vout_min min v(VOUT)\n  let temp_variation = vout_max - vout_min\n  print temp_variation\n\n  * 3. AC Analysis (PSRR)\n  ac dec 10 1 1G\n  let psrr_db = vdb(VOUT)\n  meas ac psrr_100Hz find psrr_db at=100\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CMOS Bandgap Reference Without Resistors\",\n    \"description\": \"A resistorless bandgap reference core that utilizes diode-connected and linear-region MOS transistors to generate a temperature-independent reference voltage, avoiding the large area of passive resistors.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\"VOUT\"],\n      \"supply\": [\"VDD\", \"N1\", \"N3\"],\n      \"bias\": [\"VD2\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Bandgap Reference Without Resistors\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"v_ref\": {\n      \"description\": \"Output reference voltage at room temperature.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1.1219 V\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VOUT is determined by the intersection of the load lines of XM1 (diode-connected PMOS) and XM5 (NMOS current sink). With N1=N3=VDD, VD2 settles to ~0.7V. Since XM1/XM5 match XM4/XM7, VOUT mirrors VD2.\",\n        \"range\": {\n          \"min\": 0.6,\n          \"typical\": 0.7,\n          \"max\": 0.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply and Vth (~0.42V). The original paper used a 3.7V supply, allowing for a higher reference voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total power consumption of the reference circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1.4 mW\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Sum of currents in all branches. XM3 draws ~475uA, XM4/7 ~100uA, XM2 ~115uA, XM1/5 ~100uA. Total current ~790uA. Power = 1.8V * 790uA = 1.42mW.\",\n        \"range\": {\n          \"min\": 1.0e-3,\n          \"typical\": 1.4e-3,\n          \"max\": 2.0e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Matches the paper's reported 1.4mW closely, assuming N1 and N3 are tied to VDD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"temp_variation\": {\n      \"description\": \"Peak-to-peak output voltage change over the temperature range (0 C to 70 C).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"9.4 mV\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The circuit balances PTAT and CTAT currents to minimize temperature drift. Expected to be in the mV range.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 10e-3,\n          \"max\": 50e-3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Expected to be similar to the paper's 9.4mV, though exact cancellation depends heavily on precise W/L trimming which is not present in the parameterized netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"psrr\": {\n      \"description\": \"Power Supply Rejection Ratio at 100 Hz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"AC gain from VDD to VOUT at 100Hz. Without a high-gain op-amp, PSRR is moderate, determined by channel length modulation (lambda=0.1).\",\n        \"range\": {\n          \"min\": -40,\n          \"typical\": -20,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard metric for bandgap references. A simple resistorless topology typically achieves -20 to -40 dB PSRR without additional regulation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC reference voltage, power consumption, temperature variation (0-70C), and PSRR.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"v_ref\",\n      \"power\",\n      \"temp_variation\",\n      \"psrr\"\n    ],\n    \"spice\": \"* CMOS Bandgap Reference Without Resistors Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\nXM1 VOUT VOUT N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM7 VD2 VD2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM2 GND VD2 N1 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM4 VD2 VD2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM3 GND GND N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM5 VOUT VD2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\n* Power supply with AC component for PSRR measurement\\nVVDD VDD 0 1.8 ac 1\\n\\n* Connect N1 and N3 to VDD (acting as supply rails for the sub-circuit)\\nR1 VDD N1 0.001\\nR2 VDD N3 0.001\\n\\n.control\\n  * 1. DC Operating Point (v_ref and power)\\n  op\\n  let power = -i(VVDD) * 1.8\\n  let v_ref = v(VOUT)\\n  print v_ref\\n  print power\\n\\n  * 2. Temperature Sweep (0 C to 70 C)\\n  dc temp 0 70 1\\n  meas dc vout_max max v(VOUT)\\n  meas dc vout_min min v(VOUT)\\n  let temp_variation = vout_max - vout_min\\n  print temp_variation\\n\\n  * 3. AC Analysis (PSRR)\\n  ac dec 10 1 1G\\n  let psrr_db = vdb(VOUT)\\n  meas ac psrr_100Hz find psrr_db at=100\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "974548",
+  "_case": "974548_image_1"
+}

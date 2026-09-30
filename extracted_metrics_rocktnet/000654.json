@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Latch / Comparator (with isolated outputs)",
+    "description": "The circuit appears to be a dynamic comparator or latch used in a sigma-delta modulator. The input stage (XM1-XM6) sums the differential inputs into a common node P, which biases the tail currents (XM7, XM8) of a cross-coupled latch (XM2, XM9, XM12, XM13). Note: The latch outputs (OUTP, OUTN) are completely isolated from the input signal in this specific netlist extraction, meaning it acts as a static bistable element whose tail current is modulated by the input common-mode.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "C1",
+        "P"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 140-W 88-dB Audio Sigma-Delta Modulator in 90-nm CMOS",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the circuit.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "140 uW (Note: OCR says 140 W, likely uW)",
+        "technology": "90-nm CMOS (1V)"
+      },
+      "sky130_expected": {
+        "calculation": "With VDD=1.8V and default W/L=5u/0.5u, the input branches and latch tail currents will draw significant current. I_branch \u2248 0.5 * 270u * 10 * (0.9-0.42)^2 \u2248 310uA. Total current \u2248 1.5mA. Power = 1.5mA * 1.8V = 2.7mW.",
+        "range": {
+          "min": "1mW",
+          "typical": "2.7mW",
+          "max": "5mW",
+          "unit": "W"
+        },
+        "reasoning": "Higher than paper due to 1.8V supply vs 1V, and potentially larger default transistor sizing than the optimized 90nm design."
+      },
+      "importance": "essential"
+    },
+    "gain_to_bias_node": {
+      "description": "AC gain from the input (INP) to the internal summing node P.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "88 dB (System SNR)",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm_in * R_out. Node P is loaded by diode-connected XM14 (gm \u2248 50u * 10 * 0.5 \u2248 250uS). Gain \u2248 1 to 5 V/V (0 to 14 dB).",
+        "range": {
+          "min": "0",
+          "typical": "10",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "The diode-connected load severely limits the voltage gain at node P. The 88 dB reported in the paper refers to the overall ADC SNR, not this specific stage's gain."
+      },
+      "importance": "recommended"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth at the internal node P.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "57 MHz (Clock frequency)",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * R_out * C_out). R_out is low (~4kOhm) due to diode connection. C_out is parasitic (~50fF). BW \u2248 1 / (2 * pi * 4k * 50f) \u2248 800 MHz.",
+        "range": {
+          "min": "100M",
+          "typical": "800M",
+          "max": "2G",
+          "unit": "Hz"
+        },
+        "reasoning": "Low impedance at node P pushes the pole to high frequencies, easily supporting the 57 MHz clock rate."
+      },
+      "importance": "optional"
+    },
+    "output_swing": {
+      "description": "Maximum voltage swing of the cross-coupled latch outputs.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Rail-to-rail",
+        "technology": "90-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The PMOS cross-coupled pair pulls up to VDD (1.8V), and the NMOS pair pulls down to the tail nodes (N3, N6) which are near GND.",
+        "range": {
+          "min": "1.5",
+          "typical": "1.8",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "Standard latch behavior provides full logic levels."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain to the internal node P, and transient output swing of the latch. A tiny symmetry-breaking current is injected to ensure the isolated latch resolves to a known state.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "gain_to_bias_node",
+      "bandwidth",
+      "output_swing"
+    ],
+    "spice": "* Testbench for Dynamic Latch / Comparator\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1b=5u L_xm1b=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm2a=5u L_xm2a=0.5u\n.param W_xm1a=5u L_xm1a=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm2b=5u L_xm2b=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm14=5u L_xm14=0.5u\n\nVVDD VDD 0 1.8\nVINN INN 0 DC 0.9 AC 0\nVINP INP 0 DC 0.9 AC 1\nVC1 C1 0 DC 1.8\n\n* Inject a tiny current to break symmetry so the isolated latch resolves\nI_break_sym OUTP 0 DC 1u\n\nXM1B N7 INN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1b} w={W_xm1b}\nXM2 OUTP OUTN N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 P P N9 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM2A N9 C1 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm2a} w={W_xm2a}\nXM1A N8 INP GND GND sky130_fd_pr__nfet_01v8 l={L_xm1a} w={W_xm1a}\nXM6 P P N10 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N3 P GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N6 P GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 OUTN OUTP N6 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM2B N10 C1 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm2b} w={W_xm2b}\nXM11 P C1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM12 OUTN OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM13 OUTP OUTN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM14 P P VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\n\n.control\n* DC Operating Point\nop\nlet power_dc = -i(VVDD) * 1.8\nprint power_dc\n\n* AC Analysis\nac dec 100 1k 1G\nlet gain_db = vdb(P)\nmeas ac max_gain max gain_db\nmeas ac bw_3db when gain_db=(max_gain-3) fall=1\n\n* Transient Analysis\ntran 100p 20n\nmeas tran v_outp_max max v(OUTP)\nmeas tran v_outn_max max v(OUTN)\nmeas tran v_outp_min min v(OUTP)\nmeas tran v_outn_min min v(OUTN)\nlet swing_outp = v_outp_max - v_outp_min\nlet swing_outn = v_outn_max - v_outn_min\nprint swing_outp swing_outn\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Latch / Comparator (with isolated outputs)\",\n    \"description\": \"The circuit appears to be a dynamic comparator or latch used in a sigma-delta modulator. The input stage (XM1-XM6) sums the differential inputs into a common node P, which biases the tail currents (XM7, XM8) of a cross-coupled latch (XM2, XM9, XM12, XM13). Note: The latch outputs (OUTP, OUTN) are completely isolated from the input signal in this specific netlist extraction, meaning it acts as a static bistable element whose tail current is modulated by the input common-mode.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"C1\",\n        \"P\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 140-W 88-dB Audio Sigma-Delta Modulator in 90-nm CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"140 uW (Note: OCR says 140 W, likely uW)\",\n        \"technology\": \"90-nm CMOS (1V)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD=1.8V and default W/L=5u/0.5u, the input branches and latch tail currents will draw significant current. I_branch \u2248 0.5 * 270u * 10 * (0.9-0.42)^2 \u2248 310uA. Total current \u2248 1.5mA. Power = 1.5mA * 1.8V = 2.7mW.\",\n        \"range\": {\n          \"min\": \"1mW\",\n          \"typical\": \"2.7mW\",\n          \"max\": \"5mW\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Higher than paper due to 1.8V supply vs 1V, and potentially larger default transistor sizing than the optimized 90nm design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_to_bias_node\": {\n      \"description\": \"AC gain from the input (INP) to the internal summing node P.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"88 dB (System SNR)\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm_in * R_out. Node P is loaded by diode-connected XM14 (gm \u2248 50u * 10 * 0.5 \u2248 250uS). Gain \u2248 1 to 5 V/V (0 to 14 dB).\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"10\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The diode-connected load severely limits the voltage gain at node P. The 88 dB reported in the paper refers to the overall ADC SNR, not this specific stage's gain.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth at the internal node P.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"57 MHz (Clock frequency)\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * R_out * C_out). R_out is low (~4kOhm) due to diode connection. C_out is parasitic (~50fF). BW \u2248 1 / (2 * pi * 4k * 50f) \u2248 800 MHz.\",\n        \"range\": {\n          \"min\": \"100M\",\n          \"typical\": \"800M\",\n          \"max\": \"2G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Low impedance at node P pushes the pole to high frequencies, easily supporting the 57 MHz clock rate.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"output_swing\": {\n      \"description\": \"Maximum voltage swing of the cross-coupled latch outputs.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Rail-to-rail\",\n        \"technology\": \"90-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The PMOS cross-coupled pair pulls up to VDD (1.8V), and the NMOS pair pulls down to the tail nodes (N3, N6) which are near GND.\",\n        \"range\": {\n          \"min\": \"1.5\",\n          \"typical\": \"1.8\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard latch behavior provides full logic levels.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain to the internal node P, and transient output swing of the latch. A tiny symmetry-breaking current is injected to ensure the isolated latch resolves to a known state.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"gain_to_bias_node\",\n      \"bandwidth\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* Testbench for Dynamic Latch / Comparator\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1b=5u L_xm1b=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm2a=5u L_xm2a=0.5u\\n.param W_xm1a=5u L_xm1a=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm2b=5u L_xm2b=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n\\nVVDD VDD 0 1.8\\nVINN INN 0 DC 0.9 AC 0\\nVINP INP 0 DC 0.9 AC 1\\nVC1 C1 0 DC 1.8\\n\\n* Inject a tiny current to break symmetry so the isolated latch resolves\\nI_break_sym OUTP 0 DC 1u\\n\\nXM1B N7 INN GND GND sky130_fd_pr__nfet_01v8 l={L_xm1b} w={W_xm1b}\\nXM2 OUTP OUTN N3 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 P P N9 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM2A N9 C1 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm2a} w={W_xm2a}\\nXM1A N8 INP GND GND sky130_fd_pr__nfet_01v8 l={L_xm1a} w={W_xm1a}\\nXM6 P P N10 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N3 P GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N6 P GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 OUTN OUTP N6 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM2B N10 C1 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm2b} w={W_xm2b}\\nXM11 P C1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 OUTN OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 OUTP OUTN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM14 P P VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\\n\\n.control\\n* DC Operating Point\\nop\\nlet power_dc = -i(VVDD) * 1.8\\nprint power_dc\\n\\n* AC Analysis\\nac dec 100 1k 1G\\nlet gain_db = vdb(P)\\nmeas ac max_gain max gain_db\\nmeas ac bw_3db when gain_db=(max_gain-3) fall=1\\n\\n* Transient Analysis\\ntran 100p 20n\\nmeas tran v_outp_max max v(OUTP)\\nmeas tran v_outn_max max v(OUTN)\\nmeas tran v_outp_min min v(OUTP)\\nmeas tran v_outn_min min v(OUTN)\\nlet swing_outp = v_outp_max - v_outp_min\\nlet swing_outn = v_outn_max - v_outn_min\\nprint swing_outp swing_outn\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1347312",
+  "_case": "1347312_image_12"
+}

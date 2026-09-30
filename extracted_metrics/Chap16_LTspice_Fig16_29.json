@@ -1,0 +1,98 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 16.26",
+    "page": "448",
+    "circuit_type": "Clocked Sense Amplifier",
+    "description": "A basic clocked sense amplifier that tracks input signals when the clock is low (via PMOS pass transistors) and latches the voltage difference when the clock goes high. The text notes it suffers from kickback noise, memory effects, and significant contention current."
+  },
+  "step2_metrics": {
+    "average_current": {
+      "description": "Average current drawn from the VDD supply, dominated by the DC path that exists during the tracking phase (when clock is low).",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "450",
+        "reference": "Fig 16.29 and 'Current Draw' discussion"
+      },
+      "equation": {
+        "formula": "I_avg = (1/T) * integral(I_VDD dt) \u2248 0.5 * I_DC_tracking",
+        "explanation": "During the tracking phase, if inputs are around VDD/2, the cross-coupled PMOS devices are strongly ON, creating a direct DC path from VDD through the PMOS devices and input switches to the input sources.",
+        "assumptions": "50% clock duty cycle, inputs driven to ~0.5V."
+      },
+      "sky130_expected": {
+        "calculation": "I_DC = 0.5 * up*Cox * (W/L) * (VDD - Vin - |Vthp|)^2. Assuming W/L=13.3 (e.g., 2u/0.15u), I_DC = 0.5 * 50uA/V^2 * 13.3 * (1.8V - 0.5V - 0.42V)^2 = 332.5uA * (0.88)^2 = 257uA per side. Total DC = 514uA. Average over a full cycle (50% duty) \u2248 257uA.",
+        "range": {
+          "min": "50u",
+          "typical": "250u",
+          "max": "600u",
+          "unit": "A"
+        },
+        "reasoning": "Depends heavily on the W/L sizing of the cross-coupled PMOS devices and the input common-mode voltage."
+      },
+      "importance": "essential"
+    },
+    "contention_current": {
+      "description": "Peak current drawn from VDD during the switching phase when both pull-up and pull-down networks are momentarily conducting.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "450",
+        "reference": "Discussion 'Contention Current (Switching Current)'"
+      },
+      "equation": {
+        "formula": "I_peak \u2248 I_tail_NMOS_max",
+        "explanation": "When the clock goes high, the tail NMOS turns on while the cross-coupled PMOS and NMOS are all partially ON (metastable state), creating a direct path from VDD to ground.",
+        "assumptions": "The tail NMOS limits the maximum contention current."
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 0.5 * un*Cox * (W/L) * (VDD - Vthn)^2. Assuming W/L=13.3 (2u/0.15u), I_tail = 0.5 * 270uA/V^2 * 13.3 * (1.8V - 0.42V)^2 = 1.79mA * 1.9 = 3.4mA.",
+        "range": {
+          "min": "1m",
+          "typical": "3.4m",
+          "max": "5m",
+          "unit": "A"
+        },
+        "reasoning": "Peak current is determined by the saturation current of the tail NMOS device when the clock transitions high."
+      },
+      "importance": "essential"
+    },
+    "clock_feedthrough_noise": {
+      "description": "Voltage glitch on the input nodes caused by capacitive coupling from the clock signal through the gate-drain capacitance of the input switches.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "449",
+        "reference": "Fig 16.28 and 'Clock Feedthrough' discussion"
+      },
+      "equation": {
+        "formula": "V_glitch \u2248 V_clock_swing * (C_gd / (C_gd + C_in))",
+        "explanation": "The clock edge couples through the parasitic Cgd of the input PMOS switches onto the finite impedance of the input source.",
+        "assumptions": "Input source has finite resistance (e.g., 10k ohm as suggested in the text)."
+      },
+      "sky130_expected": {
+        "calculation": "With a 10k source resistance and typical Cgd in the sub-fF range, the high-pass filter effect of the RC network will produce a transient voltage spike. The text notes ~50mV for their process.",
+        "range": {
+          "min": "10m",
+          "typical": "50m",
+          "max": "150m",
+          "unit": "V"
+        },
+        "reasoning": "Highly dependent on the clock rise time, switch size (Cgd), and source impedance."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure average current, peak contention current, and clock feedthrough noise on the input node.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "average_current",
+      "contention_current",
+      "clock_feedthrough_noise"
+    ],
+    "spice": "* Clocked Sense Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=2u L_xm1=0.15u\n.param W_xm11=1u L_xm11=0.15u\n.param W_xm2=2u L_xm2=0.15u\n.param W_xm3=2u L_xm3=0.15u\n.param W_xm4=1u L_xm4=0.15u\n.param W_xm5=2u L_xm5=0.15u\n.param W_xm6=2u L_xm6=0.15u\n\n* Stimulus\nVclock clock 0 PULSE(0 1.8 5n 0.1n 0.1n 10n 20n)\n* Add 10k resistor to Inp to measure feedthrough/kickback as suggested on page 449\nVinp_src Inp_ideal 0 0.55\nRinp Inp_ideal Inp 10k\n\n* DUT (Netlist pasted directly)\nxm1 N001 clock 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm11 Outm clock Inm VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\nxm2 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 Inp clock Outp VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 Outm Outp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 Outp Outm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nVinm Inm 0 500m\n\n.control\ntran 0.1n 40n\n\n* Measure average current (IDD)\nmeas tran avg_idd avg i(VDD)\n\n* Measure peak contention current (minimum because current out of VDD is negative)\nmeas tran peak_idd min i(VDD)\n\n* Measure clock feedthrough noise on Inp (peak deviation)\nmeas tran max_inp max v(Inp)\nmeas tran min_inp min v(Inp)\nlet feedthrough_pk2pk = max_inp - min_inp\n\nprint avg_idd peak_idd feedthrough_pk2pk\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 16.26\",\n    \"page\": \"448\",\n    \"circuit_type\": \"Clocked Sense Amplifier\",\n    \"description\": \"A basic clocked sense amplifier that tracks input signals when the clock is low (via PMOS pass transistors) and latches the voltage difference when the clock goes high. The text notes it suffers from kickback noise, memory effects, and significant contention current.\"\n  },\n  \"step2_metrics\": {\n    \"average_current\": {\n      \"description\": \"Average current drawn from the VDD supply, dominated by the DC path that exists during the tracking phase (when clock is low).\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"450\",\n        \"reference\": \"Fig 16.29 and 'Current Draw' discussion\"\n      },\n      \"equation\": {\n        \"formula\": \"I_avg = (1/T) * integral(I_VDD dt) \u2248 0.5 * I_DC_tracking\",\n        \"explanation\": \"During the tracking phase, if inputs are around VDD/2, the cross-coupled PMOS devices are strongly ON, creating a direct DC path from VDD through the PMOS devices and input switches to the input sources.\",\n        \"assumptions\": \"50% clock duty cycle, inputs driven to ~0.5V.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_DC = 0.5 * up*Cox * (W/L) * (VDD - Vin - |Vthp|)^2. Assuming W/L=13.3 (e.g., 2u/0.15u), I_DC = 0.5 * 50uA/V^2 * 13.3 * (1.8V - 0.5V - 0.42V)^2 = 332.5uA * (0.88)^2 = 257uA per side. Total DC = 514uA. Average over a full cycle (50% duty) \u2248 257uA.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"250u\",\n          \"max\": \"600u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Depends heavily on the W/L sizing of the cross-coupled PMOS devices and the input common-mode voltage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"contention_current\": {\n      \"description\": \"Peak current drawn from VDD during the switching phase when both pull-up and pull-down networks are momentarily conducting.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"450\",\n        \"reference\": \"Discussion 'Contention Current (Switching Current)'\"\n      },\n      \"equation\": {\n        \"formula\": \"I_peak \u2248 I_tail_NMOS_max\",\n        \"explanation\": \"When the clock goes high, the tail NMOS turns on while the cross-coupled PMOS and NMOS are all partially ON (metastable state), creating a direct path from VDD to ground.\",\n        \"assumptions\": \"The tail NMOS limits the maximum contention current.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 0.5 * un*Cox * (W/L) * (VDD - Vthn)^2. Assuming W/L=13.3 (2u/0.15u), I_tail = 0.5 * 270uA/V^2 * 13.3 * (1.8V - 0.42V)^2 = 1.79mA * 1.9 = 3.4mA.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"3.4m\",\n          \"max\": \"5m\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Peak current is determined by the saturation current of the tail NMOS device when the clock transitions high.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"clock_feedthrough_noise\": {\n      \"description\": \"Voltage glitch on the input nodes caused by capacitive coupling from the clock signal through the gate-drain capacitance of the input switches.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"449\",\n        \"reference\": \"Fig 16.28 and 'Clock Feedthrough' discussion\"\n      },\n      \"equation\": {\n        \"formula\": \"V_glitch \u2248 V_clock_swing * (C_gd / (C_gd + C_in))\",\n        \"explanation\": \"The clock edge couples through the parasitic Cgd of the input PMOS switches onto the finite impedance of the input source.\",\n        \"assumptions\": \"Input source has finite resistance (e.g., 10k ohm as suggested in the text).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 10k source resistance and typical Cgd in the sub-fF range, the high-pass filter effect of the RC network will produce a transient voltage spike. The text notes ~50mV for their process.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"50m\",\n          \"max\": \"150m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Highly dependent on the clock rise time, switch size (Cgd), and source impedance.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure average current, peak contention current, and clock feedthrough noise on the input node.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"average_current\",\n      \"contention_current\",\n      \"clock_feedthrough_noise\"\n    ],\n    \"spice\": \"* Clocked Sense Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=2u L_xm1=0.15u\\n.param W_xm11=1u L_xm11=0.15u\\n.param W_xm2=2u L_xm2=0.15u\\n.param W_xm3=2u L_xm3=0.15u\\n.param W_xm4=1u L_xm4=0.15u\\n.param W_xm5=2u L_xm5=0.15u\\n.param W_xm6=2u L_xm6=0.15u\\n\\n* Stimulus\\nVclock clock 0 PULSE(0 1.8 5n 0.1n 0.1n 10n 20n)\\n* Add 10k resistor to Inp to measure feedthrough/kickback as suggested on page 449\\nVinp_src Inp_ideal 0 0.55\\nRinp Inp_ideal Inp 10k\\n\\n* DUT (Netlist pasted directly)\\nxm1 N001 clock 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm11 Outm clock Inm VDD sky130_fd_pr__pfet_01v8 w={W_xm11} l={L_xm11}\\nxm2 Outp Outm VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Outm Outp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 Inp clock Outp VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 Outm Outp N001 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 Outp Outm N001 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nVinm Inm 0 500m\\n\\n.control\\ntran 0.1n 40n\\n\\n* Measure average current (IDD)\\nmeas tran avg_idd avg i(VDD)\\n\\n* Measure peak contention current (minimum because current out of VDD is negative)\\nmeas tran peak_idd min i(VDD)\\n\\n* Measure clock feedthrough noise on Inp (peak deviation)\\nmeas tran max_inp max v(Inp)\\nmeas tran min_inp min v(Inp)\\nlet feedthrough_pk2pk = max_inp - min_inp\\n\\nprint avg_idd peak_idd feedthrough_pk2pk\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

@@ -1,0 +1,105 @@
+{
+  "step1_analysis": {
+    "circuit_type": "PMOS Source Follower / Output Buffer",
+    "description": "A single PMOS transistor configured as a source follower. Given the context of a downconverter, this is likely an extracted output buffer or a test structure used to drive off-chip loads.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "N0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 410-mW 1.22-GHz Downconverter in a Dual-Conversion Tuner IC for OpenCable Applications",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Low-frequency voltage gain of the source follower",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "26 dB (for the entire downconverter)",
+        "technology": "0.35um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 100uA bias and VIN_DC=0.5V: gm = 2*Id/Vov \u2248 317uS. Gain = gm*ro/(1+gm*ro) \u2248 0.97 V/V = -0.26 dB",
+        "range": {
+          "min": -2,
+          "typical": -0.5,
+          "max": 0,
+          "unit": "dB"
+        },
+        "reasoning": "A source follower inherently has a voltage gain slightly less than unity (0 dB) due to body effect and finite output resistance."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the buffer",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1220 MHz (RF), 44 MHz (IF)",
+        "technology": "0.35um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = gm / (2*pi*Cload). With Cload = 1pF and gm = 317uS, BW \u2248 50 MHz",
+        "range": {
+          "min": 10000000.0,
+          "typical": 50000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is heavily dependent on the load capacitance. A 1pF load yields ~50MHz, which is sufficient for the 44 MHz IF mentioned in the paper."
+      },
+      "importance": "essential"
+    },
+    "dc_power": {
+      "description": "DC power consumption of the buffer stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "410 mW (entire IC)",
+        "technology": "0.35um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * IBIAS = 1.8V * 100uA = 180 uW",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00018,
+          "max": 0.0003,
+          "unit": "W"
+        },
+        "reasoning": "Determined by the bias current provided in the testbench to keep the PMOS in saturation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the PMOS Source Follower measuring AC gain, bandwidth, transient swing, and DC power.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "bandwidth",
+      "dc_power"
+    ],
+    "spice": "* PMOS Source Follower Testbench\n.param W_xm1=5u L_xm1=0.5u\n\n* DUT\nXM1 N0 N1 VOUT VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\n\n* Sources and Biasing\nVN0 N0 0 0\nVVDD VDD 0 1.8\n* DC bias of 0.5V ensures PMOS stays in saturation (VOUT will be ~1.5V)\nVVIN N1 0 DC 0.5 AC 1 SIN(0.5 0.1 1MEG 0 0)\nIBIAS VDD VOUT 100u\nCLOAD VOUT 0 1p\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VVDD)*1.8\nprint power\n\n* 2. AC Analysis for Gain and Bandwidth\nac dec 10 1k 1G\nlet gain_db = vdb(VOUT)\nmeas ac mid_gain find gain_db at=10k\n* Assuming mid_gain is approx -0.5dB, -3dB point is at -3.5dB\nmeas ac bw when gain_db=-3.5 fall=1\n\n* 3. Transient Analysis for Output Swing\ntran 1n 5u\nmeas tran vout_max max v(VOUT)\nmeas tran vout_min min v(VOUT)\nlet swing = vout_max - vout_min\nprint swing\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"PMOS Source Follower / Output Buffer\",\n    \"description\": \"A single PMOS transistor configured as a source follower. Given the context of a downconverter, this is likely an extracted output buffer or a test structure used to drive off-chip loads.\",\n    \"node_mapping\": {\n      \"input\": [\"N1\"],\n      \"output\": [\"VOUT\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"N0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 410-mW 1.22-GHz Downconverter in a Dual-Conversion Tuner IC for OpenCable Applications\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency voltage gain of the source follower\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"26 dB (for the entire downconverter)\",\n        \"technology\": \"0.35um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 100uA bias and VIN_DC=0.5V: gm = 2*Id/Vov \u2248 317uS. Gain = gm*ro/(1+gm*ro) \u2248 0.97 V/V = -0.26 dB\",\n        \"range\": {\n          \"min\": -2,\n          \"typical\": -0.5,\n          \"max\": 0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A source follower inherently has a voltage gain slightly less than unity (0 dB) due to body effect and finite output resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the buffer\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1220 MHz (RF), 44 MHz (IF)\",\n        \"technology\": \"0.35um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = gm / (2*pi*Cload). With Cload = 1pF and gm = 317uS, BW \u2248 50 MHz\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 50e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is heavily dependent on the load capacitance. A 1pF load yields ~50MHz, which is sufficient for the 44 MHz IF mentioned in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_power\": {\n      \"description\": \"DC power consumption of the buffer stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"410 mW (entire IC)\",\n        \"technology\": \"0.35um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * IBIAS = 1.8V * 100uA = 180 uW\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 180e-6,\n          \"max\": 300e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Determined by the bias current provided in the testbench to keep the PMOS in saturation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the PMOS Source Follower measuring AC gain, bandwidth, transient swing, and DC power.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"dc_power\"\n    ],\n    \"spice\": \"* PMOS Source Follower Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n\\n* DUT\\nXM1 N0 N1 VOUT VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Sources and Biasing\\nVN0 N0 0 0\\nVVDD VDD 0 1.8\\n* DC bias of 0.5V ensures PMOS stays in saturation (VOUT will be ~1.5V)\\nVVIN N1 0 DC 0.5 AC 1 SIN(0.5 0.1 1MEG 0 0)\\nIBIAS VDD VOUT 100u\\nCLOAD VOUT 0 1p\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VVDD)*1.8\\nprint power\\n\\n* 2. AC Analysis for Gain and Bandwidth\\nac dec 10 1k 1G\\nlet gain_db = vdb(VOUT)\\nmeas ac mid_gain find gain_db at=10k\\n* Assuming mid_gain is approx -0.5dB, -3dB point is at -3.5dB\\nmeas ac bw when gain_db=-3.5 fall=1\\n\\n* 3. Transient Analysis for Output Swing\\ntran 1n 5u\\nmeas tran vout_max max v(VOUT)\\nmeas tran vout_min min v(VOUT)\\nlet swing = vout_max - vout_min\\nprint swing\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1278592",
+  "_case": "1278592_image_6"
+}

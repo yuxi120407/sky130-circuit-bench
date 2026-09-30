@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic-loading Master-Slave D-Flip-Flop Frequency Divider",
+    "description": "A divide-by-2 frequency divider using a master-slave latch topology. It employs dynamic PMOS loads for precharge and cross-coupled NMOS pairs for state retention, enabling high-speed and low-power operation by avoiding static pull-up loads.",
+    "node_mapping": {
+      "input": [
+        "CLK",
+        "CLKBAR"
+      ],
+      "output": [
+        "N_L1",
+        "N_L2",
+        "N_R1",
+        "N_R2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 2.5-mW 5.2-GHz Frequency Divider in a 0.35-m CMOS Process",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "operating_frequency": {
+      "description": "The output frequency of the circuit, which should be exactly half of the input clock frequency (divide-by-2 operation).",
+      "unit": "GHz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5.2 GHz (Max Input)",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Simulated with a 2 GHz input clock, the output frequency should be 1 GHz. Max frequency depends heavily on the L=0.5um sizing used in the netlist.",
+        "range": {
+          "min": 1,
+          "typical": 2.5,
+          "max": 5,
+          "unit": "GHz"
+        },
+        "reasoning": "The paper achieved 5.2 GHz in 0.35um at 1V. With SKY130 at 1.8V but using L=0.5um (larger than minimum channel length), the speed will be comparable or slightly lower due to the increased gate capacitance and transit time."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power drawn from the VDD supply during continuous toggling.",
+      "unit": "mW",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.5 mW",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "P = I_avg * VDD. At 1.8V and 2 GHz input, dynamic power dominates.",
+        "range": {
+          "min": 2,
+          "typical": 5,
+          "max": 10,
+          "unit": "mW"
+        },
+        "reasoning": "Higher supply voltage (1.8V vs 1V) will significantly increase dynamic power (proportional to V^2), even if node capacitances are similar to the original paper."
+      },
+      "importance": "essential"
+    },
+    "output_voltage_swing": {
+      "description": "Peak-to-peak voltage swing of the output nodes.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "V_swing = V_max - V_min.",
+        "range": {
+          "min": 1.5,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "The cross-coupled NMOS pairs pull down to 0V, and the PMOS dynamic loads pull up to VDD (1.8V). Ratioed logic during the evaluation phase might cause slight VOL degradation, but the cross-coupled pairs will restore full swing."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis with a 2 GHz differential clock to verify divide-by-2 operation, measure output frequency, power consumption, and voltage swing.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "operating_frequency",
+      "power_consumption",
+      "output_voltage_swing"
+    ],
+    "spice": "* Frequency Divider Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmp2=5u L_xmp2=0.5u\n.param W_xmp3=5u L_xmp3=0.5u\n.param W_xmp4=5u L_xmp4=0.5u\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmn3=5u L_xmn3=0.5u\n.param W_xmn4=5u L_xmn4=0.5u\n.param W_xmn5=5u L_xmn5=0.5u\n.param W_xmn6=5u L_xmn6=0.5u\n.param W_xmn7=5u L_xmn7=0.5u\n.param W_xmn8=5u L_xmn8=0.5u\n.param W_xmn9=5u L_xmn9=0.5u\n.param W_xmn10=5u L_xmn10=0.5u\n.param W_xmn11=5u L_xmn11=0.5u\n.param W_xmn12=5u L_xmn12=0.5u\n\nVVDD VDD 0 1.8\n* 2 GHz Differential Clock (Period = 500ps)\nVCLK CLK 0 PULSE(0 1.8 0 20p 20p 230p 500p)\nVCLKBAR CLKBAR 0 PULSE(1.8 0 0 20p 20p 230p 500p)\n\n* DUT\nXMP1 N_L1 CLKBAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\nXMP2 N_L2 CLKBAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\nXMP3 N_R1 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp3} w={W_xmp3}\nXMP4 N_R2 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp4} w={W_xmp4}\nXMN1 N_L1 N_L2 N_TL1 GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMN2 N_L2 N_L1 N_TL1 GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMN3 N_TL1 CLKBAR GND GND sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\nXMN4 N_L1 N_R1 N_TL2 GND sky130_fd_pr__nfet_01v8 l={L_xmn4} w={W_xmn4}\nXMN5 N_L2 N_R2 N_TL2 GND sky130_fd_pr__nfet_01v8 l={L_xmn5} w={W_xmn5}\nXMN6 N_TL2 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xmn6} w={W_xmn6}\nXMN7 N_R1 N_R2 N_TR1 GND sky130_fd_pr__nfet_01v8 l={L_xmn7} w={W_xmn7}\nXMN8 N_R2 N_R1 N_TR1 GND sky130_fd_pr__nfet_01v8 l={L_xmn8} w={W_xmn8}\nXMN9 N_TR1 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xmn9} w={W_xmn9}\nXMN10 N_R1 N_L2 N_TR2 GND sky130_fd_pr__nfet_01v8 l={L_xmn10} w={W_xmn10}\nXMN11 N_R2 N_L1 N_TR2 GND sky130_fd_pr__nfet_01v8 l={L_xmn11} w={W_xmn11}\nXMN12 N_TR2 CLKBAR GND GND sky130_fd_pr__nfet_01v8 l={L_xmn12} w={W_xmn12}\n\n* Load capacitors to simulate next stage\nC1 N_L1 0 5f\nC2 N_L2 0 5f\nC3 N_R1 0 5f\nC4 N_R2 0 5f\n\n.control\ntran 5p 10n\n\n* Measure output frequency (should be 1 GHz for a 2 GHz input)\nmeas tran t_period trig v(N_L1) val=0.9 rise=4 targ v(N_L1) val=0.9 rise=5\nlet out_freq = 1 / t_period\nprint out_freq\n\n* Measure average power consumption\nmeas tran pwr avg i(VVDD) from=2n to=10n\nlet power_mw = -pwr * 1.8 * 1000\nprint power_mw\n\n* Measure output voltage swing\nmeas tran v_max max v(N_L1) from=2n to=10n\nmeas tran v_min min v(N_L1) from=2n to=10n\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic-loading Master-Slave D-Flip-Flop Frequency Divider\",\n    \"description\": \"A divide-by-2 frequency divider using a master-slave latch topology. It employs dynamic PMOS loads for precharge and cross-coupled NMOS pairs for state retention, enabling high-speed and low-power operation by avoiding static pull-up loads.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"CLK\",\n        \"CLKBAR\"\n      ],\n      \"output\": [\n        \"N_L1\",\n        \"N_L2\",\n        \"N_R1\",\n        \"N_R2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 2.5-mW 5.2-GHz Frequency Divider in a 0.35-m CMOS Process\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"operating_frequency\": {\n      \"description\": \"The output frequency of the circuit, which should be exactly half of the input clock frequency (divide-by-2 operation).\",\n      \"unit\": \"GHz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5.2 GHz (Max Input)\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Simulated with a 2 GHz input clock, the output frequency should be 1 GHz. Max frequency depends heavily on the L=0.5um sizing used in the netlist.\",\n        \"range\": {\n          \"min\": 1,\n          \"typical\": 2.5,\n          \"max\": 5,\n          \"unit\": \"GHz\"\n        },\n        \"reasoning\": \"The paper achieved 5.2 GHz in 0.35um at 1V. With SKY130 at 1.8V but using L=0.5um (larger than minimum channel length), the speed will be comparable or slightly lower due to the increased gate capacitance and transit time.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power drawn from the VDD supply during continuous toggling.\",\n      \"unit\": \"mW\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.5 mW\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = I_avg * VDD. At 1.8V and 2 GHz input, dynamic power dominates.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 5,\n          \"max\": 10,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"Higher supply voltage (1.8V vs 1V) will significantly increase dynamic power (proportional to V^2), even if node capacitances are similar to the original paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_voltage_swing\": {\n      \"description\": \"Peak-to-peak voltage swing of the output nodes.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_swing = V_max - V_min.\",\n        \"range\": {\n          \"min\": 1.5,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The cross-coupled NMOS pairs pull down to 0V, and the PMOS dynamic loads pull up to VDD (1.8V). Ratioed logic during the evaluation phase might cause slight VOL degradation, but the cross-coupled pairs will restore full swing.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis with a 2 GHz differential clock to verify divide-by-2 operation, measure output frequency, power consumption, and voltage swing.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"operating_frequency\",\n      \"power_consumption\",\n      \"output_voltage_swing\"\n    ],\n    \"spice\": \"* Frequency Divider Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmp2=5u L_xmp2=0.5u\\n.param W_xmp3=5u L_xmp3=0.5u\\n.param W_xmp4=5u L_xmp4=0.5u\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmn3=5u L_xmn3=0.5u\\n.param W_xmn4=5u L_xmn4=0.5u\\n.param W_xmn5=5u L_xmn5=0.5u\\n.param W_xmn6=5u L_xmn6=0.5u\\n.param W_xmn7=5u L_xmn7=0.5u\\n.param W_xmn8=5u L_xmn8=0.5u\\n.param W_xmn9=5u L_xmn9=0.5u\\n.param W_xmn10=5u L_xmn10=0.5u\\n.param W_xmn11=5u L_xmn11=0.5u\\n.param W_xmn12=5u L_xmn12=0.5u\\n\\nVVDD VDD 0 1.8\\n* 2 GHz Differential Clock (Period = 500ps)\\nVCLK CLK 0 PULSE(0 1.8 0 20p 20p 230p 500p)\\nVCLKBAR CLKBAR 0 PULSE(1.8 0 0 20p 20p 230p 500p)\\n\\n* DUT\\nXMP1 N_L1 CLKBAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMP2 N_L2 CLKBAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\\nXMP3 N_R1 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp3} w={W_xmp3}\\nXMP4 N_R2 CLK VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp4} w={W_xmp4}\\nXMN1 N_L1 N_L2 N_TL1 GND sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMN2 N_L2 N_L1 N_TL1 GND sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMN3 N_TL1 CLKBAR GND GND sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\\nXMN4 N_L1 N_R1 N_TL2 GND sky130_fd_pr__nfet_01v8 l={L_xmn4} w={W_xmn4}\\nXMN5 N_L2 N_R2 N_TL2 GND sky130_fd_pr__nfet_01v8 l={L_xmn5} w={W_xmn5}\\nXMN6 N_TL2 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xmn6} w={W_xmn6}\\nXMN7 N_R1 N_R2 N_TR1 GND sky130_fd_pr__nfet_01v8 l={L_xmn7} w={W_xmn7}\\nXMN8 N_R2 N_R1 N_TR1 GND sky130_fd_pr__nfet_01v8 l={L_xmn8} w={W_xmn8}\\nXMN9 N_TR1 CLK GND GND sky130_fd_pr__nfet_01v8 l={L_xmn9} w={W_xmn9}\\nXMN10 N_R1 N_L2 N_TR2 GND sky130_fd_pr__nfet_01v8 l={L_xmn10} w={W_xmn10}\\nXMN11 N_R2 N_L1 N_TR2 GND sky130_fd_pr__nfet_01v8 l={L_xmn11} w={W_xmn11}\\nXMN12 N_TR2 CLKBAR GND GND sky130_fd_pr__nfet_01v8 l={L_xmn12} w={W_xmn12}\\n\\n* Load capacitors to simulate next stage\\nC1 N_L1 0 5f\\nC2 N_L2 0 5f\\nC3 N_R1 0 5f\\nC4 N_R2 0 5f\\n\\n.control\\ntran 5p 10n\\n\\n* Measure output frequency (should be 1 GHz for a 2 GHz input)\\nmeas tran t_period trig v(N_L1) val=0.9 rise=4 targ v(N_L1) val=0.9 rise=5\\nlet out_freq = 1 / t_period\\nprint out_freq\\n\\n* Measure average power consumption\\nmeas tran pwr avg i(VVDD) from=2n to=10n\\nlet power_mw = -pwr * 1.8 * 1000\\nprint power_mw\\n\\n* Measure output voltage swing\\nmeas tran v_max max v(N_L1) from=2n to=10n\\nmeas tran v_min min v(N_L1) from=2n to=10n\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1233750",
+  "_case": "1233750_image_2"
+}

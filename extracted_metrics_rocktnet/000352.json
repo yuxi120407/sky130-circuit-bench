@@ -1,0 +1,91 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Pair and Parallel Transistors (Fragment)",
+    "description": "The netlist contains a PMOS differential pair (XM3, XM4) and two parallel NMOS transistors (XM1, XM2). These are likely fragments of a larger block such as a mixer, variable-gain IF amplifier, or demodulator from the 200-MHz receiver described in the paper.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_7",
+        "LABEL_NET_9",
+        "LABEL_NET_0",
+        "LABEL_NET_2"
+      ],
+      "output": [
+        "N1",
+        "N5",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N7",
+        "N4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Low-Power 200-MHz Receiver for Wireless Hearing Aid Devices",
+      "figure": "Unknown",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Low-frequency AC voltage gain of the PMOS differential pair.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 dB to 50 dB (depending on the specific amplifier stage)",
+        "technology": "0.8\u00b5m BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With a 50\u00b5A tail current, each PMOS gets 25\u00b5A. W/L = 5\u00b5/0.5\u00b5 = 10. Vov \u2248 0.316V, gm \u2248 158\u00b5S. With a 20k\u03a9 load resistor, Gain = gm * Rload = 3.16 V/V \u2248 10 dB.",
+        "range": {
+          "min": 8,
+          "typical": 10,
+          "max": 12,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated based on standard square-law model for SKY130 PMOS devices with the added 20k\u03a9 load in the testbench."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the biased testbench.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "667 \u00b5A to 2.7 mA (whole receiver)",
+        "technology": "0.8\u00b5m BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current = 50\u00b5A. NMOS pair current \u2248 622\u00b5A (at Vgs=0.9V). Total current \u2248 672\u00b5A. Power = 1.8V * 672\u00b5A \u2248 1.2 mW.",
+        "range": {
+          "min": 1.0,
+          "typical": 1.2,
+          "max": 1.5,
+          "unit": "mW"
+        },
+        "reasoning": "Depends heavily on the applied gate bias (0.9V) for the NMOS parallel pair and the ideal tail current source."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Biases the PMOS diff pair with a 50uA tail current and 20kOhm loads, and the NMOS parallel pair with a 1kOhm load. Measures DC power and AC voltage gain of the PMOS stage.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "power_consumption"
+    ],
+    "spice": "* Testbench for PMOS Diff Pair and NMOS Parallel Pair\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 N0 LABEL_NET_0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 LABEL_NET_2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 LABEL_NET_7 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N5 LABEL_NET_9 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\nVVDD VDD 0 1.8\n\n* PMOS Diff Pair Bias and Loads\nI_tail VDD N7 50u\nR1 N1 0 20k\nR2 N5 0 20k\nV_INP LABEL_NET_7 0 dc 0.9 ac 1\nV_INN LABEL_NET_9 0 dc 0.9 ac -1\n\n* NMOS Parallel Pair Bias and Loads\nV_N4 N4 0 0\nR3 VDD N0 1k\nV_IN1 LABEL_NET_0 0 dc 0.9\nV_IN2 LABEL_NET_2 0 dc 0.9\n\n.control\nop\nlet total_current = -i(VVDD)\nlet power = total_current * 1.8\nprint power\n\nac dec 100 1k 1G\nlet gain_db = vdb(N1)\nmeas ac midband_gain find gain_db at=10k\n* Assuming midband gain is around 10dB, measure bandwidth at 7dB\nmeas ac bw_3db when gain_db=7 fall=1\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Pair and Parallel Transistors (Fragment)\",\n    \"description\": \"The netlist contains a PMOS differential pair (XM3, XM4) and two parallel NMOS transistors (XM1, XM2). These are likely fragments of a larger block such as a mixer, variable-gain IF amplifier, or demodulator from the 200-MHz receiver described in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_7\",\n        \"LABEL_NET_9\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N5\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N7\",\n        \"N4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Low-Power 200-MHz Receiver for Wireless Hearing Aid Devices\",\n      \"figure\": \"Unknown\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency AC voltage gain of the PMOS differential pair.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 dB to 50 dB (depending on the specific amplifier stage)\",\n        \"technology\": \"0.8\u00b5m BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 50\u00b5A tail current, each PMOS gets 25\u00b5A. W/L = 5\u00b5/0.5\u00b5 = 10. Vov \u2248 0.316V, gm \u2248 158\u00b5S. With a 20k\u03a9 load resistor, Gain = gm * Rload = 3.16 V/V \u2248 10 dB.\",\n        \"range\": {\n          \"min\": 8,\n          \"typical\": 10,\n          \"max\": 12,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated based on standard square-law model for SKY130 PMOS devices with the added 20k\u03a9 load in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the biased testbench.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"667 \u00b5A to 2.7 mA (whole receiver)\",\n        \"technology\": \"0.8\u00b5m BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current = 50\u00b5A. NMOS pair current \u2248 622\u00b5A (at Vgs=0.9V). Total current \u2248 672\u00b5A. Power = 1.8V * 672\u00b5A \u2248 1.2 mW.\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.2,\n          \"max\": 1.5,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"Depends heavily on the applied gate bias (0.9V) for the NMOS parallel pair and the ideal tail current source.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Biases the PMOS diff pair with a 50uA tail current and 20kOhm loads, and the NMOS parallel pair with a 1kOhm load. Measures DC power and AC voltage gain of the PMOS stage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Testbench for PMOS Diff Pair and NMOS Parallel Pair\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 N0 LABEL_NET_0 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 LABEL_NET_2 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 LABEL_NET_7 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N5 LABEL_NET_9 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\nVVDD VDD 0 1.8\\n\\n* PMOS Diff Pair Bias and Loads\\nI_tail VDD N7 50u\\nR1 N1 0 20k\\nR2 N5 0 20k\\nV_INP LABEL_NET_7 0 dc 0.9 ac 1\\nV_INN LABEL_NET_9 0 dc 0.9 ac -1\\n\\n* NMOS Parallel Pair Bias and Loads\\nV_N4 N4 0 0\\nR3 VDD N0 1k\\nV_IN1 LABEL_NET_0 0 dc 0.9\\nV_IN2 LABEL_NET_2 0 dc 0.9\\n\\n.control\\nop\\nlet total_current = -i(VVDD)\\nlet power = total_current * 1.8\\nprint power\\n\\nac dec 100 1k 1G\\nlet gain_db = vdb(N1)\\nmeas ac midband_gain find gain_db at=10k\\n* Assuming midband gain is around 10dB, measure bandwidth at 7dB\\nmeas ac bw_3db when gain_db=7 fall=1\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1196226",
+  "_case": "1196226_image_12"
+}

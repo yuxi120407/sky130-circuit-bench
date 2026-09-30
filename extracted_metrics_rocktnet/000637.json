@@ -1,0 +1,139 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Transimpedance-Limiting Amplifier (TIALA)",
+    "description": "A high-speed differential amplifier that provides both transimpedance and limiting gain functions. It features an auto-zero DC feedback network to cancel offsets and maintain a high dynamic range.",
+    "node_mapping": {
+      "input": [
+        "DINP",
+        "DINN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "3_3V"
+      ],
+      "bias": [
+        "ITDRV",
+        "TLDRV1_TLRX1",
+        "N14",
+        "N15",
+        "N16",
+        "N17",
+        "N20",
+        "N21",
+        "REFMON",
+        "MON"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "6-k 43-Gb/s Differential Transimpedance-Limiting Amplifier With Auto-Zero Feedback and High Dynamic Range",
+      "figure": "extracted_schematic",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Differential voltage gain when operated as a limiting amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 dB",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Using SKY130 NMOS at 1.8V, the intrinsic gain (gm*Rout) is lower than InP HBTs. Assuming gm ~ 10mA/V and Rload = 100 ohms, single-stage gain is ~1 V/V. With multiple stages or higher load, 20-30 dB is achievable.",
+        "range": {
+          "min": 20,
+          "typical": 25,
+          "max": 35,
+          "unit": "dB"
+        },
+        "reasoning": "Lower supply voltage (1.8V vs 3.3V) and CMOS technology reduce the achievable gain compared to the specialized InP process."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "35 GHz",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "SKY130 130nm NMOS has an fT of roughly 40-60 GHz. Amplifier bandwidth is typically fT/5 to fT/10 depending on the topology.",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 10000000000.0,
+          "max": 15000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Silicon CMOS is significantly slower than InP HBTs, so the 35 GHz bandwidth will scale down proportionally to the fT of the process."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "450 mW",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "VDD=1.8V. Assuming 5 tail current sources at ~3mA each, total current is ~15mA. Power = 1.8V * 15mA = 27mW.",
+        "range": {
+          "min": 0.015,
+          "typical": 0.03,
+          "max": 0.05,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down VDD (1.8V vs 3.3V) and typical CMOS testbench bias currents result in much lower power consumption."
+      },
+      "importance": "essential"
+    },
+    "transimpedance_gain": {
+      "description": "Differential transimpedance gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "76 dB",
+        "technology": "InP HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Zt = Vout/Iin. 76 dB ohms = 6.3 kOhms. In CMOS with 100 ohm loads, Zt will be lower, heavily dependent on the feedback resistor (R3).",
+        "range": {
+          "min": 50,
+          "typical": 60,
+          "max": 70,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on load resistors and internal voltage gain, which are lower in 130nm CMOS."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, bandwidth, and transient output swing of the TIALA. The NPN transistors are mapped to SKY130 NMOS devices via a subcircuit to evaluate CMOS performance.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth",
+      "output_swing"
+    ],
+    "spice": "* TIALA Testbench\n.lib \"${SKY130_PDK}\" tt\n.param W_n=10u L_n=0.15u\n\n* Map NPN to SKY130 NMOS for CMOS evaluation\n.subckt npn_mos d g s\nXM1 d g s GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\n.ends\n\n* DUT (Q replaced with X to use subcircuit, passives given typical values)\nX1 OUTN DINP N3 npn_mos\nX2 N10 N10 N18 npn_mos\nX3 N3 N17 N11 npn_mos\nX4 N3 N21 N13 npn_mos\nR1 OUTN N6 100\nX5 N3 N15 N12 npn_mos\nX6 N3 N20 N9 npn_mos\nX7 N18 N14 N8 npn_mos\nR2 OUTP N6 100\nX8 ITDRV TLDRV1_TLRX1 N7 npn_mos\nX9 OUTP DINN N3 npn_mos\nR3 N2 DINN 500\nC1 N2 GND 1p\nR4 N1 3_3V 100\nR5 N7 GND 50\nX10 N3 ITDRV N19 npn_mos\nC2 3_3V GND 10p\nR6 N11 GND 50\nR7 N2 N2 1\nC3 N1 GND 1p\nR8 N10 REFMON 1k\nR9 3_3V N6 10\nR10 3_3V N10 1k\nR11 N19 GND 50\nR12 N13 GND 50\nR13 N12 GND 50\nR14 N14 N16 1k\nR15 N9 GND 50\nR16 N8 GND 50\nX11 N1 N2 N3 npn_mos\nR17 N1 MON 1k\n\n* Biasing\nVdd 3_3V GND 1.8\nVbias1 N17 GND 0.8\nVbias2 N21 GND 0.8\nVbias3 N15 GND 0.8\nVbias4 N20 GND 0.8\nVbias5 N14 GND 0.8\nVbias6 TLDRV1_TLRX1 GND 0.8\nVbias7 ITDRV GND 0.8\n\n* Inputs (Soft voltage drive to allow auto-zero feedback to operate)\nVinp_src inp_src GND dc 1.2 ac 0.5 sin(1.2 0.05 1G)\nVinn_src inn_src GND dc 1.2 ac -0.5 sin(1.2 -0.05 1G)\nRinp inp_src DINP 500\nRinn inn_src DINN 500\n\n* Dummy loads for floating monitor nodes\nRref REFMON GND 1Meg\nRmon MON GND 1Meg\nRn16 N16 GND 1Meg\n\n* Dependent source for differential output\nEout out_diff 0 OUTP OUTN 1\n\n.control\n* DC Operating Point & Power\nop\nlet power = -i(Vdd) * 1.8\nprint power\n\n* AC Analysis for Gain and Bandwidth\nac dec 50 1Meg 100G\nlet gain_db = vdb(out_diff)\nmeas ac dc_gain find gain_db at=10Meg\nmeas ac bw_freq when gain_db=(dc_gain-3) fall=1\n\n* Transient Analysis for Output Swing\ntran 1p 5n\nmeas tran vout_pp pp v(out_diff)\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Transimpedance-Limiting Amplifier (TIALA)\",\n    \"description\": \"A high-speed differential amplifier that provides both transimpedance and limiting gain functions. It features an auto-zero DC feedback network to cancel offsets and maintain a high dynamic range.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"DINP\",\n        \"DINN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"3_3V\"\n      ],\n      \"bias\": [\n        \"ITDRV\",\n        \"TLDRV1_TLRX1\",\n        \"N14\",\n        \"N15\",\n        \"N16\",\n        \"N17\",\n        \"N20\",\n        \"N21\",\n        \"REFMON\",\n        \"MON\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"6-k 43-Gb/s Differential Transimpedance-Limiting Amplifier With Auto-Zero Feedback and High Dynamic Range\",\n      \"figure\": \"extracted_schematic\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Differential voltage gain when operated as a limiting amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 dB\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using SKY130 NMOS at 1.8V, the intrinsic gain (gm*Rout) is lower than InP HBTs. Assuming gm ~ 10mA/V and Rload = 100 ohms, single-stage gain is ~1 V/V. With multiple stages or higher load, 20-30 dB is achievable.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 25,\n          \"max\": 35,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Lower supply voltage (1.8V vs 3.3V) and CMOS technology reduce the achievable gain compared to the specialized InP process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"35 GHz\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SKY130 130nm NMOS has an fT of roughly 40-60 GHz. Amplifier bandwidth is typically fT/5 to fT/10 depending on the topology.\",\n        \"range\": {\n          \"min\": 5e9,\n          \"typical\": 10e9,\n          \"max\": 15e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Silicon CMOS is significantly slower than InP HBTs, so the 35 GHz bandwidth will scale down proportionally to the fT of the process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"450 mW\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD=1.8V. Assuming 5 tail current sources at ~3mA each, total current is ~15mA. Power = 1.8V * 15mA = 27mW.\",\n        \"range\": {\n          \"min\": 15e-3,\n          \"typical\": 30e-3,\n          \"max\": 50e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down VDD (1.8V vs 3.3V) and typical CMOS testbench bias currents result in much lower power consumption.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transimpedance_gain\": {\n      \"description\": \"Differential transimpedance gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"76 dB\",\n        \"technology\": \"InP HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zt = Vout/Iin. 76 dB ohms = 6.3 kOhms. In CMOS with 100 ohm loads, Zt will be lower, heavily dependent on the feedback resistor (R3).\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 60,\n          \"max\": 70,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on load resistors and internal voltage gain, which are lower in 130nm CMOS.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, bandwidth, and transient output swing of the TIALA. The NPN transistors are mapped to SKY130 NMOS devices via a subcircuit to evaluate CMOS performance.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* TIALA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.param W_n=10u L_n=0.15u\\n\\n* Map NPN to SKY130 NMOS for CMOS evaluation\\n.subckt npn_mos d g s\\nXM1 d g s GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\n.ends\\n\\n* DUT (Q replaced with X to use subcircuit, passives given typical values)\\nX1 OUTN DINP N3 npn_mos\\nX2 N10 N10 N18 npn_mos\\nX3 N3 N17 N11 npn_mos\\nX4 N3 N21 N13 npn_mos\\nR1 OUTN N6 100\\nX5 N3 N15 N12 npn_mos\\nX6 N3 N20 N9 npn_mos\\nX7 N18 N14 N8 npn_mos\\nR2 OUTP N6 100\\nX8 ITDRV TLDRV1_TLRX1 N7 npn_mos\\nX9 OUTP DINN N3 npn_mos\\nR3 N2 DINN 500\\nC1 N2 GND 1p\\nR4 N1 3_3V 100\\nR5 N7 GND 50\\nX10 N3 ITDRV N19 npn_mos\\nC2 3_3V GND 10p\\nR6 N11 GND 50\\nR7 N2 N2 1\\nC3 N1 GND 1p\\nR8 N10 REFMON 1k\\nR9 3_3V N6 10\\nR10 3_3V N10 1k\\nR11 N19 GND 50\\nR12 N13 GND 50\\nR13 N12 GND 50\\nR14 N14 N16 1k\\nR15 N9 GND 50\\nR16 N8 GND 50\\nX11 N1 N2 N3 npn_mos\\nR17 N1 MON 1k\\n\\n* Biasing\\nVdd 3_3V GND 1.8\\nVbias1 N17 GND 0.8\\nVbias2 N21 GND 0.8\\nVbias3 N15 GND 0.8\\nVbias4 N20 GND 0.8\\nVbias5 N14 GND 0.8\\nVbias6 TLDRV1_TLRX1 GND 0.8\\nVbias7 ITDRV GND 0.8\\n\\n* Inputs (Soft voltage drive to allow auto-zero feedback to operate)\\nVinp_src inp_src GND dc 1.2 ac 0.5 sin(1.2 0.05 1G)\\nVinn_src inn_src GND dc 1.2 ac -0.5 sin(1.2 -0.05 1G)\\nRinp inp_src DINP 500\\nRinn inn_src DINN 500\\n\\n* Dummy loads for floating monitor nodes\\nRref REFMON GND 1Meg\\nRmon MON GND 1Meg\\nRn16 N16 GND 1Meg\\n\\n* Dependent source for differential output\\nEout out_diff 0 OUTP OUTN 1\\n\\n.control\\n* DC Operating Point & Power\\nop\\nlet power = -i(Vdd) * 1.8\\nprint power\\n\\n* AC Analysis for Gain and Bandwidth\\nac dec 50 1Meg 100G\\nlet gain_db = vdb(out_diff)\\nmeas ac dc_gain find gain_db at=10Meg\\nmeas ac bw_freq when gain_db=(dc_gain-3) fall=1\\n\\n* Transient Analysis for Output Swing\\ntran 1p 5n\\nmeas tran vout_pp pp v(out_diff)\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1336996",
+  "_case": "1336996_image_7"
+}

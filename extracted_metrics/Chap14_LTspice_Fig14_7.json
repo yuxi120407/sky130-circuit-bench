@@ -1,0 +1,197 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 14.6",
+    "page": "400",
+    "circuit_type": "Dynamic level-sensitive latch (Storage Node Leakage Model)",
+    "description": "The netlist models the charge storage node of a dynamic latch. Transistor xm5 acts as the off-state pass-gate (with Gate=0, Drain=0, Source=stor), which leaks charge away from the input capacitance of the subsequent inverter (xm1/xm2)."
+  },
+  "step2_metrics": {
+    "discharge_time": {
+      "description": "Time required for the capacitor to discharge to ground from an initial voltage.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "399",
+        "reference": "Text above Fig 14.4"
+      },
+      "equation": {
+        "formula": "t = V_initial / (dV/dt)",
+        "explanation": "Rough estimate of total discharge time assuming a constant discharge rate.",
+        "assumptions": "Assumes linear discharge, which is inaccurate as off-current decreases with VDS."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming an initial voltage of 1.8V and an estimated discharge rate of 0.01 V/us (highly dependent on subthreshold leakage), t = 1.8 / 0.01e6 = 180 us.",
+        "range": {
+          "min": "10us",
+          "typical": "100us",
+          "max": "1ms",
+          "unit": "s"
+        },
+        "reasoning": "Subthreshold leakage varies exponentially with process corners and temperature."
+      },
+      "importance": "recommended"
+    },
+    "input_capacitance": {
+      "description": "Input capacitance of the inverter loading the storage node.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "400",
+        "reference": "Equation above Eq 14.3"
+      },
+      "equation": {
+        "formula": "C_in = 3/2 * (C_gate_n + C_gate_p)",
+        "explanation": "Estimates the total input capacitance. The 3/2 factor accounts for dynamic switching effects (Miller capacitance), though static capacitance is more relevant for droop.",
+        "assumptions": "Uses a multiplier to approximate effective capacitance during operation."
+      },
+      "sky130_expected": {
+        "calculation": "For SKY130, Cox is roughly 10 fF/um^2. With Wn=1um, Wp=2um, L=0.15um: C_gate_n = 1*0.15*10 = 1.5fF, C_gate_p = 2*0.15*10 = 3.0fF. C_in_static = 4.5fF. Using the 3/2 factor: C_in = 1.5 * 4.5fF = 6.75 fF.",
+        "range": {
+          "min": "3fF",
+          "typical": "6.75fF",
+          "max": "10fF",
+          "unit": "F"
+        },
+        "reasoning": "Depends on the exact W and L parameters chosen for the inverter."
+      },
+      "importance": "essential"
+    },
+    "discharge_rate": {
+      "description": "Rate at which the storage node voltage decays due to leakage.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "400",
+        "reference": "Eq 14.3"
+      },
+      "equation": {
+        "formula": "dV/dt = I_leakage / C_in",
+        "explanation": "The voltage decay rate is proportional to the leakage current and inversely proportional to the node capacitance.",
+        "assumptions": "Assumes constant leakage current over the measurement window."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming an off-state leakage (I_leakage) of 50 pA for the NMOS and C_in = 6.75 fF. dV/dt = 50e-12 / 6.75e-15 = 7407 V/s = 0.0074 V/us.",
+        "range": {
+          "min": "0.001",
+          "typical": "0.01",
+          "max": "0.1",
+          "unit": "V/us"
+        },
+        "reasoning": "Leakage current is highly sensitive to Vth variations and temperature."
+      },
+      "importance": "essential"
+    },
+    "max_off_time": {
+      "description": "Maximum time the pass gate can be off before the storage node voltage droops by a critical amount (e.g., 100mV).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "400",
+        "reference": "Text below Eq 14.3"
+      },
+      "equation": {
+        "formula": "t_max = V_droop_max / (dV/dt)",
+        "explanation": "Time taken for the node to discharge by the maximum allowed droop voltage (100mV in the text).",
+        "assumptions": "Linear discharge rate over the small 100mV window."
+      },
+      "sky130_expected": {
+        "calculation": "For a 100mV droop and dV/dt = 0.0074 V/us, t_max = 0.1 / 0.0074e6 = 13.5 us.",
+        "range": {
+          "min": "1us",
+          "typical": "13.5us",
+          "max": "100us",
+          "unit": "s"
+        },
+        "reasoning": "Inversely proportional to the highly variable leakage current."
+      },
+      "importance": "essential"
+    },
+    "gmin_leakage": {
+      "description": "Artificial leakage current introduced by SPICE GMIN parameter.",
+      "unit": "A",
+      "analysis_type": "DC",
+      "source": {
+        "page": "401",
+        "reference": "Eq 14.5"
+      },
+      "equation": {
+        "formula": "I_leakage_GMIN = VDD * GMIN",
+        "explanation": "Current flowing through the default GMIN resistor to ground.",
+        "assumptions": "Node is at VDD."
+      },
+      "sky130_expected": {
+        "calculation": "VDD = 1.8V, default ngspice GMIN = 1e-12 S. I = 1.8 * 1e-12 = 1.8 pA.",
+        "range": {
+          "min": "1.8e-12",
+          "typical": "1.8e-12",
+          "max": "1.8e-12",
+          "unit": "A"
+        },
+        "reasoning": "Directly calculated from SPICE defaults. Usually negligible compared to actual nanometer MOSFET leakage."
+      },
+      "importance": "optional"
+    },
+    "gmin_discharge_rate": {
+      "description": "Voltage decay rate caused solely by SPICE GMIN.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "401",
+        "reference": "Eq 14.6"
+      },
+      "equation": {
+        "formula": "dV/dt = (VDD * GMIN) / C_node",
+        "explanation": "Discharge rate if GMIN were the only leakage path.",
+        "assumptions": "Node is near VDD."
+      },
+      "sky130_expected": {
+        "calculation": "I_GMIN = 1.8 pA. C_node = 6.75 fF. dV/dt = 1.8e-12 / 6.75e-15 = 266 V/s = 0.000266 V/us.",
+        "range": {
+          "min": "0.0001",
+          "typical": "0.000266",
+          "max": "0.0005",
+          "unit": "V/us"
+        },
+        "reasoning": "Provides a baseline simulation artifact floor."
+      },
+      "importance": "optional"
+    },
+    "propagation_delay": {
+      "description": "Delay of the logic gates (inverters) when switching.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "405",
+        "reference": "Text in PE Logic section"
+      },
+      "equation": {
+        "formula": "t_PHL = 4 * R_n * C_node",
+        "explanation": "First-order RC delay approximation for a falling transition.",
+        "assumptions": "Linear resistor model for MOSFET."
+      },
+      "sky130_expected": {
+        "calculation": "R_n ~ 1 / (u_n*Cox * (W/L) * (VDD-Vth)) = 1 / (270e-6 * (1/0.15) * (1.8-0.42)) = 402 ohms. C_node ~ 6.75 fF. t_PHL = 4 * 402 * 6.75e-15 = 10.8 ps.",
+        "range": {
+          "min": "5ps",
+          "typical": "11ps",
+          "max": "30ps",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on sizing and loading of the inverters."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the storage node discharge rate and the maximum off-time (time to 100mV droop) due to pass-gate leakage.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "discharge_rate",
+      "max_off_time"
+    ],
+    "spice": "* Dynamic Latch Storage Node Leakage Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters for the DUT\n.param W_xm1=1 L_xm1=0.15\n.param W_xm2=2 L_xm2=0.15\n.param W_xm3=1 L_xm3=0.15\n.param W_xm4=2 L_xm4=0.15\n.param W_xm5=1 L_xm5=0.15\n\n* DUT Netlist\nxm1 Q_bar stor 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 Q_bar stor VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Q Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 Q Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 0 0 stor 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n\n* Initial condition: Storage node charged to VDD\n.ic v(stor)=1.8\n\n.control\n* Run transient analysis for 200us to observe slow leakage\ntran 10n 200u uic\n\n* Measure voltage at start and after 10us to calculate dV/dt (discharge rate)\nmeas tran v_start find v(stor) at=0\nmeas tran v_10us find v(stor) at=10u\nlet discharge_rate_V_per_s = (v_start - v_10us) / 10u\nlet discharge_rate_V_per_us = discharge_rate_V_per_s * 1e-6\nprint discharge_rate_V_per_us\n\n* Measure max off time (time for 100mV droop, i.e., drops to 1.7V)\nmeas tran max_off_time find time when v(stor)=1.7 fall=1\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 14.6\",\n    \"page\": \"400\",\n    \"circuit_type\": \"Dynamic level-sensitive latch (Storage Node Leakage Model)\",\n    \"description\": \"The netlist models the charge storage node of a dynamic latch. Transistor xm5 acts as the off-state pass-gate (with Gate=0, Drain=0, Source=stor), which leaks charge away from the input capacitance of the subsequent inverter (xm1/xm2).\"\n  },\n  \"step2_metrics\": {\n    \"discharge_time\": {\n      \"description\": \"Time required for the capacitor to discharge to ground from an initial voltage.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"399\",\n        \"reference\": \"Text above Fig 14.4\"\n      },\n      \"equation\": {\n        \"formula\": \"t = V_initial / (dV/dt)\",\n        \"explanation\": \"Rough estimate of total discharge time assuming a constant discharge rate.\",\n        \"assumptions\": \"Assumes linear discharge, which is inaccurate as off-current decreases with VDS.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming an initial voltage of 1.8V and an estimated discharge rate of 0.01 V/us (highly dependent on subthreshold leakage), t = 1.8 / 0.01e6 = 180 us.\",\n        \"range\": {\n          \"min\": \"10us\",\n          \"typical\": \"100us\",\n          \"max\": \"1ms\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Subthreshold leakage varies exponentially with process corners and temperature.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"Input capacitance of the inverter loading the storage node.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"400\",\n        \"reference\": \"Equation above Eq 14.3\"\n      },\n      \"equation\": {\n        \"formula\": \"C_in = 3/2 * (C_gate_n + C_gate_p)\",\n        \"explanation\": \"Estimates the total input capacitance. The 3/2 factor accounts for dynamic switching effects (Miller capacitance), though static capacitance is more relevant for droop.\",\n        \"assumptions\": \"Uses a multiplier to approximate effective capacitance during operation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For SKY130, Cox is roughly 10 fF/um^2. With Wn=1um, Wp=2um, L=0.15um: C_gate_n = 1*0.15*10 = 1.5fF, C_gate_p = 2*0.15*10 = 3.0fF. C_in_static = 4.5fF. Using the 3/2 factor: C_in = 1.5 * 4.5fF = 6.75 fF.\",\n        \"range\": {\n          \"min\": \"3fF\",\n          \"typical\": \"6.75fF\",\n          \"max\": \"10fF\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Depends on the exact W and L parameters chosen for the inverter.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"discharge_rate\": {\n      \"description\": \"Rate at which the storage node voltage decays due to leakage.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"400\",\n        \"reference\": \"Eq 14.3\"\n      },\n      \"equation\": {\n        \"formula\": \"dV/dt = I_leakage / C_in\",\n        \"explanation\": \"The voltage decay rate is proportional to the leakage current and inversely proportional to the node capacitance.\",\n        \"assumptions\": \"Assumes constant leakage current over the measurement window.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming an off-state leakage (I_leakage) of 50 pA for the NMOS and C_in = 6.75 fF. dV/dt = 50e-12 / 6.75e-15 = 7407 V/s = 0.0074 V/us.\",\n        \"range\": {\n          \"min\": \"0.001\",\n          \"typical\": \"0.01\",\n          \"max\": \"0.1\",\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Leakage current is highly sensitive to Vth variations and temperature.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"max_off_time\": {\n      \"description\": \"Maximum time the pass gate can be off before the storage node voltage droops by a critical amount (e.g., 100mV).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"400\",\n        \"reference\": \"Text below Eq 14.3\"\n      },\n      \"equation\": {\n        \"formula\": \"t_max = V_droop_max / (dV/dt)\",\n        \"explanation\": \"Time taken for the node to discharge by the maximum allowed droop voltage (100mV in the text).\",\n        \"assumptions\": \"Linear discharge rate over the small 100mV window.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 100mV droop and dV/dt = 0.0074 V/us, t_max = 0.1 / 0.0074e6 = 13.5 us.\",\n        \"range\": {\n          \"min\": \"1us\",\n          \"typical\": \"13.5us\",\n          \"max\": \"100us\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Inversely proportional to the highly variable leakage current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gmin_leakage\": {\n      \"description\": \"Artificial leakage current introduced by SPICE GMIN parameter.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"401\",\n        \"reference\": \"Eq 14.5\"\n      },\n      \"equation\": {\n        \"formula\": \"I_leakage_GMIN = VDD * GMIN\",\n        \"explanation\": \"Current flowing through the default GMIN resistor to ground.\",\n        \"assumptions\": \"Node is at VDD.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD = 1.8V, default ngspice GMIN = 1e-12 S. I = 1.8 * 1e-12 = 1.8 pA.\",\n        \"range\": {\n          \"min\": \"1.8e-12\",\n          \"typical\": \"1.8e-12\",\n          \"max\": \"1.8e-12\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Directly calculated from SPICE defaults. Usually negligible compared to actual nanometer MOSFET leakage.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"gmin_discharge_rate\": {\n      \"description\": \"Voltage decay rate caused solely by SPICE GMIN.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"401\",\n        \"reference\": \"Eq 14.6\"\n      },\n      \"equation\": {\n        \"formula\": \"dV/dt = (VDD * GMIN) / C_node\",\n        \"explanation\": \"Discharge rate if GMIN were the only leakage path.\",\n        \"assumptions\": \"Node is near VDD.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_GMIN = 1.8 pA. C_node = 6.75 fF. dV/dt = 1.8e-12 / 6.75e-15 = 266 V/s = 0.000266 V/us.\",\n        \"range\": {\n          \"min\": \"0.0001\",\n          \"typical\": \"0.000266\",\n          \"max\": \"0.0005\",\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Provides a baseline simulation artifact floor.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Delay of the logic gates (inverters) when switching.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"405\",\n        \"reference\": \"Text in PE Logic section\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL = 4 * R_n * C_node\",\n        \"explanation\": \"First-order RC delay approximation for a falling transition.\",\n        \"assumptions\": \"Linear resistor model for MOSFET.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_n ~ 1 / (u_n*Cox * (W/L) * (VDD-Vth)) = 1 / (270e-6 * (1/0.15) * (1.8-0.42)) = 402 ohms. C_node ~ 6.75 fF. t_PHL = 4 * 402 * 6.75e-15 = 10.8 ps.\",\n        \"range\": {\n          \"min\": \"5ps\",\n          \"typical\": \"11ps\",\n          \"max\": \"30ps\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on sizing and loading of the inverters.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the storage node discharge rate and the maximum off-time (time to 100mV droop) due to pass-gate leakage.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"discharge_rate\",\n      \"max_off_time\"\n    ],\n    \"spice\": \"* Dynamic Latch Storage Node Leakage Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters for the DUT\\n.param W_xm1=1 L_xm1=0.15\\n.param W_xm2=2 L_xm2=0.15\\n.param W_xm3=1 L_xm3=0.15\\n.param W_xm4=2 L_xm4=0.15\\n.param W_xm5=1 L_xm5=0.15\\n\\n* DUT Netlist\\nxm1 Q_bar stor 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 Q_bar stor VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Q Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 Q Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 0 0 stor 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n\\n* Initial condition: Storage node charged to VDD\\n.ic v(stor)=1.8\\n\\n.control\\n* Run transient analysis for 200us to observe slow leakage\\ntran 10n 200u uic\\n\\n* Measure voltage at start and after 10us to calculate dV/dt (discharge rate)\\nmeas tran v_start find v(stor) at=0\\nmeas tran v_10us find v(stor) at=10u\\nlet discharge_rate_V_per_s = (v_start - v_10us) / 10u\\nlet discharge_rate_V_per_us = discharge_rate_V_per_s * 1e-6\\nprint discharge_rate_V_per_us\\n\\n* Measure max off time (time for 100mV droop, i.e., drops to 1.7V)\\nmeas tran max_off_time find time when v(stor)=1.7 fall=1\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

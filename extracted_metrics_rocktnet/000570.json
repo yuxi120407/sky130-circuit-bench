@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "3rd-order pseudo-differential Gm-C low-pass filter",
+    "description": "A baseband channel selection filter for a low-IF RDS receiver. It uses transconductance (Gm) cells and capacitors to form a 3rd-order low-pass response to filter out adjacent channels, with a cutoff frequency of 250 kHz.",
+    "node_mapping": {
+      "input": [
+        "VIN+",
+        "VIN-"
+      ],
+      "output": [
+        "VOUT+",
+        "VOUT-"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.2-mW RDS Receiver for Portable Applications",
+      "figure": "Unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Low-frequency voltage gain of the filter",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0 dB (implied for normalized Gm-C)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "DC gain = 20*log10(2*g^3 / 2*g^3) = 0 dB",
+        "range": {
+          "min": -1,
+          "typical": 0,
+          "max": 1,
+          "unit": "dB"
+        },
+        "reasoning": "The topology inherently provides unity DC gain assuming perfectly matched Gm cells."
+      },
+      "importance": "essential"
+    },
+    "f3db": {
+      "description": "-3dB cutoff frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "250 kHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "For this 3rd-order polynomial, f3db = 1.52 * (Gm/C) / (2*pi). With C=10pF and Gm=10.3uS, f3db = 250 kHz.",
+        "range": {
+          "min": 200000,
+          "typical": 250000,
+          "max": 300000,
+          "unit": "Hz"
+        },
+        "reasoning": "Target IF bandwidth for RDS is 250 kHz as reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "stopband_attenuation": {
+      "description": "Attenuation at 1 MHz (adjacent channel/blocker)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly listed, but high selectivity required",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "At 1 MHz (x = 6.08 relative to w0), attenuation is approx 20*log10(2/x^3) = -41 dB.",
+        "range": {
+          "min": -45,
+          "typical": -41,
+          "max": -35,
+          "unit": "dB"
+        },
+        "reasoning": "A 3rd-order filter provides 60 dB/decade roll-off. From 250kHz to 1MHz is a factor of 4, yielding ~40dB attenuation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC gain, -3dB cutoff frequency, and stopband attenuation of the Gm-C filter.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "f3db",
+      "atten_1M"
+    ],
+    "spice": "* Gm-C Low-Pass Filter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param Gm_val=10.3u\n.param C_val=10p\n\n* Behavioral model for the transconductance amplifier\n.subckt amplifier in+ in- out\n* Note: Current flows from 0 to out, so current entering 'out' is Gm*(V(in+) - V(in-))\nG1 0 out in+ in- {Gm_val}\nR1 out 0 100MEG\n.ends\n\n* DUT (Modified to use X instead of A and added capacitor values)\nX1 VIN+ N1 N1 amplifier\nX2 VIN+ N2 N1 amplifier\nX3 N1 VOUT+ N2 amplifier\nX4 N2 VOUT+ VOUT+ amplifier\nX5 VIN- N3 N3 amplifier\nX6 N4 VOUT- VOUT- amplifier\nX7 N3 VOUT- N4 amplifier\nX8 VIN- N4 N3 amplifier\nC1 N1 0 {C_val}\nC2 N2 0 {C_val}\nC3 VOUT+ 0 {C_val}\nC4 N3 0 {C_val}\nC5 N4 0 {C_val}\nC6 VOUT- 0 {C_val}\n\n* Sources\nVDD VDD 0 DC 1.8\nVVINp VIN+ 0 DC 0.9 AC 0.5 SIN(0.9 0.1 10k 0 0)\nVVINn VIN- 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 10k 0 0)\n\n* Differential Output\nE_diff VOUT_DIFF 0 VOUT+ VOUT- 1.0\n\n.control\n  op\n  print v(VOUT+) v(VOUT-)\n  \n  ac dec 100 1k 10MEG\n  let gain_db = vdb(VOUT_DIFF)\n  meas ac dc_gain find gain_db at=1k\n  let gain_db_norm = gain_db - dc_gain\n  meas ac f3db when gain_db_norm=-3 fall=1\n  meas ac atten_1M find gain_db_norm at=1MEG\n  \n  tran 1u 500u\n  meas tran vmax max v(VOUT_DIFF)\n  meas tran vmin min v(VOUT_DIFF)\n  let vpp = vmax - vmin\n  print vpp\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"3rd-order pseudo-differential Gm-C low-pass filter\",\n    \"description\": \"A baseband channel selection filter for a low-IF RDS receiver. It uses transconductance (Gm) cells and capacitors to form a 3rd-order low-pass response to filter out adjacent channels, with a cutoff frequency of 250 kHz.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN+\",\n        \"VIN-\"\n      ],\n      \"output\": [\n        \"VOUT+\",\n        \"VOUT-\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\",\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.2-mW RDS Receiver for Portable Applications\",\n      \"figure\": \"Unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Low-frequency voltage gain of the filter\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0 dB (implied for normalized Gm-C)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"DC gain = 20*log10(2*g^3 / 2*g^3) = 0 dB\",\n        \"range\": {\n          \"min\": -1,\n          \"typical\": 0,\n          \"max\": 1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The topology inherently provides unity DC gain assuming perfectly matched Gm cells.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"f3db\": {\n      \"description\": \"-3dB cutoff frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"250 kHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For this 3rd-order polynomial, f3db = 1.52 * (Gm/C) / (2*pi). With C=10pF and Gm=10.3uS, f3db = 250 kHz.\",\n        \"range\": {\n          \"min\": 200000,\n          \"typical\": 250000,\n          \"max\": 300000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Target IF bandwidth for RDS is 250 kHz as reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"stopband_attenuation\": {\n      \"description\": \"Attenuation at 1 MHz (adjacent channel/blocker)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed, but high selectivity required\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At 1 MHz (x = 6.08 relative to w0), attenuation is approx 20*log10(2/x^3) = -41 dB.\",\n        \"range\": {\n          \"min\": -45,\n          \"typical\": -41,\n          \"max\": -35,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A 3rd-order filter provides 60 dB/decade roll-off. From 250kHz to 1MHz is a factor of 4, yielding ~40dB attenuation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC gain, -3dB cutoff frequency, and stopband attenuation of the Gm-C filter.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"f3db\",\n      \"atten_1M\"\n    ],\n    \"spice\": \"* Gm-C Low-Pass Filter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param Gm_val=10.3u\\n.param C_val=10p\\n\\n* Behavioral model for the transconductance amplifier\\n.subckt amplifier in+ in- out\\n* Note: Current flows from 0 to out, so current entering 'out' is Gm*(V(in+) - V(in-))\\nG1 0 out in+ in- {Gm_val}\\nR1 out 0 100MEG\\n.ends\\n\\n* DUT (Modified to use X instead of A and added capacitor values)\\nX1 VIN+ N1 N1 amplifier\\nX2 VIN+ N2 N1 amplifier\\nX3 N1 VOUT+ N2 amplifier\\nX4 N2 VOUT+ VOUT+ amplifier\\nX5 VIN- N3 N3 amplifier\\nX6 N4 VOUT- VOUT- amplifier\\nX7 N3 VOUT- N4 amplifier\\nX8 VIN- N4 N3 amplifier\\nC1 N1 0 {C_val}\\nC2 N2 0 {C_val}\\nC3 VOUT+ 0 {C_val}\\nC4 N3 0 {C_val}\\nC5 N4 0 {C_val}\\nC6 VOUT- 0 {C_val}\\n\\n* Sources\\nVDD VDD 0 DC 1.8\\nVVINp VIN+ 0 DC 0.9 AC 0.5 SIN(0.9 0.1 10k 0 0)\\nVVINn VIN- 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 10k 0 0)\\n\\n* Differential Output\\nE_diff VOUT_DIFF 0 VOUT+ VOUT- 1.0\\n\\n.control\\n  op\\n  print v(VOUT+) v(VOUT-)\\n  \\n  ac dec 100 1k 10MEG\\n  let gain_db = vdb(VOUT_DIFF)\\n  meas ac dc_gain find gain_db at=1k\\n  let gain_db_norm = gain_db - dc_gain\\n  meas ac f3db when gain_db_norm=-3 fall=1\\n  meas ac atten_1M find gain_db_norm at=1MEG\\n  \\n  tran 1u 500u\\n  meas tran vmax max v(VOUT_DIFF)\\n  meas tran vmin min v(VOUT_DIFF)\\n  let vpp = vmax - vmin\\n  print vpp\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1308573",
+  "_case": "1308573_image_8"
+}

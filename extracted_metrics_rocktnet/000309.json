@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Staircase Ramp Generator",
+    "description": "A discrete-time analog ramp generator that uses a switched current source and a cascode current mirror to charge a capacitor in small steps. It is designed for ADC self-test and histogram-based testing.",
+    "node_mapping": {
+      "input": [
+        "STEP",
+        "RESET"
+      ],
+      "output": [
+        "VOUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "VSS",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "On-Chip Ramp Generators for Mixed-Signal BIST and ADC Self-Test",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "ramp_slope": {
+      "description": "Average rate of change of the output voltage.",
+      "unit": "V/s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.4 V/ms",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "With VCTRL=0.5V, Id ~ 8.6uA. Duty cycle = 10% (0.1us/1us). Average current = 0.86uA. Slope = I/C = 0.86uA / 10pF = 86,000 V/s (or 86 V/ms).",
+        "range": {
+          "min": 50000,
+          "typical": 86000,
+          "max": 150000,
+          "unit": "V/s"
+        },
+        "reasoning": "Depends heavily on the applied VCTRL bias and clock duty cycle."
+      },
+      "importance": "essential"
+    },
+    "step_size": {
+      "description": "Voltage increment per clock cycle.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Step size = Slope * Period = 86,000 V/s * 1us = 86 mV.",
+        "range": {
+          "min": 0.05,
+          "typical": 0.086,
+          "max": 0.15,
+          "unit": "V"
+        },
+        "reasoning": "Directly proportional to the ramp slope and clock period."
+      },
+      "importance": "essential"
+    },
+    "linearity_error": {
+      "description": "Difference in slope between different segments of the ramp (slope error).",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.6%",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Cascode current mirror provides high output impedance, keeping current constant as VOUT rises. Error should be < 1%.",
+        "range": {
+          "min": 0,
+          "typical": 0.5,
+          "max": 2,
+          "unit": "%"
+        },
+        "reasoning": "Channel length modulation is heavily suppressed by the cascode structure."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Average power consumption during ramp generation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Average current from VDD is roughly the mirror current (0.86uA) plus the diode side current (0.86uA) = 1.72uA. Power = 1.72uA * 1.8V = 3.1 uW.",
+        "range": {
+          "min": 1e-06,
+          "typical": 3.1e-06,
+          "max": 1e-05,
+          "unit": "W"
+        },
+        "reasoning": "Dominated by the pulsed bias current and duty cycle."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure ramp slope, step size, linearity, and power consumption of the staircase ramp generator.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "ramp_slope",
+      "step_size",
+      "linearity_error",
+      "power_consumption"
+    ],
+    "spice": "* Staircase Ramp Generator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nXM1 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM3 N3 N3 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM7 VOUT RESET VSS GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM6 N2 STEP VSS GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM2 N5 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM5 N3 N2 VSS GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM4 VOUT N3 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVSS_GND GND 0 0\n\n* Bias and Control\nVVCTRL VCTRL 0 0.5\nR1 VCTRL N2 10k\n\n* Load Capacitor\nC1 VOUT VSS 10pF\n\n* Stimulus\n* RESET: High initially to discharge C1, then low to allow charging\nVRESET RESET 0 PULSE(1.8 0 1u 1n 1n 100u 200u)\n* STEP: Clock signal to pulse the current (1us period, 0.1us active low)\nVSTEP STEP 0 PULSE(1.8 0 1.1u 1n 1n 0.1u 1u)\n\n.control\ntran 10n 20u\n\n* Measure ramp slope between 5us and 15us\nmeas tran v_5u find v(VOUT) at=5u\nmeas tran v_10u find v(VOUT) at=10u\nmeas tran v_15u find v(VOUT) at=15u\n\nlet slope_overall = (v_15u - v_5u) / 10e-6\nprint slope_overall\n\n* Calculate linearity error (difference in slope between two halves)\nlet slope1 = (v_10u - v_5u) / 5e-6\nlet slope2 = (v_15u - v_10u) / 5e-6\nlet slope_diff = slope1 - slope2\nlet linearity_error_pct = 100 * (slope_diff / slope_overall)\nprint linearity_error_pct\n\n* Measure step size (one cycle from 5.05u to 6.05u)\nmeas tran v_step_start find v(VOUT) at=5.05u\nmeas tran v_step_end find v(VOUT) at=6.05u\nlet step_size = v_step_end - v_step_start\nprint step_size\n\n* Measure power\nmeas tran avg_current avg i(VVDD) from=2u to=18u\nlet power = -avg_current * 1.8\nprint power\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Staircase Ramp Generator\",\n    \"description\": \"A discrete-time analog ramp generator that uses a switched current source and a cascode current mirror to charge a capacitor in small steps. It is designed for ADC self-test and histogram-based testing.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"STEP\",\n        \"RESET\"\n      ],\n      \"output\": [\n        \"VOUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N2\"\n      ],\n      \"ground\": [\n        \"VSS\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"On-Chip Ramp Generators for Mixed-Signal BIST and ADC Self-Test\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"ramp_slope\": {\n      \"description\": \"Average rate of change of the output voltage.\",\n      \"unit\": \"V/s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.4 V/ms\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VCTRL=0.5V, Id ~ 8.6uA. Duty cycle = 10% (0.1us/1us). Average current = 0.86uA. Slope = I/C = 0.86uA / 10pF = 86,000 V/s (or 86 V/ms).\",\n        \"range\": {\n          \"min\": 50000,\n          \"typical\": 86000,\n          \"max\": 150000,\n          \"unit\": \"V/s\"\n        },\n        \"reasoning\": \"Depends heavily on the applied VCTRL bias and clock duty cycle.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"step_size\": {\n      \"description\": \"Voltage increment per clock cycle.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Step size = Slope * Period = 86,000 V/s * 1us = 86 mV.\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.086,\n          \"max\": 0.15,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Directly proportional to the ramp slope and clock period.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"linearity_error\": {\n      \"description\": \"Difference in slope between different segments of the ramp (slope error).\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.6%\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Cascode current mirror provides high output impedance, keeping current constant as VOUT rises. Error should be < 1%.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0.5,\n          \"max\": 2,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Channel length modulation is heavily suppressed by the cascode structure.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average power consumption during ramp generation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Average current from VDD is roughly the mirror current (0.86uA) plus the diode side current (0.86uA) = 1.72uA. Power = 1.72uA * 1.8V = 3.1 uW.\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 3.1e-06,\n          \"max\": 1e-05,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Dominated by the pulsed bias current and duty cycle.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure ramp slope, step size, linearity, and power consumption of the staircase ramp generator.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"ramp_slope\",\n      \"step_size\",\n      \"linearity_error\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Staircase Ramp Generator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nXM1 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM3 N3 N3 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM7 VOUT RESET VSS GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM6 N2 STEP VSS GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM2 N5 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM5 N3 N2 VSS GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM4 VOUT N3 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVSS_GND GND 0 0\\n\\n* Bias and Control\\nVVCTRL VCTRL 0 0.5\\nR1 VCTRL N2 10k\\n\\n* Load Capacitor\\nC1 VOUT VSS 10pF\\n\\n* Stimulus\\n* RESET: High initially to discharge C1, then low to allow charging\\nVRESET RESET 0 PULSE(1.8 0 1u 1n 1n 100u 200u)\\n* STEP: Clock signal to pulse the current (1us period, 0.1us active low)\\nVSTEP STEP 0 PULSE(1.8 0 1.1u 1n 1n 0.1u 1u)\\n\\n.control\\ntran 10n 20u\\n\\n* Measure ramp slope between 5us and 15us\\nmeas tran v_5u find v(VOUT) at=5u\\nmeas tran v_10u find v(VOUT) at=10u\\nmeas tran v_15u find v(VOUT) at=15u\\n\\nlet slope_overall = (v_15u - v_5u) / 10e-6\\nprint slope_overall\\n\\n* Calculate linearity error (difference in slope between two halves)\\nlet slope1 = (v_10u - v_5u) / 5e-6\\nlet slope2 = (v_15u - v_10u) / 5e-6\\nlet slope_diff = slope1 - slope2\\nlet linearity_error_pct = 100 * (slope_diff / slope_overall)\\nprint linearity_error_pct\\n\\n* Measure step size (one cycle from 5.05u to 6.05u)\\nmeas tran v_step_start find v(VOUT) at=5.05u\\nmeas tran v_step_end find v(VOUT) at=6.05u\\nlet step_size = v_step_end - v_step_start\\nprint step_size\\n\\n* Measure power\\nmeas tran avg_current avg i(VVDD) from=2u to=18u\\nlet power = -avg_current * 1.8\\nprint power\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1175507",
+  "_case": "1175507_image_4"
+}

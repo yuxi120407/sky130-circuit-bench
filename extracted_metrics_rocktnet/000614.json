@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Charge Pump",
+    "description": "A source-switched charge pump circuit for a phase-locked loop (PLL). It uses UP and DOWN signals to steer current into or out of the loop filter, utilizing replica biasing to match the voltage drops of the input switches.",
+    "node_mapping": {
+      "input": [
+        "UP_BAR",
+        "DOWN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 700-kHz Bandwidth Fractional Synthesizer With Spurs Compensation and Linearization Techniques for WCDMA Applications",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "I_up": {
+      "description": "UP current sourced to the output when UP_BAR is active (high).",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vov_nmos = 0.75 - 0.42 = 0.33V. I_bias ~ 120uA. Due to the missing driver voltage drop on UP_BAR in the ideal testbench, the Vsg of the UP PMOS (XM6) is higher than its replica bias (XM7), leading to a higher I_up ~ 186uA.",
+        "range": {
+          "min": "100u",
+          "typical": "186u",
+          "max": "250u",
+          "unit": "A"
+        },
+        "reasoning": "Calculated using the square law with SKY130 parameters, accounting for the replica bias mismatch when driven by an ideal voltage source."
+      },
+      "importance": "essential"
+    },
+    "I_down": {
+      "description": "DOWN current sunk from the output when DOWN is active (high).",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vov_nmos = 0.75 - 0.42 = 0.33V. With source degeneration from the switch (XM5), effective Vov ~ 0.3V. I_down = 0.5 * 270u * 10 * 0.3^2 = 121uA.",
+        "range": {
+          "min": "100u",
+          "typical": "120u",
+          "max": "150u",
+          "unit": "A"
+        },
+        "reasoning": "Calculated using the square law with SKY130 parameters."
+      },
+      "importance": "essential"
+    },
+    "Current_Mismatch": {
+      "description": "Percentage difference between UP and DOWN currents.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "abs(186u - 120u) / 153u * 100 = 43%",
+        "range": {
+          "min": "0",
+          "typical": "43",
+          "max": "60",
+          "unit": "%"
+        },
+        "reasoning": "High mismatch is expected in this specific testbench setup because the ideal UP_BAR source lacks the voltage drop that the replica bias circuit (XM2) is designed to compensate for."
+      },
+      "importance": "essential"
+    },
+    "Leakage_Current": {
+      "description": "Current at the output when both UP and DOWN are inactive.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Transistors are in cutoff.",
+        "range": {
+          "min": "-1n",
+          "typical": "0",
+          "max": "1n",
+          "unit": "A"
+        },
+        "reasoning": "Subthreshold leakage in SKY130."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total power consumed by the charge pump.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "28 mW (whole synthesizer)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Static bias current ~120uA. Active current ~150uA. Average current ~150uA. Power = 150uA * 1.8V = 0.27mW.",
+        "range": {
+          "min": "0.1m",
+          "typical": "0.3m",
+          "max": "1m",
+          "unit": "W"
+        },
+        "reasoning": "Based on bias currents and 1.8V supply."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures UP/DOWN currents, leakage, power, and output compliance range using Transient and DC analyses. A 0V source is added to fix a floating node (N1 to N3) caused by a missing connection in the extracted netlist.",
+    "analyses": [
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "I_up",
+      "I_down",
+      "Current_Mismatch",
+      "Leakage_Current",
+      "Power_Consumption"
+    ],
+    "spice": "* Charge Pump Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 N3 UP_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N7 GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 OUT N2 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 N0 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N5 DOWN GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 OUT N3 UP_BAR VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N1 N3 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N8 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N1 N2 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N6 GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\n\n* Fix floating node (connect N1 to N3 to close the current mirror diode connection)\nVfix N1 N3 0\n\nVVDD VDD 0 1.8\nVBIAS N2 0 0.75\nVOUT OUT 0 0.9\n\nVUP UP_BAR 0 dc 0 pulse(0 1.8 10n 1n 1n 30n 100n)\nVDOWN DOWN 0 dc 0 pulse(0 1.8 60n 1n 1n 30n 100n)\n\n.control\n  * 1. Transient Analysis for Currents and Power\n  tran 1n 100n\n  meas tran i_up_raw avg i(VOUT) from=20n to=30n\n  meas tran i_down_raw avg i(VOUT) from=70n to=80n\n  meas tran i_leak avg i(VOUT) from=2n to=8n\n  meas tran pwr_avg avg i(VVDD) from=0 to=100n\n  \n  let i_up = i_up_raw\n  let i_down = -i_down_raw\n  let i_avg = (i_up + i_down) / 2\n  let mismatch = abs(i_up - i_down) / i_avg * 100\n  let power = -pwr_avg * 1.8\n  print i_up i_down mismatch i_leak power\n\n  * 2. DC Sweep for UP compliance\n  alter VUP 1.8\n  alter VDOWN 0\n  dc VOUT 0 1.8 0.01\n  meas dc i_up_0v4 find i(VOUT) at=0.4\n  meas dc i_up_0v9 find i(VOUT) at=0.9\n  meas dc i_up_1v4 find i(VOUT) at=1.4\n  \n  * 3. DC Sweep for DOWN compliance\n  alter VUP 0\n  alter VDOWN 1.8\n  dc VOUT 0 1.8 0.01\n  meas dc i_down_0v4 find i(VOUT) at=0.4\n  meas dc i_down_0v9 find i(VOUT) at=0.9\n  meas dc i_down_1v4 find i(VOUT) at=1.4\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Charge Pump\",\n    \"description\": \"A source-switched charge pump circuit for a phase-locked loop (PLL). It uses UP and DOWN signals to steer current into or out of the loop filter, utilizing replica biasing to match the voltage drops of the input switches.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"UP_BAR\",\n        \"DOWN\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 700-kHz Bandwidth Fractional Synthesizer With Spurs Compensation and Linearization Techniques for WCDMA Applications\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"I_up\": {\n      \"description\": \"UP current sourced to the output when UP_BAR is active (high).\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vov_nmos = 0.75 - 0.42 = 0.33V. I_bias ~ 120uA. Due to the missing driver voltage drop on UP_BAR in the ideal testbench, the Vsg of the UP PMOS (XM6) is higher than its replica bias (XM7), leading to a higher I_up ~ 186uA.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"186u\",\n          \"max\": \"250u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Calculated using the square law with SKY130 parameters, accounting for the replica bias mismatch when driven by an ideal voltage source.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_down\": {\n      \"description\": \"DOWN current sunk from the output when DOWN is active (high).\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vov_nmos = 0.75 - 0.42 = 0.33V. With source degeneration from the switch (XM5), effective Vov ~ 0.3V. I_down = 0.5 * 270u * 10 * 0.3^2 = 121uA.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"120u\",\n          \"max\": \"150u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Calculated using the square law with SKY130 parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Current_Mismatch\": {\n      \"description\": \"Percentage difference between UP and DOWN currents.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"abs(186u - 120u) / 153u * 100 = 43%\",\n        \"range\": {\n          \"min\": \"0\",\n          \"typical\": \"43\",\n          \"max\": \"60\",\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"High mismatch is expected in this specific testbench setup because the ideal UP_BAR source lacks the voltage drop that the replica bias circuit (XM2) is designed to compensate for.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Leakage_Current\": {\n      \"description\": \"Current at the output when both UP and DOWN are inactive.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Transistors are in cutoff.\",\n        \"range\": {\n          \"min\": \"-1n\",\n          \"typical\": \"0\",\n          \"max\": \"1n\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Subthreshold leakage in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total power consumed by the charge pump.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"28 mW (whole synthesizer)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static bias current ~120uA. Active current ~150uA. Average current ~150uA. Power = 150uA * 1.8V = 0.27mW.\",\n        \"range\": {\n          \"min\": \"0.1m\",\n          \"typical\": \"0.3m\",\n          \"max\": \"1m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on bias currents and 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures UP/DOWN currents, leakage, power, and output compliance range using Transient and DC analyses. A 0V source is added to fix a floating node (N1 to N3) caused by a missing connection in the extracted netlist.\",\n    \"analyses\": [\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"I_up\",\n      \"I_down\",\n      \"Current_Mismatch\",\n      \"Leakage_Current\",\n      \"Power_Consumption\"\n    ],\n    \"spice\": \"* Charge Pump Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 N3 UP_BAR VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N7 GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 OUT N2 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 N0 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N5 DOWN GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 OUT N3 UP_BAR VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N1 N3 N7 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N8 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N1 N2 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N6 GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Fix floating node (connect N1 to N3 to close the current mirror diode connection)\\nVfix N1 N3 0\\n\\nVVDD VDD 0 1.8\\nVBIAS N2 0 0.75\\nVOUT OUT 0 0.9\\n\\nVUP UP_BAR 0 dc 0 pulse(0 1.8 10n 1n 1n 30n 100n)\\nVDOWN DOWN 0 dc 0 pulse(0 1.8 60n 1n 1n 30n 100n)\\n\\n.control\\n  * 1. Transient Analysis for Currents and Power\\n  tran 1n 100n\\n  meas tran i_up_raw avg i(VOUT) from=20n to=30n\\n  meas tran i_down_raw avg i(VOUT) from=70n to=80n\\n  meas tran i_leak avg i(VOUT) from=2n to=8n\\n  meas tran pwr_avg avg i(VVDD) from=0 to=100n\\n  \\n  let i_up = i_up_raw\\n  let i_down = -i_down_raw\\n  let i_avg = (i_up + i_down) / 2\\n  let mismatch = abs(i_up - i_down) / i_avg * 100\\n  let power = -pwr_avg * 1.8\\n  print i_up i_down mismatch i_leak power\\n\\n  * 2. DC Sweep for UP compliance\\n  alter VUP 1.8\\n  alter VDOWN 0\\n  dc VOUT 0 1.8 0.01\\n  meas dc i_up_0v4 find i(VOUT) at=0.4\\n  meas dc i_up_0v9 find i(VOUT) at=0.9\\n  meas dc i_up_1v4 find i(VOUT) at=1.4\\n  \\n  * 3. DC Sweep for DOWN compliance\\n  alter VUP 0\\n  alter VDOWN 1.8\\n  dc VOUT 0 1.8 0.01\\n  meas dc i_down_0v4 find i(VOUT) at=0.4\\n  meas dc i_down_0v9 find i(VOUT) at=0.9\\n  meas dc i_down_1v4 find i(VOUT) at=1.4\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1327741",
+  "_case": "1327741_image_6"
+}

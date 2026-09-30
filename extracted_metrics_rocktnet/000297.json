@@ -1,0 +1,138 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascode LNA and Double-Balanced Mixer",
+    "description": "The circuit consists of a single-ended cascode Low Noise Amplifier (LNA) and a double-balanced Gilbert cell mixer. The LNA provides initial RF amplification, while the mixer downconverts the RF signal to an IF frequency using a differential LO.",
+    "node_mapping": {
+      "input": [
+        "VIN",
+        "N5",
+        "N2",
+        "VLO_P",
+        "VLO_N"
+      ],
+      "output": [
+        "N6",
+        "VIF_P",
+        "VIF_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VB1"
+      ],
+      "ground": [
+        "GND",
+        "N8",
+        "N9",
+        "N12"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Low-Power 2.4-GHz Transmitter/Receiver CMOS IC",
+      "figure": "Schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "lna_voltage_gain": {
+      "description": "Voltage gain of the cascode LNA at 2.4 GHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "41 dB (total receiver gain)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id \u2248 195uA at Vgs=0.8V. Gm = 2*Id/Vov = 1.02mS. With 2kOhm load, Gain = Gm*Rload = 2.04 V/V = 6.2 dB.",
+        "range": {
+          "min": 4,
+          "typical": 6.2,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Depends on the chosen load resistor and bias current. 2kOhm load gives ~6 dB gain while keeping transistors in saturation."
+      },
+      "importance": "essential"
+    },
+    "mixer_conversion_gain": {
+      "description": "Voltage conversion gain of the double-balanced mixer (2.4 GHz RF to 800 MHz IF).",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "41 dB (total receiver gain)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gc = (2/pi) * Gm * Rload. Gm = 1.02mS, Rload = 2kOhm. Gc = 0.636 * 1.02m * 2k = 1.3 V/V = 2.2 dB.",
+        "range": {
+          "min": 0,
+          "typical": 2.2,
+          "max": 5,
+          "unit": "dB"
+        },
+        "reasoning": "Conversion gain is lower than LNA gain due to the 2/pi factor of the switching quad."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Noise figure of the LNA at 2.4 GHz with a 50 ohm source.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "6 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "NF = 10*log10(1 + gamma * gm * Rsrc). For short channel, gamma ~ 2. gm = 1.02mS. NF ~ 10*log10(1 + 2 * 1.02m * 50) = 10*log10(1.1) = 0.4 dB (intrinsic). With parasitics, ~3 dB.",
+        "range": {
+          "min": 1,
+          "typical": 3,
+          "max": 6,
+          "unit": "dB"
+        },
+        "reasoning": "The core LNA will have a lower NF than the entire receiver reported in the paper (6 dB)."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the LNA and Mixer cores.",
+      "unit": "mW",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "17.5 mW (entire receiver)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "3 branches (LNA + 2 Mixer RF) * 195uA = 585uA. Power = 585uA * 1.8V = 1.05 mW.",
+        "range": {
+          "min": 0.5,
+          "typical": 1.05,
+          "max": 2.0,
+          "unit": "mW"
+        },
+        "reasoning": "Core power is a fraction of the total receiver power, which includes LO buffers and baseband filters."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure LNA voltage gain, LNA noise figure, mixer conversion gain, and power consumption.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Noise",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "lna_voltage_gain",
+      "noise_figure",
+      "mixer_conversion_gain"
+    ],
+    "spice": "* Testbench for LNA and Mixer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\n* DUT\nXM3 N4 N5 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM1 N13 VIN N9 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM7 VIF_P VLO_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM2 N6 VB1 N13 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM4 N1 N2 N12 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VIF_P VLO_P N4 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 VIF_N VLO_N N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM8 VIF_N VLO_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\n* Supply\nVVDD VDD 0 1.8\n\n* LNA Input with 50 ohm source\nRsrc VIN_src VIN 50\nVVIN VIN_src 0 DC 0.8 AC 1 SIN(0.8 0.01 2.4G 0 0)\nVVB1 VB1 0 DC 1.4\n\n* Ground connections for sources\nVN8 N8 0 0\nVN9 N9 0 0\nVN12 N12 0 0\n\n* Mixer RF Inputs\nVRF_P N5 0 DC 0.8 SIN(0.8 0.01 2.4G 0 0)\nVRF_N N2 0 DC 0.8 SIN(0.8 -0.01 2.4G 0 0)\n\n* Mixer LO Inputs\nVLO_P VLO_P 0 DC 1.4 SIN(1.4 0.4 1.6G 0 0)\nVLO_N VLO_N 0 DC 1.4 SIN(1.4 -0.4 1.6G 0 0)\n\n* Loads\nRLNA N6 VDD 2k\nRIFP VIF_P VDD 2k\nRIFN VIF_N VDD 2k\n\n* IF Filter Capacitors\nCIFP VIF_P 0 100f\nCIFN VIF_N 0 100f\n\n* Behavioral source for differential IF\nB1 IF_DIFF 0 V='V(VIF_P)-V(VIF_N)'\n\n.control\n* 1. DC Operating Point and Power\nop\nlet total_current = -i(VVDD)\nlet power_mw = total_current * 1.8 * 1000\nprint power_mw\n\n* 2. AC Analysis for LNA Gain\nac dec 10 100M 10G\nmeas ac lna_gain_2_4G find vdb(N6) at=2.4G\nprint lna_gain_2_4G\n\n* 3. Noise Analysis for LNA\nnoise V(N6) VVIN dec 10 1G 3G\nsetplot noise1\nmeas noise inoise_2_4G find inoise_spectrum at=2.4G\nlet nf_db = 20 * log10(inoise_2_4G / 0.91e-9)\nprint nf_db\n\n* 4. Transient Analysis for Mixer Conversion Gain\ntran 10p 20n\nmeas tran if_max max V(IF_DIFF) from=10n to=20n\nmeas tran if_min min V(IF_DIFF) from=10n to=20n\nlet if_p2p = if_max - if_min\nlet if_amp = if_p2p / 2\nlet rf_amp = 0.02\nlet conv_gain = if_amp / rf_amp\nlet conv_gain_db = 20 * log10(conv_gain)\nprint conv_gain_db\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascode LNA and Double-Balanced Mixer\",\n    \"description\": \"The circuit consists of a single-ended cascode Low Noise Amplifier (LNA) and a double-balanced Gilbert cell mixer. The LNA provides initial RF amplification, while the mixer downconverts the RF signal to an IF frequency using a differential LO.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VIN\",\n        \"N5\",\n        \"N2\",\n        \"VLO_P\",\n        \"VLO_N\"\n      ],\n      \"output\": [\n        \"N6\",\n        \"VIF_P\",\n        \"VIF_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VB1\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N8\",\n        \"N9\",\n        \"N12\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Low-Power 2.4-GHz Transmitter/Receiver CMOS IC\",\n      \"figure\": \"Schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"lna_voltage_gain\": {\n      \"description\": \"Voltage gain of the cascode LNA at 2.4 GHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"41 dB (total receiver gain)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id \u2248 195uA at Vgs=0.8V. Gm = 2*Id/Vov = 1.02mS. With 2kOhm load, Gain = Gm*Rload = 2.04 V/V = 6.2 dB.\",\n        \"range\": {\n          \"min\": 4,\n          \"typical\": 6.2,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on the chosen load resistor and bias current. 2kOhm load gives ~6 dB gain while keeping transistors in saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"mixer_conversion_gain\": {\n      \"description\": \"Voltage conversion gain of the double-balanced mixer (2.4 GHz RF to 800 MHz IF).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"41 dB (total receiver gain)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gc = (2/pi) * Gm * Rload. Gm = 1.02mS, Rload = 2kOhm. Gc = 0.636 * 1.02m * 2k = 1.3 V/V = 2.2 dB.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 2.2,\n          \"max\": 5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Conversion gain is lower than LNA gain due to the 2/pi factor of the switching quad.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Noise figure of the LNA at 2.4 GHz with a 50 ohm source.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"6 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NF = 10*log10(1 + gamma * gm * Rsrc). For short channel, gamma ~ 2. gm = 1.02mS. NF ~ 10*log10(1 + 2 * 1.02m * 50) = 10*log10(1.1) = 0.4 dB (intrinsic). With parasitics, ~3 dB.\",\n        \"range\": {\n          \"min\": 1,\n          \"typical\": 3,\n          \"max\": 6,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The core LNA will have a lower NF than the entire receiver reported in the paper (6 dB).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the LNA and Mixer cores.\",\n      \"unit\": \"mW\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"17.5 mW (entire receiver)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"3 branches (LNA + 2 Mixer RF) * 195uA = 585uA. Power = 585uA * 1.8V = 1.05 mW.\",\n        \"range\": {\n          \"min\": 0.5,\n          \"typical\": 1.05,\n          \"max\": 2.0,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"Core power is a fraction of the total receiver power, which includes LO buffers and baseband filters.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure LNA voltage gain, LNA noise figure, mixer conversion gain, and power consumption.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Noise\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"lna_voltage_gain\",\n      \"noise_figure\",\n      \"mixer_conversion_gain\"\n    ],\n    \"spice\": \"* Testbench for LNA and Mixer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\n* DUT\\nXM3 N4 N5 N8 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM1 N13 VIN N9 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM7 VIF_P VLO_N N1 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM2 N6 VB1 N13 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM4 N1 N2 N12 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VIF_P VLO_P N4 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 VIF_N VLO_N N4 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM8 VIF_N VLO_P N1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* Supply\\nVVDD VDD 0 1.8\\n\\n* LNA Input with 50 ohm source\\nRsrc VIN_src VIN 50\\nVVIN VIN_src 0 DC 0.8 AC 1 SIN(0.8 0.01 2.4G 0 0)\\nVVB1 VB1 0 DC 1.4\\n\\n* Ground connections for sources\\nVN8 N8 0 0\\nVN9 N9 0 0\\nVN12 N12 0 0\\n\\n* Mixer RF Inputs\\nVRF_P N5 0 DC 0.8 SIN(0.8 0.01 2.4G 0 0)\\nVRF_N N2 0 DC 0.8 SIN(0.8 -0.01 2.4G 0 0)\\n\\n* Mixer LO Inputs\\nVLO_P VLO_P 0 DC 1.4 SIN(1.4 0.4 1.6G 0 0)\\nVLO_N VLO_N 0 DC 1.4 SIN(1.4 -0.4 1.6G 0 0)\\n\\n* Loads\\nRLNA N6 VDD 2k\\nRIFP VIF_P VDD 2k\\nRIFN VIF_N VDD 2k\\n\\n* IF Filter Capacitors\\nCIFP VIF_P 0 100f\\nCIFN VIF_N 0 100f\\n\\n* Behavioral source for differential IF\\nB1 IF_DIFF 0 V='V(VIF_P)-V(VIF_N)'\\n\\n.control\\n* 1. DC Operating Point and Power\\nop\\nlet total_current = -i(VVDD)\\nlet power_mw = total_current * 1.8 * 1000\\nprint power_mw\\n\\n* 2. AC Analysis for LNA Gain\\nac dec 10 100M 10G\\nmeas ac lna_gain_2_4G find vdb(N6) at=2.4G\\nprint lna_gain_2_4G\\n\\n* 3. Noise Analysis for LNA\\nnoise V(N6) VVIN dec 10 1G 3G\\nsetplot noise1\\nmeas noise inoise_2_4G find inoise_spectrum at=2.4G\\nlet nf_db = 20 * log10(inoise_2_4G / 0.91e-9)\\nprint nf_db\\n\\n* 4. Transient Analysis for Mixer Conversion Gain\\ntran 10p 20n\\nmeas tran if_max max V(IF_DIFF) from=10n to=20n\\nmeas tran if_min min V(IF_DIFF) from=10n to=20n\\nlet if_p2p = if_max - if_min\\nlet if_amp = if_p2p / 2\\nlet rf_amp = 0.02\\nlet conv_gain = if_amp / rf_amp\\nlet conv_gain_db = 20 * log10(conv_gain)\\nprint conv_gain_db\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1175496",
+  "_case": "1175496_image_4"
+}

@@ -1,0 +1,202 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 24.8 and Fig 24.9",
+    "page": "778, 779",
+    "circuit_type": "Two-stage operational amplifier with Miller compensation",
+    "description": "A two-stage CMOS op-amp with a differential input stage, a common-source second stage, and Miller compensation (Cc and Rz). Figure 24.9 shows the specific AC open-loop testbench configuration using a large RC feedback network to maintain DC bias, which perfectly matches the C1 (10uF) and R1 (100Meg) in the netlist."
+  },
+  "step2_metrics": {
+    "power_dissipation": {
+      "description": "Total DC power dissipated by the op-amp.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "775",
+        "reference": "Power Dissipation section"
+      },
+      "equation": {
+        "formula": "P = (I_M6 + I_M8 + I_bias) * VDD",
+        "explanation": "Sum of all branch currents supplied by the constant current sources multiplied by the supply voltage.",
+        "assumptions": "Assumes static DC operation."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming typical bias currents of 10uA to 20uA per branch, and ~5-8 branches total including the bias network. I_total ~ 100uA. P = 100uA * 1.8V = 180uW.",
+        "range": {
+          "min": "50u",
+          "typical": "180u",
+          "max": "500u",
+          "unit": "W"
+        },
+        "reasoning": "Depends heavily on the parameterized W/L values and resulting bias currents in SUB_1."
+      },
+      "importance": "essential"
+    },
+    "open_loop_gain": {
+      "description": "Low-frequency open-loop voltage gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "778",
+        "reference": "Text below Fig 24.7"
+      },
+      "equation": {
+        "formula": "A_OL = gm1 * R1 * gm2 * R2",
+        "explanation": "Product of the gains of the first stage (gm1*R1) and second stage (gm2*R2).",
+        "assumptions": "R1 = ron || rop, R2 = rop || rocasn."
+      },
+      "sky130_expected": {
+        "calculation": "gm1 ~ 200uA/V, R1 ~ 500kOhm -> A1 ~ 100 V/V. gm2 ~ 300uA/V, R2 ~ 500kOhm -> A2 ~ 150 V/V. A_OL = 100 * 150 = 15000 V/V = 83.5 dB.",
+        "range": {
+          "min": "60",
+          "typical": "80",
+          "max": "100",
+          "unit": "dB"
+        },
+        "reasoning": "Typical two-stage op-amp gains in 130nm are 60-90 dB depending on channel lengths and bias currents."
+      },
+      "importance": "essential"
+    },
+    "dominant_pole_f1": {
+      "description": "The -3dB frequency of the open-loop response.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "778",
+        "reference": "Equation for f1"
+      },
+      "equation": {
+        "formula": "f1 = 1 / (2 * pi * gm2 * R1 * R2 * Cc)",
+        "explanation": "Pole formed by the Miller-multiplied compensation capacitor at the output of the first stage.",
+        "assumptions": "Assumes Miller effect dominates the node 1 capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "f1 = 1 / (2 * pi * 300u * 500k * 500k * 100f) = 1 / (2 * pi * 7.5e-6) = 21.2 kHz.",
+        "range": {
+          "min": "1k",
+          "typical": "20k",
+          "max": "100k",
+          "unit": "Hz"
+        },
+        "reasoning": "With Cc=100fF, the pole is relatively high. If Cc is increased to 2.4pF (as suggested later in the text), f1 drops to ~1kHz."
+      },
+      "importance": "essential"
+    },
+    "second_pole_f2": {
+      "description": "The second pole frequency, located at the output node.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "779",
+        "reference": "Equation for f2"
+      },
+      "equation": {
+        "formula": "f2 = gm2 * Cc / (2 * pi * (Cc*C1 + C1*C2 + Cc*C2))",
+        "explanation": "High frequency pole at the output node, dependent on load and compensation caps.",
+        "assumptions": "Derived from the generic two-stage model."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming C1~20fF, C2~100fF, Cc=100fF. Denom ~ 2*pi*(2000 + 2000 + 10000)e-30 = 2*pi*14e-27. f2 ~ 300u * 100f / (2*pi*14e-27) -> roughly 340 MHz.",
+        "range": {
+          "min": "100M",
+          "typical": "300M",
+          "max": "1G",
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on parasitic capacitances C1 and load C2."
+      },
+      "importance": "recommended"
+    },
+    "unity_gain_frequency_fun": {
+      "description": "Frequency where the open-loop gain crosses 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "780",
+        "reference": "Eq 24.10"
+      },
+      "equation": {
+        "formula": "fun = gm1 / (2 * pi * Cc)",
+        "explanation": "Gain-bandwidth product, determined by input transconductance and compensation capacitor.",
+        "assumptions": "Assumes single-pole roll-off up to fun."
+      },
+      "sky130_expected": {
+        "calculation": "fun = 200uA/V / (2 * pi * 100fF) = 318 MHz.",
+        "range": {
+          "min": "50M",
+          "typical": "300M",
+          "max": "1G",
+          "unit": "Hz"
+        },
+        "reasoning": "With a small 100fF Cc, fun is very high, likely causing instability as noted in the text."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase shift above -180 degrees at the unity-gain frequency.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "source": {
+        "page": "781",
+        "reference": "Gain and Phase Margins section"
+      },
+      "equation": {
+        "formula": "PM = 180 + Phase(fun)",
+        "explanation": "Measures stability. A PM > 45 is typically required, 60-90 is ideal.",
+        "assumptions": "Measured in open-loop configuration."
+      },
+      "sky130_expected": {
+        "calculation": "With Cc=100fF, fun is near or above f2, so phase will be close to or past -180. PM < 0 (unstable).",
+        "range": {
+          "min": "-45",
+          "typical": "0",
+          "max": "90",
+          "unit": "degrees"
+        },
+        "reasoning": "The text explicitly states that with 100fF the op-amp is unstable (Fig 24.10). Increasing Cc to 2.4pF improves PM."
+      },
+      "importance": "essential"
+    },
+    "gain_margin": {
+      "description": "Amount of gain below 0 dB when the phase hits -180 degrees.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "781",
+        "reference": "Gain and Phase Margins section"
+      },
+      "equation": {
+        "formula": "GM = 0 - Gain(f_180)",
+        "explanation": "Measures how much the gain can increase before the system becomes unstable.",
+        "assumptions": "Measured in open-loop configuration."
+      },
+      "sky130_expected": {
+        "calculation": "For the unstable 100fF case, GM will be negative. For a compensated case, GM ~ 10-25 dB.",
+        "range": {
+          "min": "-20",
+          "typical": "15",
+          "max": "30",
+          "unit": "dB"
+        },
+        "reasoning": "Depends on the compensation capacitor and zero-nulling resistor."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, open-loop gain, bandwidth, unity-gain frequency, phase margin, and gain margin using the large RC feedback method from Fig 24.9.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "power_dissipation",
+      "open_loop_gain",
+      "dominant_pole_f1",
+      "unity_gain_frequency_fun",
+      "phase_margin",
+      "gain_margin"
+    ],
+    "spice": "* Op-Amp Open-Loop AC Testbench (Fig 24.9)\n.lib ${SKY130_PDK} tt\n\n* Define parameters for the parameterized netlist\n.param W_xm1=10 L_xm1=1\n.param W_xm2=10 L_xm2=1\n.param W_xm3=20 L_xm3=1\n.param W_xm4=20 L_xm4=1\n.param W_xm6t=10 L_xm6t=1\n.param W_xm6b=10 L_xm6b=1\n.param W_xm7=40 L_xm7=1\n.param W_xm8t=10 L_xm8t=1\n.param W_xm8b=10 L_xm8b=1\n.param W_xmsu1=10 L_xmsu1=1\n.param W_xmsu2=20 L_xmsu2=1\n.param W_xmsu3=10 L_xmsu3=1\n.param W_xmsu4=10 L_xmsu4=1\n.param W_xma1=20 L_xma1=1\n.param W_xma2=20 L_xma2=1\n.param W_xma3=20 L_xma3=1\n.param W_xma4=20 L_xma4=1\n.param W_xma5=20 L_xma5=1\n.param W_xma6=20 L_xma6=1\n.param W_xma7=20 L_xma7=1\n.param W_xma8=20 L_xma8=1\n.param W_xma9=20 L_xma9=1\n.param W_xma10=20 L_xma10=1\n.param W_xma11=20 L_xma11=1\n.param W_xma12=20 L_xma12=1\n.param W_xm5=10 L_xm5=1\n.param W_xm6=10 L_xm6=1\n.param W_xm8=10 L_xm8=1\n.param W_xm9=10 L_xm9=1\n.param W_xm10=10 L_xm10=1\n.param W_xm11=10 L_xm11=1\n.param W_xm12=10 L_xm12=1\n.param W_xm13=10 L_xm13=1\n.param W_xm14=10 L_xm14=1\n.param W_xm15=10 L_xm15=1\n.param W_xm16=10 L_xm16=1\n.param W_xm17=10 L_xm17=1\n.param W_xm18=10 L_xm18=1\n\n* Power supplies\nVdd VDD 0 1.8\n\n* Input stimulus (DC bias + AC for open loop)\n* DC bias is 0.9V (mid-supply for 1.8V)\nVp vp 0 dc 0.9 ac 1\n\n* --- Paste DUT Netlist Here ---\nxm2 N002 vp N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 N001 vm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nxm6t N004 Vbias3 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\nxm6b N005 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\nxm7 vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8t vout Vbias3 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm8t} l={L_xm8t}\nxm8b N006 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8b} l={L_xm8b}\nC1 vm 0 1e-05\nR1 vm vout 100000000.0\nCc vout N003 1e-13\nC3 vout 0 1e-13\nRz N002 N003 1.0\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n* ---------------------------\n\n.control\n  * 1. DC Operating Point for Power\n  op\n  let power_dissipation = -i(Vdd) * 1.8\n  print power_dissipation\n\n  * 2. AC Analysis for Frequency Response\n  ac dec 100 1 1G\n  let gain_db = vdb(vout)\n  let phase_deg = 180/PI * cph(v(vout))\n\n  * Measure Open-Loop Gain (at 1 Hz)\n  meas ac aol_db find gain_db at=1\n\n  * Measure Dominant Pole (-3dB frequency)\n  let target_gain = aol_db - 3\n  meas ac f1_3db when gain_db = target_gain fall=1\n\n  * Measure Unity Gain Frequency (0dB crossing)\n  meas ac fun when gain_db = 0 fall=1\n\n  * Measure Phase Margin\n  meas ac phase_at_fun find phase_deg when gain_db = 0 fall=1\n  * Since it's a non-inverting setup, phase starts at 0 and drops.\n  * PM = phase_at_fun - (-180) = phase_at_fun + 180\n  let pm = phase_at_fun + 180\n  print pm\n\n  * Measure Gain Margin\n  meas ac gain_at_180 find gain_db when phase_deg = -180 fall=1\n  let gm = 0 - gain_at_180\n  print gm\n\n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 24.8 and Fig 24.9\",\n    \"page\": \"778, 779\",\n    \"circuit_type\": \"Two-stage operational amplifier with Miller compensation\",\n    \"description\": \"A two-stage CMOS op-amp with a differential input stage, a common-source second stage, and Miller compensation (Cc and Rz). Figure 24.9 shows the specific AC open-loop testbench configuration using a large RC feedback network to maintain DC bias, which perfectly matches the C1 (10uF) and R1 (100Meg) in the netlist.\"\n  },\n  \"step2_metrics\": {\n    \"power_dissipation\": {\n      \"description\": \"Total DC power dissipated by the op-amp.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"775\",\n        \"reference\": \"Power Dissipation section\"\n      },\n      \"equation\": {\n        \"formula\": \"P = (I_M6 + I_M8 + I_bias) * VDD\",\n        \"explanation\": \"Sum of all branch currents supplied by the constant current sources multiplied by the supply voltage.\",\n        \"assumptions\": \"Assumes static DC operation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming typical bias currents of 10uA to 20uA per branch, and ~5-8 branches total including the bias network. I_total ~ 100uA. P = 100uA * 1.8V = 180uW.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"180u\",\n          \"max\": \"500u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends heavily on the parameterized W/L values and resulting bias currents in SUB_1.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"open_loop_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"778\",\n        \"reference\": \"Text below Fig 24.7\"\n      },\n      \"equation\": {\n        \"formula\": \"A_OL = gm1 * R1 * gm2 * R2\",\n        \"explanation\": \"Product of the gains of the first stage (gm1*R1) and second stage (gm2*R2).\",\n        \"assumptions\": \"R1 = ron || rop, R2 = rop || rocasn.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm1 ~ 200uA/V, R1 ~ 500kOhm -> A1 ~ 100 V/V. gm2 ~ 300uA/V, R2 ~ 500kOhm -> A2 ~ 150 V/V. A_OL = 100 * 150 = 15000 V/V = 83.5 dB.\",\n        \"range\": {\n          \"min\": \"60\",\n          \"typical\": \"80\",\n          \"max\": \"100\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical two-stage op-amp gains in 130nm are 60-90 dB depending on channel lengths and bias currents.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dominant_pole_f1\": {\n      \"description\": \"The -3dB frequency of the open-loop response.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"778\",\n        \"reference\": \"Equation for f1\"\n      },\n      \"equation\": {\n        \"formula\": \"f1 = 1 / (2 * pi * gm2 * R1 * R2 * Cc)\",\n        \"explanation\": \"Pole formed by the Miller-multiplied compensation capacitor at the output of the first stage.\",\n        \"assumptions\": \"Assumes Miller effect dominates the node 1 capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f1 = 1 / (2 * pi * 300u * 500k * 500k * 100f) = 1 / (2 * pi * 7.5e-6) = 21.2 kHz.\",\n        \"range\": {\n          \"min\": \"1k\",\n          \"typical\": \"20k\",\n          \"max\": \"100k\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"With Cc=100fF, the pole is relatively high. If Cc is increased to 2.4pF (as suggested later in the text), f1 drops to ~1kHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"second_pole_f2\": {\n      \"description\": \"The second pole frequency, located at the output node.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"779\",\n        \"reference\": \"Equation for f2\"\n      },\n      \"equation\": {\n        \"formula\": \"f2 = gm2 * Cc / (2 * pi * (Cc*C1 + C1*C2 + Cc*C2))\",\n        \"explanation\": \"High frequency pole at the output node, dependent on load and compensation caps.\",\n        \"assumptions\": \"Derived from the generic two-stage model.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming C1~20fF, C2~100fF, Cc=100fF. Denom ~ 2*pi*(2000 + 2000 + 10000)e-30 = 2*pi*14e-27. f2 ~ 300u * 100f / (2*pi*14e-27) -> roughly 340 MHz.\",\n        \"range\": {\n          \"min\": \"100M\",\n          \"typical\": \"300M\",\n          \"max\": \"1G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on parasitic capacitances C1 and load C2.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"unity_gain_frequency_fun\": {\n      \"description\": \"Frequency where the open-loop gain crosses 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"780\",\n        \"reference\": \"Eq 24.10\"\n      },\n      \"equation\": {\n        \"formula\": \"fun = gm1 / (2 * pi * Cc)\",\n        \"explanation\": \"Gain-bandwidth product, determined by input transconductance and compensation capacitor.\",\n        \"assumptions\": \"Assumes single-pole roll-off up to fun.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"fun = 200uA/V / (2 * pi * 100fF) = 318 MHz.\",\n        \"range\": {\n          \"min\": \"50M\",\n          \"typical\": \"300M\",\n          \"max\": \"1G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"With a small 100fF Cc, fun is very high, likely causing instability as noted in the text.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase shift above -180 degrees at the unity-gain frequency.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"781\",\n        \"reference\": \"Gain and Phase Margins section\"\n      },\n      \"equation\": {\n        \"formula\": \"PM = 180 + Phase(fun)\",\n        \"explanation\": \"Measures stability. A PM > 45 is typically required, 60-90 is ideal.\",\n        \"assumptions\": \"Measured in open-loop configuration.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With Cc=100fF, fun is near or above f2, so phase will be close to or past -180. PM < 0 (unstable).\",\n        \"range\": {\n          \"min\": \"-45\",\n          \"typical\": \"0\",\n          \"max\": \"90\",\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"The text explicitly states that with 100fF the op-amp is unstable (Fig 24.10). Increasing Cc to 2.4pF improves PM.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_margin\": {\n      \"description\": \"Amount of gain below 0 dB when the phase hits -180 degrees.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"781\",\n        \"reference\": \"Gain and Phase Margins section\"\n      },\n      \"equation\": {\n        \"formula\": \"GM = 0 - Gain(f_180)\",\n        \"explanation\": \"Measures how much the gain can increase before the system becomes unstable.\",\n        \"assumptions\": \"Measured in open-loop configuration.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For the unstable 100fF case, GM will be negative. For a compensated case, GM ~ 10-25 dB.\",\n        \"range\": {\n          \"min\": \"-20\",\n          \"typical\": \"15\",\n          \"max\": \"30\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends on the compensation capacitor and zero-nulling resistor.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, open-loop gain, bandwidth, unity-gain frequency, phase margin, and gain margin using the large RC feedback method from Fig 24.9.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"power_dissipation\",\n      \"open_loop_gain\",\n      \"dominant_pole_f1\",\n      \"unity_gain_frequency_fun\",\n      \"phase_margin\",\n      \"gain_margin\"\n    ],\n    \"spice\": \"* Op-Amp Open-Loop AC Testbench (Fig 24.9)\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm1=10 L_xm1=1\\n.param W_xm2=10 L_xm2=1\\n.param W_xm3=20 L_xm3=1\\n.param W_xm4=20 L_xm4=1\\n.param W_xm6t=10 L_xm6t=1\\n.param W_xm6b=10 L_xm6b=1\\n.param W_xm7=40 L_xm7=1\\n.param W_xm8t=10 L_xm8t=1\\n.param W_xm8b=10 L_xm8b=1\\n.param W_xmsu1=10 L_xmsu1=1\\n.param W_xmsu2=20 L_xmsu2=1\\n.param W_xmsu3=10 L_xmsu3=1\\n.param W_xmsu4=10 L_xmsu4=1\\n.param W_xma1=20 L_xma1=1\\n.param W_xma2=20 L_xma2=1\\n.param W_xma3=20 L_xma3=1\\n.param W_xma4=20 L_xma4=1\\n.param W_xma5=20 L_xma5=1\\n.param W_xma6=20 L_xma6=1\\n.param W_xma7=20 L_xma7=1\\n.param W_xma8=20 L_xma8=1\\n.param W_xma9=20 L_xma9=1\\n.param W_xma10=20 L_xma10=1\\n.param W_xma11=20 L_xma11=1\\n.param W_xma12=20 L_xma12=1\\n.param W_xm5=10 L_xm5=1\\n.param W_xm6=10 L_xm6=1\\n.param W_xm8=10 L_xm8=1\\n.param W_xm9=10 L_xm9=1\\n.param W_xm10=10 L_xm10=1\\n.param W_xm11=10 L_xm11=1\\n.param W_xm12=10 L_xm12=1\\n.param W_xm13=10 L_xm13=1\\n.param W_xm14=10 L_xm14=1\\n.param W_xm15=10 L_xm15=1\\n.param W_xm16=10 L_xm16=1\\n.param W_xm17=10 L_xm17=1\\n.param W_xm18=10 L_xm18=1\\n\\n* Power supplies\\nVdd VDD 0 1.8\\n\\n* Input stimulus (DC bias + AC for open loop)\\n* DC bias is 0.9V (mid-supply for 1.8V)\\nVp vp 0 dc 0.9 ac 1\\n\\n* --- Paste DUT Netlist Here ---\\nxm2 N002 vp N004 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 N001 vm N004 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nxm6t N004 Vbias3 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\\nxm6b N005 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6b} l={L_xm6b}\\nxm7 vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8t vout Vbias3 N006 0 sky130_fd_pr__nfet_01v8 w={W_xm8t} l={L_xm8t}\\nxm8b N006 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm8b} l={L_xm8b}\\nC1 vm 0 1e-05\\nR1 vm vout 100000000.0\\nCc vout N003 1e-13\\nC3 vout 0 1e-13\\nRz N002 N003 1.0\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n* ---------------------------\\n\\n.control\\n  * 1. DC Operating Point for Power\\n  op\\n  let power_dissipation = -i(Vdd) * 1.8\\n  print power_dissipation\\n\\n  * 2. AC Analysis for Frequency Response\\n  ac dec 100 1 1G\\n  let gain_db = vdb(vout)\\n  let phase_deg = 180/PI * cph(v(vout))\\n\\n  * Measure Open-Loop Gain (at 1 Hz)\\n  meas ac aol_db find gain_db at=1\\n\\n  * Measure Dominant Pole (-3dB frequency)\\n  let target_gain = aol_db - 3\\n  meas ac f1_3db when gain_db = target_gain fall=1\\n\\n  * Measure Unity Gain Frequency (0dB crossing)\\n  meas ac fun when gain_db = 0 fall=1\\n\\n  * Measure Phase Margin\\n  meas ac phase_at_fun find phase_deg when gain_db = 0 fall=1\\n  * Since it's a non-inverting setup, phase starts at 0 and drops.\\n  * PM = phase_at_fun - (-180) = phase_at_fun + 180\\n  let pm = phase_at_fun + 180\\n  print pm\\n\\n  * Measure Gain Margin\\n  meas ac gain_at_180 find gain_db when phase_deg = -180 fall=1\\n  let gm = 0 - gain_at_180\\n  print gm\\n\\n  quit\\n.endc\\n\"\n  }\n}\n```"
+}

@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "NMOS Differential Pair",
+    "description": "A basic NMOS differential pair, likely serving as an input stage, pre-amplifier, or part of a Current Mode Logic (CML) buffer in the high-speed transceiver.",
+    "node_mapping": {
+      "input": [
+        "VINP",
+        "VINN"
+      ],
+      "output": [
+        "VOUTP",
+        "VOUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "OC-192 Transmitter and Receiver in Standard 0.18-m CMOS",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Low-frequency differential voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a 1mA tail current and 1kOhm load resistors: gm = sqrt(2 * 270uA/V^2 * (5/0.5) * 0.5mA) = 1.64 mS. Gain = gm * R = 1.64 V/V = 4.3 dB.",
+        "range": {
+          "min": 2,
+          "typical": 4.3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Gain is highly dependent on the chosen load resistors and tail current in the testbench."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency at which the voltage gain drops to 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "10 Gb/s data rate implies >7 GHz bandwidth",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f_ug = gm / (2 * pi * C_out). With C_out ~ 10fF (parasitics), f_ug = 1.64mS / (2 * pi * 10fF) = 26 GHz.",
+        "range": {
+          "min": 10000000000.0,
+          "typical": 20000000000.0,
+          "max": 30000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "High-speed differential pairs in 130nm can achieve tens of GHz bandwidth with small loads, necessary for 10 Gb/s operation."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1.32 W (entire chip)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_tail = 1.8V * 1mA = 1.8 mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0018,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "A single differential pair consumes a very small fraction of the total transceiver chip power."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak differential output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With 1mA tail current fully steered, single-ended swing is 1mA * 1kOhm = 1V. Differential swing is 2V peak-to-peak.",
+        "range": {
+          "min": 0.5,
+          "typical": 1.0,
+          "max": 2.0,
+          "unit": "V"
+        },
+        "reasoning": "Depends on input amplitude and tail current steering."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for NMOS differential pair measuring gain, bandwidth, power, and transient swing. Load resistors and a tail current source are added to make the DUT functional.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_gain",
+      "unity_gain_frequency",
+      "power_consumption",
+      "output_swing"
+    ],
+    "spice": "* Testbench for NMOS Differential Pair\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmp=5u L_xmp=0.5u\n.param W_xmn=5u L_xmn=0.5u\n\n* DUT\nXMP VOUTN VINP N0 GND sky130_fd_pr__nfet_01v8 l={L_xmp} w={W_xmp}\nXMN VOUTP VINN N0 GND sky130_fd_pr__nfet_01v8 l={L_xmn} w={W_xmn}\n\n* Biasing and Loads\nVVDD VDD 0 1.8\nR1 VDD VOUTN 1k\nR2 VDD VOUTP 1k\nI1 N0 0 1m\n\n* Inputs\nVVINP VINP 0 DC 0.9 AC 0.5 SIN(0.9 0.1 100MEG 0 0)\nVVINN VINN 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 100MEG 0 0)\n\n* Differential to Single-Ended Converters for Measurement\nE_OUT VOUT_DIFF 0 VOUTP VOUTN 1\nE_IN VIN_DIFF 0 VINP VINN 1\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1MEG 100G\nlet gain_db = vdb(VOUT_DIFF)\nmeas ac gain_1m find gain_db at=1MEG\nmeas ac ugf when gain_db=0 fall=1\n\ntran 10p 20n\nmeas tran vout_diff_max MAX v(VOUT_DIFF)\nmeas tran vout_diff_min MIN v(VOUT_DIFF)\nlet swing = vout_diff_max - vout_diff_min\nprint swing\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"NMOS Differential Pair\",\n    \"description\": \"A basic NMOS differential pair, likely serving as an input stage, pre-amplifier, or part of a Current Mode Logic (CML) buffer in the high-speed transceiver.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VINP\",\n        \"VINN\"\n      ],\n      \"output\": [\n        \"VOUTP\",\n        \"VOUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"OC-192 Transmitter and Receiver in Standard 0.18-m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency differential voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a 1mA tail current and 1kOhm load resistors: gm = sqrt(2 * 270uA/V^2 * (5/0.5) * 0.5mA) = 1.64 mS. Gain = gm * R = 1.64 V/V = 4.3 dB.\",\n        \"range\": {\n          \"min\": 2,\n          \"typical\": 4.3,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain is highly dependent on the chosen load resistors and tail current in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency at which the voltage gain drops to 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"10 Gb/s data rate implies >7 GHz bandwidth\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_ug = gm / (2 * pi * C_out). With C_out ~ 10fF (parasitics), f_ug = 1.64mS / (2 * pi * 10fF) = 26 GHz.\",\n        \"range\": {\n          \"min\": 10e9,\n          \"typical\": 20e9,\n          \"max\": 30e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"High-speed differential pairs in 130nm can achieve tens of GHz bandwidth with small loads, necessary for 10 Gb/s operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1.32 W (entire chip)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_tail = 1.8V * 1mA = 1.8 mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 1.8e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"A single differential pair consumes a very small fraction of the total transceiver chip power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With 1mA tail current fully steered, single-ended swing is 1mA * 1kOhm = 1V. Differential swing is 2V peak-to-peak.\",\n        \"range\": {\n          \"min\": 0.5,\n          \"typical\": 1.0,\n          \"max\": 2.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on input amplitude and tail current steering.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for NMOS differential pair measuring gain, bandwidth, power, and transient swing. Load resistors and a tail current source are added to make the DUT functional.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_gain\",\n      \"unity_gain_frequency\",\n      \"power_consumption\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* Testbench for NMOS Differential Pair\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmp=5u L_xmp=0.5u\\n.param W_xmn=5u L_xmn=0.5u\\n\\n* DUT\\nXMP VOUTN VINP N0 GND sky130_fd_pr__nfet_01v8 l={L_xmp} w={W_xmp}\\nXMN VOUTP VINN N0 GND sky130_fd_pr__nfet_01v8 l={L_xmn} w={W_xmn}\\n\\n* Biasing and Loads\\nVVDD VDD 0 1.8\\nR1 VDD VOUTN 1k\\nR2 VDD VOUTP 1k\\nI1 N0 0 1m\\n\\n* Inputs\\nVVINP VINP 0 DC 0.9 AC 0.5 SIN(0.9 0.1 100MEG 0 0)\\nVVINN VINN 0 DC 0.9 AC -0.5 SIN(0.9 -0.1 100MEG 0 0)\\n\\n* Differential to Single-Ended Converters for Measurement\\nE_OUT VOUT_DIFF 0 VOUTP VOUTN 1\\nE_IN VIN_DIFF 0 VINP VINN 1\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1MEG 100G\\nlet gain_db = vdb(VOUT_DIFF)\\nmeas ac gain_1m find gain_db at=1MEG\\nmeas ac ugf when gain_db=0 fall=1\\n\\ntran 10p 20n\\nmeas tran vout_diff_max MAX v(VOUT_DIFF)\\nmeas tran vout_diff_min MIN v(VOUT_DIFF)\\nlet swing = vout_diff_max - vout_diff_min\\nprint swing\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1088106",
+  "_case": "1088106_image_3"
+}

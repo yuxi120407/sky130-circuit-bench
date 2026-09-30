@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single-Inductor Dual-Output (SIDO) Switching Converter",
+    "description": "A time-multiplexed switching converter that generates two independent output voltages using a single shared inductor. It operates in Discontinuous Conduction Mode (DCM) to minimize cross-regulation between the outputs.",
+    "node_mapping": {
+      "input": [
+        "Vg"
+      ],
+      "output": [
+        "Voa",
+        "Vob"
+      ],
+      "supply": [
+        "Vg"
+      ],
+      "bias": [],
+      "ground": [
+        "GND",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "Single-Inductor Multiple-Output Switching Converters With Time-Multiplexing Control in Discontinuous Conduction Mode",
+      "figure": "Generic Topology",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "efficiency": {
+      "description": "Power conversion efficiency (Pout / Pin)",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "88.4%",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Pout / Pin * 100. With Vg=1.8V, Ipk=0.64A, Pin=230mW, Pout=205mW.",
+        "range": {
+          "min": 80,
+          "typical": 88,
+          "max": 95,
+          "unit": "%"
+        },
+        "reasoning": "Depends heavily on switch ON-resistance and diode forward voltage drop. Expected to be similar to the paper's reported value."
+      },
+      "importance": "essential"
+    },
+    "output_power": {
+      "description": "Total power delivered to both loads",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "350 mW",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Pout_a + Pout_b = 2 * (0.5 * L * Ipk^2 * f)",
+        "range": {
+          "min": 0.1,
+          "typical": 0.2,
+          "max": 0.4,
+          "unit": "W"
+        },
+        "reasoning": "Scales with input voltage and chosen inductor/frequency. Tuned to ~200mW for a 1.8V input in this testbench."
+      },
+      "importance": "essential"
+    },
+    "voa_avg": {
+      "description": "Average output voltage of channel A",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3.0 V",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Voa = -sqrt(Pout_a * Roa) = -sqrt(0.1024 * 50)",
+        "range": {
+          "min": -3.0,
+          "typical": -2.26,
+          "max": -1.5,
+          "unit": "V"
+        },
+        "reasoning": "The provided netlist topology is an inverting buck-boost, so the outputs are negative. Magnitude depends on duty cycle and load."
+      },
+      "importance": "essential"
+    },
+    "voa_ripple": {
+      "description": "Peak-to-peak voltage ripple on channel A",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "dV = I_load * dt / C = 45mA * 1.5us / 10uF",
+        "range": {
+          "min": 0.001,
+          "typical": 0.007,
+          "max": 0.02,
+          "unit": "V"
+        },
+        "reasoning": "Determined by output capacitor size, load current, and switching frequency."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure steady-state output voltages, ripple, power, and efficiency of the SIDO converter.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voa_avg",
+      "vob_avg",
+      "voa_ripple",
+      "vob_ripple",
+      "Pin",
+      "Pout",
+      "efficiency"
+    ],
+    "spice": "* SIMO Converter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Switch and Diode models for DCM operation\n.model switch_model SW(vt=0.5 vh=0.1 ron=0.2 roff=1Meg)\n.model Dideal D(Is=1e-12 Rs=0.1 N=1)\n\n.subckt switch_ideal n1 n2 ctrl\nS1 n1 n2 ctrl 0 switch_model\n.ends\n\n.subckt switch_ideal_out n1 n2 ctrl\nS1 n_mid n1 ctrl 0 switch_model\nD1 n2 n_mid Dideal\n.ends\n\n* Input Source\nV1 Vg 0 dc 1.8\n\n* Original netlist adapted for ngspice syntax and DCM operation\nX1 Vg N1 ctrl1 switch_ideal\nL1 N1 0 1u\nXa N1 Voa ctrla switch_ideal_out\nXb N1 Vob ctrlb switch_ideal_out\nCoa Voa 0 10u\nRoa Voa 0 50\nCob Vob 0 10u\nRob Vob 0 50\n\n* Control signals for Time-Multiplexing (1MHz per channel -> 2us total period)\nVctrl1 ctrl1 0 PULSE(0 1 0 1n 1n 0.4u 1u)\nVctrla ctrla 0 PULSE(0 1 0.4u 1n 1n 0.5u 2u)\nVctrlb ctrlb 0 PULSE(0 1 1.4u 1n 1n 0.5u 2u)\n\n.control\ntran 10n 200u\n\n* Measure steady-state averages and ripples over the last 10us\nmeas tran Voa_avg avg v(Voa) from=190u to=200u\nmeas tran Vob_avg avg v(Vob) from=190u to=200u\nmeas tran Voa_max max v(Voa) from=190u to=200u\nmeas tran Voa_min min v(Voa) from=190u to=200u\nmeas tran Vob_max max v(Vob) from=190u to=200u\nmeas tran Vob_min min v(Vob) from=190u to=200u\nmeas tran Iin_avg avg i(V1) from=190u to=200u\n\n* Calculate metrics\nlet Voa_ripple = Voa_max - Voa_min\nlet Vob_ripple = Vob_max - Vob_min\nlet Pin = -1.8 * Iin_avg\nlet Pout_a = (Voa_avg * Voa_avg) / 50\nlet Pout_b = (Vob_avg * Vob_avg) / 50\nlet Pout = Pout_a + Pout_b\nlet efficiency = Pout / Pin * 100\n\nprint Voa_avg Vob_avg Voa_ripple Vob_ripple Pin Pout efficiency\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single-Inductor Dual-Output (SIDO) Switching Converter\",\n    \"description\": \"A time-multiplexed switching converter that generates two independent output voltages using a single shared inductor. It operates in Discontinuous Conduction Mode (DCM) to minimize cross-regulation between the outputs.\",\n    \"node_mapping\": {\n      \"input\": [\"Vg\"],\n      \"output\": [\"Voa\", \"Vob\"],\n      \"supply\": [\"Vg\"],\n      \"bias\": [],\n      \"ground\": [\"GND\", \"0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Single-Inductor Multiple-Output Switching Converters With Time-Multiplexing Control in Discontinuous Conduction Mode\",\n      \"figure\": \"Generic Topology\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"efficiency\": {\n      \"description\": \"Power conversion efficiency (Pout / Pin)\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"88.4%\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout / Pin * 100. With Vg=1.8V, Ipk=0.64A, Pin=230mW, Pout=205mW.\",\n        \"range\": { \"min\": 80, \"typical\": 88, \"max\": 95, \"unit\": \"%\" },\n        \"reasoning\": \"Depends heavily on switch ON-resistance and diode forward voltage drop. Expected to be similar to the paper's reported value.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_power\": {\n      \"description\": \"Total power delivered to both loads\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"350 mW\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout_a + Pout_b = 2 * (0.5 * L * Ipk^2 * f)\",\n        \"range\": { \"min\": 0.1, \"typical\": 0.2, \"max\": 0.4, \"unit\": \"W\" },\n        \"reasoning\": \"Scales with input voltage and chosen inductor/frequency. Tuned to ~200mW for a 1.8V input in this testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voa_avg\": {\n      \"description\": \"Average output voltage of channel A\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3.0 V\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Voa = -sqrt(Pout_a * Roa) = -sqrt(0.1024 * 50)\",\n        \"range\": { \"min\": -3.0, \"typical\": -2.26, \"max\": -1.5, \"unit\": \"V\" },\n        \"reasoning\": \"The provided netlist topology is an inverting buck-boost, so the outputs are negative. Magnitude depends on duty cycle and load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voa_ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple on channel A\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dV = I_load * dt / C = 45mA * 1.5us / 10uF\",\n        \"range\": { \"min\": 0.001, \"typical\": 0.007, \"max\": 0.02, \"unit\": \"V\" },\n        \"reasoning\": \"Determined by output capacitor size, load current, and switching frequency.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure steady-state output voltages, ripple, power, and efficiency of the SIDO converter.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"voa_avg\", \"vob_avg\", \"voa_ripple\", \"vob_ripple\", \"Pin\", \"Pout\", \"efficiency\"],\n    \"spice\": \"* SIMO Converter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Switch and Diode models for DCM operation\\n.model switch_model SW(vt=0.5 vh=0.1 ron=0.2 roff=1Meg)\\n.model Dideal D(Is=1e-12 Rs=0.1 N=1)\\n\\n.subckt switch_ideal n1 n2 ctrl\\nS1 n1 n2 ctrl 0 switch_model\\n.ends\\n\\n.subckt switch_ideal_out n1 n2 ctrl\\nS1 n_mid n1 ctrl 0 switch_model\\nD1 n2 n_mid Dideal\\n.ends\\n\\n* Input Source\\nV1 Vg 0 dc 1.8\\n\\n* Original netlist adapted for ngspice syntax and DCM operation\\nX1 Vg N1 ctrl1 switch_ideal\\nL1 N1 0 1u\\nXa N1 Voa ctrla switch_ideal_out\\nXb N1 Vob ctrlb switch_ideal_out\\nCoa Voa 0 10u\\nRoa Voa 0 50\\nCob Vob 0 10u\\nRob Vob 0 50\\n\\n* Control signals for Time-Multiplexing (1MHz per channel -> 2us total period)\\nVctrl1 ctrl1 0 PULSE(0 1 0 1n 1n 0.4u 1u)\\nVctrla ctrla 0 PULSE(0 1 0.4u 1n 1n 0.5u 2u)\\nVctrlb ctrlb 0 PULSE(0 1 1.4u 1n 1n 0.5u 2u)\\n\\n.control\\ntran 10n 200u\\n\\n* Measure steady-state averages and ripples over the last 10us\\nmeas tran Voa_avg avg v(Voa) from=190u to=200u\\nmeas tran Vob_avg avg v(Vob) from=190u to=200u\\nmeas tran Voa_max max v(Voa) from=190u to=200u\\nmeas tran Voa_min min v(Voa) from=190u to=200u\\nmeas tran Vob_max max v(Vob) from=190u to=200u\\nmeas tran Vob_min min v(Vob) from=190u to=200u\\nmeas tran Iin_avg avg i(V1) from=190u to=200u\\n\\n* Calculate metrics\\nlet Voa_ripple = Voa_max - Voa_min\\nlet Vob_ripple = Vob_max - Vob_min\\nlet Pin = -1.8 * Iin_avg\\nlet Pout_a = (Voa_avg * Voa_avg) / 50\\nlet Pout_b = (Vob_avg * Vob_avg) / 50\\nlet Pout = Pout_a + Pout_b\\nlet efficiency = Pout / Pin * 100\\n\\nprint Voa_avg Vob_avg Voa_ripple Vob_ripple Pin Pout efficiency\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1158785",
+  "_case": "1158785_image_11"
+}

@@ -1,0 +1,146 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dual-path loop filter with varactors",
+    "description": "A passive loop filter operating in the capacitance domain for a phase-locked loop (PLL). It takes current pulses from a dual-path charge pump (integral and proportional paths) and filters them to generate control voltages across varactor diodes, which tune the VCO frequency.",
+    "node_mapping": {
+      "input": [
+        "14uA",
+        "140uA"
+      ],
+      "output": [
+        "N2",
+        "N3"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND",
+        "N0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1.5-V 900-MHz Monolithic CMOS Fast-Switching Frequency Synthesizer for Wireless Applications",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total power consumption of the PLL",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "30 mW",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for passive filter",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 0,
+          "unit": "W"
+        },
+        "reasoning": "The extracted netlist is a passive loop filter, which consumes zero DC power."
+      },
+      "importance": "optional"
+    },
+    "phase_noise": {
+      "description": "Phase noise of the PLL at 600-kHz offset",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-118 dBc/Hz",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Cannot be simulated with just the loop filter netlist."
+      },
+      "importance": "optional"
+    },
+    "z_prop_dc": {
+      "description": "DC transimpedance of the proportional path",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "R1 = 153k",
+        "range": {
+          "min": 150000,
+          "typical": 153000,
+          "max": 156000,
+          "unit": "ohm"
+        },
+        "reasoning": "Determined by R1 in the netlist, as capacitors act as open circuits at DC."
+      },
+      "importance": "essential"
+    },
+    "z_int_100k": {
+      "description": "Transimpedance magnitude of the integral path at 100 kHz",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * 100kHz * (C2 + C4)) = 1 / (2 * pi * 100e3 * 93e-12)",
+        "range": {
+          "min": 16000,
+          "typical": 17115,
+          "max": 18000,
+          "unit": "ohm"
+        },
+        "reasoning": "Dominated by the parallel combination of C2 and C4 at 100 kHz."
+      },
+      "importance": "essential"
+    },
+    "z_prop_100k": {
+      "description": "Transimpedance magnitude of the proportional path at 100 kHz",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Magnitude of (1/R1 + jwC3 + 1/(R2 + 1/jwC1))^-1 at 100 kHz",
+        "range": {
+          "min": 115000,
+          "typical": 121300,
+          "max": 125000,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated from the RC network of the proportional path."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure the transimpedance of the integral and proportional paths of the loop filter.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "z_prop_dc",
+      "z_int_100k",
+      "z_prop_100k",
+      "phase_int_100k",
+      "phase_prop_100k"
+    ],
+    "spice": "* Testbench for Dual-Path PLL Loop Filter\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\nD1 N2 N0\nD2 N2 N0\nD4 N2 N0\nD3 N3 N0\nC1 N3 GND 5.2p\nC2 14uA GND 41p\nC3 140uA GND 1.7p\nR1 140uA GND 153k\nC4 N2 GND 52p\nR2 N3 140uA 51k\nR3 14uA N2 5k\n\n* Bias the VCO tank node to ground\nV_N0 N0 0 0V\n\n* Add a large resistor to prevent floating nodes on the integral path\nR_leak 14uA 0 1G\n\n* AC Current sources for the two paths\nI_int 0 14uA AC 1\nI_prop 0 140uA AC 1\n\n* Dummy diode models in case the parser requires them for D1-D4\n.model DMOD D (CJO=1p)\n.model N0 D (CJO=1p)\n\n.control\nac dec 10 10 1Meg\n\n* Integral path impedance\nlet z_int = v(14uA)\nlet z_int_mag = mag(z_int)\nlet phase_int = 180/PI * cph(z_int)\n\n* Proportional path impedance\nlet z_prop = v(140uA)\nlet z_prop_mag = mag(z_prop)\nlet phase_prop = 180/PI * cph(z_prop)\n\nmeas ac z_prop_dc find z_prop_mag at=10\nmeas ac z_int_100k find z_int_mag at=100k\nmeas ac z_prop_100k find z_prop_mag at=100k\nmeas ac phase_int_100k find phase_int at=100k\nmeas ac phase_prop_100k find phase_prop at=100k\n\nprint z_prop_dc z_int_100k z_prop_100k phase_int_100k phase_prop_100k\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dual-path loop filter with varactors\",\n    \"description\": \"A passive loop filter operating in the capacitance domain for a phase-locked loop (PLL). It takes current pulses from a dual-path charge pump (integral and proportional paths) and filters them to generate control voltages across varactor diodes, which tune the VCO frequency.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"14uA\",\n        \"140uA\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N3\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\",\n        \"N0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1.5-V 900-MHz Monolithic CMOS Fast-Switching Frequency Synthesizer for Wireless Applications\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total power consumption of the PLL\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"30 mW\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for passive filter\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 0,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The extracted netlist is a passive loop filter, which consumes zero DC power.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise of the PLL at 600-kHz offset\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-118 dBc/Hz\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"dBc/Hz\"\n        },\n        \"reasoning\": \"Cannot be simulated with just the loop filter netlist.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"z_prop_dc\": {\n      \"description\": \"DC transimpedance of the proportional path\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R1 = 153k\",\n        \"range\": {\n          \"min\": 150000,\n          \"typical\": 153000,\n          \"max\": 156000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Determined by R1 in the netlist, as capacitors act as open circuits at DC.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"z_int_100k\": {\n      \"description\": \"Transimpedance magnitude of the integral path at 100 kHz\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * 100kHz * (C2 + C4)) = 1 / (2 * pi * 100e3 * 93e-12)\",\n        \"range\": {\n          \"min\": 16000,\n          \"typical\": 17115,\n          \"max\": 18000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Dominated by the parallel combination of C2 and C4 at 100 kHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"z_prop_100k\": {\n      \"description\": \"Transimpedance magnitude of the proportional path at 100 kHz\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Magnitude of (1/R1 + jwC3 + 1/(R2 + 1/jwC1))^-1 at 100 kHz\",\n        \"range\": {\n          \"min\": 115000,\n          \"typical\": 121300,\n          \"max\": 125000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Calculated from the RC network of the proportional path.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure the transimpedance of the integral and proportional paths of the loop filter.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"z_prop_dc\",\n      \"z_int_100k\",\n      \"z_prop_100k\",\n      \"phase_int_100k\",\n      \"phase_prop_100k\"\n    ],\n    \"spice\": \"* Testbench for Dual-Path PLL Loop Filter\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\nD1 N2 N0\\nD2 N2 N0\\nD4 N2 N0\\nD3 N3 N0\\nC1 N3 GND 5.2p\\nC2 14uA GND 41p\\nC3 140uA GND 1.7p\\nR1 140uA GND 153k\\nC4 N2 GND 52p\\nR2 N3 140uA 51k\\nR3 14uA N2 5k\\n\\n* Bias the VCO tank node to ground\\nV_N0 N0 0 0V\\n\\n* Add a large resistor to prevent floating nodes on the integral path\\nR_leak 14uA 0 1G\\n\\n* AC Current sources for the two paths\\nI_int 0 14uA AC 1\\nI_prop 0 140uA AC 1\\n\\n* Dummy diode models in case the parser requires them for D1-D4\\n.model DMOD D (CJO=1p)\\n.model N0 D (CJO=1p)\\n\\n.control\\nac dec 10 10 1Meg\\n\\n* Integral path impedance\\nlet z_int = v(14uA)\\nlet z_int_mag = mag(z_int)\\nlet phase_int = 180/PI * cph(z_int)\\n\\n* Proportional path impedance\\nlet z_prop = v(140uA)\\nlet z_prop_mag = mag(z_prop)\\nlet phase_prop = 180/PI * cph(z_prop)\\n\\nmeas ac z_prop_dc find z_prop_mag at=10\\nmeas ac z_int_100k find z_int_mag at=100k\\nmeas ac z_prop_100k find z_prop_mag at=100k\\nmeas ac phase_int_100k find phase_int at=100k\\nmeas ac phase_prop_100k find phase_prop at=100k\\n\\nprint z_prop_dc z_int_100k z_prop_100k phase_int_100k phase_prop_100k\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "991384",
+  "_case": "991384_image_6"
+}

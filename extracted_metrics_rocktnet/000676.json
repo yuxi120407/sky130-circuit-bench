@@ -1,0 +1,159 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential OTA with Continuous-Time CMFB",
+    "description": "A single-stage fully differential operational transconductance amplifier (OTA) core. It features a PMOS input differential pair, cascoded NMOS current source loads, and an integrated continuous-time common-mode feedback (CMFB) circuit to stabilize the output common-mode voltage.",
+    "node_mapping": {
+      "input": [
+        "N6",
+        "N7"
+      ],
+      "output": [
+        "N3",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_3",
+        "LABEL_NET_4",
+        "LABEL_NET_5",
+        "LABEL_NET_7",
+        "LABEL_NET_9",
+        "VAMP"
+      ],
+      "ground": [
+        "N5",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 14-b 12-MS/s CMOS Pipeline ADC With Over 100-dB SFDR",
+      "figure": "Not specified",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Differential DC voltage gain of the OTA",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "75.5 dB (SNDR of ADC, implies op-amp gain > 80dB)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rout. With W/L=5u/0.5u and unoptimized 0.9V fixed biases pushing tail sources into triode, the intrinsic gain of this stripped-down core will be lower than the fully gain-boosted version in the paper.",
+        "range": {
+          "min": 20,
+          "typical": 35,
+          "max": 50,
+          "unit": "dB"
+        },
+        "reasoning": "The extracted netlist lacks the 'nested gain-boosting' auxiliary amplifiers mentioned in the paper, reducing the output impedance and DC gain."
+      },
+      "importance": "essential"
+    },
+    "UGBW": {
+      "description": "Unity Gain Bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 MHz (ADC clock frequency)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "UGBW = gm / (2*pi*CL). With gm ~ 200uS and CL = 1pF, UGBW ~ 30 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 30000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth must be several times the sampling frequency (12 MS/s) to ensure proper settling. Depends heavily on the assumed load capacitance."
+      },
+      "importance": "essential"
+    },
+    "Phase_Margin": {
+      "description": "Phase margin for closed-loop stability",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Single-stage OTA is dominant-pole compensated by the load capacitor.",
+        "range": {
+          "min": 60,
+          "typical": 85,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "A single high-impedance node at the output ensures a phase margin close to 90 degrees, assuming non-dominant poles are at much higher frequencies."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumption of the OTA core",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "98 mW (Total ADC)",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_total. With Vgs=0.9V, total current is roughly 1-2 mA.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0035,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "The core OTA consumes a fraction of the total ADC power. 3.5 mW is reasonable for a single high-speed amplifier stage."
+      },
+      "importance": "essential"
+    },
+    "Slew_Rate": {
+      "description": "Large-signal slew rate on the rising edge",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly reported",
+        "technology": "0.18um"
+      },
+      "sky130_expected": {
+        "calculation": "SR = I_tail / CL. With I_tail ~ 100uA and CL = 1pF, SR ~ 100 V/us.",
+        "range": {
+          "min": 20,
+          "typical": 100,
+          "max": 250,
+          "unit": "V/us"
+        },
+        "reasoning": "High slew rate is required to settle large voltage steps within the 41 ns half-clock period of a 12 MS/s ADC."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC differential gain, UGBW, phase margin, and transient slew rate of the fully differential OTA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "DC_Gain",
+      "UGBW",
+      "Phase_Margin",
+      "Slew_Rate"
+    ],
+    "spice": "* Fully Differential OTA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n\n* DUT\nXM1 N2 LABEL_NET_0 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N4 LABEL_NET_1 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 VP N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 LABEL_NET_3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N3 LABEL_NET_4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N1 LABEL_NET_5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 VDD VAMP N4 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N3 N6 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N2 LABEL_NET_7 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N0 VN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N0 LABEL_NET_9 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N1 N7 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\n\n* Ground connection for N5\nVN5 N5 0 0\n\n* CMFB Connections (VP and VN sense the outputs)\nE_VP VP 0 N3 0 1\nE_VN VN 0 N1 0 1\nVVAMP VAMP 0 0.9\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* Biases\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVLABEL_NET_3 LABEL_NET_3 0 0.9\nVLABEL_NET_4 LABEL_NET_4 0 0.9\nVLABEL_NET_5 LABEL_NET_5 0 0.9\nVLABEL_NET_7 LABEL_NET_7 0 0.9\nVLABEL_NET_9 LABEL_NET_9 0 0.9\n\n* Inputs\nVCM VCM 0 0.9\nVINP N6 VCM dc 0 ac 0.5 pulse(-0.2 0.2 1n 100p 100p 50n 100n)\nVINN N7 VCM dc 0 ac -0.5 pulse(0.2 -0.2 1n 100p 100p 50n 100n)\n\n* Load Capacitors\nCL1 N3 0 1p\nCL2 N1 0 1p\n\n* Difference amplifier for AC and Tran measurements\nE_DIFF OUT_DIFF 0 N1 N3 1\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis\n  ac dec 100 1k 10G\n  let gain_db = vdb(OUT_DIFF)\n  let phase = 180/PI * cph(v(OUT_DIFF))\n  \n  meas ac dc_gain find gain_db at=1k\n  meas ac ugbw when gain_db=0 fall=1\n  meas ac phase_at_ugbw find phase when gain_db=0 fall=1\n  let pm = 180 + phase_at_ugbw\n  print pm\n\n  * 3. Transient Analysis for Slew Rate\n  tran 100p 100n\n  meas tran vout_max max v(OUT_DIFF)\n  meas tran vout_min min v(OUT_DIFF)\n  \n  meas tran t1 when v(OUT_DIFF)=-0.2 rise=1\n  meas tran t2 when v(OUT_DIFF)=0.2 rise=1\n  let sr_rise = 0.4 / (t2 - t1)\n  let sr_rise_vus = sr_rise / 1e6\n  print sr_rise_vus\n\n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential OTA with Continuous-Time CMFB\",\n    \"description\": \"A single-stage fully differential operational transconductance amplifier (OTA) core. It features a PMOS input differential pair, cascoded NMOS current source loads, and an integrated continuous-time common-mode feedback (CMFB) circuit to stabilize the output common-mode voltage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N6\",\n        \"N7\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_4\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_7\",\n        \"LABEL_NET_9\",\n        \"VAMP\"\n      ],\n      \"ground\": [\n        \"N5\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 14-b 12-MS/s CMOS Pipeline ADC With Over 100-dB SFDR\",\n      \"figure\": \"Not specified\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Differential DC voltage gain of the OTA\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"75.5 dB (SNDR of ADC, implies op-amp gain > 80dB)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rout. With W/L=5u/0.5u and unoptimized 0.9V fixed biases pushing tail sources into triode, the intrinsic gain of this stripped-down core will be lower than the fully gain-boosted version in the paper.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 35,\n          \"max\": 50,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The extracted netlist lacks the 'nested gain-boosting' auxiliary amplifiers mentioned in the paper, reducing the output impedance and DC gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"UGBW\": {\n      \"description\": \"Unity Gain Bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 MHz (ADC clock frequency)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGBW = gm / (2*pi*CL). With gm ~ 200uS and CL = 1pF, UGBW ~ 30 MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 30e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth must be several times the sampling frequency (12 MS/s) to ensure proper settling. Depends heavily on the assumed load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_Margin\": {\n      \"description\": \"Phase margin for closed-loop stability\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Single-stage OTA is dominant-pole compensated by the load capacitor.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 85,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"A single high-impedance node at the output ensures a phase margin close to 90 degrees, assuming non-dominant poles are at much higher frequencies.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumption of the OTA core\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"98 mW (Total ADC)\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_total. With Vgs=0.9V, total current is roughly 1-2 mA.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 3.5e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The core OTA consumes a fraction of the total ADC power. 3.5 mW is reasonable for a single high-speed amplifier stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Slew_Rate\": {\n      \"description\": \"Large-signal slew rate on the rising edge\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported\",\n        \"technology\": \"0.18um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"SR = I_tail / CL. With I_tail ~ 100uA and CL = 1pF, SR ~ 100 V/us.\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 100,\n          \"max\": 250,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"High slew rate is required to settle large voltage steps within the 41 ns half-clock period of a 12 MS/s ADC.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC differential gain, UGBW, phase margin, and transient slew rate of the fully differential OTA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"DC_Gain\",\n      \"UGBW\",\n      \"Phase_Margin\",\n      \"Slew_Rate\"\n    ],\n    \"spice\": \"* Fully Differential OTA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n\\n* DUT\\nXM1 N2 LABEL_NET_0 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N4 LABEL_NET_1 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 VP N4 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 LABEL_NET_3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N3 LABEL_NET_4 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N1 LABEL_NET_5 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 VDD VAMP N4 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N3 N6 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N2 LABEL_NET_7 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N0 VN N4 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N0 LABEL_NET_9 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N1 N7 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\n\\n* Ground connection for N5\\nVN5 N5 0 0\\n\\n* CMFB Connections (VP and VN sense the outputs)\\nE_VP VP 0 N3 0 1\\nE_VN VN 0 N1 0 1\\nVVAMP VAMP 0 0.9\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* Biases\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVLABEL_NET_3 LABEL_NET_3 0 0.9\\nVLABEL_NET_4 LABEL_NET_4 0 0.9\\nVLABEL_NET_5 LABEL_NET_5 0 0.9\\nVLABEL_NET_7 LABEL_NET_7 0 0.9\\nVLABEL_NET_9 LABEL_NET_9 0 0.9\\n\\n* Inputs\\nVCM VCM 0 0.9\\nVINP N6 VCM dc 0 ac 0.5 pulse(-0.2 0.2 1n 100p 100p 50n 100n)\\nVINN N7 VCM dc 0 ac -0.5 pulse(0.2 -0.2 1n 100p 100p 50n 100n)\\n\\n* Load Capacitors\\nCL1 N3 0 1p\\nCL2 N1 0 1p\\n\\n* Difference amplifier for AC and Tran measurements\\nE_DIFF OUT_DIFF 0 N1 N3 1\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis\\n  ac dec 100 1k 10G\\n  let gain_db = vdb(OUT_DIFF)\\n  let phase = 180/PI * cph(v(OUT_DIFF))\\n  \\n  meas ac dc_gain find gain_db at=1k\\n  meas ac ugbw when gain_db=0 fall=1\\n  meas ac phase_at_ugbw find phase when gain_db=0 fall=1\\n  let pm = 180 + phase_at_ugbw\\n  print pm\\n\\n  * 3. Transient Analysis for Slew Rate\\n  tran 100p 100n\\n  meas tran vout_max max v(OUT_DIFF)\\n  meas tran vout_min min v(OUT_DIFF)\\n  \\n  meas tran t1 when v(OUT_DIFF)=-0.2 rise=1\\n  meas tran t2 when v(OUT_DIFF)=0.2 rise=1\\n  let sr_rise = 0.4 / (t2 - t1)\\n  let sr_rise_vus = sr_rise / 1e6\\n  print sr_rise_vus\\n\\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1362823",
+  "_case": "1362823_image_8_b"
+}

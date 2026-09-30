@@ -1,0 +1,102 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor Summing Amplifier",
+    "description": "A switched-capacitor circuit that performs analog color signal processing (such as color correction or white balance) by computing a weighted sum of the input color signals (Red, Green, Blue) during the charge transfer phase.",
+    "node_mapping": {
+      "input": [
+        "_Vr",
+        "Vg",
+        "_Vb"
+      ],
+      "output": [
+        "Vout"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Single-Chip CMOS Image Sensor for Mobile Applications",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain_r": {
+      "description": "Voltage gain from the Red channel input to the output",
+      "unit": "V/V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the capacitor ratio Cr/Cf",
+        "range": {
+          "min": 0.1,
+          "typical": 1.0,
+          "max": 10.0,
+          "unit": "V/V"
+        },
+        "reasoning": "Programmable capacitor ratios are typically used for white balance and color correction, ranging from fractional to small integer gains."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain_g": {
+      "description": "Voltage gain from the Green channel input to the output",
+      "unit": "V/V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the capacitor ratio Cg/Cf",
+        "range": {
+          "min": 0.1,
+          "typical": 2.0,
+          "max": 10.0,
+          "unit": "V/V"
+        },
+        "reasoning": "Green often carries the luminance information and may have a higher weighting in the matrix."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the output to settle to 99% of its final value after charge transfer begins",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the op-amp bandwidth and the feedback factor (Cf / (Cf + Cr + Cg + Cb))",
+        "range": {
+          "min": "1ns",
+          "typical": "10ns",
+          "max": "50ns",
+          "unit": "s"
+        },
+        "reasoning": "For a 30 frames/s sensor, the pixel clock is typically in the 10-20 MHz range, requiring settling times well under 50ns."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify the switched-capacitor charge transfer and weighted summing operation. The abstract components from the netlist are replaced with runnable SPICE equivalents (VCVS and voltage-controlled switch).",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "vout_final",
+      "t_settle"
+    ],
+    "spice": "* Switched-Capacitor Summing Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param C_f=1p C_r=1p C_g=2p C_b=1p\n\n* Runnable equivalent of the abstract DUT\nE1 Vout GND GND N0 10000\nCf N0 Vout {C_f}\nCr N0 _Vr {C_r}\nCg N0 Vg {C_g}\nCb N0 _Vb {C_b}\nS1 N0 Vout clk GND switch_model\n.model switch_model SW(Vt=0.9 Ron=100 Roff=1G)\n\n* Stimulus\n* Phase 1 (Reset): clk is high, inputs are sampled.\n* Phase 2 (Evaluate): clk goes low, inputs are grounded, transferring charge to Cf.\nV_Vr _Vr GND pwl(0 0.5 9n 0.5 10n 0)\nV_Vg Vg GND pwl(0 0.3 9n 0.3 10n 0)\nV_Vb _Vb GND pwl(0 0.2 9n 0.2 10n 0)\nV_clk clk GND pwl(0 1.8 5n 1.8 6n 0)\n\n.control\ntran 0.1n 20n\n\n* Measure final settled voltage\n* Expected Vout = (Cr*0.5 + Cg*0.3 + Cb*0.2)/Cf = (0.5 + 0.6 + 0.2) = 1.3V\nmeas tran vout_final find v(Vout) at=18n\n\n* Measure settling time (99% of 1.3V is 1.287V)\nmeas tran t_settle trig v(_Vr) val=0.25 fall=1 targ v(Vout) val=1.287 rise=1\n\nprint vout_final\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor Summing Amplifier\",\n    \"description\": \"A switched-capacitor circuit that performs analog color signal processing (such as color correction or white balance) by computing a weighted sum of the input color signals (Red, Green, Blue) during the charge transfer phase.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"_Vr\",\n        \"Vg\",\n        \"_Vb\"\n      ],\n      \"output\": [\n        \"Vout\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Single-Chip CMOS Image Sensor for Mobile Applications\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain_r\": {\n      \"description\": \"Voltage gain from the Red channel input to the output\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the capacitor ratio Cr/Cf\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 1.0,\n          \"max\": 10.0,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Programmable capacitor ratios are typically used for white balance and color correction, ranging from fractional to small integer gains.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain_g\": {\n      \"description\": \"Voltage gain from the Green channel input to the output\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the capacitor ratio Cg/Cf\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 2.0,\n          \"max\": 10.0,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Green often carries the luminance information and may have a higher weighting in the matrix.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the output to settle to 99% of its final value after charge transfer begins\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the op-amp bandwidth and the feedback factor (Cf / (Cf + Cr + Cg + Cb))\",\n        \"range\": {\n          \"min\": \"1ns\",\n          \"typical\": \"10ns\",\n          \"max\": \"50ns\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"For a 30 frames/s sensor, the pixel clock is typically in the 10-20 MHz range, requiring settling times well under 50ns.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify the switched-capacitor charge transfer and weighted summing operation. The abstract components from the netlist are replaced with runnable SPICE equivalents (VCVS and voltage-controlled switch).\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"vout_final\",\n      \"t_settle\"\n    ],\n    \"spice\": \"* Switched-Capacitor Summing Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param C_f=1p C_r=1p C_g=2p C_b=1p\\n\\n* Runnable equivalent of the abstract DUT\\nE1 Vout GND GND N0 10000\\nCf N0 Vout {C_f}\\nCr N0 _Vr {C_r}\\nCg N0 Vg {C_g}\\nCb N0 _Vb {C_b}\\nS1 N0 Vout clk GND switch_model\\n.model switch_model SW(Vt=0.9 Ron=100 Roff=1G)\\n\\n* Stimulus\\n* Phase 1 (Reset): clk is high, inputs are sampled.\\n* Phase 2 (Evaluate): clk goes low, inputs are grounded, transferring charge to Cf.\\nV_Vr _Vr GND pwl(0 0.5 9n 0.5 10n 0)\\nV_Vg Vg GND pwl(0 0.3 9n 0.3 10n 0)\\nV_Vb _Vb GND pwl(0 0.2 9n 0.2 10n 0)\\nV_clk clk GND pwl(0 1.8 5n 1.8 6n 0)\\n\\n.control\\ntran 0.1n 20n\\n\\n* Measure final settled voltage\\n* Expected Vout = (Cr*0.5 + Cg*0.3 + Cb*0.2)/Cf = (0.5 + 0.6 + 0.2) = 1.3V\\nmeas tran vout_final find v(Vout) at=18n\\n\\n* Measure settling time (99% of 1.3V is 1.287V)\\nmeas tran t_settle trig v(_Vr) val=0.25 fall=1 targ v(Vout) val=1.287 rise=1\\n\\nprint vout_final\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1088114",
+  "_case": "1088114_image_9"
+}

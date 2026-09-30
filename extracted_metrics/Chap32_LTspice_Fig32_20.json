@@ -1,0 +1,175 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 32.14 / Figure 18.39",
+    "page": "1155-1156 (Ch. 31/32 transition) & p. 546",
+    "circuit_type": "Synchronous Buck Converter (DC-DC Converter) with Non-Overlapping Gate Driver and Bootstrapped High-Side Driver",
+    "description": "The netlist implements a step-down synchronous DC-DC buck converter. Subcircuit SUB_1 generates non-overlapping gate drive signals ('Up' and 'Down') via NAND-inverter logic and incorporates the bootstrapped driver from Fig. 18.39 to provide boosted gate drive to the NMOS high-side switch (xmu), feeding an LC filter (L1=100uH, C1=7.5nF) and resistive load (Rload=40\u03a9)."
+  },
+  "step2_metrics": {
+    "output_voltage": {
+      "description": "DC steady-state output voltage of the buck converter",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "1155",
+        "reference": "DC-DC Buck Converter Ideal Transfer Characteristics"
+      },
+      "equation": {
+        "formula": "Vout = D * Vs",
+        "explanation": "In continuous conduction mode (CCM), the average output voltage is proportional to the duty cycle D multiplied by the supply input voltage Vs.",
+        "assumptions": "CCM operation, ideal switching, D = 0.5, Vs = 1.8V"
+      },
+      "sky130_expected": {
+        "calculation": "Vs = 1.8 V, with nominal 50% duty cycle (D = 0.5): Vout = 0.5 * 1.8 V = 0.90 V. Accounting for switch conduction drops across xmu and xmd (Ron ~ 0.5-1.5 \u03a9 with W/L = 200u/0.15u), Vout drops slightly by ~10-30 mV.",
+        "range": {
+          "min": 0.82,
+          "typical": 0.88,
+          "max": 0.92,
+          "unit": "V"
+        },
+        "reasoning": "A 50% duty cycle at 1.8V nominally yields 0.9V minus small switch and parasitic IR drops."
+      },
+      "importance": "essential"
+    },
+    "output_voltage_ripple": {
+      "description": "Peak-to-peak voltage ripple at the output node Vout",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "1155",
+        "reference": "Second-order LC filter ripple equation"
+      },
+      "equation": {
+        "formula": "Delta_Vout = Delta_IL / (8 * C1 * fs) = (Vs - Vout) * D / (8 * L1 * C1 * fs^2)",
+        "explanation": "Peak-to-peak output ripple voltage governed by the inductor current ripple integrated across the output capacitor C1.",
+        "assumptions": "Ideal capacitor ESR, switching frequency fs = 10 MHz, L1 = 100 uH, C1 = 7.5 nF, D = 0.5"
+      },
+      "sky130_expected": {
+        "calculation": "Delta_IL = (1.8 - 0.9) * 0.5 / (100e-6 * 10e6) = 0.45 mA. Delta_Vout = 0.45e-3 / (8 * 7.5e-9 * 10e6) = 0.45e-3 / 0.60 = 0.75 mV.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.00075,
+          "max": 0.005,
+          "unit": "V"
+        },
+        "reasoning": "Large inductance (100 uH) relative to switching frequency results in very low inductor ripple and sub-5mV ripple."
+      },
+      "importance": "recommended"
+    },
+    "inductor_ripple_current": {
+      "description": "Peak-to-peak ripple current flowing through inductor L1",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "1155",
+        "reference": "Inductor volt-second balance"
+      },
+      "equation": {
+        "formula": "Delta_IL = (Vs - Vout) * D / (L1 * fs)",
+        "explanation": "Change in inductor current during switch on-time ton = D / fs.",
+        "assumptions": "fs = 10 MHz, L1 = 100 uH, D = 0.5, Vs = 1.8V, Vout = 0.9V"
+      },
+      "sky130_expected": {
+        "calculation": "Delta_IL = (1.8 V - 0.9 V) * 0.5 / (100e-6 H * 10e6 Hz) = 0.45 V / 1000 = 0.45 mA.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.00045,
+          "max": 0.001,
+          "unit": "A"
+        },
+        "reasoning": "Inductor current ripple is tightly bounded by high switching frequency and 100 uH inductance."
+      },
+      "importance": "recommended"
+    },
+    "power_efficiency": {
+      "description": "Power conversion efficiency of the buck converter",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "1169",
+        "reference": "Power conversion efficiency (PCE), Index p. 1169"
+      },
+      "equation": {
+        "formula": "Efficiency = (Pout / Pin) * 100% = ((Vout_avg^2 / Rload) / (Vs * Iin_avg)) * 100%",
+        "explanation": "Ratio of average load power delivered to total average power drawn from the input source Vs.",
+        "assumptions": "Steady-state operation evaluated over integral switching periods"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = (0.88 V)^2 / 40 \u03a9 = 19.36 mW. Conduction losses P_cond = Iload^2 * Ron = (22 mA)^2 * 1 \u03a9 ~ 0.5 mW. Switching and driver dynamic losses ~ 1.5 mW. Total Pin ~ 21.5 mW -> Efficiency ~ 19.36 / 21.5 * 100% \u2248 90%.",
+        "range": {
+          "min": 75.0,
+          "typical": 88.0,
+          "max": 96.0,
+          "unit": "%"
+        },
+        "reasoning": "Synchronous rectification avoids diode forward voltage drops, giving high efficiency (85-92%) at tens of mA load."
+      },
+      "importance": "essential"
+    },
+    "output_power": {
+      "description": "Average power delivered to the resistive load",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "1169",
+        "reference": "Power dissipation, Index p. 1169"
+      },
+      "equation": {
+        "formula": "Pout = Vout^2 / Rload",
+        "explanation": "Power dissipated in the 40-ohm load resistor at steady-state output voltage.",
+        "assumptions": "Rload = 40.0 \u03a9, Vout \u2248 0.88 - 0.90 V"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = (0.89 V)^2 / 40 \u03a9 = 0.7921 / 40 = 19.8 mW.",
+        "range": {
+          "min": 0.016,
+          "typical": 0.0198,
+          "max": 0.022,
+          "unit": "W"
+        },
+        "reasoning": "0.9V across 40 ohms yields approximately 20 mW."
+      },
+      "importance": "recommended"
+    },
+    "filter_corner_frequency": {
+      "description": "Resonant frequency of the output LC low-pass filter",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "1171",
+        "reference": "Q of an LC circuit, Index p. 1171"
+      },
+      "equation": {
+        "formula": "f0 = 1 / (2 * pi * sqrt(L1 * C1))",
+        "explanation": "Natural undamped resonance of the second-order low-pass filter formed by L1 and C1.",
+        "assumptions": "L1 = 100 uH, C1 = 7.5 nF"
+      },
+      "sky130_expected": {
+        "calculation": "sqrt(L1 * C1) = sqrt(100e-6 * 7.5e-9) = sqrt(7.5e-13) = 8.660e-7 s. f0 = 1 / (2 * pi * 8.660e-7) \u2248 183.78 kHz.",
+        "range": {
+          "min": 180000,
+          "typical": 183780,
+          "max": 187000,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined purely by passive components L1 and C1."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Complete ngspice transient testbench for the synchronous buck converter, measuring output voltage, ripple, load current, power efficiency, and output power over a steady-state window.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "output_voltage",
+      "output_voltage_ripple",
+      "inductor_ripple_current",
+      "power_efficiency",
+      "output_power"
+    ],
+    "spice": "* Synchronous Buck Converter Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter definitions for transistors\n.param W_xmu=200u L_xmu=0.15u\n.param W_xmd=200u L_xmd=0.15u\n.param W_xm1=10u L_xm1=0.15u\n.param W_xm2=10u L_xm2=0.15u\n.param W_xm3=10u L_xm3=0.15u\n.param W_xm4=10u L_xm4=0.15u\n.param W_xm1i=3u L_xm1i=0.15u\n.param W_xm2i=6u L_xm2i=0.15u\n.param W_xm1a=3u L_xm1a=0.15u\n.param W_xm2a=6u L_xm2a=0.15u\n.param W_xm8=6u L_xm8=0.15u\n.param W_xm11=3u L_xm11=0.15u\n.param W_xm12=3u L_xm12=0.15u\n\n* Power Supplies\nVDD VDD 0 DC 1.8\nVs Vs 0 DC 1.8\n\n* PWM Input Clock (10 MHz, 50% duty cycle)\nVin Vin 0 PULSE(0 1.8 0 1n 1n 49n 100n)\n\n* DUT Power Stage and Output Filter\nxmu Vs N001 N002 0 sky130_fd_pr__nfet_01v8 w={W_xmu} l={L_xmu}\nxmd N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmd} l={L_xmd}\nC1 Vout 0 7.5e-09\nX_X1 Vin Vs N001 N003 SUB_1\nL1 N002 Vout 0.0001\nRload Vout 0 40.0\n\n* Subcircuits from design\n.subckt SUB_1 In Vs Up Down\n  X_X1 N004 Up Vs Fig18_39\n  X_X2 N005 Down Vs INV_240_80\n  X_X3 N001 N004 Vs INV_240_80\n  X_X4 N003 N001 Vs INV_30_10\n  X_X5 N007 N005 Vs INV_30_10\n  X_X6 N006 N007 Vs INV_30_10\n  X_X7 N002 N003 Vs INV_30_10\n  X_X8 In N008 Vs INV_30_10\n  X_X9 In N005 N002 Vs NAND_2\n  X_X10 N001 N008 N006 Vs NAND_2\n.ends SUB_1\n\n.subckt Fig18_39 In Out VDD\n  xm1i N001 In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\n  xm2i N001 In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\n  C2 N002 B 5p\n  xm1a N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1a} l={L_xm1a}\n  xm2a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2a} l={L_xm2a}\n  xm3 Out N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 Out N001 B B sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  C1 N001 A 1p\n  xm2 B A VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  xm1 A B VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n.ends Fig18_39\n\n.subckt INV_240_80 In Out VDD\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n.ends INV_240_80\n\n.subckt INV_30_10 In Out VDD\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\n.ends INV_30_10\n\n.subckt NAND_2 A B Out VDD\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\n  xm11 N001 B 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n.ends NAND_2\n\n* Control Block for Execution and Automated Measurement\n.control\n  set wr_singlescale\n  * Run transient analysis matching Baker's LTspice timing (up to 20 us)\n  tran 50p 20u 19.7u\n\n  * Steady-state output voltage measurements\n  meas tran vout_avg avg v(vout) from=19.7u to=20.0u\n  meas tran vout_max max v(vout) from=19.7u to=20.0u\n  meas tran vout_min min v(vout) from=19.7u to=20.0u\n  let vout_ripple = vout_max - vout_min\n  print vout_avg vout_ripple\n\n  * Inductor current ripple\n  meas tran il_avg avg i(L1) from=19.7u to=20.0u\n  meas tran il_max max i(L1) from=19.7u to=20.0u\n  meas tran il_min min i(L1) from=19.7u to=20.0u\n  let il_ripple = il_max - il_min\n  print il_avg il_ripple\n\n  * Power and Efficiency calculations\n  meas tran pin_avg avg @Vs[i] from=19.7u to=20.0u\n  let p_in = -pin_avg * 1.8\n  let p_out = (vout_avg * vout_avg) / 40.0\n  let efficiency = (p_out / p_in) * 100\n  print p_out p_in efficiency\n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 32.14 / Figure 18.39\",\n    \"page\": \"1155-1156 (Ch. 31/32 transition) & p. 546\",\n    \"circuit_type\": \"Synchronous Buck Converter (DC-DC Converter) with Non-Overlapping Gate Driver and Bootstrapped High-Side Driver\",\n    \"description\": \"The netlist implements a step-down synchronous DC-DC buck converter. Subcircuit SUB_1 generates non-overlapping gate drive signals ('Up' and 'Down') via NAND-inverter logic and incorporates the bootstrapped driver from Fig. 18.39 to provide boosted gate drive to the NMOS high-side switch (xmu), feeding an LC filter (L1=100uH, C1=7.5nF) and resistive load (Rload=40\u03a9).\"\n  },\n  \"step2_metrics\": {\n    \"output_voltage\": {\n      \"description\": \"DC steady-state output voltage of the buck converter\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"1155\", \"reference\": \"DC-DC Buck Converter Ideal Transfer Characteristics\" },\n      \"equation\": {\n        \"formula\": \"Vout = D * Vs\",\n        \"explanation\": \"In continuous conduction mode (CCM), the average output voltage is proportional to the duty cycle D multiplied by the supply input voltage Vs.\",\n        \"assumptions\": \"CCM operation, ideal switching, D = 0.5, Vs = 1.8V\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vs = 1.8 V, with nominal 50% duty cycle (D = 0.5): Vout = 0.5 * 1.8 V = 0.90 V. Accounting for switch conduction drops across xmu and xmd (Ron ~ 0.5-1.5 \u03a9 with W/L = 200u/0.15u), Vout drops slightly by ~10-30 mV.\",\n        \"range\": { \"min\": 0.82, \"typical\": 0.88, \"max\": 0.92, \"unit\": \"V\" },\n        \"reasoning\": \"A 50% duty cycle at 1.8V nominally yields 0.9V minus small switch and parasitic IR drops.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_voltage_ripple\": {\n      \"description\": \"Peak-to-peak voltage ripple at the output node Vout\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"1155\", \"reference\": \"Second-order LC filter ripple equation\" },\n      \"equation\": {\n        \"formula\": \"Delta_Vout = Delta_IL / (8 * C1 * fs) = (Vs - Vout) * D / (8 * L1 * C1 * fs^2)\",\n        \"explanation\": \"Peak-to-peak output ripple voltage governed by the inductor current ripple integrated across the output capacitor C1.\",\n        \"assumptions\": \"Ideal capacitor ESR, switching frequency fs = 10 MHz, L1 = 100 uH, C1 = 7.5 nF, D = 0.5\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta_IL = (1.8 - 0.9) * 0.5 / (100e-6 * 10e6) = 0.45 mA. Delta_Vout = 0.45e-3 / (8 * 7.5e-9 * 10e6) = 0.45e-3 / 0.60 = 0.75 mV.\",\n        \"range\": { \"min\": 0.0003, \"typical\": 0.00075, \"max\": 0.005, \"unit\": \"V\" },\n        \"reasoning\": \"Large inductance (100 uH) relative to switching frequency results in very low inductor ripple and sub-5mV ripple.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"inductor_ripple_current\": {\n      \"description\": \"Peak-to-peak ripple current flowing through inductor L1\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"1155\", \"reference\": \"Inductor volt-second balance\" },\n      \"equation\": {\n        \"formula\": \"Delta_IL = (Vs - Vout) * D / (L1 * fs)\",\n        \"explanation\": \"Change in inductor current during switch on-time ton = D / fs.\",\n        \"assumptions\": \"fs = 10 MHz, L1 = 100 uH, D = 0.5, Vs = 1.8V, Vout = 0.9V\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delta_IL = (1.8 V - 0.9 V) * 0.5 / (100e-6 H * 10e6 Hz) = 0.45 V / 1000 = 0.45 mA.\",\n        \"range\": { \"min\": 0.0003, \"typical\": 0.00045, \"max\": 0.001, \"unit\": \"A\" },\n        \"reasoning\": \"Inductor current ripple is tightly bounded by high switching frequency and 100 uH inductance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_efficiency\": {\n      \"description\": \"Power conversion efficiency of the buck converter\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"1169\", \"reference\": \"Power conversion efficiency (PCE), Index p. 1169\" },\n      \"equation\": {\n        \"formula\": \"Efficiency = (Pout / Pin) * 100% = ((Vout_avg^2 / Rload) / (Vs * Iin_avg)) * 100%\",\n        \"explanation\": \"Ratio of average load power delivered to total average power drawn from the input source Vs.\",\n        \"assumptions\": \"Steady-state operation evaluated over integral switching periods\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = (0.88 V)^2 / 40 \u03a9 = 19.36 mW. Conduction losses P_cond = Iload^2 * Ron = (22 mA)^2 * 1 \u03a9 ~ 0.5 mW. Switching and driver dynamic losses ~ 1.5 mW. Total Pin ~ 21.5 mW -> Efficiency ~ 19.36 / 21.5 * 100% \u2248 90%.\",\n        \"range\": { \"min\": 75.0, \"typical\": 88.0, \"max\": 96.0, \"unit\": \"%\" },\n        \"reasoning\": \"Synchronous rectification avoids diode forward voltage drops, giving high efficiency (85-92%) at tens of mA load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_power\": {\n      \"description\": \"Average power delivered to the resistive load\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"1169\", \"reference\": \"Power dissipation, Index p. 1169\" },\n      \"equation\": {\n        \"formula\": \"Pout = Vout^2 / Rload\",\n        \"explanation\": \"Power dissipated in the 40-ohm load resistor at steady-state output voltage.\",\n        \"assumptions\": \"Rload = 40.0 \u03a9, Vout \u2248 0.88 - 0.90 V\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = (0.89 V)^2 / 40 \u03a9 = 0.7921 / 40 = 19.8 mW.\",\n        \"range\": { \"min\": 0.016, \"typical\": 0.0198, \"max\": 0.022, \"unit\": \"W\" },\n        \"reasoning\": \"0.9V across 40 ohms yields approximately 20 mW.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"filter_corner_frequency\": {\n      \"description\": \"Resonant frequency of the output LC low-pass filter\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"source\": { \"page\": \"1171\", \"reference\": \"Q of an LC circuit, Index p. 1171\" },\n      \"equation\": {\n        \"formula\": \"f0 = 1 / (2 * pi * sqrt(L1 * C1))\",\n        \"explanation\": \"Natural undamped resonance of the second-order low-pass filter formed by L1 and C1.\",\n        \"assumptions\": \"L1 = 100 uH, C1 = 7.5 nF\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"sqrt(L1 * C1) = sqrt(100e-6 * 7.5e-9) = sqrt(7.5e-13) = 8.660e-7 s. f0 = 1 / (2 * pi * 8.660e-7) \u2248 183.78 kHz.\",\n        \"range\": { \"min\": 180000, \"typical\": 183780, \"max\": 187000, \"unit\": \"Hz\" },\n        \"reasoning\": \"Determined purely by passive components L1 and C1.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Complete ngspice transient testbench for the synchronous buck converter, measuring output voltage, ripple, load current, power efficiency, and output power over a steady-state window.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\n      \"output_voltage\",\n      \"output_voltage_ripple\",\n      \"inductor_ripple_current\",\n      \"power_efficiency\",\n      \"output_power\"\n    ],\n    \"spice\": \"* Synchronous Buck Converter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter definitions for transistors\\n.param W_xmu=200u L_xmu=0.15u\\n.param W_xmd=200u L_xmd=0.15u\\n.param W_xm1=10u L_xm1=0.15u\\n.param W_xm2=10u L_xm2=0.15u\\n.param W_xm3=10u L_xm3=0.15u\\n.param W_xm4=10u L_xm4=0.15u\\n.param W_xm1i=3u L_xm1i=0.15u\\n.param W_xm2i=6u L_xm2i=0.15u\\n.param W_xm1a=3u L_xm1a=0.15u\\n.param W_xm2a=6u L_xm2a=0.15u\\n.param W_xm8=6u L_xm8=0.15u\\n.param W_xm11=3u L_xm11=0.15u\\n.param W_xm12=3u L_xm12=0.15u\\n\\n* Power Supplies\\nVDD VDD 0 DC 1.8\\nVs Vs 0 DC 1.8\\n\\n* PWM Input Clock (10 MHz, 50% duty cycle)\\nVin Vin 0 PULSE(0 1.8 0 1n 1n 49n 100n)\\n\\n* DUT Power Stage and Output Filter\\nxmu Vs N001 N002 0 sky130_fd_pr__nfet_01v8 w={W_xmu} l={L_xmu}\\nxmd N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmd} l={L_xmd}\\nC1 Vout 0 7.5e-09\\nX_X1 Vin Vs N001 N003 SUB_1\\nL1 N002 Vout 0.0001\\nRload Vout 0 40.0\\n\\n* Subcircuits from design\\n.subckt SUB_1 In Vs Up Down\\n  X_X1 N004 Up Vs Fig18_39\\n  X_X2 N005 Down Vs INV_240_80\\n  X_X3 N001 N004 Vs INV_240_80\\n  X_X4 N003 N001 Vs INV_30_10\\n  X_X5 N007 N005 Vs INV_30_10\\n  X_X6 N006 N007 Vs INV_30_10\\n  X_X7 N002 N003 Vs INV_30_10\\n  X_X8 In N008 Vs INV_30_10\\n  X_X9 In N005 N002 Vs NAND_2\\n  X_X10 N001 N008 N006 Vs NAND_2\\n.ends SUB_1\\n\\n.subckt Fig18_39 In Out VDD\\n  xm1i N001 In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\\n  xm2i N001 In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\\n  C2 N002 B 5p\\n  xm1a N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1a} l={L_xm1a}\\n  xm2a N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2a} l={L_xm2a}\\n  xm3 Out N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 Out N001 B B sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  C1 N001 A 1p\\n  xm2 B A VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  xm1 A B VDD 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n.ends Fig18_39\\n\\n.subckt INV_240_80 In Out VDD\\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n.ends INV_240_80\\n\\n.subckt INV_30_10 In Out VDD\\n  xm1 Out In 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 Out In VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\n.ends INV_30_10\\n\\n.subckt NAND_2 A B Out VDD\\n  xm3 out B VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm8 out A VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\n  xm11 N001 B 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 out A N001 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n.ends NAND_2\\n\\n* Control Block for Execution and Automated Measurement\\n.control\\n  set wr_singlescale\\n  * Run transient analysis matching Baker's LTspice timing (up to 20 us)\\n  tran 50p 20u 19.7u\\n\\n  * Steady-state output voltage measurements\\n  meas tran vout_avg avg v(vout) from=19.7u to=20.0u\\n  meas tran vout_max max v(vout) from=19.7u to=20.0u\\n  meas tran vout_min min v(vout) from=19.7u to=20.0u\\n  let vout_ripple = vout_max - vout_min\\n  print vout_avg vout_ripple\\n\\n  * Inductor current ripple\\n  meas tran il_avg avg i(L1) from=19.7u to=20.0u\\n  meas tran il_max max i(L1) from=19.7u to=20.0u\\n  meas tran il_min min i(L1) from=19.7u to=20.0u\\n  let il_ripple = il_max - il_min\\n  print il_avg il_ripple\\n\\n  * Power and Efficiency calculations\\n  meas tran pin_avg avg @Vs[i] from=19.7u to=20.0u\\n  let p_in = -pin_avg * 1.8\\n  let p_out = (vout_avg * vout_avg) / 40.0\\n  let efficiency = (p_out / p_in) * 100\\n  print p_out p_in efficiency\\n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

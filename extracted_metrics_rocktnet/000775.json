@@ -1,0 +1,156 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Analog Switch Network / Multiplexer",
+    "description": "This circuit is a 3-path analog switch network, likely used as part of the analog phase interpolator in the CDR. It features a CMOS transmission gate, an NMOS switch with a dummy transistor for charge injection cancellation, and two parallel NMOS switches (which may be an extraction artifact of a second CMOS transmission gate).",
+    "node_mapping": {
+      "input": [
+        "N1",
+        "N2",
+        "LABEL_NET_2"
+      ],
+      "output": [
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ],
+      "control": [
+        "P1",
+        "P1_BAR",
+        "P2",
+        "P2_BAR",
+        "P3",
+        "P3_BAR"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10-Gb/s CMOS Clock and Data Recovery Circuit With an Analog Phase Interpolator",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Power_Consumption": {
+      "description": "Total power consumption of the full CDR circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "220 mW",
+        "technology": "0.11um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this sub-block",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 1e-06,
+          "unit": "W"
+        },
+        "reasoning": "This specific sub-block is a passive switch network, so its static power consumption is virtually zero (only leakage)."
+      },
+      "importance": "optional"
+    },
+    "Ron_CMOS": {
+      "description": "ON resistance of the CMOS transmission gate (Path 1)",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Ron_nmos = 1 / (270e-6 * 10 * 0.48) = 770 ohm. Ron_pmos = 1 / (50e-6 * 10 * 0.48) = 4166 ohm. Total = 770 || 4166 = 650 ohm.",
+        "range": {
+          "min": 500,
+          "typical": 650,
+          "max": 800,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using sky130 parameters for W=5u L=0.5u at VDD=1.8V and Vin=0.9V."
+      },
+      "importance": "essential"
+    },
+    "Ron_NMOS": {
+      "description": "ON resistance of the bare NMOS switches (Paths 2 and 3)",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Ron_nmos = 1 / (270e-6 * 10 * 0.48) = 770 ohm.",
+        "range": {
+          "min": 600,
+          "typical": 770,
+          "max": 900,
+          "unit": "ohm"
+        },
+        "reasoning": "Calculated using sky130 NMOS parameters for W=5u L=0.5u at VDD=1.8V and Vin=0.9V."
+      },
+      "importance": "essential"
+    },
+    "Q_inj_CMOS": {
+      "description": "Charge injection from the CMOS transmission gate",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "NMOS pushes electrons (V drops), PMOS pushes holes (V rises). Since Vov is similar (0.48V) and sizes are equal, charges roughly cancel.",
+        "range": {
+          "min": -1e-15,
+          "typical": 0,
+          "max": 1e-15,
+          "unit": "C"
+        },
+        "reasoning": "Complementary devices provide first-order charge cancellation."
+      },
+      "importance": "essential"
+    },
+    "Q_inj_Dummy": {
+      "description": "Charge injection from the NMOS switch with dummy cancellation (Path 2)",
+      "unit": "C",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Q_ch = C_ox * W * L * Vov = 6fF/um2 * 2.5um2 * 0.48V = 7.2fC. Main switch pushes Q_ch/2 electrons to N0 (V drops). Dummy absorbs Q_ch electrons from N0 (V rises). Net is loss of Q_ch/2 electrons, so V rises by ~3.6mV on 1pF. Q_inj = +3.6fC.",
+        "range": {
+          "min": 1e-15,
+          "typical": 3.6e-15,
+          "max": 1e-14,
+          "unit": "C"
+        },
+        "reasoning": "The dummy switch is full size instead of half size, leading to over-cancellation and a net positive charge injection."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the ON resistance (Ron) of each switch path via DC sweeps and the charge injection (Q_inj) of each switch path via Transient analysis on a 1pF hold capacitor.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Ron_CMOS",
+      "Ron_NMOS",
+      "Q_inj_CMOS",
+      "Q_inj_Dummy",
+      "Q_inj_NMOS"
+    ],
+    "spice": "* Analog Switch Network Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nVVDD VDD 0 1.8\n\n* Inputs\nVN2 N2 0 0.9\nVL2 LABEL_NET_2 0 0.9\nVN1 N1 0 0.9\n\n* Controls (PWL for TRAN, altered for DC)\nVP1 P1 0 dc 0 pwl(0 0 10n 0 10.1n 1.8 20n 1.8 20.1n 0)\nVP1B P1_BAR 0 dc 1.8 pwl(0 1.8 10n 1.8 10.1n 0 20n 0 20.1n 1.8)\n\nVP2 P2 0 dc 0 pwl(0 0 30n 0 30.1n 1.8 40n 1.8 40.1n 0)\nVP2B P2_BAR 0 dc 1.8 pwl(0 1.8 30n 1.8 30.1n 0 40n 0 40.1n 1.8)\n\nVP3 P3 0 dc 0 pwl(0 0 50n 0 50.1n 1.8 60n 1.8 60.1n 0)\nVP3B P3_BAR 0 dc 0 pwl(0 0 70n 0 70.1n 1.8 80n 1.8 80.1n 0)\n\n* Load\nI_meas N0 0 0\nCload N0 0 1p\n.ic v(N0)=0.9\n\n* DUT\nXM1 N1 P3_BAR N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 P1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 P2 LABEL_NET_2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 P1_BAR N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 P2_BAR N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 P3 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n.control\n* 1. Transient for charge injection\ntran 0.1n 90n\nmeas tran v_hold1 find v(N0) at=25n\nlet q_inj1 = (v_hold1 - 0.9) * 1p\nmeas tran v_hold2 find v(N0) at=45n\nlet q_inj2 = (v_hold2 - 0.9) * 1p\nmeas tran v_hold3 find v(N0) at=65n\nlet q_inj3 = (v_hold3 - 0.9) * 1p\nmeas tran v_hold4 find v(N0) at=85n\nlet q_inj4 = (v_hold4 - 0.9) * 1p\nprint q_inj1 q_inj2 q_inj3 q_inj4\n\n* 2. DC sweeps for Ron\nalter I_meas = 10u\n\n* Path 1 (CMOS TG)\nalter VP1 = 1.8\nalter VP1B = 0\nalter VP2 = 0\nalter VP2B = 1.8\nalter VP3 = 0\nalter VP3B = 0\ndc VN2 0 1.8 0.01\nmeas dc v_n0_1 find v(N0) at=0.9\nlet ron1_mid = (0.9 - v_n0_1) / 10u\nprint ron1_mid\n\n* Path 2 (NMOS with Dummy)\nalter VP1 = 0\nalter VP1B = 1.8\nalter VP2 = 1.8\nalter VP2B = 0\ndc VL2 0 1.8 0.01\nmeas dc v_n0_2 find v(N0) at=0.9\nlet ron2_mid = (0.9 - v_n0_2) / 10u\nprint ron2_mid\n\n* Path 3a (NMOS XM6)\nalter VP2 = 0\nalter VP2B = 1.8\nalter VP3 = 1.8\nalter VP3B = 0\ndc VN1 0 1.8 0.01\nmeas dc v_n0_3a find v(N0) at=0.9\nlet ron3a_mid = (0.9 - v_n0_3a) / 10u\nprint ron3a_mid\n\n* Path 3b (NMOS XM1)\nalter VP3 = 0\nalter VP3B = 1.8\ndc VN1 0 1.8 0.01\nmeas dc v_n0_3b find v(N0) at=0.9\nlet ron3b_mid = (0.9 - v_n0_3b) / 10u\nprint ron3b_mid\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Analog Switch Network / Multiplexer\",\n    \"description\": \"This circuit is a 3-path analog switch network, likely used as part of the analog phase interpolator in the CDR. It features a CMOS transmission gate, an NMOS switch with a dummy transistor for charge injection cancellation, and two parallel NMOS switches (which may be an extraction artifact of a second CMOS transmission gate).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\",\n        \"N2\",\n        \"LABEL_NET_2\"\n      ],\n      \"output\": [\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ],\n      \"control\": [\n        \"P1\",\n        \"P1_BAR\",\n        \"P2\",\n        \"P2_BAR\",\n        \"P3\",\n        \"P3_BAR\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10-Gb/s CMOS Clock and Data Recovery Circuit With an Analog Phase Interpolator\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Power_Consumption\": {\n      \"description\": \"Total power consumption of the full CDR circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"220 mW\",\n        \"technology\": \"0.11um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this sub-block\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 1e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"This specific sub-block is a passive switch network, so its static power consumption is virtually zero (only leakage).\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"Ron_CMOS\": {\n      \"description\": \"ON resistance of the CMOS transmission gate (Path 1)\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron_nmos = 1 / (270e-6 * 10 * 0.48) = 770 ohm. Ron_pmos = 1 / (50e-6 * 10 * 0.48) = 4166 ohm. Total = 770 || 4166 = 650 ohm.\",\n        \"range\": {\n          \"min\": 500,\n          \"typical\": 650,\n          \"max\": 800,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Calculated using sky130 parameters for W=5u L=0.5u at VDD=1.8V and Vin=0.9V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Ron_NMOS\": {\n      \"description\": \"ON resistance of the bare NMOS switches (Paths 2 and 3)\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron_nmos = 1 / (270e-6 * 10 * 0.48) = 770 ohm.\",\n        \"range\": {\n          \"min\": 600,\n          \"typical\": 770,\n          \"max\": 900,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Calculated using sky130 NMOS parameters for W=5u L=0.5u at VDD=1.8V and Vin=0.9V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Q_inj_CMOS\": {\n      \"description\": \"Charge injection from the CMOS transmission gate\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"NMOS pushes electrons (V drops), PMOS pushes holes (V rises). Since Vov is similar (0.48V) and sizes are equal, charges roughly cancel.\",\n        \"range\": {\n          \"min\": -1e-15,\n          \"typical\": 0,\n          \"max\": 1e-15,\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"Complementary devices provide first-order charge cancellation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Q_inj_Dummy\": {\n      \"description\": \"Charge injection from the NMOS switch with dummy cancellation (Path 2)\",\n      \"unit\": \"C\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q_ch = C_ox * W * L * Vov = 6fF/um2 * 2.5um2 * 0.48V = 7.2fC. Main switch pushes Q_ch/2 electrons to N0 (V drops). Dummy absorbs Q_ch electrons from N0 (V rises). Net is loss of Q_ch/2 electrons, so V rises by ~3.6mV on 1pF. Q_inj = +3.6fC.\",\n        \"range\": {\n          \"min\": 1e-15,\n          \"typical\": 3.6e-15,\n          \"max\": 10e-15,\n          \"unit\": \"C\"\n        },\n        \"reasoning\": \"The dummy switch is full size instead of half size, leading to over-cancellation and a net positive charge injection.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the ON resistance (Ron) of each switch path via DC sweeps and the charge injection (Q_inj) of each switch path via Transient analysis on a 1pF hold capacitor.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Ron_CMOS\",\n      \"Ron_NMOS\",\n      \"Q_inj_CMOS\",\n      \"Q_inj_Dummy\",\n      \"Q_inj_NMOS\"\n    ],\n    \"spice\": \"* Analog Switch Network Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nVVDD VDD 0 1.8\\n\\n* Inputs\\nVN2 N2 0 0.9\\nVL2 LABEL_NET_2 0 0.9\\nVN1 N1 0 0.9\\n\\n* Controls (PWL for TRAN, altered for DC)\\nVP1 P1 0 dc 0 pwl(0 0 10n 0 10.1n 1.8 20n 1.8 20.1n 0)\\nVP1B P1_BAR 0 dc 1.8 pwl(0 1.8 10n 1.8 10.1n 0 20n 0 20.1n 1.8)\\n\\nVP2 P2 0 dc 0 pwl(0 0 30n 0 30.1n 1.8 40n 1.8 40.1n 0)\\nVP2B P2_BAR 0 dc 1.8 pwl(0 1.8 30n 1.8 30.1n 0 40n 0 40.1n 1.8)\\n\\nVP3 P3 0 dc 0 pwl(0 0 50n 0 50.1n 1.8 60n 1.8 60.1n 0)\\nVP3B P3_BAR 0 dc 0 pwl(0 0 70n 0 70.1n 1.8 80n 1.8 80.1n 0)\\n\\n* Load\\nI_meas N0 0 0\\nCload N0 0 1p\\n.ic v(N0)=0.9\\n\\n* DUT\\nXM1 N1 P3_BAR N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 P1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 P2 LABEL_NET_2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 P1_BAR N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 P2_BAR N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 P3 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n.control\\n* 1. Transient for charge injection\\ntran 0.1n 90n\\nmeas tran v_hold1 find v(N0) at=25n\\nlet q_inj1 = (v_hold1 - 0.9) * 1p\\nmeas tran v_hold2 find v(N0) at=45n\\nlet q_inj2 = (v_hold2 - 0.9) * 1p\\nmeas tran v_hold3 find v(N0) at=65n\\nlet q_inj3 = (v_hold3 - 0.9) * 1p\\nmeas tran v_hold4 find v(N0) at=85n\\nlet q_inj4 = (v_hold4 - 0.9) * 1p\\nprint q_inj1 q_inj2 q_inj3 q_inj4\\n\\n* 2. DC sweeps for Ron\\nalter I_meas = 10u\\n\\n* Path 1 (CMOS TG)\\nalter VP1 = 1.8\\nalter VP1B = 0\\nalter VP2 = 0\\nalter VP2B = 1.8\\nalter VP3 = 0\\nalter VP3B = 0\\ndc VN2 0 1.8 0.01\\nmeas dc v_n0_1 find v(N0) at=0.9\\nlet ron1_mid = (0.9 - v_n0_1) / 10u\\nprint ron1_mid\\n\\n* Path 2 (NMOS with Dummy)\\nalter VP1 = 0\\nalter VP1B = 1.8\\nalter VP2 = 1.8\\nalter VP2B = 0\\ndc VL2 0 1.8 0.01\\nmeas dc v_n0_2 find v(N0) at=0.9\\nlet ron2_mid = (0.9 - v_n0_2) / 10u\\nprint ron2_mid\\n\\n* Path 3a (NMOS XM6)\\nalter VP2 = 0\\nalter VP2B = 1.8\\nalter VP3 = 1.8\\nalter VP3B = 0\\ndc VN1 0 1.8 0.01\\nmeas dc v_n0_3a find v(N0) at=0.9\\nlet ron3a_mid = (0.9 - v_n0_3a) / 10u\\nprint ron3a_mid\\n\\n* Path 3b (NMOS XM1)\\nalter VP3 = 0\\nalter VP3B = 1.8\\ndc VN1 0 1.8 0.01\\nmeas dc v_n0_3b find v(N0) at=0.9\\nlet ron3b_mid = (0.9 - v_n0_3b) / 10u\\nprint ron3b_mid\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1408094",
+  "_case": "1408094_image_11_a"
+}

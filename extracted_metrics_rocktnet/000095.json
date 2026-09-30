@@ -1,0 +1,147 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Frequency Multiplier (Doubler)",
+    "description": "A single NMOS transistor acting as the core non-linear element for frequency doubling. When biased appropriately and driven by a fundamental frequency, the transistor's non-linear transfer characteristics (e.g., square-law and cutoff) generate harmonics, including the desired second harmonic.",
+    "node_mapping": {
+      "input": [
+        "N0"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Analysis and Design of Power-Efficient H-Band",
+      "figure": "None",
+      "year": null
+    }
+  },
+  "step2_metrics": {
+    "Pout_2f": {
+      "description": "Output power at the 2nd harmonic frequency.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.9 dBm",
+        "technology": "Unknown (likely advanced node like 65nm or SiGe)"
+      },
+      "sky130_expected": {
+        "calculation": "With Vgs=0.9V and 0.5V amplitude, peak current is ~1.3mA. The 2nd harmonic current component is roughly 0.21 * I_peak = 0.27mA. Power into a 50-ohm load is (0.27mA)^2 * 50 / 2 = 1.8 uW = -27 dBm.",
+        "range": {
+          "min": -35,
+          "typical": -27,
+          "max": -20,
+          "unit": "dBm"
+        },
+        "reasoning": "The extracted netlist is a single bare transistor without matching networks or gain boosting stages, unlike the full circuit in the paper. Thus, the output power is significantly lower."
+      },
+      "importance": "essential"
+    },
+    "Conversion_Gain": {
+      "description": "Ratio of the 2nd harmonic output power to the fundamental input power.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Input power for a 0.5V peak sine wave into 50 ohms is 2.5 mW (+4 dBm). Output power is -27 dBm. CG = -27 - 4 = -31 dB.",
+        "range": {
+          "min": -40,
+          "typical": -31,
+          "max": -20,
+          "unit": "dB"
+        },
+        "reasoning": "A single unmatched transistor acting as a passive/active doubler typically exhibits significant conversion loss."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "DC power consumed from the supply voltage.",
+      "unit": "mW",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "37 mW",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "DC current is ~0.4mA at 1.8V supply for the given W/L and bias, resulting in ~0.7mW power consumption.",
+        "range": {
+          "min": 0.2,
+          "typical": 0.7,
+          "max": 2.0,
+          "unit": "mW"
+        },
+        "reasoning": "The single transistor consumes much less power than the full H-band multi-stage circuit reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "Efficiency": {
+      "description": "Ratio of 2nd harmonic output power to DC power consumption.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.87 %",
+        "technology": "Unknown"
+      },
+      "sky130_expected": {
+        "calculation": "1.8 uW output power divided by 0.7 mW DC power gives ~0.25% efficiency.",
+        "range": {
+          "min": 0.05,
+          "typical": 0.25,
+          "max": 1.0,
+          "unit": "%"
+        },
+        "reasoning": "Without matching and optimal Class-B/C biasing, the efficiency of a bare transistor doubler is very low."
+      },
+      "importance": "essential"
+    },
+    "Fundamental_Rejection": {
+      "description": "Difference between the fundamental power and the 2nd harmonic power at the output.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "The fundamental current component is much larger than the 2nd harmonic in a single-ended design. Expected fundamental power is ~ -10 dBm. Rejection = -10 - (-27) = 17 dB (fundamental is 17 dB higher).",
+        "range": {
+          "min": 10,
+          "typical": 17,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "Single-ended doublers have poor fundamental rejection compared to balanced (differential/push-push) topologies."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the steady-state waveform, followed by Fourier coefficient extraction using time-domain integration to calculate fundamental and 2nd harmonic power, conversion gain, and efficiency. A 1 GHz input frequency is used to ensure meaningful operation within the fT limits of the SKY130 process for a bare transistor.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Pout_2f",
+      "Conversion_Gain",
+      "Power_Consumption",
+      "Efficiency",
+      "Fundamental_Rejection"
+    ],
+    "spice": "* Frequency Doubler Testbench\n.lib \"${SKY130_PDK}\" tt\n.param W_xm1=5u L_xm1=0.5u\n\nXM1 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\nVdd VDD GND 1.8\nRload VDD N1 50\n\n* Input signal: 1 GHz, 0.5V amplitude, 0.9V offset\nVin N0 GND dc 0.9 sin(0.9 0.5 1G)\n\n.control\ntran 1p 20n\n\n* Calculate DC power\nmeas tran I_vdd avg i(Vdd) from=10n to=20n\nlet P_dc = -I_vdd * 1.8\nlet P_dc_mW = P_dc * 1000\nprint P_dc_mW\n\n* 1st Harmonic (1 GHz)\nlet out_sin1f = v(N1) * sin(2 * 3.14159265359 * 1G * time)\nlet out_cos1f = v(N1) * cos(2 * 3.14159265359 * 1G * time)\nmeas tran a1 avg out_sin1f from=10n to=20n\nmeas tran b1 avg out_cos1f from=10n to=20n\nlet mag1f = 2 * sqrt(a1*a1 + b1*b1)\nlet Pout_1f_W = (mag1f * mag1f) / (2 * 50)\nlet Pout_1f_dBm = 10 * log10(Pout_1f_W * 1000 + 1e-20)\nprint Pout_1f_dBm\n\n* 2nd Harmonic (2 GHz)\nlet out_sin2f = v(N1) * sin(2 * 3.14159265359 * 2G * time)\nlet out_cos2f = v(N1) * cos(2 * 3.14159265359 * 2G * time)\nmeas tran a2 avg out_sin2f from=10n to=20n\nmeas tran b2 avg out_cos2f from=10n to=20n\nlet mag2f = 2 * sqrt(a2*a2 + b2*b2)\nlet Pout_2f_W = (mag2f * mag2f) / (2 * 50)\nlet Pout_2f_dBm = 10 * log10(Pout_2f_W * 1000 + 1e-20)\nprint Pout_2f_dBm\n\n* Conversion Gain\nlet Pin_W = (0.5 * 0.5) / (2 * 50)\nlet Pin_dBm = 10 * log10(Pin_W * 1000)\nlet CG_dB = Pout_2f_dBm - Pin_dBm\nprint CG_dB\n\n* Efficiency\nlet eff = (Pout_2f_W / P_dc) * 100\nprint eff\n\n* Fundamental Rejection (Fundamental power relative to 2nd harmonic)\nlet Fund_Rejection_dB = Pout_1f_dBm - Pout_2f_dBm\nprint Fund_Rejection_dB\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Frequency Multiplier (Doubler)\",\n    \"description\": \"A single NMOS transistor acting as the core non-linear element for frequency doubling. When biased appropriately and driven by a fundamental frequency, the transistor's non-linear transfer characteristics (e.g., square-law and cutoff) generate harmonics, including the desired second harmonic.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N0\"\n      ],\n      \"output\": [\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Analysis and Design of Power-Efficient H-Band\",\n      \"figure\": \"None\",\n      \"year\": null\n    }\n  },\n  \"step2_metrics\": {\n    \"Pout_2f\": {\n      \"description\": \"Output power at the 2nd harmonic frequency.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.9 dBm\",\n        \"technology\": \"Unknown (likely advanced node like 65nm or SiGe)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With Vgs=0.9V and 0.5V amplitude, peak current is ~1.3mA. The 2nd harmonic current component is roughly 0.21 * I_peak = 0.27mA. Power into a 50-ohm load is (0.27mA)^2 * 50 / 2 = 1.8 uW = -27 dBm.\",\n        \"range\": {\n          \"min\": -35,\n          \"typical\": -27,\n          \"max\": -20,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"The extracted netlist is a single bare transistor without matching networks or gain boosting stages, unlike the full circuit in the paper. Thus, the output power is significantly lower.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Conversion_Gain\": {\n      \"description\": \"Ratio of the 2nd harmonic output power to the fundamental input power.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input power for a 0.5V peak sine wave into 50 ohms is 2.5 mW (+4 dBm). Output power is -27 dBm. CG = -27 - 4 = -31 dB.\",\n        \"range\": {\n          \"min\": -40,\n          \"typical\": -31,\n          \"max\": -20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A single unmatched transistor acting as a passive/active doubler typically exhibits significant conversion loss.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"DC power consumed from the supply voltage.\",\n      \"unit\": \"mW\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"37 mW\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"DC current is ~0.4mA at 1.8V supply for the given W/L and bias, resulting in ~0.7mW power consumption.\",\n        \"range\": {\n          \"min\": 0.2,\n          \"typical\": 0.7,\n          \"max\": 2.0,\n          \"unit\": \"mW\"\n        },\n        \"reasoning\": \"The single transistor consumes much less power than the full H-band multi-stage circuit reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Efficiency\": {\n      \"description\": \"Ratio of 2nd harmonic output power to DC power consumption.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.87 %\",\n        \"technology\": \"Unknown\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.8 uW output power divided by 0.7 mW DC power gives ~0.25% efficiency.\",\n        \"range\": {\n          \"min\": 0.05,\n          \"typical\": 0.25,\n          \"max\": 1.0,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Without matching and optimal Class-B/C biasing, the efficiency of a bare transistor doubler is very low.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Fundamental_Rejection\": {\n      \"description\": \"Difference between the fundamental power and the 2nd harmonic power at the output.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The fundamental current component is much larger than the 2nd harmonic in a single-ended design. Expected fundamental power is ~ -10 dBm. Rejection = -10 - (-27) = 17 dB (fundamental is 17 dB higher).\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 17,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Single-ended doublers have poor fundamental rejection compared to balanced (differential/push-push) topologies.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the steady-state waveform, followed by Fourier coefficient extraction using time-domain integration to calculate fundamental and 2nd harmonic power, conversion gain, and efficiency. A 1 GHz input frequency is used to ensure meaningful operation within the fT limits of the SKY130 process for a bare transistor.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Pout_2f\",\n      \"Conversion_Gain\",\n      \"Power_Consumption\",\n      \"Efficiency\",\n      \"Fundamental_Rejection\"\n    ],\n    \"spice\": \"* Frequency Doubler Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM1 N1 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVdd VDD GND 1.8\\nRload VDD N1 50\\n\\n* Input signal: 1 GHz, 0.5V amplitude, 0.9V offset\\nVin N0 GND dc 0.9 sin(0.9 0.5 1G)\\n\\n.control\\ntran 1p 20n\\n\\n* Calculate DC power\\nmeas tran I_vdd avg i(Vdd) from=10n to=20n\\nlet P_dc = -I_vdd * 1.8\\nlet P_dc_mW = P_dc * 1000\\nprint P_dc_mW\\n\\n* 1st Harmonic (1 GHz)\\nlet out_sin1f = v(N1) * sin(2 * 3.14159265359 * 1G * time)\\nlet out_cos1f = v(N1) * cos(2 * 3.14159265359 * 1G * time)\\nmeas tran a1 avg out_sin1f from=10n to=20n\\nmeas tran b1 avg out_cos1f from=10n to=20n\\nlet mag1f = 2 * sqrt(a1*a1 + b1*b1)\\nlet Pout_1f_W = (mag1f * mag1f) / (2 * 50)\\nlet Pout_1f_dBm = 10 * log10(Pout_1f_W * 1000 + 1e-20)\\nprint Pout_1f_dBm\\n\\n* 2nd Harmonic (2 GHz)\\nlet out_sin2f = v(N1) * sin(2 * 3.14159265359 * 2G * time)\\nlet out_cos2f = v(N1) * cos(2 * 3.14159265359 * 2G * time)\\nmeas tran a2 avg out_sin2f from=10n to=20n\\nmeas tran b2 avg out_cos2f from=10n to=20n\\nlet mag2f = 2 * sqrt(a2*a2 + b2*b2)\\nlet Pout_2f_W = (mag2f * mag2f) / (2 * 50)\\nlet Pout_2f_dBm = 10 * log10(Pout_2f_W * 1000 + 1e-20)\\nprint Pout_2f_dBm\\n\\n* Conversion Gain\\nlet Pin_W = (0.5 * 0.5) / (2 * 50)\\nlet Pin_dBm = 10 * log10(Pin_W * 1000)\\nlet CG_dB = Pout_2f_dBm - Pin_dBm\\nprint CG_dB\\n\\n* Efficiency\\nlet eff = (Pout_2f_W / P_dc) * 100\\nprint eff\\n\\n* Fundamental Rejection (Fundamental power relative to 2nd harmonic)\\nlet Fund_Rejection_dB = Pout_1f_dBm - Pout_2f_dBm\\nprint Fund_Rejection_dB\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "access.2023.3264531",
+  "_case": "access.2023.3264531_image_5"
+}

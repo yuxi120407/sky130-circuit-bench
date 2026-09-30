@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Frequency Divider (Source-Coupled Logic)",
+    "description": "The paper describes a source-coupled logic (SCL) frequency divider. However, the provided extracted netlist is malformed with most terminals shorted to a single node (N0) and no active pull-up path, making it non-functional as a divider.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Phase Noise in Digital Frequency Dividers",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power dissipation",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "27 mW",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "In the provided malformed netlist, XM4 is fully ON (Vgs=1.8V) and pulls N0 to GND. Other transistors are mostly shorted. Since XM5/XM6 have D=S=N0 and G=GND, B=VDD, they don't conduct DC channel current from VDD to GND. Thus, DC power from VDD will be dominated by reverse-biased junction leakage (N-well to P-sub).",
+        "range": {
+          "min": "1p",
+          "typical": "1n",
+          "max": "1u",
+          "unit": "W"
+        },
+        "reasoning": "Based on the broken netlist topology where no direct DC path from VDD to GND exists."
+      },
+      "importance": "essential"
+    },
+    "max_operating_frequency": {
+      "description": "Maximum clock frequency the divider can correctly divide",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3 GHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "For a functional SCL divider in 130nm, max frequency is typically >5GHz. For this broken netlist, it will not divide at all.",
+        "range": {
+          "min": "0",
+          "typical": "0",
+          "max": "0",
+          "unit": "Hz"
+        },
+        "reasoning": "Netlist is non-functional and outputs a static 0V."
+      },
+      "importance": "essential"
+    },
+    "phase_noise": {
+      "description": "Phase noise floor of the divider",
+      "unit": "dBc/Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "-163 dBc/Hz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for broken netlist.",
+        "range": {
+          "min": "-170",
+          "typical": "-160",
+          "max": "-150",
+          "unit": "dBc/Hz"
+        },
+        "reasoning": "Expected for a typical divider, but cannot be simulated here."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the provided netlist. Applies a 3GHz clock to N1 and measures power and transient response on N0.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "v_out_swing"
+    ],
+    "spice": "* Frequency Divider Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\nXM1 N0 N0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 N0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 GND N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 GND N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N0 N0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\nVVDD VDD 0 1.8\nVCLK N1 0 PULSE(0 1.8 0 10p 10p 156p 333p)\n\n.control\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  tran 1p 2n\n  meas tran v_max max v(N0)\n  meas tran v_min min v(N0)\n  let swing = v_max - v_min\n  print swing\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Frequency Divider (Source-Coupled Logic)\",\n    \"description\": \"The paper describes a source-coupled logic (SCL) frequency divider. However, the provided extracted netlist is malformed with most terminals shorted to a single node (N0) and no active pull-up path, making it non-functional as a divider.\",\n    \"node_mapping\": {\n      \"input\": [\"N1\"],\n      \"output\": [\"N0\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"Phase Noise in Digital Frequency Dividers\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipation\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"27 mW\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"In the provided malformed netlist, XM4 is fully ON (Vgs=1.8V) and pulls N0 to GND. Other transistors are mostly shorted. Since XM5/XM6 have D=S=N0 and G=GND, B=VDD, they don't conduct DC channel current from VDD to GND. Thus, DC power from VDD will be dominated by reverse-biased junction leakage (N-well to P-sub).\",\n        \"range\": { \"min\": \"1p\", \"typical\": \"1n\", \"max\": \"1u\", \"unit\": \"W\" },\n        \"reasoning\": \"Based on the broken netlist topology where no direct DC path from VDD to GND exists.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"max_operating_frequency\": {\n      \"description\": \"Maximum clock frequency the divider can correctly divide\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3 GHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a functional SCL divider in 130nm, max frequency is typically >5GHz. For this broken netlist, it will not divide at all.\",\n        \"range\": { \"min\": \"0\", \"typical\": \"0\", \"max\": \"0\", \"unit\": \"Hz\" },\n        \"reasoning\": \"Netlist is non-functional and outputs a static 0V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_noise\": {\n      \"description\": \"Phase noise floor of the divider\",\n      \"unit\": \"dBc/Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"-163 dBc/Hz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for broken netlist.\",\n        \"range\": { \"min\": \"-170\", \"typical\": \"-160\", \"max\": \"-150\", \"unit\": \"dBc/Hz\" },\n        \"reasoning\": \"Expected for a typical divider, but cannot be simulated here.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the provided netlist. Applies a 3GHz clock to N1 and measures power and transient response on N0.\",\n    \"analyses\": [\"OP\", \"Tran\"],\n    \"metrics_measured\": [\"power_consumption\", \"v_out_swing\"],\n    \"spice\": \"* Frequency Divider Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\nXM1 N0 N0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 N0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 GND N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 GND N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N0 N0 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N0 N0 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\nVVDD VDD 0 1.8\\nVCLK N1 0 PULSE(0 1.8 0 10p 10p 156p 333p)\\n\\n.control\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  tran 1p 2n\\n  meas tran v_max max v(N0)\\n  meas tran v_min min v(N0)\\n  let swing = v_max - v_min\\n  print swing\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1291682",
+  "_case": "1291682_image_2_a"
+}

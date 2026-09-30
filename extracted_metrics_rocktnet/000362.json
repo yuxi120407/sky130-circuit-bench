@@ -1,0 +1,101 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive Discrete-Time Loop Filter (Switched-Capacitor)",
+    "description": "A switched-capacitor network used as a discrete-time loop filter in a phase-locked loop (PLL). It integrates the charge pump current onto a sampling capacitor (CS), shares the charge with a hold capacitor (CH) to update the VCO control voltage, and then resets the sampling capacitor, effectively creating a stabilization zero without requiring large resistors.",
+    "node_mapping": {
+      "input": [
+        "VCP"
+      ],
+      "output": [
+        "VCH"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fast Switching PLL Frequency Synthesizer With an On-Chip Passive Discrete-Time Loop Filter in 0.25-m CMOS",
+      "figure": "Generic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "voltage_step": {
+      "description": "The voltage change on the hold capacitor (VCH) after charge sharing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With I_pump = 100uA for 10ns, Q = 1pC. Initial VCP = 1pC / 20pF = 50mV. After sharing, VCH = Q / (CS + CH) = 1pC / 60pF = 16.67mV.",
+        "range": {
+          "min": 0.015,
+          "typical": 0.0167,
+          "max": 0.018,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the charge conservation between CS and CH during the sharing phase."
+      },
+      "importance": "essential"
+    },
+    "charge_share_ratio": {
+      "description": "The ratio of the sampling capacitance to the total capacitance, determining the discrete-time zero location.",
+      "unit": "ratio",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "33%",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "CS / (CS + CH) = 20pF / (20pF + 40pF) = 33.3%",
+        "range": {
+          "min": 0.3,
+          "typical": 0.333,
+          "max": 0.35,
+          "unit": "ratio"
+        },
+        "reasoning": "Matches the paper's reported capacitance values (20pF and 40pF) to achieve the desired loop dynamics."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the charge sharing between CS and CH to settle within 1% of the final value.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 ns (loop settling time)",
+        "technology": "0.25-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Time constant tau = R_on * (CS || CH). Assuming R_on = 10 ohms, tau = 10 * 13.3pF = 133ps. Settling time ~ 5 * tau = 665ps.",
+        "range": {
+          "min": 5e-10,
+          "typical": 6.65e-10,
+          "max": 1e-09,
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the ON-resistance of the switches used for charge sharing."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify the charge integration, charge sharing, and reset phases of the discrete-time loop filter.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_step",
+      "vcp_peak",
+      "vcp_reset"
+    ],
+    "spice": "* Discrete-Time Loop Filter Testbench\n\n.param C_S=20p C_H=40p\n.param I_pump=100u\n.param T_pump=10n\n\n* DUT (Adapted for ngspice valid switch syntax)\nCS VCP GND {C_S}\nCH VCH GND {C_H}\nS1 VCP VCH ctrl1 GND sw_model\nS2 VCP GND ctrl2 GND sw_model\n\n* Switch Model\n.model sw_model sw vt=0.9 vh=0.1 ron=10 roff=1G\n\n* Stimulus\n* 1. Charge pump current pulse (Integrate charge onto CS: 0 to 10ns)\nI1 GND VCP PULSE(0 {I_pump} 1n 100p 100p {T_pump} 100n)\n\n* 2. Switch 1 control (Charge share between CS and CH: 20ns to 30ns)\nVctrl1 ctrl1 GND PULSE(0 1.8 20n 100p 100p 10n 100n)\n\n* 3. Switch 2 control (Reset CS to GND: 40ns to 50ns)\nVctrl2 ctrl2 GND PULSE(0 1.8 40n 100p 100p 10n 100n)\n\n.control\n* Run transient analysis\ntran 100p 60n\n\n* Measure peak voltage on CS after integration\nmeas tran v_vcp_peak max v(VCP) from=10n to=19n\n\n* Measure final voltage on CH after charge sharing\nmeas tran v_vch_final find v(VCH) at=35n\n\n* Measure reset voltage on CS after reset phase\nmeas tran v_vcp_reset find v(VCP) at=55n\n\n* Calculate charge share ratio based on voltages\nlet charge_share_ratio = v_vch_final / v_vcp_peak\nprint charge_share_ratio\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive Discrete-Time Loop Filter (Switched-Capacitor)\",\n    \"description\": \"A switched-capacitor network used as a discrete-time loop filter in a phase-locked loop (PLL). It integrates the charge pump current onto a sampling capacitor (CS), shares the charge with a hold capacitor (CH) to update the VCO control voltage, and then resets the sampling capacitor, effectively creating a stabilization zero without requiring large resistors.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VCP\"\n      ],\n      \"output\": [\n        \"VCH\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fast Switching PLL Frequency Synthesizer With an On-Chip Passive Discrete-Time Loop Filter in 0.25-m CMOS\",\n      \"figure\": \"Generic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_step\": {\n      \"description\": \"The voltage change on the hold capacitor (VCH) after charge sharing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With I_pump = 100uA for 10ns, Q = 1pC. Initial VCP = 1pC / 20pF = 50mV. After sharing, VCH = Q / (CS + CH) = 1pC / 60pF = 16.67mV.\",\n        \"range\": {\n          \"min\": 0.015,\n          \"typical\": 0.0167,\n          \"max\": 0.018,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the charge conservation between CS and CH during the sharing phase.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"charge_share_ratio\": {\n      \"description\": \"The ratio of the sampling capacitance to the total capacitance, determining the discrete-time zero location.\",\n      \"unit\": \"ratio\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"33%\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"CS / (CS + CH) = 20pF / (20pF + 40pF) = 33.3%\",\n        \"range\": {\n          \"min\": 0.3,\n          \"typical\": 0.333,\n          \"max\": 0.35,\n          \"unit\": \"ratio\"\n        },\n        \"reasoning\": \"Matches the paper's reported capacitance values (20pF and 40pF) to achieve the desired loop dynamics.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the charge sharing between CS and CH to settle within 1% of the final value.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 ns (loop settling time)\",\n        \"technology\": \"0.25-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Time constant tau = R_on * (CS || CH). Assuming R_on = 10 ohms, tau = 10 * 13.3pF = 133ps. Settling time ~ 5 * tau = 665ps.\",\n        \"range\": {\n          \"min\": 500e-12,\n          \"typical\": 665e-12,\n          \"max\": 1e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the ON-resistance of the switches used for charge sharing.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify the charge integration, charge sharing, and reset phases of the discrete-time loop filter.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"voltage_step\",\n      \"vcp_peak\",\n      \"vcp_reset\"\n    ],\n    \"spice\": \"* Discrete-Time Loop Filter Testbench\\n\\n.param C_S=20p C_H=40p\\n.param I_pump=100u\\n.param T_pump=10n\\n\\n* DUT (Adapted for ngspice valid switch syntax)\\nCS VCP GND {C_S}\\nCH VCH GND {C_H}\\nS1 VCP VCH ctrl1 GND sw_model\\nS2 VCP GND ctrl2 GND sw_model\\n\\n* Switch Model\\n.model sw_model sw vt=0.9 vh=0.1 ron=10 roff=1G\\n\\n* Stimulus\\n* 1. Charge pump current pulse (Integrate charge onto CS: 0 to 10ns)\\nI1 GND VCP PULSE(0 {I_pump} 1n 100p 100p {T_pump} 100n)\\n\\n* 2. Switch 1 control (Charge share between CS and CH: 20ns to 30ns)\\nVctrl1 ctrl1 GND PULSE(0 1.8 20n 100p 100p 10n 100n)\\n\\n* 3. Switch 2 control (Reset CS to GND: 40ns to 50ns)\\nVctrl2 ctrl2 GND PULSE(0 1.8 40n 100p 100p 10n 100n)\\n\\n.control\\n* Run transient analysis\\ntran 100p 60n\\n\\n* Measure peak voltage on CS after integration\\nmeas tran v_vcp_peak max v(VCP) from=10n to=19n\\n\\n* Measure final voltage on CH after charge sharing\\nmeas tran v_vch_final find v(VCH) at=35n\\n\\n* Measure reset voltage on CS after reset phase\\nmeas tran v_vcp_reset find v(VCP) at=55n\\n\\n* Calculate charge share ratio based on voltages\\nlet charge_share_ratio = v_vch_final / v_vcp_peak\\nprint charge_share_ratio\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1201987",
+  "_case": "1201987_image_4"
+}

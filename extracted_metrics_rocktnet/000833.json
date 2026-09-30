@@ -1,0 +1,101 @@
+{
+  "step1_analysis": {
+    "circuit_type": "ESD Protection Equivalent Circuit",
+    "description": "A simplified passive resistor network representing the source resistance, ESD protection parallel resistance, and LNA input resistance. It is used to analyze the signal attenuation and input impedance loading caused by the 'plug-and-play' ESD protection network at the RF input.",
+    "node_mapping": {
+      "input": [
+        "VS"
+      ],
+      "output": [
+        "RF_IN"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 5-GHz Fully Integrated ESD-Protected Low-Noise Amplifier in 90-nm RF CMOS",
+      "figure": "Equivalent input network",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Signal_Attenuation": {
+      "description": "Voltage attenuation at the RF input due to the parallel resistance of the ESD protection network.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Not explicitly reported for the passive network alone, but overall LNA gain is 13.3 dB",
+        "technology": "90-nm RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Attenuation = 20 * log10( (Rp_ESD || Rs_prime) / (Rs + (Rp_ESD || Rs_prime)) ). Assuming Rs=50, Rs_prime=500, Rp_ESD=1000, Rp_ESD||Rs_prime = 333 ohms. Attenuation = 20*log10(333/383) = -1.2 dB.",
+        "range": {
+          "min": -3.0,
+          "typical": -1.2,
+          "max": -0.1,
+          "unit": "dB"
+        },
+        "reasoning": "The ESD protection should ideally have very high parallel resistance to minimize signal loss. A typical loss of < 1.5 dB is acceptable for an LNA input."
+      },
+      "importance": "essential"
+    },
+    "Input_Resistance": {
+      "description": "Equivalent DC/AC resistance seen from the source.",
+      "unit": "ohm",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Input return loss of 14 dB implies impedance close to 50 ohms",
+        "technology": "90-nm RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "R_in = Rs + (Rp_ESD || Rs_prime). With assumed values: 50 + 333 = 383 ohms.",
+        "range": {
+          "min": 50,
+          "typical": 383,
+          "max": 1000,
+          "unit": "ohm"
+        },
+        "reasoning": "In a real RF circuit, reactive components (inductors/capacitors) are used to match this to 50 ohms. In this purely resistive simplified model, it represents the un-matched real part."
+      },
+      "importance": "recommended"
+    },
+    "LNA_Power_Gain": {
+      "description": "Overall power gain of the LNA (Note: Cannot be measured with this passive-only netlist).",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "13.3 dB",
+        "technology": "90-nm RF CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this specific netlist.",
+        "range": {
+          "min": 10,
+          "typical": 13.3,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "Provided for completeness based on the paper's reported metrics."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the signal attenuation and input resistance of the ESD equivalent network.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "Signal_Attenuation",
+      "Input_Resistance"
+    ],
+    "spice": "* ESD Equivalent Circuit Testbench\n\n* Define parameters for the resistors\n.param Rs_val=50\n.param Rp_ESD_val=1000\n.param Rs_prime_val=500\n\n* DUT Netlist (modified to use parameters and AC source)\nV1 VS GND DC 1 AC 1\nRs VS RF_IN {Rs_val}\nRp_ESD RF_IN GND {Rp_ESD_val}\nRs_prime RF_IN GND {Rs_prime_val}\n\n.control\n* 1. DC Operating Point for Input Resistance\nop\nlet i_in = -i(V1)\nlet r_in = v(VS) / i_in\nprint r_in\n\n* 2. AC Analysis for Signal Attenuation\nac dec 100 1G 10G\nlet atten_db = vdb(RF_IN)\nmeas ac attenuation_at_5_5GHz find atten_db at=5.5G\n\nprint attenuation_at_5_5GHz\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"ESD Protection Equivalent Circuit\",\n    \"description\": \"A simplified passive resistor network representing the source resistance, ESD protection parallel resistance, and LNA input resistance. It is used to analyze the signal attenuation and input impedance loading caused by the 'plug-and-play' ESD protection network at the RF input.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VS\"\n      ],\n      \"output\": [\n        \"RF_IN\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 5-GHz Fully Integrated ESD-Protected Low-Noise Amplifier in 90-nm RF CMOS\",\n      \"figure\": \"Equivalent input network\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Signal_Attenuation\": {\n      \"description\": \"Voltage attenuation at the RF input due to the parallel resistance of the ESD protection network.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly reported for the passive network alone, but overall LNA gain is 13.3 dB\",\n        \"technology\": \"90-nm RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Attenuation = 20 * log10( (Rp_ESD || Rs_prime) / (Rs + (Rp_ESD || Rs_prime)) ). Assuming Rs=50, Rs_prime=500, Rp_ESD=1000, Rp_ESD||Rs_prime = 333 ohms. Attenuation = 20*log10(333/383) = -1.2 dB.\",\n        \"range\": {\n          \"min\": -3.0,\n          \"typical\": -1.2,\n          \"max\": -0.1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The ESD protection should ideally have very high parallel resistance to minimize signal loss. A typical loss of < 1.5 dB is acceptable for an LNA input.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Input_Resistance\": {\n      \"description\": \"Equivalent DC/AC resistance seen from the source.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Input return loss of 14 dB implies impedance close to 50 ohms\",\n        \"technology\": \"90-nm RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_in = Rs + (Rp_ESD || Rs_prime). With assumed values: 50 + 333 = 383 ohms.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 383,\n          \"max\": 1000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"In a real RF circuit, reactive components (inductors/capacitors) are used to match this to 50 ohms. In this purely resistive simplified model, it represents the un-matched real part.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"LNA_Power_Gain\": {\n      \"description\": \"Overall power gain of the LNA (Note: Cannot be measured with this passive-only netlist).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"13.3 dB\",\n        \"technology\": \"90-nm RF CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this specific netlist.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 13.3,\n          \"max\": 15,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Provided for completeness based on the paper's reported metrics.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the signal attenuation and input resistance of the ESD equivalent network.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Signal_Attenuation\",\n      \"Input_Resistance\"\n    ],\n    \"spice\": \"* ESD Equivalent Circuit Testbench\\n\\n* Define parameters for the resistors\\n.param Rs_val=50\\n.param Rp_ESD_val=1000\\n.param Rs_prime_val=500\\n\\n* DUT Netlist (modified to use parameters and AC source)\\nV1 VS GND DC 1 AC 1\\nRs VS RF_IN {Rs_val}\\nRp_ESD RF_IN GND {Rp_ESD_val}\\nRs_prime RF_IN GND {Rs_prime_val}\\n\\n.control\\n* 1. DC Operating Point for Input Resistance\\nop\\nlet i_in = -i(V1)\\nlet r_in = v(VS) / i_in\\nprint r_in\\n\\n* 2. AC Analysis for Signal Attenuation\\nac dec 100 1G 10G\\nlet atten_db = vdb(RF_IN)\\nmeas ac attenuation_at_5_5GHz find atten_db at=5.5G\\n\\nprint attenuation_at_5_5GHz\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1458986",
+  "_case": "1458986_image_2_b"
+}

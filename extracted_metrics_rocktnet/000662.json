@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "8-Gb/s Capacitively Coupled Differential Receiver Front-End",
+    "description": "A high-speed differential receiver input stage featuring on-chip AC-coupling capacitors, active shunt feedback (Cherry-Hooper style), and capacitive source/emitter degeneration. It is designed to amplify high-speed data while providing high common-mode rejection and extending bandwidth via high-frequency peaking.",
+    "node_mapping": {
+      "input": [
+        "nin_plus",
+        "nin_minus"
+      ],
+      "output": [
+        "n2_plus",
+        "n2_minus"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "n4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An 8-Gb/s Capacitively Coupled Receiver With High Common-Mode Rejection for Uncoded Data",
+      "figure": "Generic",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Differential_Gain": {
+      "description": "Mid-band differential AC voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "6 dB",
+        "technology": "0.35um SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 gm * (R_load || R_fb). With VDD=1.8V, assuming Id=1mA per branch, gm \u2248 10mS. R_load=500\u03a9, R_fb=2k\u03a9. Gain \u2248 10mS * 400\u03a9 = 4 V/V (12 dB). Shunt feedback and degeneration will reduce this to the target range.",
+        "range": {
+          "min": 4,
+          "typical": 6,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Adjusted component values in SKY130 to target the paper's 6 dB specification."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth_3dB": {
+      "description": "-3dB cutoff frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "Supports 8 Gb/s (implies ~4-6 GHz BW)",
+        "technology": "0.35um SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by R_load and parasitic node capacitances, extended by the zero from C_deg (100fF) and R_deg (400\u03a9) at f_z = 1/(2*\u03c0*400*100f) \u2248 4 GHz.",
+        "range": {
+          "min": 3000000000.0,
+          "typical": 5000000000.0,
+          "max": 8000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth must be at least half the data rate (Nyquist frequency) to pass 8 Gb/s data without severe intersymbol interference."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power dissipation from the supply",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Not explicitly stated (typical 10-50mW for 0.35um)",
+        "technology": "0.35um SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "I_total = 2 * I_branch \u2248 2 * 1mA = 2mA. Power = 1.8V * 2mA = 3.6mW.",
+        "range": {
+          "min": 0.002,
+          "typical": 0.0036,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for 1.8V SKY130 process while maintaining sufficient gm for 8 Gb/s operation."
+      },
+      "importance": "essential"
+    },
+    "Transient_Output_Swing": {
+      "description": "Peak-to-peak differential output voltage for minimum input sensitivity",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Input sensitivity 0.5 - 1.1 Vpp",
+        "technology": "0.35um SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "0.5Vpp input * 2 V/V (6 dB) gain = 1.0Vpp output swing.",
+        "range": {
+          "min": 0.8,
+          "typical": 1.0,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Verifies that the amplifier provides adequate swing for the subsequent latch/quantizer stages at the minimum specified input."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC differential gain and bandwidth, and transient response at 8 Gb/s.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Power_Consumption",
+      "Differential_Gain",
+      "Bandwidth_3dB",
+      "Transient_Output_Swing"
+    ],
+    "spice": "* 8-Gb/s Capacitively Coupled Receiver Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Component Parameters\n.param C_ac=60f\n.param R_fb=2k\n.param R_bias=10k\n.param R_load=500\n.param R_deg=400\n.param C_deg=100f\n.param V_bias=1.0\n.param W_m=10u\n.param L_m=0.15u\n\n* Supply\nVVDD VDD 0 1.8\n\n* Inputs (AC for bandwidth, PULSE for 8Gb/s 1010 pattern -> 4GHz square wave)\nV_in_plus nin_plus 0 DC 0 AC 0.5 PULSE(-0.125 0.125 50p 20p 20p 105p 250p)\nV_in_minus nin_minus 0 DC 0 AC -0.5 PULSE(0.125 -0.125 50p 20p 20p 105p 250p)\n\n* DUT (NPNs replaced with SKY130 NMOS for generic MOSFET compatibility)\nCin_plus nin_plus n1_plus {C_ac}\nCin_minus nin_minus n1_minus {C_ac}\nR1_2 n1_plus n2_minus {R_fb}\nR1 n1_minus n2_plus {R_fb}\nR1_3 n1_plus n4 {R_bias}\nR1_4 n1_minus n4 {R_bias}\nR3 n2_plus VDD {R_load}\nR3_2 n2_minus VDD {R_load}\nM1 n2_plus n1_plus n3_plus GND sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\nM2 n2_minus n1_minus n3_minus GND sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\nR2 n3_plus GND {R_deg}\nR2_2 n3_minus GND {R_deg}\nC2 n3_plus n3_minus {C_deg}\nV1 n4 GND {V_bias}\n\n* Differential output dependent source for easy measurement\nE_diff out_diff 0 n2_minus n2_plus 1.0\n\n.control\n  * 1. DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis\n  ac dec 50 10Meg 100G\n  let gain_db = vdb(out_diff)\n  meas ac midband_gain find gain_db at=1G\n  * Assuming midband gain is ~6dB, measure 3dB bandwidth at 3dB\n  meas ac bw_3db when gain_db=3 fall=1\n\n  * 3. Transient Analysis (2ns duration for 8Gb/s data)\n  tran 2p 2n\n  meas tran vout_max max v(out_diff)\n  meas tran vout_min min v(out_diff)\n  let vout_swing = vout_max - vout_min\n  print vout_swing\n  meas tran t_delay trig v(nin_plus) val=0 rise=2 targ v(out_diff) val=0 rise=2\n.endc\n\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"8-Gb/s Capacitively Coupled Differential Receiver Front-End\",\n    \"description\": \"A high-speed differential receiver input stage featuring on-chip AC-coupling capacitors, active shunt feedback (Cherry-Hooper style), and capacitive source/emitter degeneration. It is designed to amplify high-speed data while providing high common-mode rejection and extending bandwidth via high-frequency peaking.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"nin_plus\",\n        \"nin_minus\"\n      ],\n      \"output\": [\n        \"n2_plus\",\n        \"n2_minus\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"n4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An 8-Gb/s Capacitively Coupled Receiver With High Common-Mode Rejection for Uncoded Data\",\n      \"figure\": \"Generic\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Differential_Gain\": {\n      \"description\": \"Mid-band differential AC voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"6 dB\",\n        \"technology\": \"0.35um SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 gm * (R_load || R_fb). With VDD=1.8V, assuming Id=1mA per branch, gm \u2248 10mS. R_load=500\u03a9, R_fb=2k\u03a9. Gain \u2248 10mS * 400\u03a9 = 4 V/V (12 dB). Shunt feedback and degeneration will reduce this to the target range.\",\n        \"range\": {\n          \"min\": 4,\n          \"typical\": 6,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Adjusted component values in SKY130 to target the paper's 6 dB specification.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth_3dB\": {\n      \"description\": \"-3dB cutoff frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"Supports 8 Gb/s (implies ~4-6 GHz BW)\",\n        \"technology\": \"0.35um SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by R_load and parasitic node capacitances, extended by the zero from C_deg (100fF) and R_deg (400\u03a9) at f_z = 1/(2*\u03c0*400*100f) \u2248 4 GHz.\",\n        \"range\": {\n          \"min\": 3e9,\n          \"typical\": 5e9,\n          \"max\": 8e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth must be at least half the data rate (Nyquist frequency) to pass 8 Gb/s data without severe intersymbol interference.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power dissipation from the supply\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated (typical 10-50mW for 0.35um)\",\n        \"technology\": \"0.35um SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total = 2 * I_branch \u2248 2 * 1mA = 2mA. Power = 1.8V * 2mA = 3.6mW.\",\n        \"range\": {\n          \"min\": 2e-3,\n          \"typical\": 3.6e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down for 1.8V SKY130 process while maintaining sufficient gm for 8 Gb/s operation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transient_Output_Swing\": {\n      \"description\": \"Peak-to-peak differential output voltage for minimum input sensitivity\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Input sensitivity 0.5 - 1.1 Vpp\",\n        \"technology\": \"0.35um SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"0.5Vpp input * 2 V/V (6 dB) gain = 1.0Vpp output swing.\",\n        \"range\": {\n          \"min\": 0.8,\n          \"typical\": 1.0,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Verifies that the amplifier provides adequate swing for the subsequent latch/quantizer stages at the minimum specified input.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC differential gain and bandwidth, and transient response at 8 Gb/s.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Power_Consumption\",\n      \"Differential_Gain\",\n      \"Bandwidth_3dB\",\n      \"Transient_Output_Swing\"\n    ],\n    \"spice\": \"* 8-Gb/s Capacitively Coupled Receiver Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Component Parameters\\n.param C_ac=60f\\n.param R_fb=2k\\n.param R_bias=10k\\n.param R_load=500\\n.param R_deg=400\\n.param C_deg=100f\\n.param V_bias=1.0\\n.param W_m=10u\\n.param L_m=0.15u\\n\\n* Supply\\nVVDD VDD 0 1.8\\n\\n* Inputs (AC for bandwidth, PULSE for 8Gb/s 1010 pattern -> 4GHz square wave)\\nV_in_plus nin_plus 0 DC 0 AC 0.5 PULSE(-0.125 0.125 50p 20p 20p 105p 250p)\\nV_in_minus nin_minus 0 DC 0 AC -0.5 PULSE(0.125 -0.125 50p 20p 20p 105p 250p)\\n\\n* DUT (NPNs replaced with SKY130 NMOS for generic MOSFET compatibility)\\nCin_plus nin_plus n1_plus {C_ac}\\nCin_minus nin_minus n1_minus {C_ac}\\nR1_2 n1_plus n2_minus {R_fb}\\nR1 n1_minus n2_plus {R_fb}\\nR1_3 n1_plus n4 {R_bias}\\nR1_4 n1_minus n4 {R_bias}\\nR3 n2_plus VDD {R_load}\\nR3_2 n2_minus VDD {R_load}\\nM1 n2_plus n1_plus n3_plus GND sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\\nM2 n2_minus n1_minus n3_minus GND sky130_fd_pr__nfet_01v8 W={W_m} L={L_m}\\nR2 n3_plus GND {R_deg}\\nR2_2 n3_minus GND {R_deg}\\nC2 n3_plus n3_minus {C_deg}\\nV1 n4 GND {V_bias}\\n\\n* Differential output dependent source for easy measurement\\nE_diff out_diff 0 n2_minus n2_plus 1.0\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis\\n  ac dec 50 10Meg 100G\\n  let gain_db = vdb(out_diff)\\n  meas ac midband_gain find gain_db at=1G\\n  * Assuming midband gain is ~6dB, measure 3dB bandwidth at 3dB\\n  meas ac bw_3db when gain_db=3 fall=1\\n\\n  * 3. Transient Analysis (2ns duration for 8Gb/s data)\\n  tran 2p 2n\\n  meas tran vout_max max v(out_diff)\\n  meas tran vout_min min v(out_diff)\\n  let vout_swing = vout_max - vout_min\\n  print vout_swing\\n  meas tran t_delay trig v(nin_plus) val=0 rise=2 targ v(out_diff) val=0 rise=2\\n.endc\\n\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1347321",
+  "_case": "1347321_image_5"
+}

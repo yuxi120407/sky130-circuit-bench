@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "VSWR-Protected RF Power Amplifier",
+    "description": "A common-emitter RF power amplifier (Q2) featuring an active input clamping circuit (Q1, R1, R2). The feedback clamp attenuates the input RF signal during overvoltage conditions to protect the amplifier from load-mismatch-induced breakdown (VSWR protection).",
+    "node_mapping": {
+      "input": [
+        "RFin"
+      ],
+      "output": [
+        "RFout"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N1"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A VSWR-Protected Silicon Bipolar RF Power Amplifier With Soft-Slope Power Control",
+      "figure": "Generic schematic extraction",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Voltage_Gain": {
+      "description": "Small-signal voltage gain from input to output",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "80 dB (Note: likely refers to total system gain, single stage is lower)",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rload. For Ic=16mA, gm ~ 600mS. With Rload=200 ohm, intrinsic gain is high but limited by Early voltage and parasitics. Expected ~15-20 dB.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "Based on a standard common-emitter amplifier stage with a 200 ohm load."
+      },
+      "importance": "essential"
+    },
+    "Bandwidth": {
+      "description": "3dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.8 GHz / 5.2 GHz",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rload * C_out). Assuming C_out ~ 50fF and Rload = 200 ohm -> BW ~ 15 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 20000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is heavily dependent on the load capacitance and resistance."
+      },
+      "importance": "essential"
+    },
+    "Output_Power": {
+      "description": "Maximum RF output power before significant compression",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 dBm",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Pout = Vrms^2 / Rload. For 1.8V supply, max peak swing is ~1.5V. Pout = (1.5/sqrt(2))^2 / 50 = 22.5 mW = 13.5 dBm.",
+        "range": {
+          "min": 10,
+          "typical": 13.5,
+          "max": 16,
+          "unit": "dBm"
+        },
+        "reasoning": "Limited by the 1.8V supply voltage in standard CMOS/BiCMOS processes compared to higher voltage bipolar processes."
+      },
+      "importance": "essential"
+    },
+    "DC_Power": {
+      "description": "DC power consumption of the amplifier stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "Silicon Bipolar"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * Ic. VDD=1.8V, Ic=16mA -> Power = 28.8 mW.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.03,
+          "max": 0.05,
+          "unit": "W"
+        },
+        "reasoning": "Typical power for a pre-amplifier or low-power PA driver stage."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for VSWR-Protected RF PA measuring DC power, AC gain, bandwidth, and transient response.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Power",
+      "Voltage_Gain",
+      "Bandwidth",
+      "Transient_Gain"
+    ],
+    "spice": "* VSWR-Protected RF PA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param R1_val=10k\n.param R2_val=10k\n\n* DUT\nR1 RFin N1 {R1_val}\nR2 N1 GND {R2_val}\nQ1 RFin N1 GND npn\nQ2 RFout RFin GND npn\n\n* Generic NPN model for simulation (since netlist specifies npn)\n.model npn npn(is=1e-16 bf=100 vaf=50 cje=100f cjc=50f)\n\n* Biasing and Load\nVDD VDD 0 DC 1.8\nRload VDD RFout 200\n\n* Input Bias Tee\nVbias RFin_DC 0 DC 0.85\nL1 RFin_DC RFin 1m\nVac RFin_AC 0 DC 0 AC 1 sin(0 0.1 1.8G)\nC1 RFin_AC RFin 1u\n\n.control\n* DC Analysis\nop\nlet pwr = -i(VDD)*1.8\nprint pwr\n\n* AC Analysis\nac dec 50 100Meg 10G\nlet gain_db = vdb(RFout) - vdb(RFin)\nmeas ac max_gain max gain_db\nmeas ac bw_3db when gain_db=(max_gain-3) fall=1\n\n* Transient Analysis\ntran 10p 5n\nmeas tran vout_pp pp v(RFout)\nmeas tran vin_pp pp v(RFin)\nlet tran_gain = vout_pp / vin_pp\nprint tran_gain\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"VSWR-Protected RF Power Amplifier\",\n    \"description\": \"A common-emitter RF power amplifier (Q2) featuring an active input clamping circuit (Q1, R1, R2). The feedback clamp attenuates the input RF signal during overvoltage conditions to protect the amplifier from load-mismatch-induced breakdown (VSWR protection).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RFin\"\n      ],\n      \"output\": [\n        \"RFout\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N1\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A VSWR-Protected Silicon Bipolar RF Power Amplifier With Soft-Slope Power Control\",\n      \"figure\": \"Generic schematic extraction\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage_Gain\": {\n      \"description\": \"Small-signal voltage gain from input to output\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"80 dB (Note: likely refers to total system gain, single stage is lower)\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rload. For Ic=16mA, gm ~ 600mS. With Rload=200 ohm, intrinsic gain is high but limited by Early voltage and parasitics. Expected ~15-20 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on a standard common-emitter amplifier stage with a 200 ohm load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"3dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.8 GHz / 5.2 GHz\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rload * C_out). Assuming C_out ~ 50fF and Rload = 200 ohm -> BW ~ 15 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 5e9,\n          \"max\": 20e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Bandwidth is heavily dependent on the load capacitance and resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output_Power\": {\n      \"description\": \"Maximum RF output power before significant compression\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 dBm\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pout = Vrms^2 / Rload. For 1.8V supply, max peak swing is ~1.5V. Pout = (1.5/sqrt(2))^2 / 50 = 22.5 mW = 13.5 dBm.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 13.5,\n          \"max\": 16,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Limited by the 1.8V supply voltage in standard CMOS/BiCMOS processes compared to higher voltage bipolar processes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"DC_Power\": {\n      \"description\": \"DC power consumption of the amplifier stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"Silicon Bipolar\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * Ic. VDD=1.8V, Ic=16mA -> Power = 28.8 mW.\",\n        \"range\": {\n          \"min\": 10e-3,\n          \"typical\": 30e-3,\n          \"max\": 50e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Typical power for a pre-amplifier or low-power PA driver stage.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for VSWR-Protected RF PA measuring DC power, AC gain, bandwidth, and transient response.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Power\",\n      \"Voltage_Gain\",\n      \"Bandwidth\",\n      \"Transient_Gain\"\n    ],\n    \"spice\": \"* VSWR-Protected RF PA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param R1_val=10k\\n.param R2_val=10k\\n\\n* DUT\\nR1 RFin N1 {R1_val}\\nR2 N1 GND {R2_val}\\nQ1 RFin N1 GND npn\\nQ2 RFout RFin GND npn\\n\\n* Generic NPN model for simulation (since netlist specifies npn)\\n.model npn npn(is=1e-16 bf=100 vaf=50 cje=100f cjc=50f)\\n\\n* Biasing and Load\\nVDD VDD 0 DC 1.8\\nRload VDD RFout 200\\n\\n* Input Bias Tee\\nVbias RFin_DC 0 DC 0.85\\nL1 RFin_DC RFin 1m\\nVac RFin_AC 0 DC 0 AC 1 sin(0 0.1 1.8G)\\nC1 RFin_AC RFin 1u\\n\\n.control\\n* DC Analysis\\nop\\nlet pwr = -i(VDD)*1.8\\nprint pwr\\n\\n* AC Analysis\\nac dec 50 100Meg 10G\\nlet gain_db = vdb(RFout) - vdb(RFin)\\nmeas ac max_gain max gain_db\\nmeas ac bw_3db when gain_db=(max_gain-3) fall=1\\n\\n* Transient Analysis\\ntran 10p 5n\\nmeas tran vout_pp pp v(RFout)\\nmeas tran vin_pp pp v(RFin)\\nlet tran_gain = vout_pp / vin_pp\\nprint tran_gain\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1408081",
+  "_case": "1408081_image_6_b"
+}

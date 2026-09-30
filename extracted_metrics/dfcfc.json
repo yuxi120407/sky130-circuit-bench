@@ -1,0 +1,152 @@
+{
+  "step1_figure": {
+    "schematic_figure": "N/A (Chapter None)",
+    "page": "N/A",
+    "circuit_type": "Three-Stage DFCFC Operational Amplifier",
+    "description": "A three-stage operational amplifier utilizing a folded-cascode first stage, a current-mirror second stage, and a push-pull third stage. It is compensated using Damping-Factor-Control Frequency Compensation (DFCFC) via capacitors C0 and C1 along with an active damping network."
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "Low-frequency open-loop voltage gain of the amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard 3-Stage Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "A_OL = (gm1 * Rout1) * (gm2 * Rout2) * (gm3 * Rout3)",
+        "explanation": "The total DC gain is the product of the intrinsic gains of the three individual stages.",
+        "assumptions": "Assumes all transistors operate in the saturation region."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming typical intrinsic gain (gm*ro) of ~30 V/V per stage in SKY130 1.8V devices. A_OL = 30 * 30 * 30 = 27,000 V/V.",
+        "range": {
+          "min": 60,
+          "typical": 88,
+          "max": 100,
+          "unit": "dB"
+        },
+        "reasoning": "Three stages of amplification typically yield 80-100 dB of open-loop gain depending on exact channel lengths and biasing."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "The frequency at which the open-loop voltage gain drops to 0 dB (1 V/V).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "GBW = gm1 / (2 * pi * C0)",
+        "explanation": "The gain-bandwidth product is determined by the transconductance of the input differential pair and the primary compensation capacitor.",
+        "assumptions": "Assumes the first non-dominant pole is at a higher frequency than GBW."
+      },
+      "sky130_expected": {
+        "calculation": "With I_tail = 20uA (m=8 vs m=4 ref), I_D1 = 10uA. Assuming W/L=5, gm1 = sqrt(2 * 50uA/V^2 * 5 * 10uA) = 70.7 uS. GBW = 70.7uS / (2 * pi * 500fF) = 22.5 MHz.",
+        "range": {
+          "min": 15000000.0,
+          "typical": 22500000.0,
+          "max": 35000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Calculated using the provided 500fF compensation capacitor and estimated input pair transconductance."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "The difference between the phase of the open-loop response and -180 degrees at the unity-gain frequency.",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "PM = 180 - arctan(GBW / p1) - arctan(GBW / p2) - ...",
+        "explanation": "Measures the stability of the amplifier in closed-loop configuration.",
+        "assumptions": "Assumes DFCFC network successfully pushes non-dominant poles beyond GBW."
+      },
+      "sky130_expected": {
+        "calculation": "DFCFC is designed to achieve complex pole splitting and damping, typically targeting a Butterworth or Bessel response.",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 75,
+          "unit": "degrees"
+        },
+        "reasoning": "A phase margin of 60 degrees is the standard target for optimal step response with minimal ringing."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "The maximum rate of change of the output voltage.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "SR = I_tail / C0",
+        "explanation": "Limited by the maximum current the first stage can supply to charge the compensation capacitor.",
+        "assumptions": "Assumes the internal slew rate (charging C0) is the limiting factor, not the output stage driving C_load."
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 20uA (from xm4 with m=8 mirroring 10uA from xm0 with m=4). C0 = 500fF. SR = 20uA / 500fF = 40 V/us.",
+        "range": {
+          "min": 30,
+          "typical": 40,
+          "max": 50,
+          "unit": "V/us"
+        },
+        "reasoning": "Directly derived from the tail current and primary compensation capacitor."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total static power dissipated by the amplifier.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "P = VDD * I_total",
+        "explanation": "Product of the supply voltage and the sum of all quiescent branch currents.",
+        "assumptions": "Measured with zero differential input voltage."
+      },
+      "sky130_expected": {
+        "calculation": "Bias branches (xm0-xm8) consume ~100uA total. Second and third stages consume additional current. Estimated total I_q ~ 150uA. P = 1.8V * 150uA = 270 uW.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00027,
+          "max": 0.00035,
+          "unit": "W"
+        },
+        "reasoning": "Based on the 10uA reference current and the mirror ratios defined by the 'm' parameters in the netlist."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC Gain, GBW, Phase Margin, Slew Rate, and Power Consumption of the DFCFC amplifier.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "open_loop_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate",
+      "power_consumption"
+    ],
+    "spice": "* DFCFC Amplifier Testbench\n.lib ${SKY130_PDK} tt\n\n* Define missing W/L parameters to ensure compilation\n.param L_xm0=0.5 W_xm0=2 L_xm1=0.5 W_xm1=2 L_xm2=0.5 W_xm2=2 L_xm3=0.5 W_xm3=2 L_xm4=0.5 W_xm4=2\n.param L_xm5=0.5 W_xm5=2 L_xm6=0.5 W_xm6=2 L_xm7=0.5 W_xm7=2 L_xm8=0.5 W_xm8=2 L_xm9=0.5 W_xm9=2\n.param L_xm10=0.5 W_xm10=2 L_xm11=0.5 W_xm11=2 L_xm12=0.5 W_xm12=2 L_xm13=0.5 W_xm13=2 L_xm14=0.5 W_xm14=2\n.param L_xm15=0.5 W_xm15=2 L_xm16=0.5 W_xm16=2 L_xm17=0.5 W_xm17=2 L_xm18=0.5 W_xm18=2 L_xm19=0.5 W_xm19=2\n.param L_xm20=0.5 W_xm20=2 L_xm21=0.5 W_xm21=2 L_xm22=0.5 W_xm22=2 L_xm23=0.5 W_xm23=2 L_xm24=0.5 W_xm24=2\n.param L_xm25=0.5 W_xm25=2\n\n.subckt DFCFC GNDA VDDA VINN VINP VOUT\n* PMOS BIAS CURRENT MIRROR\nxm0 VBIAS VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm0} w={W_xm0} m=4\nxm1 VB4 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1} m=4\nxm2 DM_1 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2} m=4\nxm3 VB3 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3} m=4\nxm4 TAIL VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4} m=8\nxm5 VOUTN VOUTN VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5} m=4\nxm6 V1OUT VOUTN VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6} m=4\nxm7 V2OUT VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7} m=4\nxm8 NET1 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8} m=4\n\n* FIRST STAGE\nxm9 DM_2 VINN TAIL TAIL sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9} m=4\nxm10 DM_P VINP TAIL TAIL sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10} m=4\nxm20 DM_2 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm20} w={W_xm20} m=32\nxm21 DM_P VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm21} w={W_xm21} m=32\nxm16 VOUTN VB3 DM_2 GNDA sky130_fd_pr__nfet_01v8 l={L_xm16} w={W_xm16} m=32\nxm17 V1OUT VB3 DM_P GNDA sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17} m=32\n\n* NMOS BIAS GENERATION\nxm15 VB3 VB3 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15} m=4\nxm18 NET54 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm18} w={W_xm18} m=16\nxm13 VB4 VB3 NET54 GNDA sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13} m=16\nxm19 NET56 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm19} w={W_xm19} m=16\nxm14 DM_1 VB3 NET56 GNDA sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14} m=16\n\n* SECOND STAGE\nxm11 V2IN V1OUT VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11} m=4\nxm22 V2IN V2IN GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm22} w={W_xm22} m=4\nxm23 V2OUT V2IN GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm23} w={W_xm23} m=4\n\n* OUTPUT STAGE\nxm25 VOUT V2OUT GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm25} w={W_xm25} m=4\nxm12 VOUT V1OUT VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12} m=4\n\n* DAMPING FACTOR CONTROL\nxm24 NET1 V2OUT GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm24} w={W_xm24} m=4\n\n* COMPENSATION\nC0 V1OUT VOUT 500e-15\nC1 V2OUT NET1 200e-15\n\n* BIAS CURRENT SOURCE\nI0 VBIAS GNDA 10e-6\n.ends DFCFC\n\n* Power Supplies\nVDD VDD 0 DC 1.8\nVSS VSS 0 DC 0\n\n* ========================================\n* AC Analysis Setup (Open Loop via L/C)\n* ========================================\nXDUT_AC VSS VDD VINN_AC VINP_AC VOUT_AC DFCFC\nCLOAD_AC VOUT_AC 0 15e-9\nRLOAD_AC VOUT_AC 0 25e3\n\nV_INP_AC VINP_AC 0 DC 0.9 AC 1\nL_fb VOUT_AC VINN_AC 1T\nC_in VINN_AC 0 1T\n\n* ========================================\n* Transient Analysis Setup (Unity Gain)\n* ========================================\nXDUT_TRAN VSS VDD VOUT_TRAN VINP_TRAN VOUT_TRAN DFCFC\nCLOAD_TRAN VOUT_TRAN 0 15e-9\nRLOAD_TRAN VOUT_TRAN 0 25e3\n\nV_INP_TRAN VINP_TRAN 0 PULSE(0.4 1.4 10n 1n 1n 1u 2u)\n\n* ========================================\n* Control Block\n* ========================================\n.control\n* 1. Operating Point (Power)\nop\nlet power = -i(VDD) * 1.8\nprint power\n\n* 2. AC Analysis (Gain, GBW, Phase Margin)\nac dec 100 1 1G\nlet gain_db = vdb(VOUT_AC)\nlet phase = 180/PI * cph(v(VOUT_AC))\nmeas ac dc_gain find gain_db at=10\nmeas ac gbw when gain_db=0 fall=1\nmeas ac pm find phase when gain_db=0 fall=1\n\n* 3. Transient Analysis (Slew Rate)\ntran 1n 3u\nmeas tran t_rise trig v(VOUT_TRAN) val=0.6 rise=1 targ v(VOUT_TRAN) val=1.2 rise=1\nmeas tran t_fall trig v(VOUT_TRAN) val=1.2 fall=1 targ v(VOUT_TRAN) val=0.6 fall=1\nlet sr_rise = 0.6 / t_rise\nlet sr_fall = 0.6 / t_fall\nprint sr_rise sr_fall\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"N/A (Chapter None)\",\n    \"page\": \"N/A\",\n    \"circuit_type\": \"Three-Stage DFCFC Operational Amplifier\",\n    \"description\": \"A three-stage operational amplifier utilizing a folded-cascode first stage, a current-mirror second stage, and a push-pull third stage. It is compensated using Damping-Factor-Control Frequency Compensation (DFCFC) via capacitors C0 and C1 along with an active damping network.\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain of the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard 3-Stage Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"A_OL = (gm1 * Rout1) * (gm2 * Rout2) * (gm3 * Rout3)\",\n        \"explanation\": \"The total DC gain is the product of the intrinsic gains of the three individual stages.\",\n        \"assumptions\": \"Assumes all transistors operate in the saturation region.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming typical intrinsic gain (gm*ro) of ~30 V/V per stage in SKY130 1.8V devices. A_OL = 30 * 30 * 30 = 27,000 V/V.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 88,\n          \"max\": 100,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Three stages of amplification typically yield 80-100 dB of open-loop gain depending on exact channel lengths and biasing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"The frequency at which the open-loop voltage gain drops to 0 dB (1 V/V).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"GBW = gm1 / (2 * pi * C0)\",\n        \"explanation\": \"The gain-bandwidth product is determined by the transconductance of the input differential pair and the primary compensation capacitor.\",\n        \"assumptions\": \"Assumes the first non-dominant pole is at a higher frequency than GBW.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With I_tail = 20uA (m=8 vs m=4 ref), I_D1 = 10uA. Assuming W/L=5, gm1 = sqrt(2 * 50uA/V^2 * 5 * 10uA) = 70.7 uS. GBW = 70.7uS / (2 * pi * 500fF) = 22.5 MHz.\",\n        \"range\": {\n          \"min\": 15e6,\n          \"typical\": 22.5e6,\n          \"max\": 35e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Calculated using the provided 500fF compensation capacitor and estimated input pair transconductance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"The difference between the phase of the open-loop response and -180 degrees at the unity-gain frequency.\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"PM = 180 - arctan(GBW / p1) - arctan(GBW / p2) - ...\",\n        \"explanation\": \"Measures the stability of the amplifier in closed-loop configuration.\",\n        \"assumptions\": \"Assumes DFCFC network successfully pushes non-dominant poles beyond GBW.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"DFCFC is designed to achieve complex pole splitting and damping, typically targeting a Butterworth or Bessel response.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 75,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"A phase margin of 60 degrees is the standard target for optimal step response with minimal ringing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"The maximum rate of change of the output voltage.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"SR = I_tail / C0\",\n        \"explanation\": \"Limited by the maximum current the first stage can supply to charge the compensation capacitor.\",\n        \"assumptions\": \"Assumes the internal slew rate (charging C0) is the limiting factor, not the output stage driving C_load.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 20uA (from xm4 with m=8 mirroring 10uA from xm0 with m=4). C0 = 500fF. SR = 20uA / 500fF = 40 V/us.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 40,\n          \"max\": 50,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Directly derived from the tail current and primary compensation capacitor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total static power dissipated by the amplifier.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"P = VDD * I_total\",\n        \"explanation\": \"Product of the supply voltage and the sum of all quiescent branch currents.\",\n        \"assumptions\": \"Measured with zero differential input voltage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bias branches (xm0-xm8) consume ~100uA total. Second and third stages consume additional current. Estimated total I_q ~ 150uA. P = 1.8V * 150uA = 270 uW.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 270e-6,\n          \"max\": 350e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on the 10uA reference current and the mirror ratios defined by the 'm' parameters in the netlist.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC Gain, GBW, Phase Margin, Slew Rate, and Power Consumption of the DFCFC amplifier.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"open_loop_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* DFCFC Amplifier Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define missing W/L parameters to ensure compilation\\n.param L_xm0=0.5 W_xm0=2 L_xm1=0.5 W_xm1=2 L_xm2=0.5 W_xm2=2 L_xm3=0.5 W_xm3=2 L_xm4=0.5 W_xm4=2\\n.param L_xm5=0.5 W_xm5=2 L_xm6=0.5 W_xm6=2 L_xm7=0.5 W_xm7=2 L_xm8=0.5 W_xm8=2 L_xm9=0.5 W_xm9=2\\n.param L_xm10=0.5 W_xm10=2 L_xm11=0.5 W_xm11=2 L_xm12=0.5 W_xm12=2 L_xm13=0.5 W_xm13=2 L_xm14=0.5 W_xm14=2\\n.param L_xm15=0.5 W_xm15=2 L_xm16=0.5 W_xm16=2 L_xm17=0.5 W_xm17=2 L_xm18=0.5 W_xm18=2 L_xm19=0.5 W_xm19=2\\n.param L_xm20=0.5 W_xm20=2 L_xm21=0.5 W_xm21=2 L_xm22=0.5 W_xm22=2 L_xm23=0.5 W_xm23=2 L_xm24=0.5 W_xm24=2\\n.param L_xm25=0.5 W_xm25=2\\n\\n.subckt DFCFC GNDA VDDA VINN VINP VOUT\\n* PMOS BIAS CURRENT MIRROR\\nxm0 VBIAS VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm0} w={W_xm0} m=4\\nxm1 VB4 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1} m=4\\nxm2 DM_1 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2} m=4\\nxm3 VB3 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3} m=4\\nxm4 TAIL VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4} m=8\\nxm5 VOUTN VOUTN VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5} m=4\\nxm6 V1OUT VOUTN VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6} m=4\\nxm7 V2OUT VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7} m=4\\nxm8 NET1 VBIAS VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8} m=4\\n\\n* FIRST STAGE\\nxm9 DM_2 VINN TAIL TAIL sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9} m=4\\nxm10 DM_P VINP TAIL TAIL sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10} m=4\\nxm20 DM_2 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm20} w={W_xm20} m=32\\nxm21 DM_P VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm21} w={W_xm21} m=32\\nxm16 VOUTN VB3 DM_2 GNDA sky130_fd_pr__nfet_01v8 l={L_xm16} w={W_xm16} m=32\\nxm17 V1OUT VB3 DM_P GNDA sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17} m=32\\n\\n* NMOS BIAS GENERATION\\nxm15 VB3 VB3 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15} m=4\\nxm18 NET54 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm18} w={W_xm18} m=16\\nxm13 VB4 VB3 NET54 GNDA sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13} m=16\\nxm19 NET56 VB4 GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm19} w={W_xm19} m=16\\nxm14 DM_1 VB3 NET56 GNDA sky130_fd_pr__nfet_01v8 l={L_xm14} w={W_xm14} m=16\\n\\n* SECOND STAGE\\nxm11 V2IN V1OUT VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11} m=4\\nxm22 V2IN V2IN GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm22} w={W_xm22} m=4\\nxm23 V2OUT V2IN GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm23} w={W_xm23} m=4\\n\\n* OUTPUT STAGE\\nxm25 VOUT V2OUT GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm25} w={W_xm25} m=4\\nxm12 VOUT V1OUT VDDA VDDA sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12} m=4\\n\\n* DAMPING FACTOR CONTROL\\nxm24 NET1 V2OUT GNDA GNDA sky130_fd_pr__nfet_01v8 l={L_xm24} w={W_xm24} m=4\\n\\n* COMPENSATION\\nC0 V1OUT VOUT 500e-15\\nC1 V2OUT NET1 200e-15\\n\\n* BIAS CURRENT SOURCE\\nI0 VBIAS GNDA 10e-6\\n.ends DFCFC\\n\\n* Power Supplies\\nVDD VDD 0 DC 1.8\\nVSS VSS 0 DC 0\\n\\n* ========================================\\n* AC Analysis Setup (Open Loop via L/C)\\n* ========================================\\nXDUT_AC VSS VDD VINN_AC VINP_AC VOUT_AC DFCFC\\nCLOAD_AC VOUT_AC 0 15e-9\\nRLOAD_AC VOUT_AC 0 25e3\\n\\nV_INP_AC VINP_AC 0 DC 0.9 AC 1\\nL_fb VOUT_AC VINN_AC 1T\\nC_in VINN_AC 0 1T\\n\\n* ========================================\\n* Transient Analysis Setup (Unity Gain)\\n* ========================================\\nXDUT_TRAN VSS VDD VOUT_TRAN VINP_TRAN VOUT_TRAN DFCFC\\nCLOAD_TRAN VOUT_TRAN 0 15e-9\\nRLOAD_TRAN VOUT_TRAN 0 25e3\\n\\nV_INP_TRAN VINP_TRAN 0 PULSE(0.4 1.4 10n 1n 1n 1u 2u)\\n\\n* ========================================\\n* Control Block\\n* ========================================\\n.control\\n* 1. Operating Point (Power)\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis (Gain, GBW, Phase Margin)\\nac dec 100 1 1G\\nlet gain_db = vdb(VOUT_AC)\\nlet phase = 180/PI * cph(v(VOUT_AC))\\nmeas ac dc_gain find gain_db at=10\\nmeas ac gbw when gain_db=0 fall=1\\nmeas ac pm find phase when gain_db=0 fall=1\\n\\n* 3. Transient Analysis (Slew Rate)\\ntran 1n 3u\\nmeas tran t_rise trig v(VOUT_TRAN) val=0.6 rise=1 targ v(VOUT_TRAN) val=1.2 rise=1\\nmeas tran t_fall trig v(VOUT_TRAN) val=1.2 fall=1 targ v(VOUT_TRAN) val=0.6 fall=1\\nlet sr_rise = 0.6 / t_rise\\nlet sr_fall = 0.6 / t_fall\\nprint sr_rise sr_fall\\n\\nquit\\n.endc\\n\"\n  }\n}\n```"
+}

@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Cascode Low-Noise Amplifier (LNA)",
+    "description": "A cascode amplifier configuration using two NMOS transistors, effectively acting as a dual-gate MOSFET. The common-source transistor (XM1) provides transconductance, while the common-gate transistor (XM2) mitigates the Miller effect, improving high-frequency gain, bandwidth, and reverse isolation.",
+    "node_mapping": {
+      "input": [
+        "INPUT"
+      ],
+      "output": [
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VDD"
+      ],
+      "ground": [
+        "GND",
+        "N0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 7-GHz 1.8-dB NF CMOS Low-Noise Amplifier",
+      "figure": "Schematic extracted from text/context",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "voltage_gain": {
+      "description": "Small-signal voltage gain (S21 equivalent) from input to output.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "8.9 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id \u2248 0.5 * 270uA/V^2 * (5u/0.5u) * (0.9V - 0.42V)^2 \u2248 311 uA. gm \u2248 2 * Id / Vov \u2248 1.3 mA/V. With a 2k\u03a9 load, Gain = gm * RL \u2248 2.6 V/V \u2248 8.3 dB.",
+        "range": {
+          "min": 5,
+          "typical": 8.3,
+          "max": 12,
+          "unit": "dB"
+        },
+        "reasoning": "Gain depends heavily on the chosen load resistor/inductor. With a 2k\u03a9 resistive load, it aligns closely with the paper's reported gain."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Degradation of the Signal-to-Noise Ratio (SNR) caused by the circuit.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "1.8 dB",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "F \u2248 1 + gamma / (gm * Rs). With gm = 1.3 mA/V and Rs = 50\u03a9, gm*Rs is very small (0.065), leading to a high NF. To achieve 1.8 dB, W would need to be much larger (e.g., >100um) to increase gm.",
+        "range": {
+          "min": 8,
+          "typical": 12,
+          "max": 15,
+          "unit": "dB"
+        },
+        "reasoning": "The provided netlist uses W=5um, which is too small for optimal noise matching at 50\u03a9, resulting in a higher expected NF than the paper."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "13.8 mW (6.9 mA @ 2.0V)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = Id * VDD = 311 uA * 1.8 V \u2248 0.56 mW.",
+        "range": {
+          "min": 0.0003,
+          "typical": 0.00056,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "The parameterized W=5um draws significantly less current than the paper's design, leading to lower power consumption."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Frequency at which the voltage gain drops by 3 dB from its maximum.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "7 GHz (Operating Frequency)",
+        "technology": "0.25um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f3dB \u2248 1 / (2 * pi * RL * CL). With RL=2k\u03a9 and CL=10fF, f3dB \u2248 8 GHz.",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 8000000000.0,
+          "max": 12000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Bandwidth is limited by the output pole formed by the load resistor and parasitic/load capacitance."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, bandwidth, and Noise Figure of the Cascode LNA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Noise",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth",
+      "noise_figure"
+    ],
+    "spice": "* Cascode LNA Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Parameter definitions from extracted netlist\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n\n* DUT\nXM1 N2 INPUT N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 VDD N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\n\n* Ground connections\nVGND GND 0 DC 0\nVN0 N0 0 DC 0\n\n* Input Bias Tee and RF Source (50 ohm system)\nVINPUT INPUT_SRC 0 DC 0 AC 1 SIN(0 0.01 7G 0 0)\nRS INPUT_SRC INPUT_RF 50\nCB INPUT_RF INPUT 10p\nRBIAS VBIAS INPUT 10k\nVBIAS VBIAS 0 DC 0.9\n\n* Output Load (Resistive load for generic gain measurement)\nRL VDD N1 2k\nCL N1 0 10f\n\n* Power Supply\nVVDD VDD 0 DC 1.8\n\n.control\n  * 1. DC Operating Point\n  op\n  let id = -i(VVDD)\n  let power = id * 1.8\n  print id power\n\n  * 2. AC Analysis for Gain and Bandwidth\n  ac dec 50 100MEG 20G\n  let gain_db = vdb(N1)\n  meas ac max_gain max gain_db\n  meas ac gain_7g find gain_db at=7G\n  meas ac bw_3db when gain_db=max_gain-3 fall=1\n\n  * 3. Noise Analysis\n  * Refers noise to VINPUT. RS thermal noise is included.\n  noise v(N1) VINPUT dec 10 1G 10G\n  setplot noise1\n  * Calculate Noise Figure (NF) in dB\n  * Vn_rs = sqrt(4 * k * T * Rs) = sqrt(4 * 1.38e-23 * 300 * 50) = 9.1e-10 V/sqrt(Hz)\n  * NF = 20 * log10(inoise_spectrum / Vn_rs)\n  let nf_db = 20*log10(inoise_spectrum / 9.1e-10)\n  meas noise nf_7g find nf_db at=7G\n  print nf_7g\n\n  * 4. Transient Analysis\n  tran 5p 2n\n  meas tran vout_pp pp v(N1)\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Cascode Low-Noise Amplifier (LNA)\",\n    \"description\": \"A cascode amplifier configuration using two NMOS transistors, effectively acting as a dual-gate MOSFET. The common-source transistor (XM1) provides transconductance, while the common-gate transistor (XM2) mitigates the Miller effect, improving high-frequency gain, bandwidth, and reverse isolation.\",\n    \"node_mapping\": {\n      \"input\": [\"INPUT\"],\n      \"output\": [\"N1\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"VDD\"],\n      \"ground\": [\"GND\", \"N0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 7-GHz 1.8-dB NF CMOS Low-Noise Amplifier\",\n      \"figure\": \"Schematic extracted from text/context\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_gain\": {\n      \"description\": \"Small-signal voltage gain (S21 equivalent) from input to output.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"8.9 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id \u2248 0.5 * 270uA/V^2 * (5u/0.5u) * (0.9V - 0.42V)^2 \u2248 311 uA. gm \u2248 2 * Id / Vov \u2248 1.3 mA/V. With a 2k\u03a9 load, Gain = gm * RL \u2248 2.6 V/V \u2248 8.3 dB.\",\n        \"range\": { \"min\": 5, \"typical\": 8.3, \"max\": 12, \"unit\": \"dB\" },\n        \"reasoning\": \"Gain depends heavily on the chosen load resistor/inductor. With a 2k\u03a9 resistive load, it aligns closely with the paper's reported gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Degradation of the Signal-to-Noise Ratio (SNR) caused by the circuit.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"1.8 dB\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"F \u2248 1 + gamma / (gm * Rs). With gm = 1.3 mA/V and Rs = 50\u03a9, gm*Rs is very small (0.065), leading to a high NF. To achieve 1.8 dB, W would need to be much larger (e.g., >100um) to increase gm.\",\n        \"range\": { \"min\": 8, \"typical\": 12, \"max\": 15, \"unit\": \"dB\" },\n        \"reasoning\": \"The provided netlist uses W=5um, which is too small for optimal noise matching at 50\u03a9, resulting in a higher expected NF than the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"13.8 mW (6.9 mA @ 2.0V)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = Id * VDD = 311 uA * 1.8 V \u2248 0.56 mW.\",\n        \"range\": { \"min\": 0.3e-3, \"typical\": 0.56e-3, \"max\": 1e-3, \"unit\": \"W\" },\n        \"reasoning\": \"The parameterized W=5um draws significantly less current than the paper's design, leading to lower power consumption.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Frequency at which the voltage gain drops by 3 dB from its maximum.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"7 GHz (Operating Frequency)\",\n        \"technology\": \"0.25um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f3dB \u2248 1 / (2 * pi * RL * CL). With RL=2k\u03a9 and CL=10fF, f3dB \u2248 8 GHz.\",\n        \"range\": { \"min\": 5e9, \"typical\": 8e9, \"max\": 12e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"Bandwidth is limited by the output pole formed by the load resistor and parasitic/load capacitance.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, bandwidth, and Noise Figure of the Cascode LNA.\",\n    \"analyses\": [\"OP\", \"AC\", \"Noise\", \"Tran\"],\n    \"metrics_measured\": [\"power_consumption\", \"voltage_gain\", \"bandwidth\", \"noise_figure\"],\n    \"spice\": \"* Cascode LNA Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Parameter definitions from extracted netlist\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n\\n* DUT\\nXM1 N2 INPUT N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 VDD N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\n\\n* Ground connections\\nVGND GND 0 DC 0\\nVN0 N0 0 DC 0\\n\\n* Input Bias Tee and RF Source (50 ohm system)\\nVINPUT INPUT_SRC 0 DC 0 AC 1 SIN(0 0.01 7G 0 0)\\nRS INPUT_SRC INPUT_RF 50\\nCB INPUT_RF INPUT 10p\\nRBIAS VBIAS INPUT 10k\\nVBIAS VBIAS 0 DC 0.9\\n\\n* Output Load (Resistive load for generic gain measurement)\\nRL VDD N1 2k\\nCL N1 0 10f\\n\\n* Power Supply\\nVVDD VDD 0 DC 1.8\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let id = -i(VVDD)\\n  let power = id * 1.8\\n  print id power\\n\\n  * 2. AC Analysis for Gain and Bandwidth\\n  ac dec 50 100MEG 20G\\n  let gain_db = vdb(N1)\\n  meas ac max_gain max gain_db\\n  meas ac gain_7g find gain_db at=7G\\n  meas ac bw_3db when gain_db=max_gain-3 fall=1\\n\\n  * 3. Noise Analysis\\n  * Refers noise to VINPUT. RS thermal noise is included.\\n  noise v(N1) VINPUT dec 10 1G 10G\\n  setplot noise1\\n  * Calculate Noise Figure (NF) in dB\\n  * Vn_rs = sqrt(4 * k * T * Rs) = sqrt(4 * 1.38e-23 * 300 * 50) = 9.1e-10 V/sqrt(Hz)\\n  * NF = 20 * log10(inoise_spectrum / Vn_rs)\\n  let nf_db = 20*log10(inoise_spectrum / 9.1e-10)\\n  meas noise nf_7g find nf_db at=7G\\n  print nf_7g\\n\\n  * 4. Transient Analysis\\n  tran 5p 2n\\n  meas tran vout_pp pp v(N1)\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1015682",
+  "_case": "1015682_image_2"
+}

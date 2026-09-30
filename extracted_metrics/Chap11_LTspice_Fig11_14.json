@@ -1,0 +1,524 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 11.12 and Fig 11.14",
+    "page": "Pages 5 and 7",
+    "circuit_type": "11-Stage Ring Oscillator",
+    "description": "The netlist describes a closed loop of 11 CMOS inverters. This matches the ring oscillator topology shown in Figure 11.12 (which shows a 5-stage version) and specifically implements the 11-stage ring oscillator described in Example 11.7 and simulated in Figure 11.14."
+  },
+  "step2_metrics": {
+    "switching_point_voltage": {
+      "description": "The voltage at which the inverter's input equals its output, acting as a voltage divider between the effective PMOS and NMOS resistances.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "1",
+        "reference": "Eq 11.5"
+      },
+      "equation": {
+        "formula": "V_SP = VDD * R_n / (R_n + R_p)",
+        "explanation": "Estimates the switching point using effective switching resistances.",
+        "assumptions": "Assumes short-channel devices where square-law models don't perfectly apply, treating transistors as resistors."
+      },
+      "sky130_expected": {
+        "calculation": "Assume Wn=1um, Wp=2um, L=0.15um. Rn \u2248 1 / (un*Cox * (Wn/L) * (VDD - Vthn)) = 1 / (270uA/V^2 * (1/0.15) * (1.8V - 0.42V)) = 1 / (1.8mA/V^2 * 1.38V) \u2248 402 ohms. Rp \u2248 1 / (up*Cox * (Wp/L) * (VDD - |Vthp|)) = 1 / (50uA/V^2 * (2/0.15) * (1.8V - 0.42V)) = 1 / (0.66mA/V^2 * 1.38V) \u2248 1098 ohms. V_SP = 1.8V * 402 / (402 + 1098) = 0.482V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.48,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "Because up*Cox is much weaker than un*Cox in SKY130, a 2:1 P:N sizing ratio still leaves the NMOS much stronger, pulling the switching point below VDD/2 (0.9V)."
+      },
+      "importance": "essential"
+    },
+    "effective_input_capacitance": {
+      "description": "The total input capacitance of a single inverter stage.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "3",
+        "reference": "Eq 11.6"
+      },
+      "equation": {
+        "formula": "Cin = 3/2 * (Cox1 + Cox2) = Cinn + Cinp",
+        "explanation": "Accounts for the gate capacitance and the Miller effect on the gate-drain overlap capacitance.",
+        "assumptions": "Assumes digital switching where the multiplier 3/2 approximates the average capacitance during a transition."
+      },
+      "sky130_expected": {
+        "calculation": "Assume Cox_density \u2248 8 fF/um^2. Coxn = 8 * 1 * 0.15 = 1.2 fF. Coxp = 8 * 2 * 0.15 = 2.4 fF. Cin = 1.5 * (1.2 + 2.4) = 5.4 fF.",
+        "range": {
+          "min": 3e-15,
+          "typical": 5.4e-15,
+          "max": 1e-14,
+          "unit": "F"
+        },
+        "reasoning": "Based on typical thin-oxide capacitance for a 130nm node and minimum length devices."
+      },
+      "importance": "recommended"
+    },
+    "effective_output_capacitance": {
+      "description": "The intrinsic output capacitance of the inverter.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "3",
+        "reference": "Eq 11.7"
+      },
+      "equation": {
+        "formula": "Cout = Cox1 + Cox2 = Coutn + Coutp",
+        "explanation": "Sum of the drain parasitic capacitances of the NMOS and PMOS.",
+        "assumptions": "Approximates drain capacitance as roughly equal to gate oxide capacitance for hand calculations."
+      },
+      "sky130_expected": {
+        "calculation": "Using the same Cox estimates: Cout = 1.2 fF + 2.4 fF = 3.6 fF.",
+        "range": {
+          "min": 2e-15,
+          "typical": 3.6e-15,
+          "max": 8e-15,
+          "unit": "F"
+        },
+        "reasoning": "Direct sum of the estimated gate oxide capacitances."
+      },
+      "importance": "recommended"
+    },
+    "intrinsic_propagation_delays": {
+      "description": "The high-to-low and low-to-high propagation delays of an unloaded inverter.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "3",
+        "reference": "Eq 11.8"
+      },
+      "equation": {
+        "formula": "tPLH = 0.7 * Rp2 * Cout, tPHL = 0.7 * Rn1 * Cout",
+        "explanation": "RC delay approximation for the inverter driving its own output capacitance.",
+        "assumptions": "Assumes step input and models transistors as linear resistors."
+      },
+      "sky130_expected": {
+        "calculation": "tPLH = 0.7 * 1098 ohms * 3.6 fF = 2.76 ps. tPHL = 0.7 * 402 ohms * 3.6 fF = 1.01 ps.",
+        "range": {
+          "min": 5e-13,
+          "typical": 2e-12,
+          "max": 1e-11,
+          "unit": "s"
+        },
+        "reasoning": "Intrinsic delays are extremely small, often dominated by parasitic routing in real layouts."
+      },
+      "importance": "optional"
+    },
+    "propagation_delay_loaded": {
+      "description": "Propagation delays when driving a load capacitance.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "4",
+        "reference": "Eq 11.9 and 11.10"
+      },
+      "equation": {
+        "formula": "tPLH = 0.7 * Rp2 * Ctot, tPHL = 0.7 * Rn1 * Ctot",
+        "explanation": "RC delay including external load (Ctot = Cout + Cload).",
+        "assumptions": "Load capacitance is much larger than intrinsic capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "If Cload = 50fF, Ctot = 53.6fF. tPLH = 0.7 * 1098 * 53.6fF = 41 ps. tPHL = 0.7 * 402 * 53.6fF = 15 ps.",
+        "range": {
+          "min": 1e-11,
+          "typical": 3e-11,
+          "max": 1e-10,
+          "unit": "s"
+        },
+        "reasoning": "Scales linearly with the applied load capacitance."
+      },
+      "importance": "optional"
+    },
+    "oscillation_frequency": {
+      "description": "The frequency at which the ring oscillator toggles.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.11"
+      },
+      "equation": {
+        "formula": "fosc = 1 / (n * (tPHL + tPLH))",
+        "explanation": "Frequency is the inverse of the total delay around the loop (n stages, each transitioning twice per period).",
+        "assumptions": "All inverters are identical and n is an odd number."
+      },
+      "sky130_expected": {
+        "calculation": "Using Ctot for ring osc (Eq 11.12) = 2.5 * (1.2 + 2.4) = 9 fF. tPHL + tPLH = 0.7 * (402 + 1098) * 9fF = 9.45 ps. fosc = 1 / (11 * 9.45 ps) = 9.6 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 12000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Calculated intrinsic frequency is very high; actual SPICE simulation with full PDK parasitics will likely be lower (1-5 GHz)."
+      },
+      "importance": "essential"
+    },
+    "total_capacitance_ring_osc": {
+      "description": "The effective capacitance driven by each stage in a ring oscillator.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.12"
+      },
+      "equation": {
+        "formula": "Ctot = 5/2 * (Coxp + Coxn)",
+        "explanation": "Sum of input capacitance (3/2 Cox) of the next stage and output capacitance (1 Cox) of the current stage.",
+        "assumptions": "Identical inverters in the chain."
+      },
+      "sky130_expected": {
+        "calculation": "Ctot = 2.5 * (1.2fF + 2.4fF) = 9 fF.",
+        "range": {
+          "min": 5e-15,
+          "typical": 9e-15,
+          "max": 2e-14,
+          "unit": "F"
+        },
+        "reasoning": "Direct application of the 5/2 multiplier to the gate oxide capacitances."
+      },
+      "importance": "recommended"
+    },
+    "delay_ring_osc": {
+      "description": "The combined high-to-low and low-to-high delay for one stage in the ring oscillator.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.13"
+      },
+      "equation": {
+        "formula": "tPHL + tPLH = 0.7 * (Rn + Rp) * Ctot",
+        "explanation": "Total delay per stage using the effective switching resistances and total stage capacitance.",
+        "assumptions": "Linear resistor model for MOSFETs."
+      },
+      "sky130_expected": {
+        "calculation": "0.7 * (402 + 1098) * 9fF = 9.45 ps.",
+        "range": {
+          "min": 5e-12,
+          "typical": 1e-11,
+          "max": 3e-11,
+          "unit": "s"
+        },
+        "reasoning": "Derived directly from the resistance and capacitance estimates."
+      },
+      "importance": "essential"
+    },
+    "average_current": {
+      "description": "Average current drawn from the supply by a single switching inverter.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.14"
+      },
+      "equation": {
+        "formula": "Iavg = Qctot / T = VDD * Ctot / T",
+        "explanation": "Charge transferred per clock period.",
+        "assumptions": "Full rail-to-rail switching."
+      },
+      "sky130_expected": {
+        "calculation": "Iavg = 1.8V * 9fF * 9.6GHz = 155 uA per stage.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.00015,
+          "max": 0.0005,
+          "unit": "A"
+        },
+        "reasoning": "Depends heavily on the actual oscillation frequency achieved in simulation."
+      },
+      "importance": "recommended"
+    },
+    "dynamic_power_dissipation": {
+      "description": "Average dynamic power dissipated by the inverter.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Eq 11.15"
+      },
+      "equation": {
+        "formula": "Pavg = VDD * Iavg = Ctot * VDD^2 * fclk",
+        "explanation": "Power required to charge and discharge the total capacitance at the switching frequency.",
+        "assumptions": "Short-circuit power is negligible compared to dynamic switching power."
+      },
+      "sky130_expected": {
+        "calculation": "Pavg = 9fF * (1.8V)^2 * 9.6GHz = 279 uW per stage. For 11 stages: 3.07 mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.003,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Total power for the 11-stage ring oscillator."
+      },
+      "importance": "essential"
+    },
+    "power_delay_product": {
+      "description": "Figure of merit representing the energy consumed per switching event.",
+      "unit": "J",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "6",
+        "reference": "Eq 11.16"
+      },
+      "equation": {
+        "formula": "PDP = Pavg * (tPHL + tPLH)",
+        "explanation": "Product of average power and the delay of the gate.",
+        "assumptions": "Evaluated for a single stage."
+      },
+      "sky130_expected": {
+        "calculation": "PDP = 279 uW * 9.45 ps = 2.6 fJ.",
+        "range": {
+          "min": 1e-15,
+          "typical": 3e-15,
+          "max": 1e-14,
+          "unit": "J"
+        },
+        "reasoning": "Typical energy per transition for a 130nm class process."
+      },
+      "importance": "essential"
+    },
+    "buffer_input_capacitance": {
+      "description": "Input capacitance scaling in a buffer chain.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "10",
+        "reference": "Eq 11.17"
+      },
+      "equation": {
+        "formula": "Cin2 = A * Cin1",
+        "explanation": "Each stage's input capacitance is A times larger than the previous.",
+        "assumptions": "Uniform scaling factor A."
+      },
+      "sky130_expected": {
+        "calculation": "N/A for this specific unbuffered ring oscillator netlist.",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "F"
+        },
+        "reasoning": "The provided netlist is a uniform ring oscillator, not a scaled buffer chain."
+      },
+      "importance": "optional"
+    },
+    "buffer_switching_resistance": {
+      "description": "Switching resistance scaling in a buffer chain.",
+      "unit": "ohm",
+      "analysis_type": "DC",
+      "source": {
+        "page": "10",
+        "reference": "Eq 11.18"
+      },
+      "equation": {
+        "formula": "Rn,p2 = Rn,p1 / A",
+        "explanation": "Resistance decreases by factor A as width increases by A.",
+        "assumptions": "Resistance is inversely proportional to width."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "ohm"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    },
+    "buffer_final_input_c": {
+      "description": "Input capacitance of the hypothetical stage after the final buffer.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "10",
+        "reference": "Eq 11.19"
+      },
+      "equation": {
+        "formula": "Cin1 * A^N = Cload",
+        "explanation": "Equates the scaled capacitance of the final stage to the load capacitance.",
+        "assumptions": "Optimal scaling for delay."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "F"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    },
+    "buffer_stage_ratio": {
+      "description": "Optimal sizing ratio A for a buffer chain.",
+      "unit": "ratio",
+      "analysis_type": "Math",
+      "source": {
+        "page": "10",
+        "reference": "Eq 11.20"
+      },
+      "equation": {
+        "formula": "A = (Cload / Cin1)^(1/N)",
+        "explanation": "Calculates the scaling factor given N stages and a load.",
+        "assumptions": "Uniform delay per stage."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "ratio"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    },
+    "buffer_total_delay_expanded": {
+      "description": "Expanded formula for total delay of a buffer chain.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "11",
+        "reference": "Eq 11.21"
+      },
+      "equation": {
+        "formula": "(tPHL + tPLH)total = 0.7*(Rn1+Rp1)(Cout1+A*Cin1) + 0.7*((Rn1+Rp1)/A)*(A*Cout1+A^2*Cin1) + ...",
+        "explanation": "Sum of delays of individual scaled stages.",
+        "assumptions": "RC delay model."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "s"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    },
+    "buffer_total_delay_sum": {
+      "description": "Simplified sum formula for total buffer delay.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "11",
+        "reference": "Eq 11.22"
+      },
+      "equation": {
+        "formula": "(tPHL + tPLH)total = 0.7 * N * (Rn1 + Rp1) * (Cout1 + A*Cin1)",
+        "explanation": "Since all stages have equal delay, total delay is N times the first stage delay.",
+        "assumptions": "Uniform scaling A."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "s"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    },
+    "buffer_total_delay_substituted": {
+      "description": "Total buffer delay expressed with Cload.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "11",
+        "reference": "Eq 11.23"
+      },
+      "equation": {
+        "formula": "(tPHL + tPLH)total = 0.7 * N * (Rn1 + Rp1) * (Cout1 + (Cload/Cin1)^(1/N) * Cin1)",
+        "explanation": "Substitutes A with the load capacitance ratio.",
+        "assumptions": "Uniform scaling."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "s"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    },
+    "buffer_delay_derivative": {
+      "description": "Derivative of delay with respect to N to find minimum.",
+      "unit": "s",
+      "analysis_type": "Math",
+      "source": {
+        "page": "11",
+        "reference": "Eq 11.24"
+      },
+      "equation": {
+        "formula": "0.7 * ( (Rn1+Rp1)Cout1 + (Rn1+Rp1)Cin1 * ( (Cload/Cin1)^(1/N) + N*(Cload/Cin1)^(1/N) * ln(Cload/Cin1)/(-N^2) ) ) = 0",
+        "explanation": "Setting derivative to zero to optimize number of stages.",
+        "assumptions": "Continuous N."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "s"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    },
+    "buffer_optimal_stages": {
+      "description": "Optimal number of stages for a buffer driving a large load.",
+      "unit": "stages",
+      "analysis_type": "Math",
+      "source": {
+        "page": "11",
+        "reference": "Eq 11.25"
+      },
+      "equation": {
+        "formula": "N = ln(Cload / Cin1)",
+        "explanation": "Result of solving the derivative, showing optimal scaling factor is e (approx 2.718).",
+        "assumptions": "Intrinsic delay of the first stage is small."
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": null,
+          "typical": null,
+          "max": null,
+          "unit": "stages"
+        },
+        "reasoning": "Not applicable to the uniform ring oscillator."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis of the 11-stage ring oscillator to measure oscillation frequency, average power, stage delay, and power-delay product.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "dynamic_power_dissipation",
+      "delay_ring_osc",
+      "power_delay_product"
+    ],
+    "spice": "* ngspice testbench for 11-stage ring oscillator\n.lib ${SKY130_PDK} tt\n\n* Define parameters for W and L\n.param W_n=1 L_n=0.15 W_p=2 L_p=0.15\n.param W_xm1=W_n L_xm1=L_n W_xm2=W_p L_xm2=L_p\n.param W_xm3=W_n L_xm3=L_n W_xm4=W_p L_xm4=L_p\n.param W_xm5=W_n L_xm5=L_n W_xm6=W_p L_xm6=L_p\n.param W_xm7=W_n L_xm7=L_n W_xm8=W_p L_xm8=L_p\n.param W_xm9=W_n L_xm9=L_n W_xm10=W_p L_xm10=L_p\n.param W_xm11=W_n L_xm11=L_n W_xm12=W_p L_xm12=L_p\n.param W_xm13=W_n L_xm13=L_n W_xm14=W_p L_xm14=L_p\n.param W_xm15=W_n L_xm15=L_n W_xm16=W_p L_xm16=L_p\n.param W_xm17=W_n L_xm17=L_n W_xm18=W_p L_xm18=L_p\n.param W_xm19=W_n L_xm19=L_n W_xm20=W_p L_xm20=L_p\n.param W_xm21=W_n L_xm21=L_n W_xm22=W_p L_xm22=L_p\n\n* DUT\nxm1 N001 Osc 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 N001 Osc VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 N003 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N003 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 N004 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nxm8 N004 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9 N005 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 N005 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N006 N005 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\nxm12 N006 N005 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\nxm13 N007 N006 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\nxm14 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\nxm15 N008 N007 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\nxm16 N008 N007 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\nxm17 N009 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\nxm18 N009 N008 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\nxm19 N010 N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\nxm20 N010 N009 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\nxm21 Osc N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm21} l={L_xm21}\nxm22 Osc N010 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\n\n* Initial condition to start oscillation\n.ic v(Osc)=1.8\n\n.control\n  tran 1p 10n\n  \n  * Measure oscillation period and frequency\n  meas tran period trig v(Osc) val=0.9 rise=3 targ v(Osc) val=0.9 rise=4\n  let fosc = 1 / period\n  print fosc\n  \n  * Measure delay per stage (11 stages, 2 transitions per period)\n  let stage_delay = period / 22\n  print stage_delay\n  \n  * Measure average current and power\n  meas tran ivdd avg i(VDD) from=2n to=10n\n  let total_power = -ivdd * 1.8\n  let power_per_stage = total_power / 11\n  print total_power\n  print power_per_stage\n  \n  * Calculate Power Delay Product (PDP) per stage\n  let pdp = power_per_stage * stage_delay\n  print pdp\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 11.12 and Fig 11.14\",\n    \"page\": \"Pages 5 and 7\",\n    \"circuit_type\": \"11-Stage Ring Oscillator\",\n    \"description\": \"The netlist describes a closed loop of 11 CMOS inverters. This matches the ring oscillator topology shown in Figure 11.12 (which shows a 5-stage version) and specifically implements the 11-stage ring oscillator described in Example 11.7 and simulated in Figure 11.14.\"\n  },\n  \"step2_metrics\": {\n    \"switching_point_voltage\": {\n      \"description\": \"The voltage at which the inverter's input equals its output, acting as a voltage divider between the effective PMOS and NMOS resistances.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"1\",\n        \"reference\": \"Eq 11.5\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = VDD * R_n / (R_n + R_p)\",\n        \"explanation\": \"Estimates the switching point using effective switching resistances.\",\n        \"assumptions\": \"Assumes short-channel devices where square-law models don't perfectly apply, treating transistors as resistors.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume Wn=1um, Wp=2um, L=0.15um. Rn \u2248 1 / (un*Cox * (Wn/L) * (VDD - Vthn)) = 1 / (270uA/V^2 * (1/0.15) * (1.8V - 0.42V)) = 1 / (1.8mA/V^2 * 1.38V) \u2248 402 ohms. Rp \u2248 1 / (up*Cox * (Wp/L) * (VDD - |Vthp|)) = 1 / (50uA/V^2 * (2/0.15) * (1.8V - 0.42V)) = 1 / (0.66mA/V^2 * 1.38V) \u2248 1098 ohms. V_SP = 1.8V * 402 / (402 + 1098) = 0.482V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.48,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Because up*Cox is much weaker than un*Cox in SKY130, a 2:1 P:N sizing ratio still leaves the NMOS much stronger, pulling the switching point below VDD/2 (0.9V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"effective_input_capacitance\": {\n      \"description\": \"The total input capacitance of a single inverter stage.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"3\",\n        \"reference\": \"Eq 11.6\"\n      },\n      \"equation\": {\n        \"formula\": \"Cin = 3/2 * (Cox1 + Cox2) = Cinn + Cinp\",\n        \"explanation\": \"Accounts for the gate capacitance and the Miller effect on the gate-drain overlap capacitance.\",\n        \"assumptions\": \"Assumes digital switching where the multiplier 3/2 approximates the average capacitance during a transition.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assume Cox_density \u2248 8 fF/um^2. Coxn = 8 * 1 * 0.15 = 1.2 fF. Coxp = 8 * 2 * 0.15 = 2.4 fF. Cin = 1.5 * (1.2 + 2.4) = 5.4 fF.\",\n        \"range\": {\n          \"min\": 3e-15,\n          \"typical\": 5.4e-15,\n          \"max\": 10e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Based on typical thin-oxide capacitance for a 130nm node and minimum length devices.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"effective_output_capacitance\": {\n      \"description\": \"The intrinsic output capacitance of the inverter.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"3\",\n        \"reference\": \"Eq 11.7\"\n      },\n      \"equation\": {\n        \"formula\": \"Cout = Cox1 + Cox2 = Coutn + Coutp\",\n        \"explanation\": \"Sum of the drain parasitic capacitances of the NMOS and PMOS.\",\n        \"assumptions\": \"Approximates drain capacitance as roughly equal to gate oxide capacitance for hand calculations.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using the same Cox estimates: Cout = 1.2 fF + 2.4 fF = 3.6 fF.\",\n        \"range\": {\n          \"min\": 2e-15,\n          \"typical\": 3.6e-15,\n          \"max\": 8e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Direct sum of the estimated gate oxide capacitances.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"intrinsic_propagation_delays\": {\n      \"description\": \"The high-to-low and low-to-high propagation delays of an unloaded inverter.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"3\",\n        \"reference\": \"Eq 11.8\"\n      },\n      \"equation\": {\n        \"formula\": \"tPLH = 0.7 * Rp2 * Cout, tPHL = 0.7 * Rn1 * Cout\",\n        \"explanation\": \"RC delay approximation for the inverter driving its own output capacitance.\",\n        \"assumptions\": \"Assumes step input and models transistors as linear resistors.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"tPLH = 0.7 * 1098 ohms * 3.6 fF = 2.76 ps. tPHL = 0.7 * 402 ohms * 3.6 fF = 1.01 ps.\",\n        \"range\": {\n          \"min\": 0.5e-12,\n          \"typical\": 2e-12,\n          \"max\": 10e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Intrinsic delays are extremely small, often dominated by parasitic routing in real layouts.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"propagation_delay_loaded\": {\n      \"description\": \"Propagation delays when driving a load capacitance.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"4\",\n        \"reference\": \"Eq 11.9 and 11.10\"\n      },\n      \"equation\": {\n        \"formula\": \"tPLH = 0.7 * Rp2 * Ctot, tPHL = 0.7 * Rn1 * Ctot\",\n        \"explanation\": \"RC delay including external load (Ctot = Cout + Cload).\",\n        \"assumptions\": \"Load capacitance is much larger than intrinsic capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"If Cload = 50fF, Ctot = 53.6fF. tPLH = 0.7 * 1098 * 53.6fF = 41 ps. tPHL = 0.7 * 402 * 53.6fF = 15 ps.\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 30e-12,\n          \"max\": 100e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Scales linearly with the applied load capacitance.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"oscillation_frequency\": {\n      \"description\": \"The frequency at which the ring oscillator toggles.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.11\"\n      },\n      \"equation\": {\n        \"formula\": \"fosc = 1 / (n * (tPHL + tPLH))\",\n        \"explanation\": \"Frequency is the inverse of the total delay around the loop (n stages, each transitioning twice per period).\",\n        \"assumptions\": \"All inverters are identical and n is an odd number.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using Ctot for ring osc (Eq 11.12) = 2.5 * (1.2 + 2.4) = 9 fF. tPHL + tPLH = 0.7 * (402 + 1098) * 9fF = 9.45 ps. fosc = 1 / (11 * 9.45 ps) = 9.6 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 5e9,\n          \"max\": 12e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Calculated intrinsic frequency is very high; actual SPICE simulation with full PDK parasitics will likely be lower (1-5 GHz).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"total_capacitance_ring_osc\": {\n      \"description\": \"The effective capacitance driven by each stage in a ring oscillator.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.12\"\n      },\n      \"equation\": {\n        \"formula\": \"Ctot = 5/2 * (Coxp + Coxn)\",\n        \"explanation\": \"Sum of input capacitance (3/2 Cox) of the next stage and output capacitance (1 Cox) of the current stage.\",\n        \"assumptions\": \"Identical inverters in the chain.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ctot = 2.5 * (1.2fF + 2.4fF) = 9 fF.\",\n        \"range\": {\n          \"min\": 5e-15,\n          \"typical\": 9e-15,\n          \"max\": 20e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Direct application of the 5/2 multiplier to the gate oxide capacitances.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"delay_ring_osc\": {\n      \"description\": \"The combined high-to-low and low-to-high delay for one stage in the ring oscillator.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.13\"\n      },\n      \"equation\": {\n        \"formula\": \"tPHL + tPLH = 0.7 * (Rn + Rp) * Ctot\",\n        \"explanation\": \"Total delay per stage using the effective switching resistances and total stage capacitance.\",\n        \"assumptions\": \"Linear resistor model for MOSFETs.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"0.7 * (402 + 1098) * 9fF = 9.45 ps.\",\n        \"range\": {\n          \"min\": 5e-12,\n          \"typical\": 10e-12,\n          \"max\": 30e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Derived directly from the resistance and capacitance estimates.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"average_current\": {\n      \"description\": \"Average current drawn from the supply by a single switching inverter.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.14\"\n      },\n      \"equation\": {\n        \"formula\": \"Iavg = Qctot / T = VDD * Ctot / T\",\n        \"explanation\": \"Charge transferred per clock period.\",\n        \"assumptions\": \"Full rail-to-rail switching.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Iavg = 1.8V * 9fF * 9.6GHz = 155 uA per stage.\",\n        \"range\": {\n          \"min\": 50e-6,\n          \"typical\": 150e-6,\n          \"max\": 500e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Depends heavily on the actual oscillation frequency achieved in simulation.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"dynamic_power_dissipation\": {\n      \"description\": \"Average dynamic power dissipated by the inverter.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 11.15\"\n      },\n      \"equation\": {\n        \"formula\": \"Pavg = VDD * Iavg = Ctot * VDD^2 * fclk\",\n        \"explanation\": \"Power required to charge and discharge the total capacitance at the switching frequency.\",\n        \"assumptions\": \"Short-circuit power is negligible compared to dynamic switching power.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Pavg = 9fF * (1.8V)^2 * 9.6GHz = 279 uW per stage. For 11 stages: 3.07 mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 3e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Total power for the 11-stage ring oscillator.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_delay_product\": {\n      \"description\": \"Figure of merit representing the energy consumed per switching event.\",\n      \"unit\": \"J\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"6\",\n        \"reference\": \"Eq 11.16\"\n      },\n      \"equation\": {\n        \"formula\": \"PDP = Pavg * (tPHL + tPLH)\",\n        \"explanation\": \"Product of average power and the delay of the gate.\",\n        \"assumptions\": \"Evaluated for a single stage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"PDP = 279 uW * 9.45 ps = 2.6 fJ.\",\n        \"range\": {\n          \"min\": 1e-15,\n          \"typical\": 3e-15,\n          \"max\": 10e-15,\n          \"unit\": \"J\"\n        },\n        \"reasoning\": \"Typical energy per transition for a 130nm class process.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"buffer_input_capacitance\": {\n      \"description\": \"Input capacitance scaling in a buffer chain.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"10\",\n        \"reference\": \"Eq 11.17\"\n      },\n      \"equation\": {\n        \"formula\": \"Cin2 = A * Cin1\",\n        \"explanation\": \"Each stage's input capacitance is A times larger than the previous.\",\n        \"assumptions\": \"Uniform scaling factor A.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for this specific unbuffered ring oscillator netlist.\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"The provided netlist is a uniform ring oscillator, not a scaled buffer chain.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_switching_resistance\": {\n      \"description\": \"Switching resistance scaling in a buffer chain.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"10\",\n        \"reference\": \"Eq 11.18\"\n      },\n      \"equation\": {\n        \"formula\": \"Rn,p2 = Rn,p1 / A\",\n        \"explanation\": \"Resistance decreases by factor A as width increases by A.\",\n        \"assumptions\": \"Resistance is inversely proportional to width.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_final_input_c\": {\n      \"description\": \"Input capacitance of the hypothetical stage after the final buffer.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"10\",\n        \"reference\": \"Eq 11.19\"\n      },\n      \"equation\": {\n        \"formula\": \"Cin1 * A^N = Cload\",\n        \"explanation\": \"Equates the scaled capacitance of the final stage to the load capacitance.\",\n        \"assumptions\": \"Optimal scaling for delay.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_stage_ratio\": {\n      \"description\": \"Optimal sizing ratio A for a buffer chain.\",\n      \"unit\": \"ratio\",\n      \"analysis_type\": \"Math\",\n      \"source\": {\n        \"page\": \"10\",\n        \"reference\": \"Eq 11.20\"\n      },\n      \"equation\": {\n        \"formula\": \"A = (Cload / Cin1)^(1/N)\",\n        \"explanation\": \"Calculates the scaling factor given N stages and a load.\",\n        \"assumptions\": \"Uniform delay per stage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"ratio\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_total_delay_expanded\": {\n      \"description\": \"Expanded formula for total delay of a buffer chain.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"11\",\n        \"reference\": \"Eq 11.21\"\n      },\n      \"equation\": {\n        \"formula\": \"(tPHL + tPLH)total = 0.7*(Rn1+Rp1)(Cout1+A*Cin1) + 0.7*((Rn1+Rp1)/A)*(A*Cout1+A^2*Cin1) + ...\",\n        \"explanation\": \"Sum of delays of individual scaled stages.\",\n        \"assumptions\": \"RC delay model.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_total_delay_sum\": {\n      \"description\": \"Simplified sum formula for total buffer delay.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"11\",\n        \"reference\": \"Eq 11.22\"\n      },\n      \"equation\": {\n        \"formula\": \"(tPHL + tPLH)total = 0.7 * N * (Rn1 + Rp1) * (Cout1 + A*Cin1)\",\n        \"explanation\": \"Since all stages have equal delay, total delay is N times the first stage delay.\",\n        \"assumptions\": \"Uniform scaling A.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_total_delay_substituted\": {\n      \"description\": \"Total buffer delay expressed with Cload.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"11\",\n        \"reference\": \"Eq 11.23\"\n      },\n      \"equation\": {\n        \"formula\": \"(tPHL + tPLH)total = 0.7 * N * (Rn1 + Rp1) * (Cout1 + (Cload/Cin1)^(1/N) * Cin1)\",\n        \"explanation\": \"Substitutes A with the load capacitance ratio.\",\n        \"assumptions\": \"Uniform scaling.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_delay_derivative\": {\n      \"description\": \"Derivative of delay with respect to N to find minimum.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Math\",\n      \"source\": {\n        \"page\": \"11\",\n        \"reference\": \"Eq 11.24\"\n      },\n      \"equation\": {\n        \"formula\": \"0.7 * ( (Rn1+Rp1)Cout1 + (Rn1+Rp1)Cin1 * ( (Cload/Cin1)^(1/N) + N*(Cload/Cin1)^(1/N) * ln(Cload/Cin1)/(-N^2) ) ) = 0\",\n        \"explanation\": \"Setting derivative to zero to optimize number of stages.\",\n        \"assumptions\": \"Continuous N.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"buffer_optimal_stages\": {\n      \"description\": \"Optimal number of stages for a buffer driving a large load.\",\n      \"unit\": \"stages\",\n      \"analysis_type\": \"Math\",\n      \"source\": {\n        \"page\": \"11\",\n        \"reference\": \"Eq 11.25\"\n      },\n      \"equation\": {\n        \"formula\": \"N = ln(Cload / Cin1)\",\n        \"explanation\": \"Result of solving the derivative, showing optimal scaling factor is e (approx 2.718).\",\n        \"assumptions\": \"Intrinsic delay of the first stage is small.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": null,\n          \"typical\": null,\n          \"max\": null,\n          \"unit\": \"stages\"\n        },\n        \"reasoning\": \"Not applicable to the uniform ring oscillator.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis of the 11-stage ring oscillator to measure oscillation frequency, average power, stage delay, and power-delay product.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"oscillation_frequency\",\n      \"dynamic_power_dissipation\",\n      \"delay_ring_osc\",\n      \"power_delay_product\"\n    ],\n    \"spice\": \"* ngspice testbench for 11-stage ring oscillator\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters for W and L\\n.param W_n=1 L_n=0.15 W_p=2 L_p=0.15\\n.param W_xm1=W_n L_xm1=L_n W_xm2=W_p L_xm2=L_p\\n.param W_xm3=W_n L_xm3=L_n W_xm4=W_p L_xm4=L_p\\n.param W_xm5=W_n L_xm5=L_n W_xm6=W_p L_xm6=L_p\\n.param W_xm7=W_n L_xm7=L_n W_xm8=W_p L_xm8=L_p\\n.param W_xm9=W_n L_xm9=L_n W_xm10=W_p L_xm10=L_p\\n.param W_xm11=W_n L_xm11=L_n W_xm12=W_p L_xm12=L_p\\n.param W_xm13=W_n L_xm13=L_n W_xm14=W_p L_xm14=L_p\\n.param W_xm15=W_n L_xm15=L_n W_xm16=W_p L_xm16=L_p\\n.param W_xm17=W_n L_xm17=L_n W_xm18=W_p L_xm18=L_p\\n.param W_xm19=W_n L_xm19=L_n W_xm20=W_p L_xm20=L_p\\n.param W_xm21=W_n L_xm21=L_n W_xm22=W_p L_xm22=L_p\\n\\n* DUT\\nxm1 N001 Osc 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 N001 Osc VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 N003 N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N003 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 N004 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 N004 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 N005 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 N005 N004 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N006 N005 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 N006 N005 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 N007 N006 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 N008 N007 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\nxm16 N008 N007 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm16} l={L_xm16}\\nxm17 N009 N008 0 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\nxm18 N009 N008 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm18} l={L_xm18}\\nxm19 N010 N009 0 0 sky130_fd_pr__nfet_01v8 w={W_xm19} l={L_xm19}\\nxm20 N010 N009 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm20} l={L_xm20}\\nxm21 Osc N010 0 0 sky130_fd_pr__nfet_01v8 w={W_xm21} l={L_xm21}\\nxm22 Osc N010 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm22} l={L_xm22}\\n\\n* Initial condition to start oscillation\\n.ic v(Osc)=1.8\\n\\n.control\\n  tran 1p 10n\\n  \\n  * Measure oscillation period and frequency\\n  meas tran period trig v(Osc) val=0.9 rise=3 targ v(Osc) val=0.9 rise=4\\n  let fosc = 1 / period\\n  print fosc\\n  \\n  * Measure delay per stage (11 stages, 2 transitions per period)\\n  let stage_delay = period / 22\\n  print stage_delay\\n  \\n  * Measure average current and power\\n  meas tran ivdd avg i(VDD) from=2n to=10n\\n  let total_power = -ivdd * 1.8\\n  let power_per_stage = total_power / 11\\n  print total_power\\n  print power_per_stage\\n  \\n  * Calculate Power Delay Product (PDP) per stage\\n  let pdp = power_per_stage * stage_delay\\n  print pdp\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

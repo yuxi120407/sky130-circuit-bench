@@ -1,0 +1,140 @@
+{
+  "step1_analysis": {
+    "circuit_type": "4-channel CML clock buffer / pulse distributor",
+    "description": "A 4-phase current-mode logic (CML) clock buffer with a shared tail current and source follower outputs. It buffers 25% duty cycle clock pulses to drive the data switches in a one-stage 4:1 multiplexer, sharing a single tail current to save power since only one pulse is active at a time.",
+    "node_mapping": {
+      "input": [
+        "P1_BAR",
+        "P2_BAR",
+        "P3_BAR",
+        "P4_BAR"
+      ],
+      "output": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "N0",
+        "N2",
+        "N3",
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 30-Gb/s 70-mW One-Stage 4:1 Multiplexer in 0.13-m CMOS",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "70 mW",
+        "technology": "120 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Tail current: Id = 0.5 * 270uA/V^2 * (5u/1u) * (1.0V - 0.42V)^2 = 227uA. Source followers (with 1k pull-downs added in TB): 4 * 1.2V / 1k = 4.8mA. Total current ~ 5mA. Power = 5mA * 1.8V = 9mW.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.009,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 70mW for the entire MUX. This sub-block consumes a fraction of that. The added testbench resistors dominate the power."
+      },
+      "importance": "essential"
+    },
+    "v_swing": {
+      "description": "Transient voltage swing at the output",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "600 mV",
+        "technology": "120 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Swing at N0 = I_tail * R_load = 227uA * 1k = 227mV. Source follower gain ~ 0.8, so output swing at P1 is ~180mV.",
+        "range": {
+          "min": 0.1,
+          "typical": 0.18,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on the load resistors added in the testbench. 1k ohm gives ~180mV swing."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "3dB bandwidth of the buffer",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "30 Gb/s (data rate)",
+        "technology": "120 nm"
+      },
+      "sky130_expected": {
+        "calculation": "Node capacitance ~ 50fF (due to L=0.5u). R = 1k. Tau = 50ps. BW = 1 / (2*pi*50ps) = 3.18 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 3000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The L=0.5u in the netlist limits the bandwidth compared to the 0.13um process used in the paper."
+      },
+      "importance": "recommended"
+    },
+    "t_delay": {
+      "description": "Propagation delay from input to output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Delay is roughly 0.69 * R * C = 0.69 * 50ps = 35ps.",
+        "range": {
+          "min": 2e-11,
+          "typical": 3.5e-11,
+          "max": 6e-11,
+          "unit": "s"
+        },
+        "reasoning": "RC time constant of the internal nodes."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC power, AC bandwidth, transient voltage swing, and delay of the 4-channel CML buffer. Missing load and pull-down resistors are added to make the circuit functional.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "v_swing",
+      "bandwidth",
+      "t_delay",
+      "t_rise",
+      "t_fall"
+    ],
+    "spice": "* Testbench for 4-channel CML buffer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm9=5u L_xm9=0.5u\n\nXM8 VDD N4 P3 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM3 N4 P3_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM1 N0 P1_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM7 VDD N3 P4 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM4 N3 P4_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM10 VDD N0 P1 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM6 N11 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM2 N2 P2_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM5 N1 BIAS N11 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM9 VDD N2 P2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\n\nVVDD VDD 0 1.8\nVBIAS BIAS 0 1.0\n\n* Missing load resistors for CML\nR1 VDD N0 1k\nR2 VDD N2 1k\nR3 VDD N4 1k\nR4 VDD N3 1k\n\n* Missing pull-down resistors for source followers\nRP1 P1 0 1k\nRP2 P2 0 1k\nRP3 P3 0 1k\nRP4 P4 0 1k\n\n* Inputs (25% duty cycle pulses)\nVP1 P1_BAR 0 DC 1.5 AC 1 PULSE(1.2 1.8 0 5p 5p 23.3p 133.3p)\nVP2 P2_BAR 0 DC 1.2 PULSE(1.2 1.8 33.3p 5p 5p 23.3p 133.3p)\nVP3 P3_BAR 0 DC 1.2 PULSE(1.2 1.8 66.6p 5p 5p 23.3p 133.3p)\nVP4 P4_BAR 0 DC 1.2 PULSE(1.2 1.8 100p 5p 5p 23.3p 133.3p)\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 10 100M 100G\nlet gain_db = vdb(P1)\nmeas ac dc_gain find gain_db at=100M\nmeas ac bw_3db when gain_db=(dc_gain-3) fall=1\n\ntran 1p 400p\nmeas tran v_max max v(P1)\nmeas tran v_min min v(P1)\nlet v_swing = v_max - v_min\nprint v_swing\n\nlet v20 = v_min + 0.2 * v_swing\nlet v80 = v_min + 0.8 * v_swing\nmeas tran t_rise trig v(P1) val=v20 rise=1 targ v(P1) val=v80 rise=1\nmeas tran t_fall trig v(P1) val=v80 fall=1 targ v(P1) val=v20 fall=1\n\nmeas tran t_delay trig v(P1_BAR) val=1.5 rise=1 targ v(P1) val=(v_min+v_max)/2 fall=1\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"4-channel CML clock buffer / pulse distributor\",\n    \"description\": \"A 4-phase current-mode logic (CML) clock buffer with a shared tail current and source follower outputs. It buffers 25% duty cycle clock pulses to drive the data switches in a one-stage 4:1 multiplexer, sharing a single tail current to save power since only one pulse is active at a time.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"P1_BAR\",\n        \"P2_BAR\",\n        \"P3_BAR\",\n        \"P4_BAR\"\n      ],\n      \"output\": [\n        \"P1\",\n        \"P2\",\n        \"P3\",\n        \"P4\",\n        \"N0\",\n        \"N2\",\n        \"N3\",\n        \"N4\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 30-Gb/s 70-mW One-Stage 4:1 Multiplexer in 0.13-m CMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"70 mW\",\n        \"technology\": \"120 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tail current: Id = 0.5 * 270uA/V^2 * (5u/1u) * (1.0V - 0.42V)^2 = 227uA. Source followers (with 1k pull-downs added in TB): 4 * 1.2V / 1k = 4.8mA. Total current ~ 5mA. Power = 5mA * 1.8V = 9mW.\",\n        \"range\": {\n          \"min\": 0.005,\n          \"typical\": 0.009,\n          \"max\": 0.015,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 70mW for the entire MUX. This sub-block consumes a fraction of that. The added testbench resistors dominate the power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_swing\": {\n      \"description\": \"Transient voltage swing at the output\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"600 mV\",\n        \"technology\": \"120 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Swing at N0 = I_tail * R_load = 227uA * 1k = 227mV. Source follower gain ~ 0.8, so output swing at P1 is ~180mV.\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.18,\n          \"max\": 0.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on the load resistors added in the testbench. 1k ohm gives ~180mV swing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"3dB bandwidth of the buffer\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"30 Gb/s (data rate)\",\n        \"technology\": \"120 nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Node capacitance ~ 50fF (due to L=0.5u). R = 1k. Tau = 50ps. BW = 1 / (2*pi*50ps) = 3.18 GHz.\",\n        \"range\": {\n          \"min\": 1000000000.0,\n          \"typical\": 3000000000.0,\n          \"max\": 5000000000.0,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The L=0.5u in the netlist limits the bandwidth compared to the 0.13um process used in the paper.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"t_delay\": {\n      \"description\": \"Propagation delay from input to output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is roughly 0.69 * R * C = 0.69 * 50ps = 35ps.\",\n        \"range\": {\n          \"min\": 2e-11,\n          \"typical\": 3.5e-11,\n          \"max\": 6e-11,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"RC time constant of the internal nodes.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC power, AC bandwidth, transient voltage swing, and delay of the 4-channel CML buffer. Missing load and pull-down resistors are added to make the circuit functional.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"v_swing\",\n      \"bandwidth\",\n      \"t_delay\",\n      \"t_rise\",\n      \"t_fall\"\n    ],\n    \"spice\": \"* Testbench for 4-channel CML buffer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n\\nXM8 VDD N4 P3 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM3 N4 P3_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM1 N0 P1_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM7 VDD N3 P4 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM4 N3 P4_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM10 VDD N0 P1 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM6 N11 BIAS GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM2 N2 P2_BAR N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM5 N1 BIAS N11 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM9 VDD N2 P2 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\n\\nVVDD VDD 0 1.8\\nVBIAS BIAS 0 1.0\\n\\n* Missing load resistors for CML\\nR1 VDD N0 1k\\nR2 VDD N2 1k\\nR3 VDD N4 1k\\nR4 VDD N3 1k\\n\\n* Missing pull-down resistors for source followers\\nRP1 P1 0 1k\\nRP2 P2 0 1k\\nRP3 P3 0 1k\\nRP4 P4 0 1k\\n\\n* Inputs (25% duty cycle pulses)\\nVP1 P1_BAR 0 DC 1.5 AC 1 PULSE(1.2 1.8 0 5p 5p 23.3p 133.3p)\\nVP2 P2_BAR 0 DC 1.2 PULSE(1.2 1.8 33.3p 5p 5p 23.3p 133.3p)\\nVP3 P3_BAR 0 DC 1.2 PULSE(1.2 1.8 66.6p 5p 5p 23.3p 133.3p)\\nVP4 P4_BAR 0 DC 1.2 PULSE(1.2 1.8 100p 5p 5p 23.3p 133.3p)\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 10 100M 100G\\nlet gain_db = vdb(P1)\\nmeas ac dc_gain find gain_db at=100M\\nmeas ac bw_3db when gain_db=(dc_gain-3) fall=1\\n\\ntran 1p 400p\\nmeas tran v_max max v(P1)\\nmeas tran v_min min v(P1)\\nlet v_swing = v_max - v_min\\nprint v_swing\\n\\nlet v20 = v_min + 0.2 * v_swing\\nlet v80 = v_min + 0.8 * v_swing\\nmeas tran t_rise trig v(P1) val=v20 rise=1 targ v(P1) val=v80 rise=1\\nmeas tran t_fall trig v(P1) val=v80 fall=1 targ v(P1) val=v20 fall=1\\n\\nmeas tran t_delay trig v(P1_BAR) val=1.5 rise=1 targ v(P1) val=(v_min+v_max)/2 fall=1\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1308588",
+  "_case": "1308588_image_7"
+}

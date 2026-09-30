@@ -1,0 +1,145 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Injection-Locked Frequency Divider (ILFD) / Cross-Coupled Oscillator",
+    "description": "The circuit forms the core of an injection-locked frequency divider. Transistors XM2 and XM3 form a cross-coupled pair that provides negative resistance to sustain oscillation. XM1 appears to be intended as an injection transistor, but in this extracted netlist, its drain and source are shorted to ground, making it act as a dummy capacitor.",
+    "node_mapping": {
+      "input": [
+        "V_I"
+      ],
+      "output": [
+        "N0",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Unified Model for Injection-Locked Frequency Dividers",
+      "figure": "Fig. 1",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "f_osc": {
+      "description": "Free-running oscillation frequency",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.7 GHz / 5.4 GHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). Assuming a testbench LC tank with L=2nH (differential) and C=1pF, f \u2248 3.5 GHz.",
+        "range": {
+          "min": 2000000000.0,
+          "typical": 3500000000.0,
+          "max": 6000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the resonant frequency of the LC tank added in the testbench."
+      },
+      "importance": "essential"
+    },
+    "p_dc": {
+      "description": "DC power consumption",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly given, but noted as 'substantially lower power'",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_dc = un*Cox * (W/L) * (Vgs-Vth)^2. With Vgs=1.8V (no tail current source), the current will be high, around 10-20mA.",
+        "range": {
+          "min": 0.01,
+          "typical": 0.03,
+          "max": 0.06,
+          "unit": "W"
+        },
+        "reasoning": "The cross-coupled pair draws significant current directly from VDD without a current-limiting tail transistor."
+      },
+      "importance": "essential"
+    },
+    "v_amp": {
+      "description": "Oscillation amplitude (peak-to-peak)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Voltage swings around VDD (1.8V), limited by the transistors entering the triode region.",
+        "range": {
+          "min": 0.5,
+          "typical": 1.5,
+          "max": 3.6,
+          "unit": "V"
+        },
+        "reasoning": "The inductive load allows the drain voltage to swing above VDD."
+      },
+      "importance": "essential"
+    },
+    "locking_range": {
+      "description": "Injection locking range (ratio of locking bandwidth to center frequency)",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "33%",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Requires sweeping the injection frequency and checking the lock condition.",
+        "range": {
+          "min": 5,
+          "typical": 20,
+          "max": 40,
+          "unit": "%"
+        },
+        "reasoning": "Typical ILFD locking range depends heavily on injection strength and tank Q. Not measurable in this specific netlist due to the shorted injection transistor."
+      },
+      "importance": "recommended"
+    },
+    "output_power": {
+      "description": "Output power delivered to the load",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "55 dBm (likely a typo in the paper, possibly -55 dBm)",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = V_rms^2 / R_load. With V_amp=1.5V and R=10k, P \u2248 28 uW = -15 dBm.",
+        "range": {
+          "min": -30,
+          "typical": -15,
+          "max": 0,
+          "unit": "dBm"
+        },
+        "reasoning": "Calculated based on the expected voltage swing across a 10k ohm test load."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the free-running oscillation frequency, amplitude, and DC power of the cross-coupled pair with an added LC tank.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "f_osc",
+      "v_amp",
+      "p_dc",
+      "p_out"
+    ],
+    "spice": "* ILFD Cross-Coupled Oscillator Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n* Override parameters for oscillation\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=50u L_xm2=0.15u\n.param W_xm3=50u L_xm3=0.15u\n\n* DUT\nXM1 GND V_I GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* Power supply and inputs\nVVDD VDD 0 1.8\nV_IN V_I 0 0\n\n* LC Tank (Resonator)\nL1 N0 VDD 1n\nL2 N2 VDD 1n\nC1 N0 N2 1p\n\n* Load\nR_load N0 N2 10k\n\n* Initial conditions to kickstart oscillation\n.ic v(N0)=1.8 v(N2)=0\n\n.control\n  * Run transient analysis\n  tran 1p 10n\n  \n  * Measure oscillation frequency\n  meas tran t1 trig v(N0) val=1.8 rise=10 targ v(N0) val=1.8 rise=11\n  let f_osc = 1 / t1\n  print f_osc\n  \n  * Measure oscillation amplitude\n  meas tran v_max max v(N0) from=5n to=10n\n  meas tran v_min min v(N0) from=5n to=10n\n  let v_amp = v_max - v_min\n  print v_amp\n  \n  * Measure DC Power\n  meas tran i_vdd avg i(VVDD) from=5n to=10n\n  let p_dc = -i_vdd * 1.8\n  print p_dc\n  \n  * Measure Output Power (in Watts, across 10k load)\n  * P = V_rms^2 / R = (V_amp / 2*sqrt(2))^2 / 10000 = V_amp^2 / 80000\n  let p_out = (v_amp * v_amp) / 80000\n  print p_out\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Injection-Locked Frequency Divider (ILFD) / Cross-Coupled Oscillator\",\n    \"description\": \"The circuit forms the core of an injection-locked frequency divider. Transistors XM2 and XM3 form a cross-coupled pair that provides negative resistance to sustain oscillation. XM1 appears to be intended as an injection transistor, but in this extracted netlist, its drain and source are shorted to ground, making it act as a dummy capacitor.\",\n    \"node_mapping\": {\n      \"input\": [\"V_I\"],\n      \"output\": [\"N0\", \"N2\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Unified Model for Injection-Locked Frequency Dividers\",\n      \"figure\": \"Fig. 1\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"f_osc\": {\n      \"description\": \"Free-running oscillation frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.7 GHz / 5.4 GHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). Assuming a testbench LC tank with L=2nH (differential) and C=1pF, f \u2248 3.5 GHz.\",\n        \"range\": { \"min\": 2e9, \"typical\": 3.5e9, \"max\": 6e9, \"unit\": \"Hz\" },\n        \"reasoning\": \"Determined by the resonant frequency of the LC tank added in the testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"p_dc\": {\n      \"description\": \"DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly given, but noted as 'substantially lower power'\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_dc = un*Cox * (W/L) * (Vgs-Vth)^2. With Vgs=1.8V (no tail current source), the current will be high, around 10-20mA.\",\n        \"range\": { \"min\": 10e-3, \"typical\": 30e-3, \"max\": 60e-3, \"unit\": \"W\" },\n        \"reasoning\": \"The cross-coupled pair draws significant current directly from VDD without a current-limiting tail transistor.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_amp\": {\n      \"description\": \"Oscillation amplitude (peak-to-peak)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Voltage swings around VDD (1.8V), limited by the transistors entering the triode region.\",\n        \"range\": { \"min\": 0.5, \"typical\": 1.5, \"max\": 3.6, \"unit\": \"V\" },\n        \"reasoning\": \"The inductive load allows the drain voltage to swing above VDD.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"locking_range\": {\n      \"description\": \"Injection locking range (ratio of locking bandwidth to center frequency)\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"33%\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Requires sweeping the injection frequency and checking the lock condition.\",\n        \"range\": { \"min\": 5, \"typical\": 20, \"max\": 40, \"unit\": \"%\" },\n        \"reasoning\": \"Typical ILFD locking range depends heavily on injection strength and tank Q. Not measurable in this specific netlist due to the shorted injection transistor.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"output_power\": {\n      \"description\": \"Output power delivered to the load\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"55 dBm (likely a typo in the paper, possibly -55 dBm)\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = V_rms^2 / R_load. With V_amp=1.5V and R=10k, P \u2248 28 uW = -15 dBm.\",\n        \"range\": { \"min\": -30, \"typical\": -15, \"max\": 0, \"unit\": \"dBm\" },\n        \"reasoning\": \"Calculated based on the expected voltage swing across a 10k ohm test load.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the free-running oscillation frequency, amplitude, and DC power of the cross-coupled pair with an added LC tank.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"f_osc\", \"v_amp\", \"p_dc\", \"p_out\"],\n    \"spice\": \"* ILFD Cross-Coupled Oscillator Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n* Override parameters for oscillation\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=50u L_xm2=0.15u\\n.param W_xm3=50u L_xm3=0.15u\\n\\n* DUT\\nXM1 GND V_I GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* Power supply and inputs\\nVVDD VDD 0 1.8\\nV_IN V_I 0 0\\n\\n* LC Tank (Resonator)\\nL1 N0 VDD 1n\\nL2 N2 VDD 1n\\nC1 N0 N2 1p\\n\\n* Load\\nR_load N0 N2 10k\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(N0)=1.8 v(N2)=0\\n\\n.control\\n  * Run transient analysis\\n  tran 1p 10n\\n  \\n  * Measure oscillation frequency\\n  meas tran t1 trig v(N0) val=1.8 rise=10 targ v(N0) val=1.8 rise=11\\n  let f_osc = 1 / t1\\n  print f_osc\\n  \\n  * Measure oscillation amplitude\\n  meas tran v_max max v(N0) from=5n to=10n\\n  meas tran v_min min v(N0) from=5n to=10n\\n  let v_amp = v_max - v_min\\n  print v_amp\\n  \\n  * Measure DC Power\\n  meas tran i_vdd avg i(VVDD) from=5n to=10n\\n  let p_dc = -i_vdd * 1.8\\n  print p_dc\\n  \\n  * Measure Output Power (in Watts, across 10k load)\\n  * P = V_rms^2 / R = (V_amp / 2*sqrt(2))^2 / 10000 = V_amp^2 / 80000\\n  let p_out = (v_amp * v_amp) / 80000\\n  print p_out\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1202004",
+  "_case": "1202004_image_3"
+}

@@ -1,0 +1,150 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Charge Pump UP-Branch (Current Steering)",
+    "description": "A current-steering charge pump UP-branch using a cascode current mirror. It steers a tail current to rapidly switch the PMOS cascode on and off, dumping the dummy current into the bias node to maintain constant current draw and enable fast switching.",
+    "node_mapping": {
+      "input": [
+        "UP",
+        "UPB"
+      ],
+      "output": [
+        "VCP"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Fast Switching PLL Frequency Synthesizer With an On-Chip Passive Discrete-Time Loop Filter in 0.25-m CMOS",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "I_up": {
+      "description": "Output current sourced to VCP when UP is high.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * up*Cox * W/L * (VDD - V_N0 - |Vth|)^2 = 0.5 * 50u * 10 * (1.8 - 1.0 - 0.42)^2 = 36uA",
+        "range": {
+          "min": "20u",
+          "typical": "36u",
+          "max": "60u",
+          "unit": "A"
+        },
+        "reasoning": "Calculated using the square law for the PMOS current source (XM6) with Vsg=0.8V and W/L=10."
+      },
+      "importance": "essential"
+    },
+    "I_leakage": {
+      "description": "Leakage current to VCP when UP is low.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Subthreshold and junction leakage of XM7 when Vsg = 0V.",
+        "range": {
+          "min": "1p",
+          "typical": "10p",
+          "max": "1n",
+          "unit": "A"
+        },
+        "reasoning": "When OFF, the PMOS switch is fully cut off, leaving only parasitic leakage."
+      },
+      "importance": "essential"
+    },
+    "t_rise": {
+      "description": "Turn-on time of the output current pulse.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 ns (System lock time)",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "dt = C * dV / I = 25fF * 1.8V / 50uA = 0.9ns",
+        "range": {
+          "min": "0.5n",
+          "typical": "1n",
+          "max": "2n",
+          "unit": "s"
+        },
+        "reasoning": "Determined by the time it takes the 50uA tail current to discharge the parasitic capacitance at node N3."
+      },
+      "importance": "recommended"
+    },
+    "t_fall": {
+      "description": "Turn-off time of the output current pulse.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Tau = R_pullup * C_parasitic = 100k * 25fF = 2.5ns. t_fall ~ 2.2 * Tau = 5.5ns",
+        "range": {
+          "min": "2n",
+          "typical": "5n",
+          "max": "10n",
+          "unit": "s"
+        },
+        "reasoning": "Depends on the pull-up mechanism for N3. In the testbench, a 100k resistor is used to recover the floating node."
+      },
+      "importance": "recommended"
+    },
+    "Compliance": {
+      "description": "Variation in output current across the VCP voltage range (0.3V to 1.5V).",
+      "unit": "A",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.25um"
+      },
+      "sky130_expected": {
+        "calculation": "Rout ~ gm * ro^2 ~ 14 MOhm. Delta I = 1.2V / 14MOhm = 85nA",
+        "range": {
+          "min": "10n",
+          "typical": "100n",
+          "max": "500n",
+          "unit": "A"
+        },
+        "reasoning": "The cascode structure (XM6, XM7) provides very high output impedance, resulting in minimal current variation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the dynamic switching characteristics and DC compliance of the charge pump UP-branch.",
+    "analyses": [
+      "Tran",
+      "DC"
+    ],
+    "metrics_measured": [
+      "I_up",
+      "I_leakage",
+      "t_rise",
+      "t_fall",
+      "Compliance"
+    ],
+    "spice": "* Charge Pump UP Branch Testbench\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nVVDD VDD 0 1.8\n* Bias for NMOS tail current\nI_N2 VDD N2 50u\n* Bias for PMOS current sources\nV_N0 N0 0 1.0\n* Pull-up for internal node N3 to ensure recovery when UP is low\nR_N3 N3 VDD 100k\n\n* Output load and current measurement\nV_VCP VCP_load 0 0.9\nV_meas VCP VCP_load 0\n\n* Inputs (DC values set for ON state during DC sweep)\nV_UP UP 0 dc 1.8 pulse(0 1.8 5n 0.1n 0.1n 10n 20n)\nV_UPB UPB 0 dc 0 pulse(1.8 0 5n 0.1n 0.1n 10n 20n)\n\n* DUT\nXM10 N1 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM8 VDD UPB N1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM12 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\nXM7 VCP N3 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM9 N3 UP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM5 N0 N3 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM4 N5 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  * Transient Analysis for switching metrics\n  tran 0.1n 40n\n  meas tran I_up_tran find i(V_meas) at=10n\n  meas tran I_leak_tran find i(V_meas) at=2n\n  \n  * Measure rise and fall times of the output current\n  meas tran t_rise trig v(UP) val=0.9 rise=1 targ i(V_meas) val=30u rise=1\n  meas tran t_fall trig v(UP) val=0.9 fall=1 targ i(V_meas) val=3u fall=1\n\n  * DC Analysis for output compliance\n  dc V_VCP 0 1.8 0.05\n  meas dc I_up_0v9 find i(V_meas) at=0.9\n  meas dc I_up_1v5 find i(V_meas) at=1.5\n  meas dc I_up_0v3 find i(V_meas) at=0.3\n  \n  let compliance_diff = I_up_1v5 - I_up_0v3\n  print I_up_0v9 compliance_diff\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Charge Pump UP-Branch (Current Steering)\",\n    \"description\": \"A current-steering charge pump UP-branch using a cascode current mirror. It steers a tail current to rapidly switch the PMOS cascode on and off, dumping the dummy current into the bias node to maintain constant current draw and enable fast switching.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"UP\",\n        \"UPB\"\n      ],\n      \"output\": [\n        \"VCP\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Fast Switching PLL Frequency Synthesizer With an On-Chip Passive Discrete-Time Loop Filter in 0.25-m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"I_up\": {\n      \"description\": \"Output current sourced to VCP when UP is high.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * up*Cox * W/L * (VDD - V_N0 - |Vth|)^2 = 0.5 * 50u * 10 * (1.8 - 1.0 - 0.42)^2 = 36uA\",\n        \"range\": {\n          \"min\": \"20u\",\n          \"typical\": \"36u\",\n          \"max\": \"60u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Calculated using the square law for the PMOS current source (XM6) with Vsg=0.8V and W/L=10.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"I_leakage\": {\n      \"description\": \"Leakage current to VCP when UP is low.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Subthreshold and junction leakage of XM7 when Vsg = 0V.\",\n        \"range\": {\n          \"min\": \"1p\",\n          \"typical\": \"10p\",\n          \"max\": \"1n\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"When OFF, the PMOS switch is fully cut off, leaving only parasitic leakage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_rise\": {\n      \"description\": \"Turn-on time of the output current pulse.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 ns (System lock time)\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dt = C * dV / I = 25fF * 1.8V / 50uA = 0.9ns\",\n        \"range\": {\n          \"min\": \"0.5n\",\n          \"typical\": \"1n\",\n          \"max\": \"2n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Determined by the time it takes the 50uA tail current to discharge the parasitic capacitance at node N3.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"t_fall\": {\n      \"description\": \"Turn-off time of the output current pulse.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Tau = R_pullup * C_parasitic = 100k * 25fF = 2.5ns. t_fall ~ 2.2 * Tau = 5.5ns\",\n        \"range\": {\n          \"min\": \"2n\",\n          \"typical\": \"5n\",\n          \"max\": \"10n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends on the pull-up mechanism for N3. In the testbench, a 100k resistor is used to recover the floating node.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Compliance\": {\n      \"description\": \"Variation in output current across the VCP voltage range (0.3V to 1.5V).\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.25um\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Rout ~ gm * ro^2 ~ 14 MOhm. Delta I = 1.2V / 14MOhm = 85nA\",\n        \"range\": {\n          \"min\": \"10n\",\n          \"typical\": \"100n\",\n          \"max\": \"500n\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"The cascode structure (XM6, XM7) provides very high output impedance, resulting in minimal current variation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the dynamic switching characteristics and DC compliance of the charge pump UP-branch.\",\n    \"analyses\": [\n      \"Tran\",\n      \"DC\"\n    ],\n    \"metrics_measured\": [\n      \"I_up\",\n      \"I_leakage\",\n      \"t_rise\",\n      \"t_fall\",\n      \"Compliance\"\n    ],\n    \"spice\": \"* Charge Pump UP Branch Testbench\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nVVDD VDD 0 1.8\\n* Bias for NMOS tail current\\nI_N2 VDD N2 50u\\n* Bias for PMOS current sources\\nV_N0 N0 0 1.0\\n* Pull-up for internal node N3 to ensure recovery when UP is low\\nR_N3 N3 VDD 100k\\n\\n* Output load and current measurement\\nV_VCP VCP_load 0 0.9\\nV_meas VCP VCP_load 0\\n\\n* Inputs (DC values set for ON state during DC sweep)\\nV_UP UP 0 dc 1.8 pulse(0 1.8 5n 0.1n 0.1n 10n 20n)\\nV_UPB UPB 0 dc 0 pulse(1.8 0 5n 0.1n 0.1n 10n 20n)\\n\\n* DUT\\nXM10 N1 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM8 VDD UPB N1 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM12 N2 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\nXM7 VCP N3 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM9 N3 UP N1 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM5 N0 N3 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM4 N5 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  * Transient Analysis for switching metrics\\n  tran 0.1n 40n\\n  meas tran I_up_tran find i(V_meas) at=10n\\n  meas tran I_leak_tran find i(V_meas) at=2n\\n  \\n  * Measure rise and fall times of the output current\\n  meas tran t_rise trig v(UP) val=0.9 rise=1 targ i(V_meas) val=30u rise=1\\n  meas tran t_fall trig v(UP) val=0.9 fall=1 targ i(V_meas) val=3u fall=1\\n\\n  * DC Analysis for output compliance\\n  dc V_VCP 0 1.8 0.05\\n  meas dc I_up_0v9 find i(V_meas) at=0.9\\n  meas dc I_up_1v5 find i(V_meas) at=1.5\\n  meas dc I_up_0v3 find i(V_meas) at=0.3\\n  \\n  let compliance_diff = I_up_1v5 - I_up_0v3\\n  print I_up_0v9 compliance_diff\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1201987",
+  "_case": "1201987_image_12"
+}

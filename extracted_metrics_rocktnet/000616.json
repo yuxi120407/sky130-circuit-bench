@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Voltage Controlled Oscillator (VCO) Core",
+    "description": "A cross-coupled NMOS pair (M1, M2) providing negative resistance to sustain oscillation in an LC tank, biased by a PMOS current mirror (M3, M4) that supplies the tail current.",
+    "node_mapping": {
+      "input": [
+        "N1"
+      ],
+      "output": [
+        "N5",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N7"
+      ],
+      "ground": [
+        "N6",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 700-kHz Bandwidth Fractional Synthesizer With Spurs Compensation and Linearization Techniques for WCDMA Applications",
+      "figure": "unknown",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "oscillation_frequency": {
+      "description": "Fundamental oscillation frequency of the VCO.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.1 GHz",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the external LC tank. f = 1 / (2 * pi * sqrt(L * C)). With L=4nH and C=1.436pF, f = 2.1 GHz.",
+        "range": {
+          "min": "2.0G",
+          "typical": "2.1G",
+          "max": "2.2G",
+          "unit": "Hz"
+        },
+        "reasoning": "Targeted WCDMA frequency from the paper. The testbench adds an ideal LC tank tuned to this frequency."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power dissipated by the VCO core and bias circuit.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "28 mW (entire synthesizer)",
+        "technology": "0.18um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * (I_ref + I_tail) = 1.8V * (200uA + 200uA) = 0.72 mW",
+        "range": {
+          "min": "0.5m",
+          "typical": "0.72m",
+          "max": "1.0m",
+          "unit": "W"
+        },
+        "reasoning": "The VCO core consumes only a fraction of the total synthesizer power. Adjusted for 1.8V supply and a 200uA reference bias."
+      },
+      "importance": "essential"
+    },
+    "output_amplitude": {
+      "description": "Peak-to-peak differential voltage swing across the LC tank.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Vpp_diff \u2248 I_tail * R_tank = 200uA * 5kOhm = 1V",
+        "range": {
+          "min": "0.5",
+          "typical": "1.0",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "Depends on the tank quality factor and tail current. 1V is typical to avoid severe transistor breakdown while maintaining good phase noise."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify oscillation startup, measure steady-state frequency, differential amplitude, and power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "oscillation_frequency",
+      "output_amplitude",
+      "power_consumption"
+    ],
+    "spice": "* LC VCO Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\nXM1 N5 N2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N2 N5 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N7 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\n\n* Biasing and Supply\nVVDD VDD 0 1.8\nVN6 N6 0 0\nIref N1 0 200u\nVVCONTR VCONTR 0 0.9\n\n* LC Tank for ~2.1 GHz\nL1 N5 N7 2n\nL2 N2 N7 2n\nC1 N5 N2 1.436p\nR1 N5 N2 5k\n\n* Differential output for measurement\nE1 diff 0 N5 N2 1\n\n* Initial conditions to kickstart oscillator\n.ic v(N5)=1.0 v(N2)=0.4\n\n.control\n  * Transient analysis: 2.1GHz -> T = 476ps. Run for 50ns to reach steady state.\n  tran 10p 50n\n  \n  * Measure frequency (around cycle 80 to ensure steady state)\n  meas tran t1 trig v(diff) val=0 rise=80 targ v(diff) val=0 rise=81\n  let freq = 1 / t1\n  print freq\n  \n  * Measure amplitude\n  meas tran vmax max v(diff) from=30n to=50n\n  meas tran vmin min v(diff) from=30n to=50n\n  let vpp = vmax - vmin\n  print vpp\n  \n  * Measure power\n  meas tran ivdd avg i(VVDD) from=30n to=50n\n  let power = -ivdd * 1.8\n  print power\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Voltage Controlled Oscillator (VCO) Core\",\n    \"description\": \"A cross-coupled NMOS pair (M1, M2) providing negative resistance to sustain oscillation in an LC tank, biased by a PMOS current mirror (M3, M4) that supplies the tail current.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N1\"\n      ],\n      \"output\": [\n        \"N5\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N7\"\n      ],\n      \"ground\": [\n        \"N6\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 700-kHz Bandwidth Fractional Synthesizer With Spurs Compensation and Linearization Techniques for WCDMA Applications\",\n      \"figure\": \"unknown\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"oscillation_frequency\": {\n      \"description\": \"Fundamental oscillation frequency of the VCO.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.1 GHz\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the external LC tank. f = 1 / (2 * pi * sqrt(L * C)). With L=4nH and C=1.436pF, f = 2.1 GHz.\",\n        \"range\": {\n          \"min\": \"2.0G\",\n          \"typical\": \"2.1G\",\n          \"max\": \"2.2G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Targeted WCDMA frequency from the paper. The testbench adds an ideal LC tank tuned to this frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the VCO core and bias circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"28 mW (entire synthesizer)\",\n        \"technology\": \"0.18um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * (I_ref + I_tail) = 1.8V * (200uA + 200uA) = 0.72 mW\",\n        \"range\": {\n          \"min\": \"0.5m\",\n          \"typical\": \"0.72m\",\n          \"max\": \"1.0m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The VCO core consumes only a fraction of the total synthesizer power. Adjusted for 1.8V supply and a 200uA reference bias.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_amplitude\": {\n      \"description\": \"Peak-to-peak differential voltage swing across the LC tank.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vpp_diff \u2248 I_tail * R_tank = 200uA * 5kOhm = 1V\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"1.0\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the tank quality factor and tail current. 1V is typical to avoid severe transistor breakdown while maintaining good phase noise.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify oscillation startup, measure steady-state frequency, differential amplitude, and power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"oscillation_frequency\",\n      \"output_amplitude\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* LC VCO Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\nXM1 N5 N2 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N2 N5 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N7 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Biasing and Supply\\nVVDD VDD 0 1.8\\nVN6 N6 0 0\\nIref N1 0 200u\\nVVCONTR VCONTR 0 0.9\\n\\n* LC Tank for ~2.1 GHz\\nL1 N5 N7 2n\\nL2 N2 N7 2n\\nC1 N5 N2 1.436p\\nR1 N5 N2 5k\\n\\n* Differential output for measurement\\nE1 diff 0 N5 N2 1\\n\\n* Initial conditions to kickstart oscillator\\n.ic v(N5)=1.0 v(N2)=0.4\\n\\n.control\\n  * Transient analysis: 2.1GHz -> T = 476ps. Run for 50ns to reach steady state.\\n  tran 10p 50n\\n  \\n  * Measure frequency (around cycle 80 to ensure steady state)\\n  meas tran t1 trig v(diff) val=0 rise=80 targ v(diff) val=0 rise=81\\n  let freq = 1 / t1\\n  print freq\\n  \\n  * Measure amplitude\\n  meas tran vmax max v(diff) from=30n to=50n\\n  meas tran vmin min v(diff) from=30n to=50n\\n  let vpp = vmax - vmin\\n  print vpp\\n  \\n  * Measure power\\n  meas tran ivdd avg i(VVDD) from=30n to=50n\\n  let power = -ivdd * 1.8\\n  print power\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1327741",
+  "_case": "1327741_image_9"
+}

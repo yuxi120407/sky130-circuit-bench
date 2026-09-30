@@ -1,0 +1,110 @@
+{
+  "step1_analysis": {
+    "circuit_type": "I/Q Direct-Conversion Mixer (Double-Balanced Gilbert Cell)",
+    "description": "A dual-channel (I and Q) double-balanced active mixer for direct conversion of RF signals to baseband. It uses NPN transistors for both the RF transconductance stage and the LO switching quad, typical of BiCMOS RFICs.",
+    "node_mapping": {
+      "input": [
+        "RF_P",
+        "RF_N",
+        "LO_I_P",
+        "LO_I_N",
+        "LO_Q_P",
+        "LO_Q_N"
+      ],
+      "output": [
+        "I_CH_P",
+        "I_CH_N",
+        "Q_CH_P",
+        "Q_CH_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "RF Front-End of Direct Conversion Receiver RFIC for CDMA-2000",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Conversion_Gain": {
+      "description": "Ratio of the baseband IF output voltage to the RF input voltage.",
+      "unit": "V/V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5 dB",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming 1mA DC current per RF transistor: Gm = Ic/Vt / 2 = 1mA / 26mV / 2 = 19.2 mS. Conversion transconductance Gc = Gm * 2/pi = 12.2 mS. Voltage Gain = Gc * 2 * Rload = 12.2mS * 500 ohm = 12.2 V/V (approx 21.7 dB).",
+        "range": {
+          "min": 8,
+          "typical": 12,
+          "max": 15,
+          "unit": "V/V"
+        },
+        "reasoning": "Depends heavily on the chosen load resistors and tail current. 500 ohms and 2mA tail current per channel yields a typical active mixer gain."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumed by the mixer from the supply.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * Itotal = 1.8V * 4mA = 7.2mW",
+        "range": {
+          "min": 0.005,
+          "typical": 0.0072,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Assuming 2mA tail current per I/Q channel to provide sufficient gm for the required conversion gain."
+      },
+      "importance": "essential"
+    },
+    "IQ_Amplitude_Imbalance": {
+      "description": "Difference in conversion gain between the I and Q channels.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ideal simulation will show 0 dB difference.",
+        "range": {
+          "min": 0,
+          "typical": 0,
+          "max": 0.5,
+          "unit": "dB"
+        },
+        "reasoning": "In a perfectly symmetric schematic simulation, imbalance is zero. In reality, mismatch causes >0.1dB imbalance."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure conversion gain and power consumption of the I/Q mixer by applying a 1.991 GHz RF signal and 1.990 GHz quadrature LO signals, producing a 1 MHz IF baseband.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Conversion_Gain",
+      "Power_Consumption"
+    ],
+    "spice": "* Direct Conversion I/Q Mixer Testbench\n.lib \"${SKY130_PDK}\" tt\n.model npn npn (is=1e-16 bf=100 vaf=50)\n\n* DUT\nQ2 COLL_Q1 RF_P EMIT_I npn\nQ10 COLL_Q2 RF_N EMIT_I npn\nQ1 I_CH_P LO_I_P COLL_Q1 npn\nQ6 I_CH_N LO_I_N COLL_Q1 npn\nQ7 I_CH_P LO_I_N COLL_Q2 npn\nQ12 I_CH_N LO_I_P COLL_Q2 npn\nQ4 COLL_Q7 RF_P EMIT_Q npn\nQ3 COLL_Q8 RF_N EMIT_Q npn\nQ11 Q_CH_P LO_Q_P COLL_Q7 npn\nQ9 Q_CH_N LO_Q_N COLL_Q7 npn\nQ5 Q_CH_P LO_Q_N COLL_Q8 npn\nQ8 Q_CH_N LO_Q_P COLL_Q8 npn\nC1 I_CH_P VDD 10p\nC2 VDD Q_CH_P 10p\nC3 I_CH_N VDD 10p\nC4 Q_CH_N VDD 10p\nR1 EMIT_I GND 50\nR2 EMIT_Q GND 50\nR3 VDD Q_CH_P 500\nR4 Q_CH_N VDD 500\nR5 I_CH_P VDD 500\nR6 I_CH_N VDD 500\n\n* Sources\nVVDD VDD 0 1.8\n\n* RF Input (1.991 GHz, 5mV peak per side -> 20mV pp diff)\nVRF_P RF_P 0 DC 0.8 SIN(0.8 0.005 1.991G 0 0 0)\nVRF_N RF_N 0 DC 0.8 SIN(0.8 0.005 1.991G 0 0 180)\n\n* LO I-Channel (1.990 GHz, 300mV peak per side)\nVLO_I_P LO_I_P 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 0)\nVLO_I_N LO_I_N 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 180)\n\n* LO Q-Channel (1.990 GHz, 300mV peak per side, 90 deg shifted)\nVLO_Q_P LO_Q_P 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 90)\nVLO_Q_N LO_Q_N 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 270)\n\n* Differential Output Dependent Sources\nB_I_DIFF I_DIFF 0 V=v(I_CH_P)-v(I_CH_N)\nB_Q_DIFF Q_DIFF 0 V=v(Q_CH_P)-v(Q_CH_N)\n\n.control\ntran 20p 3u\n\n* Measure power\nlet power = -i(VVDD) * 1.8\nmeas tran avg_power avg power\n\n* Measure IF output amplitude (1 MHz)\nmeas tran vout_I_max max v(I_DIFF) from=1u to=3u\nmeas tran vout_I_min min v(I_DIFF) from=1u to=3u\nlet vout_I_pp = vout_I_max - vout_I_min\n\nmeas tran vout_Q_max max v(Q_DIFF) from=1u to=3u\nmeas tran vout_Q_min min v(Q_DIFF) from=1u to=3u\nlet vout_Q_pp = vout_Q_max - vout_Q_min\n\n* Calculate Conversion Gain\nlet vin_pp = 0.02\nlet cg_I_linear = vout_I_pp / vin_pp\nlet cg_Q_linear = vout_Q_pp / vin_pp\n\nprint avg_power\nprint cg_I_linear\nprint cg_Q_linear\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"I/Q Direct-Conversion Mixer (Double-Balanced Gilbert Cell)\",\n    \"description\": \"A dual-channel (I and Q) double-balanced active mixer for direct conversion of RF signals to baseband. It uses NPN transistors for both the RF transconductance stage and the LO switching quad, typical of BiCMOS RFICs.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RF_P\",\n        \"RF_N\",\n        \"LO_I_P\",\n        \"LO_I_N\",\n        \"LO_Q_P\",\n        \"LO_Q_N\"\n      ],\n      \"output\": [\n        \"I_CH_P\",\n        \"I_CH_N\",\n        \"Q_CH_P\",\n        \"Q_CH_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"RF Front-End of Direct Conversion Receiver RFIC for CDMA-2000\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Conversion_Gain\": {\n      \"description\": \"Ratio of the baseband IF output voltage to the RF input voltage.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5 dB\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming 1mA DC current per RF transistor: Gm = Ic/Vt / 2 = 1mA / 26mV / 2 = 19.2 mS. Conversion transconductance Gc = Gm * 2/pi = 12.2 mS. Voltage Gain = Gc * 2 * Rload = 12.2mS * 500 ohm = 12.2 V/V (approx 21.7 dB).\",\n        \"range\": {\n          \"min\": 8,\n          \"typical\": 12,\n          \"max\": 15,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen load resistors and tail current. 500 ohms and 2mA tail current per channel yields a typical active mixer gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumed by the mixer from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * Itotal = 1.8V * 4mA = 7.2mW\",\n        \"range\": {\n          \"min\": 5e-3,\n          \"typical\": 7.2e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Assuming 2mA tail current per I/Q channel to provide sufficient gm for the required conversion gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"IQ_Amplitude_Imbalance\": {\n      \"description\": \"Difference in conversion gain between the I and Q channels.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal simulation will show 0 dB difference.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 0,\n          \"max\": 0.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"In a perfectly symmetric schematic simulation, imbalance is zero. In reality, mismatch causes >0.1dB imbalance.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure conversion gain and power consumption of the I/Q mixer by applying a 1.991 GHz RF signal and 1.990 GHz quadrature LO signals, producing a 1 MHz IF baseband.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Conversion_Gain\",\n      \"Power_Consumption\"\n    ],\n    \"spice\": \"* Direct Conversion I/Q Mixer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.model npn npn (is=1e-16 bf=100 vaf=50)\\n\\n* DUT\\nQ2 COLL_Q1 RF_P EMIT_I npn\\nQ10 COLL_Q2 RF_N EMIT_I npn\\nQ1 I_CH_P LO_I_P COLL_Q1 npn\\nQ6 I_CH_N LO_I_N COLL_Q1 npn\\nQ7 I_CH_P LO_I_N COLL_Q2 npn\\nQ12 I_CH_N LO_I_P COLL_Q2 npn\\nQ4 COLL_Q7 RF_P EMIT_Q npn\\nQ3 COLL_Q8 RF_N EMIT_Q npn\\nQ11 Q_CH_P LO_Q_P COLL_Q7 npn\\nQ9 Q_CH_N LO_Q_N COLL_Q7 npn\\nQ5 Q_CH_P LO_Q_N COLL_Q8 npn\\nQ8 Q_CH_N LO_Q_P COLL_Q8 npn\\nC1 I_CH_P VDD 10p\\nC2 VDD Q_CH_P 10p\\nC3 I_CH_N VDD 10p\\nC4 Q_CH_N VDD 10p\\nR1 EMIT_I GND 50\\nR2 EMIT_Q GND 50\\nR3 VDD Q_CH_P 500\\nR4 Q_CH_N VDD 500\\nR5 I_CH_P VDD 500\\nR6 I_CH_N VDD 500\\n\\n* Sources\\nVVDD VDD 0 1.8\\n\\n* RF Input (1.991 GHz, 5mV peak per side -> 20mV pp diff)\\nVRF_P RF_P 0 DC 0.8 SIN(0.8 0.005 1.991G 0 0 0)\\nVRF_N RF_N 0 DC 0.8 SIN(0.8 0.005 1.991G 0 0 180)\\n\\n* LO I-Channel (1.990 GHz, 300mV peak per side)\\nVLO_I_P LO_I_P 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 0)\\nVLO_I_N LO_I_N 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 180)\\n\\n* LO Q-Channel (1.990 GHz, 300mV peak per side, 90 deg shifted)\\nVLO_Q_P LO_Q_P 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 90)\\nVLO_Q_N LO_Q_N 0 DC 1.6 SIN(1.6 0.3 1.990G 0 0 270)\\n\\n* Differential Output Dependent Sources\\nB_I_DIFF I_DIFF 0 V=v(I_CH_P)-v(I_CH_N)\\nB_Q_DIFF Q_DIFF 0 V=v(Q_CH_P)-v(Q_CH_N)\\n\\n.control\\ntran 20p 3u\\n\\n* Measure power\\nlet power = -i(VVDD) * 1.8\\nmeas tran avg_power avg power\\n\\n* Measure IF output amplitude (1 MHz)\\nmeas tran vout_I_max max v(I_DIFF) from=1u to=3u\\nmeas tran vout_I_min min v(I_DIFF) from=1u to=3u\\nlet vout_I_pp = vout_I_max - vout_I_min\\n\\nmeas tran vout_Q_max max v(Q_DIFF) from=1u to=3u\\nmeas tran vout_Q_min min v(Q_DIFF) from=1u to=3u\\nlet vout_Q_pp = vout_Q_max - vout_Q_min\\n\\n* Calculate Conversion Gain\\nlet vin_pp = 0.02\\nlet cg_I_linear = vout_I_pp / vin_pp\\nlet cg_Q_linear = vout_Q_pp / vin_pp\\n\\nprint avg_power\\nprint cg_I_linear\\nprint cg_Q_linear\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1336990",
+  "_case": "1336990_image_5"
+}

@@ -1,0 +1,104 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential LC Oscillator",
+    "description": "A bipolar differential oscillator circuit using inductive loading at the collectors and bases, with capacitive cross-coupling or emitter degeneration. It forms the core of a high-frequency VCO, though tuning varactors are omitted in this simplified schematic.",
+    "node_mapping": {
+      "input": [],
+      "output": [
+        "n7",
+        "n1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "n4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 190-GHz VCO With 20.7% Tuning Range Employing an Active Mode Switching Block in a 130 nm SiGe BiCMOS",
+      "figure": "Generic",
+      "year": 2017
+    }
+  },
+  "step2_metrics": {
+    "f_osc": {
+      "description": "Oscillation frequency of the VCO",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "190.5 GHz",
+        "technology": "130 nm SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "f = 1 / (2 * pi * sqrt(L * C)). Using 1nH inductors and ~1pF effective capacitance in the testbench.",
+        "range": {
+          "min": "1G",
+          "typical": "5G",
+          "max": "10G",
+          "unit": "Hz"
+        },
+        "reasoning": "The 190 GHz reported in the paper relies on highly optimized mm-wave passives and SiGe HBTs. In a generic testbench with standard 1nH/1pF components, it will oscillate in the low GHz range."
+      },
+      "importance": "essential"
+    },
+    "v_amp": {
+      "description": "Output voltage amplitude (single-ended)",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "-2.1 dBm (output power)",
+        "technology": "130 nm SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on bias current and tank impedance. With ~20mA bias and 50-ohm equivalent tank impedance, amplitude is roughly I * R.",
+        "range": {
+          "min": "0.2",
+          "typical": "0.6",
+          "max": "1.2",
+          "unit": "V"
+        },
+        "reasoning": "Standard large-signal oscillation swing limited by VDD (1.8V) and transistor saturation."
+      },
+      "importance": "essential"
+    },
+    "p_dc": {
+      "description": "DC power consumption",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "20.7% efficiency",
+        "technology": "130 nm SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. Base bias via 5k resistor gives ~200uA base current, leading to ~20mA collector current (beta=100). P = 1.8V * 20mA = 36mW.",
+        "range": {
+          "min": "10m",
+          "typical": "36m",
+          "max": "50m",
+          "unit": "W"
+        },
+        "reasoning": "Determined by the bias resistor R2 and the current gain of the generic NPN model."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify oscillation startup, measure oscillation frequency, output amplitude, and DC power consumption.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "f_osc",
+      "v_amp",
+      "p_dc"
+    ],
+    "spice": "* VCO Testbench\n.lib \"${SKY130_PDK}\" tt\n\nVVDD VDD 0 1.8\n\n* DUT (with component values added for simulation)\nQ1 n7 n6 n3 npn\nL1 n4 n6 1n\nL2 n0 n4 1n\nL3 VDD n7 1n\nR1 n2 0 50\nQ2 n1 n0 n5 npn\nL4 VDD n1 1n\nL5 n3 0 1n\nR2 VDD n4 5k\nC1 n2 n5 1p\nL6 n5 0 1n\nC2 n2 n3 1p\n\n* Generic NPN model since the netlist uses 'npn'\n.model npn npn is=1e-16 bf=100 cjc=50f cje=50f tf=10p\n\n* Initial conditions to kickstart oscillation\n.ic v(n7)=1.8 v(n1)=0 v(n6)=1.0 v(n0)=0.5\n\n.control\n* Run transient analysis with UIC to use initial conditions\ntran 5p 20n uic\n\n* Measure oscillation frequency\nmeas tran t_start trig v(n7) val=1.0 rise=15 targ v(n7) val=1.0 rise=16\nlet f_osc = 1 / t_start\nprint f_osc\n\n* Measure output amplitude\nmeas tran v_max max v(n7) from=10n to=20n\nmeas tran v_min min v(n7) from=10n to=20n\nlet v_amp = (v_max - v_min) / 2\nprint v_amp\n\n* Measure DC power consumption\nlet p_dc = -i(VVDD) * 1.8\nprint p_dc\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential LC Oscillator\",\n    \"description\": \"A bipolar differential oscillator circuit using inductive loading at the collectors and bases, with capacitive cross-coupling or emitter degeneration. It forms the core of a high-frequency VCO, though tuning varactors are omitted in this simplified schematic.\",\n    \"node_mapping\": {\n      \"input\": [],\n      \"output\": [\n        \"n7\",\n        \"n1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"n4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 190-GHz VCO With 20.7% Tuning Range Employing an Active Mode Switching Block in a 130 nm SiGe BiCMOS\",\n      \"figure\": \"Generic\",\n      \"year\": 2017\n    }\n  },\n  \"step2_metrics\": {\n    \"f_osc\": {\n      \"description\": \"Oscillation frequency of the VCO\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"190.5 GHz\",\n        \"technology\": \"130 nm SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f = 1 / (2 * pi * sqrt(L * C)). Using 1nH inductors and ~1pF effective capacitance in the testbench.\",\n        \"range\": {\n          \"min\": \"1G\",\n          \"typical\": \"5G\",\n          \"max\": \"10G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The 190 GHz reported in the paper relies on highly optimized mm-wave passives and SiGe HBTs. In a generic testbench with standard 1nH/1pF components, it will oscillate in the low GHz range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_amp\": {\n      \"description\": \"Output voltage amplitude (single-ended)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"-2.1 dBm (output power)\",\n        \"technology\": \"130 nm SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on bias current and tank impedance. With ~20mA bias and 50-ohm equivalent tank impedance, amplitude is roughly I * R.\",\n        \"range\": {\n          \"min\": \"0.2\",\n          \"typical\": \"0.6\",\n          \"max\": \"1.2\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard large-signal oscillation swing limited by VDD (1.8V) and transistor saturation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"p_dc\": {\n      \"description\": \"DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"20.7% efficiency\",\n        \"technology\": \"130 nm SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. Base bias via 5k resistor gives ~200uA base current, leading to ~20mA collector current (beta=100). P = 1.8V * 20mA = 36mW.\",\n        \"range\": {\n          \"min\": \"10m\",\n          \"typical\": \"36m\",\n          \"max\": \"50m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Determined by the bias resistor R2 and the current gain of the generic NPN model.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify oscillation startup, measure oscillation frequency, output amplitude, and DC power consumption.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"f_osc\",\n      \"v_amp\",\n      \"p_dc\"\n    ],\n    \"spice\": \"* VCO Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\nVVDD VDD 0 1.8\\n\\n* DUT (with component values added for simulation)\\nQ1 n7 n6 n3 npn\\nL1 n4 n6 1n\\nL2 n0 n4 1n\\nL3 VDD n7 1n\\nR1 n2 0 50\\nQ2 n1 n0 n5 npn\\nL4 VDD n1 1n\\nL5 n3 0 1n\\nR2 VDD n4 5k\\nC1 n2 n5 1p\\nL6 n5 0 1n\\nC2 n2 n3 1p\\n\\n* Generic NPN model since the netlist uses 'npn'\\n.model npn npn is=1e-16 bf=100 cjc=50f cje=50f tf=10p\\n\\n* Initial conditions to kickstart oscillation\\n.ic v(n7)=1.8 v(n1)=0 v(n6)=1.0 v(n0)=0.5\\n\\n.control\\n* Run transient analysis with UIC to use initial conditions\\ntran 5p 20n uic\\n\\n* Measure oscillation frequency\\nmeas tran t_start trig v(n7) val=1.0 rise=15 targ v(n7) val=1.0 rise=16\\nlet f_osc = 1 / t_start\\nprint f_osc\\n\\n* Measure output amplitude\\nmeas tran v_max max v(n7) from=10n to=20n\\nmeas tran v_min min v(n7) from=10n to=20n\\nlet v_amp = (v_max - v_min) / 2\\nprint v_amp\\n\\n* Measure DC power consumption\\nlet p_dc = -i(VVDD) * 1.8\\nprint p_dc\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "jssc.2017.2689031",
+  "_case": "jssc.2017.2689031_image_3"
+}

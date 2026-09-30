@@ -1,0 +1,107 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor Delta-Sigma Modulator / Integrator",
+    "description": "This circuit is a macro-model of a switched-capacitor network, likely forming the loop filter or integrator stages of a delta-sigma modulator for a MEMS accelerometer interface. It uses ideal switches and amplifiers to process charge from the sensor.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_2"
+      ],
+      "output": [
+        "N0",
+        "N11"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A \u0394\u03a3 Interface for MEMS Accelerometers Using Electrostatic Spring-Constant Modulation for Cancellation of Bondwire Capacitance Drift",
+      "figure": "Generic Macro Model",
+      "year": 2012
+    }
+  },
+  "step2_metrics": {
+    "gain": {
+      "description": "Low-frequency AC gain of the integrator/amplifier stage",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "41dB",
+        "technology": "0.18\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming similar architecture, the open-loop or closed-loop gain should be around 40-50dB.",
+        "range": {
+          "min": 30,
+          "typical": 41,
+          "max": 60,
+          "unit": "dB"
+        },
+        "reasoning": "Based on the paper's reported 41dB gain for the transconductor/amplifier."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Operating bandwidth or sampling frequency",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "250kHz",
+        "technology": "0.18\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the switch resistances and capacitors. Expected to be in the 100kHz - 1MHz range.",
+        "range": {
+          "min": 100000,
+          "typical": 250000,
+          "max": 1000000,
+          "unit": "Hz"
+        },
+        "reasoning": "The paper reports 250kHz, which is typical for MEMS sensor interfaces."
+      },
+      "importance": "essential"
+    },
+    "power": {
+      "description": "Total power consumption",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "Not explicitly listed, but supply is 3V",
+        "technology": "0.18\u03bcm"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total. With 1.8V supply, expected power is in the uW to mW range.",
+        "range": {
+          "min": 1e-06,
+          "typical": 0.0001,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Typical for low-power MEMS interfaces."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC gain, bandwidth, and DC power of the switched-capacitor network. The netlist syntax has been adapted to standard SPICE (X prefixes for subcircuits, 1p values for capacitors) to ensure ngspice compatibility.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "gain",
+      "bandwidth",
+      "power"
+    ],
+    "spice": "* Switched-Capacitor Interface Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_dummy=1u L_dummy=0.15u\n\n* Subcircuits for ideal components\n.subckt amplifier n1 n2 n3\n* n1=out, n2=in-, n3=in+\nG1 0 n1 n3 n2 1m\nR1 n1 0 1Meg\nC1 n1 0 1p\n.ends\n\n.subckt switch_ideal n1 n2\nR1 n1 n2 1k\n.ends\n\n* Power and Inputs\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 1\nVLABEL_NET_2 LABEL_NET_2 0 DC 0.9\n\n* DUT (Adapted for standard SPICE syntax)\nXA1 N0 N1 GND amplifier\nXA2 VDD N9 GND amplifier\nXA3 N11 N7 N3 amplifier\nC1 VDD VDD 1p\nC2 VDD VDD 1p\nC3 N4 N10 1p\nC4 N0 LABEL_NET_0 1p\nC5 GND GND 1p\nC6 N12 GND 1p\nC7 GND GND 1p\nC8 GND GND 1p\nC9 VDD N11 1p\nC10 VDD N6 1p\nC11 N9 GND 1p\nC12 N3 GND 1p\nC13 N2 GND 1p\nC14 VDD N8 1p\nC15 GND GND 1p\nXS1 N4 N11 switch_ideal\nC16 N7 GND 1p\nC17 N5 N5 1p\nXS2 GND GND switch_ideal\nC18 VDD N1 1p\nXS3 N5 N11 switch_ideal\nXS4 VDD N11 switch_ideal\nXS5 N0 N1 switch_ideal\nXS6 N2 N3 switch_ideal\nC19 N6 N11 1p\nXS7 N5 LABEL_NET_2 switch_ideal\nXS8 GND GND switch_ideal\nC20 N7 GND 1p\nXS9 GND GND switch_ideal\nXS10 N7 N12 switch_ideal\nXS11 N10 N10 switch_ideal\nXS12 GND GND switch_ideal\nXS13 N0 N6 switch_ideal\nXS14 N9 GND switch_ideal\nXS15 N6 N8 switch_ideal\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 10 1 10Meg\nlet gain_db = vdb(N0)\nmeas ac low_freq_gain find gain_db at=100\nmeas ac bw when gain_db=0 fall=1\n\ntran 1u 1m\nmeas tran v_out_max max v(N0)\nmeas tran v_out_min min v(N0)\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor Delta-Sigma Modulator / Integrator\",\n    \"description\": \"This circuit is a macro-model of a switched-capacitor network, likely forming the loop filter or integrator stages of a delta-sigma modulator for a MEMS accelerometer interface. It uses ideal switches and amplifiers to process charge from the sensor.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_2\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N11\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A \u0394\u03a3 Interface for MEMS Accelerometers Using Electrostatic Spring-Constant Modulation for Cancellation of Bondwire Capacitance Drift\",\n      \"figure\": \"Generic Macro Model\",\n      \"year\": 2012\n    }\n  },\n  \"step2_metrics\": {\n    \"gain\": {\n      \"description\": \"Low-frequency AC gain of the integrator/amplifier stage\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"41dB\",\n        \"technology\": \"0.18\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming similar architecture, the open-loop or closed-loop gain should be around 40-50dB.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 41,\n          \"max\": 60,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Based on the paper's reported 41dB gain for the transconductor/amplifier.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Operating bandwidth or sampling frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"250kHz\",\n        \"technology\": \"0.18\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the switch resistances and capacitors. Expected to be in the 100kHz - 1MHz range.\",\n        \"range\": {\n          \"min\": 100000,\n          \"typical\": 250000,\n          \"max\": 1000000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The paper reports 250kHz, which is typical for MEMS sensor interfaces.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power\": {\n      \"description\": \"Total power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly listed, but supply is 3V\",\n        \"technology\": \"0.18\u03bcm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total. With 1.8V supply, expected power is in the uW to mW range.\",\n        \"range\": {\n          \"min\": 1e-06,\n          \"typical\": 0.0001,\n          \"max\": 0.001,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Typical for low-power MEMS interfaces.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC gain, bandwidth, and DC power of the switched-capacitor network. The netlist syntax has been adapted to standard SPICE (X prefixes for subcircuits, 1p values for capacitors) to ensure ngspice compatibility.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"gain\",\n      \"bandwidth\",\n      \"power\"\n    ],\n    \"spice\": \"* Switched-Capacitor Interface Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_dummy=1u L_dummy=0.15u\\n\\n* Subcircuits for ideal components\\n.subckt amplifier n1 n2 n3\\n* n1=out, n2=in-, n3=in+\\nG1 0 n1 n3 n2 1m\\nR1 n1 0 1Meg\\nC1 n1 0 1p\\n.ends\\n\\n.subckt switch_ideal n1 n2\\nR1 n1 n2 1k\\n.ends\\n\\n* Power and Inputs\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 1\\nVLABEL_NET_2 LABEL_NET_2 0 DC 0.9\\n\\n* DUT (Adapted for standard SPICE syntax)\\nXA1 N0 N1 GND amplifier\\nXA2 VDD N9 GND amplifier\\nXA3 N11 N7 N3 amplifier\\nC1 VDD VDD 1p\\nC2 VDD VDD 1p\\nC3 N4 N10 1p\\nC4 N0 LABEL_NET_0 1p\\nC5 GND GND 1p\\nC6 N12 GND 1p\\nC7 GND GND 1p\\nC8 GND GND 1p\\nC9 VDD N11 1p\\nC10 VDD N6 1p\\nC11 N9 GND 1p\\nC12 N3 GND 1p\\nC13 N2 GND 1p\\nC14 VDD N8 1p\\nC15 GND GND 1p\\nXS1 N4 N11 switch_ideal\\nC16 N7 GND 1p\\nC17 N5 N5 1p\\nXS2 GND GND switch_ideal\\nC18 VDD N1 1p\\nXS3 N5 N11 switch_ideal\\nXS4 VDD N11 switch_ideal\\nXS5 N0 N1 switch_ideal\\nXS6 N2 N3 switch_ideal\\nC19 N6 N11 1p\\nXS7 N5 LABEL_NET_2 switch_ideal\\nXS8 GND GND switch_ideal\\nC20 N7 GND 1p\\nXS9 GND GND switch_ideal\\nXS10 N7 N12 switch_ideal\\nXS11 N10 N10 switch_ideal\\nXS12 GND GND switch_ideal\\nXS13 N0 N6 switch_ideal\\nXS14 N9 GND switch_ideal\\nXS15 N6 N8 switch_ideal\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 10 1 10Meg\\nlet gain_db = vdb(N0)\\nmeas ac low_freq_gain find gain_db at=100\\nmeas ac bw when gain_db=0 fall=1\\n\\ntran 1u 1m\\nmeas tran v_out_max max v(N0)\\nmeas tran v_out_min min v(N0)\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "6176972",
+  "_case": "6176972_image_3_a"
+}

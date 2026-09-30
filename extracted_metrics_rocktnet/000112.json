@@ -1,0 +1,131 @@
+{
+  "step1_analysis": {
+    "circuit_type": "frequency multiplier",
+    "description": "An ultra-wideband balanced frequency doubler using a differential cascode or Gilbert-cell-like topology to generate the second harmonic while suppressing the fundamental frequency.",
+    "node_mapping": {
+      "input": [
+        "n4",
+        "n7"
+      ],
+      "output": [
+        "n3"
+      ],
+      "supply": [
+        "n3"
+      ],
+      "bias": [
+        "n1",
+        "n5",
+        "label_net_0",
+        "label_net_1"
+      ],
+      "ground": [
+        "n0"
+      ]
+    },
+    "paper_reference": {
+      "title": "Design Technique for Ultra-Wideband Balanced Frequency Doublers",
+      "figure": "N/A",
+      "year": 2019
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Ratio of the output voltage amplitude at the second harmonic (2*fin) to the differential input voltage amplitude at the fundamental (fin).",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "-3 dB",
+        "technology": "130 nm SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(V_out_6GHz / V_in_diff_3GHz)",
+        "range": {
+          "min": -15,
+          "typical": -5,
+          "max": 5,
+          "unit": "dB"
+        },
+        "reasoning": "CMOS will likely have lower gain than SiGe HBTs, especially with a simple resistive load instead of a tuned LC tank."
+      },
+      "importance": "essential"
+    },
+    "fundamental_rejection": {
+      "description": "Rejection of the fundamental frequency at the output relative to the second harmonic.",
+      "unit": "dBc",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "34 dBc",
+        "technology": "130 nm SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(V_out_6GHz / V_out_3GHz)",
+        "range": {
+          "min": 10,
+          "typical": 25,
+          "max": 40,
+          "unit": "dBc"
+        },
+        "reasoning": "Depends heavily on the symmetry of the differential drive and matching. In simulation with perfect matching, rejection can be high, but limited by the single-ended nature of the output in this testbench."
+      },
+      "importance": "essential"
+    },
+    "harmonic_rejection": {
+      "description": "Rejection of the 3rd harmonic relative to the 2nd harmonic.",
+      "unit": "dBc",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "48 dBc",
+        "technology": "130 nm SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(V_out_6GHz / V_out_9GHz)",
+        "range": {
+          "min": 20,
+          "typical": 35,
+          "max": 50,
+          "unit": "dBc"
+        },
+        "reasoning": "The 3rd harmonic is naturally suppressed in a balanced doubler, but depends on device nonlinearity and voltage headroom."
+      },
+      "importance": "recommended"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption from the supply.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A (3V supply)",
+        "technology": "130 nm SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VDD * I(VDD)",
+        "range": {
+          "min": 0.001,
+          "typical": 0.01,
+          "max": 0.05,
+          "unit": "W"
+        },
+        "reasoning": "With a 1.8V supply and typical bias currents of a few mA, power is expected to be in the 10mW range."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures conversion gain, fundamental rejection, harmonic rejection, and power consumption using transient analysis and exact Fourier integration.",
+    "analyses": [
+      "OP",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "conversion_gain",
+      "fundamental_rejection",
+      "harmonic_rejection"
+    ],
+    "spice": "* Frequency Doubler Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param W_q1=10u L_q1=0.15u\n.param W_q2=5u L_q2=0.15u\n.param W_q3=10u L_q3=0.15u\n.param W_q4=10u L_q4=0.15u\n.param W_q5=10u L_q5=0.15u\n.param W_q6=10u L_q6=0.15u\n\nXQ1 n3 n7 n6 n0 sky130_fd_pr__nfet_01v8 w=W_q1 l=L_q1\nXQ2 n1 n1 n0 n0 sky130_fd_pr__nfet_01v8 w=W_q2 l=L_q2\nXQ3 n8 n4 n2 n0 sky130_fd_pr__nfet_01v8 w=W_q3 l=L_q3\nXQ4 n2 n1 n0 n0 sky130_fd_pr__nfet_01v8 w=W_q4 l=L_q4\nXQ5 n3 n5 n8 n0 sky130_fd_pr__nfet_01v8 w=W_q5 l=L_q5\nXQ6 n6 n2 n2 n0 sky130_fd_pr__nfet_01v8 w=W_q6 l=L_q6\n\nL1 n3 n3 1n\nC1 n4 n0 1p\nR1 n1 n3 1k\nR2 n2 n2 1k\nC2 n3 label_net_0 1p\nL2 n3 n3 1n\nR3 n4 label_net_1 1k\nC3 n0 n5 1p\nC4 n3 n3 1p\nC5 n0 n2 1p\n\n* Testbench additions\nVDD vdd_node 0 1.8\nRload n3 vdd_node 100\n\nVLABEL_NET_0 label_net_0 0 0.9\nVLABEL_NET_1 label_net_1 0 0.9\n\nVbias5 n5 0 1.8\nVbias7 n7_dc 0 0.9\nC_in7 n7_ac n7 1u\nR_in7 n7 n7_dc 1k\n\nC_in4 n4_ac n4 1u\nVin4 n4_ac 0 dc 0 ac 1 sin(0 0.2 3G 0 0 0)\nVin7 n7_ac 0 dc 0 ac 1 sin(0 0.2 3G 0 0 180)\n\n* Fix for Q1 missing DC path due to extraction error on Q6\nI_fix n6 0 1m\n\n* Mixers for exact Fourier extraction\nB_sin3G mix3_sin 0 V=v(n3)*sin(2*3.14159265359*3e9*time)\nB_cos3G mix3_cos 0 V=v(n3)*cos(2*3.14159265359*3e9*time)\nB_sin6G mix6_sin 0 V=v(n3)*sin(2*3.14159265359*6e9*time)\nB_cos6G mix6_cos 0 V=v(n3)*cos(2*3.14159265359*6e9*time)\nB_sin9G mix9_sin 0 V=v(n3)*sin(2*3.14159265359*9e9*time)\nB_cos9G mix9_cos 0 V=v(n3)*cos(2*3.14159265359*9e9*time)\n\n.control\nop\nlet power = -i(VDD) * 1.8\nprint power\n\ntran 2p 5n\n* Integrate over exactly 2ns (6 cycles of 3GHz, 12 of 6GHz, 18 of 9GHz)\nmeas tran int3_sin integ v(mix3_sin) from=3n to=5n\nmeas tran int3_cos integ v(mix3_cos) from=3n to=5n\nmeas tran int6_sin integ v(mix6_sin) from=3n to=5n\nmeas tran int6_cos integ v(mix6_cos) from=3n to=5n\nmeas tran int9_sin integ v(mix9_sin) from=3n to=5n\nmeas tran int9_cos integ v(mix9_cos) from=3n to=5n\n\n* Calculate amplitudes\nlet amp_3G = 2 * sqrt( (int3_sin / 2e-9)*(int3_sin / 2e-9) + (int3_cos / 2e-9)*(int3_cos / 2e-9) )\nlet amp_6G = 2 * sqrt( (int6_sin / 2e-9)*(int6_sin / 2e-9) + (int6_cos / 2e-9)*(int6_cos / 2e-9) )\nlet amp_9G = 2 * sqrt( (int9_sin / 2e-9)*(int9_sin / 2e-9) + (int9_cos / 2e-9)*(int9_cos / 2e-9) )\n\n* Differential input amplitude is 0.4V (0.2V per side)\nlet conv_gain_v = amp_6G / 0.4\nlet conv_gain_dB = 20 * log10(conv_gain_v)\nprint conv_gain_dB\n\nlet fund_rej_dBc = 20 * log10(amp_6G / amp_3G)\nprint fund_rej_dBc\n\nlet harm_rej_dBc = 20 * log10(amp_6G / amp_9G)\nprint harm_rej_dBc\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"frequency multiplier\",\n    \"description\": \"An ultra-wideband balanced frequency doubler using a differential cascode or Gilbert-cell-like topology to generate the second harmonic while suppressing the fundamental frequency.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n4\",\n        \"n7\"\n      ],\n      \"output\": [\n        \"n3\"\n      ],\n      \"supply\": [\n        \"n3\"\n      ],\n      \"bias\": [\n        \"n1\",\n        \"n5\",\n        \"label_net_0\",\n        \"label_net_1\"\n      ],\n      \"ground\": [\n        \"n0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Design Technique for Ultra-Wideband Balanced Frequency Doublers\",\n      \"figure\": \"N/A\",\n      \"year\": 2019\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Ratio of the output voltage amplitude at the second harmonic (2*fin) to the differential input voltage amplitude at the fundamental (fin).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"-3 dB\",\n        \"technology\": \"130 nm SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(V_out_6GHz / V_in_diff_3GHz)\",\n        \"range\": {\n          \"min\": -15,\n          \"typical\": -5,\n          \"max\": 5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"CMOS will likely have lower gain than SiGe HBTs, especially with a simple resistive load instead of a tuned LC tank.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"fundamental_rejection\": {\n      \"description\": \"Rejection of the fundamental frequency at the output relative to the second harmonic.\",\n      \"unit\": \"dBc\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"34 dBc\",\n        \"technology\": \"130 nm SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(V_out_6GHz / V_out_3GHz)\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 25,\n          \"max\": 40,\n          \"unit\": \"dBc\"\n        },\n        \"reasoning\": \"Depends heavily on the symmetry of the differential drive and matching. In simulation with perfect matching, rejection can be high, but limited by the single-ended nature of the output in this testbench.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"harmonic_rejection\": {\n      \"description\": \"Rejection of the 3rd harmonic relative to the 2nd harmonic.\",\n      \"unit\": \"dBc\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"48 dBc\",\n        \"technology\": \"130 nm SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(V_out_6GHz / V_out_9GHz)\",\n        \"range\": {\n          \"min\": 20,\n          \"typical\": 35,\n          \"max\": 50,\n          \"unit\": \"dBc\"\n        },\n        \"reasoning\": \"The 3rd harmonic is naturally suppressed in a balanced doubler, but depends on device nonlinearity and voltage headroom.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption from the supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A (3V supply)\",\n        \"technology\": \"130 nm SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VDD * I(VDD)\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 10e-3,\n          \"max\": 50e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"With a 1.8V supply and typical bias currents of a few mA, power is expected to be in the 10mW range.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures conversion gain, fundamental rejection, harmonic rejection, and power consumption using transient analysis and exact Fourier integration.\",\n    \"analyses\": [\n      \"OP\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"conversion_gain\",\n      \"fundamental_rejection\",\n      \"harmonic_rejection\"\n    ],\n    \"spice\": \"* Frequency Doubler Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param W_q1=10u L_q1=0.15u\\n.param W_q2=5u L_q2=0.15u\\n.param W_q3=10u L_q3=0.15u\\n.param W_q4=10u L_q4=0.15u\\n.param W_q5=10u L_q5=0.15u\\n.param W_q6=10u L_q6=0.15u\\n\\nXQ1 n3 n7 n6 n0 sky130_fd_pr__nfet_01v8 w=W_q1 l=L_q1\\nXQ2 n1 n1 n0 n0 sky130_fd_pr__nfet_01v8 w=W_q2 l=L_q2\\nXQ3 n8 n4 n2 n0 sky130_fd_pr__nfet_01v8 w=W_q3 l=L_q3\\nXQ4 n2 n1 n0 n0 sky130_fd_pr__nfet_01v8 w=W_q4 l=L_q4\\nXQ5 n3 n5 n8 n0 sky130_fd_pr__nfet_01v8 w=W_q5 l=L_q5\\nXQ6 n6 n2 n2 n0 sky130_fd_pr__nfet_01v8 w=W_q6 l=L_q6\\n\\nL1 n3 n3 1n\\nC1 n4 n0 1p\\nR1 n1 n3 1k\\nR2 n2 n2 1k\\nC2 n3 label_net_0 1p\\nL2 n3 n3 1n\\nR3 n4 label_net_1 1k\\nC3 n0 n5 1p\\nC4 n3 n3 1p\\nC5 n0 n2 1p\\n\\n* Testbench additions\\nVDD vdd_node 0 1.8\\nRload n3 vdd_node 100\\n\\nVLABEL_NET_0 label_net_0 0 0.9\\nVLABEL_NET_1 label_net_1 0 0.9\\n\\nVbias5 n5 0 1.8\\nVbias7 n7_dc 0 0.9\\nC_in7 n7_ac n7 1u\\nR_in7 n7 n7_dc 1k\\n\\nC_in4 n4_ac n4 1u\\nVin4 n4_ac 0 dc 0 ac 1 sin(0 0.2 3G 0 0 0)\\nVin7 n7_ac 0 dc 0 ac 1 sin(0 0.2 3G 0 0 180)\\n\\n* Fix for Q1 missing DC path due to extraction error on Q6\\nI_fix n6 0 1m\\n\\n* Mixers for exact Fourier extraction\\nB_sin3G mix3_sin 0 V=v(n3)*sin(2*3.14159265359*3e9*time)\\nB_cos3G mix3_cos 0 V=v(n3)*cos(2*3.14159265359*3e9*time)\\nB_sin6G mix6_sin 0 V=v(n3)*sin(2*3.14159265359*6e9*time)\\nB_cos6G mix6_cos 0 V=v(n3)*cos(2*3.14159265359*6e9*time)\\nB_sin9G mix9_sin 0 V=v(n3)*sin(2*3.14159265359*9e9*time)\\nB_cos9G mix9_cos 0 V=v(n3)*cos(2*3.14159265359*9e9*time)\\n\\n.control\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\ntran 2p 5n\\n* Integrate over exactly 2ns (6 cycles of 3GHz, 12 of 6GHz, 18 of 9GHz)\\nmeas tran int3_sin integ v(mix3_sin) from=3n to=5n\\nmeas tran int3_cos integ v(mix3_cos) from=3n to=5n\\nmeas tran int6_sin integ v(mix6_sin) from=3n to=5n\\nmeas tran int6_cos integ v(mix6_cos) from=3n to=5n\\nmeas tran int9_sin integ v(mix9_sin) from=3n to=5n\\nmeas tran int9_cos integ v(mix9_cos) from=3n to=5n\\n\\n* Calculate amplitudes\\nlet amp_3G = 2 * sqrt( (int3_sin / 2e-9)*(int3_sin / 2e-9) + (int3_cos / 2e-9)*(int3_cos / 2e-9) )\\nlet amp_6G = 2 * sqrt( (int6_sin / 2e-9)*(int6_sin / 2e-9) + (int6_cos / 2e-9)*(int6_cos / 2e-9) )\\nlet amp_9G = 2 * sqrt( (int9_sin / 2e-9)*(int9_sin / 2e-9) + (int9_cos / 2e-9)*(int9_cos / 2e-9) )\\n\\n* Differential input amplitude is 0.4V (0.2V per side)\\nlet conv_gain_v = amp_6G / 0.4\\nlet conv_gain_dB = 20 * log10(conv_gain_v)\\nprint conv_gain_dB\\n\\nlet fund_rej_dBc = 20 * log10(amp_6G / amp_3G)\\nprint fund_rej_dBc\\n\\nlet harm_rej_dBc = 20 * log10(amp_6G / amp_9G)\\nprint harm_rej_dBc\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "wamicon.2019.8765440",
+  "_case": "wamicon.2019.8765440_image_4"
+}

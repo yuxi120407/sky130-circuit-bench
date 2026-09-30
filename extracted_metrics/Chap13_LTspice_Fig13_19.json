@@ -1,0 +1,197 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 13.18",
+    "page": "385",
+    "circuit_type": "Level-sensitive latch",
+    "description": "A level-sensitive latch using an NMOS pass transistor to drive a cross-coupled inverter pair. The feedback inverter uses long-channel devices to reduce contention current when the input fights the feedback loop."
+  },
+  "step2_metrics": {
+    "metastability_delay": {
+      "description": "The time required for the cross-coupled inverters to resolve a metastable state into a valid logic level.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "384",
+        "reference": "Figure 13.17"
+      },
+      "equation": {
+        "formula": "t_resolve \\propto \\frac{C_{node}}{g_m}",
+        "explanation": "The delay is determined by the gain-bandwidth product of the cross-coupled inverters.",
+        "assumptions": "Assumes the input is exactly at the switching threshold V_SP."
+      },
+      "sky130_expected": {
+        "calculation": "g_m \\approx \\mu_n C_{ox} (W/L) (V_{DD}/2 - V_{th}) = 270\\mu \\cdot (1/0.15) \\cdot (0.9 - 0.42) \\approx 864 \\mu S. C_{node} \\approx 10fF. \\tau = C/g_m \\approx 11.5ps. Resolution takes several time constants.",
+        "range": {
+          "min": "20p",
+          "typical": "100p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "Depends heavily on the initial voltage difference from V_SP, but typically resolves within 100-500ps in a 130nm process."
+      },
+      "importance": "recommended"
+    },
+    "contention_current": {
+      "description": "The peak current that flows from VDD to GND when the D input (via the pass gate) fights the output of the feedback inverter (I2) during a state change.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "385",
+        "reference": "Text discussion: 'contention current that flows when the D input is fighting with the output of I2'"
+      },
+      "equation": {
+        "formula": "I_{contention} \\approx \\frac{1}{2} \\mu_n C_{ox} (W/L)_{I2} (V_{DD}-V_{th})^2",
+        "explanation": "The contention current is limited by the saturation current of the weak feedback inverter's ON transistor.",
+        "assumptions": "Assumes the pass gate is strong enough to hold the node near VDD while the feedback NMOS is fully ON."
+      },
+      "sky130_expected": {
+        "calculation": "Using the long-channel feedback NMOS (W=1, L=1.5): I_{contention} = 0.5 \\cdot 270\\mu A/V^2 \\cdot (1/1.5) \\cdot (1.8V - 0.42V)^2 = 171 \\mu A.",
+        "range": {
+          "min": "100u",
+          "typical": "170u",
+          "max": "300u",
+          "unit": "A"
+        },
+        "reasoning": "The long channel length (L=1.5um) of the feedback inverter intentionally chokes this current to save power and allow the pass gate to overpower it."
+      },
+      "importance": "essential"
+    },
+    "clock_to_q_delay": {
+      "description": "The propagation delay from the clock signal going high to the Q output changing state.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "385",
+        "reference": "Figure 13.19"
+      },
+      "equation": {
+        "formula": "t_{delay} \\approx t_{pass\\_gate} + t_{inv1} + t_{inv3}",
+        "explanation": "The total delay is the sum of the RC delays through the pass transistor and the two forward-path inverters.",
+        "assumptions": "Assumes step input for clock and ignores wire parasitics."
+      },
+      "sky130_expected": {
+        "calculation": "R_{pass} \\approx 400\\Omega, C_{node} \\approx 10fF \\rightarrow t_{pass} \\approx 3ps. R_{inv1} \\approx 1k\\Omega, C_{Qbar} \\approx 10fF \\rightarrow t_{inv1} \\approx 7ps. Total delay is roughly 15-30ps.",
+        "range": {
+          "min": "10p",
+          "typical": "25p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "In 130nm, a 3-stage unloaded path (pass gate + 2 inverters) is extremely fast, typically under 50ps."
+      },
+      "importance": "essential"
+    },
+    "setup_time": {
+      "description": "The minimum time the D input must be stable before the clock signal transitions low to ensure correct data capture.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "388",
+        "reference": "Figure 13.25 and text 'Flip-Flop Timing'"
+      },
+      "equation": {
+        "formula": "t_s \\approx t_{pass\\_gate} + t_{inv1}",
+        "explanation": "The data must propagate through the pass gate and the first inverter to establish a stable logic level on the internal node before the clock falls.",
+        "assumptions": "Assumes the feedback inverter is weak and doesn't significantly slow down the forward propagation."
+      },
+      "sky130_expected": {
+        "calculation": "t_s is roughly the delay to node Q_bar. t_{pass} (3ps) + t_{inv1} (7ps) = 10ps. Adding margin for slow edges gives ~20ps.",
+        "range": {
+          "min": "5p",
+          "typical": "20p",
+          "max": "50p",
+          "unit": "s"
+        },
+        "reasoning": "Setup time is directly related to the forward propagation delay to the internal storage node."
+      },
+      "importance": "essential"
+    },
+    "hold_time": {
+      "description": "The minimum time the D input must remain stable after the clock signal transitions low.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "389",
+        "reference": "Figure 13.26"
+      },
+      "equation": {
+        "formula": "t_h \\approx t_{clk\\_delay} - t_{D\\_delay}",
+        "explanation": "Hold time can be negative if the clock turns off the pass gate before the changing D input can propagate through it.",
+        "assumptions": "Assumes sharp clock edges."
+      },
+      "sky130_expected": {
+        "calculation": "Since the pass gate turns off almost immediately when the clock falls, the hold time is near zero or slightly negative.",
+        "range": {
+          "min": "-20p",
+          "typical": "0",
+          "max": "20p",
+          "unit": "s"
+        },
+        "reasoning": "A single pass-gate latch typically has a zero or negative hold time because the isolation occurs instantly at the input."
+      },
+      "importance": "essential"
+    },
+    "input_capacitance": {
+      "description": "The input capacitance of an inverter stage.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "source": {
+        "page": "389",
+        "reference": "Example 13.3, Equation: C_{in1} = 3/2 * (C_{oxn1} + C_{oxp1})"
+      },
+      "equation": {
+        "formula": "C_{in} = \\frac{3}{2} (W_n L_n C_{ox} + W_p L_p C_{ox})",
+        "explanation": "Approximates the gate capacitance including Miller effects during switching.",
+        "assumptions": "Assumes standard switching conditions where Miller multiplier is roughly 1.5."
+      },
+      "sky130_expected": {
+        "calculation": "C_{ox} \\approx 8.6 fF/\\mu m^2. For W_n=1, W_p=2, L=0.15: C_{oxn} = 1.29 fF, C_{oxp} = 2.58 fF. C_{in} = 1.5 * (1.29 + 2.58) = 5.8 fF.",
+        "range": {
+          "min": "4f",
+          "typical": "5.8f",
+          "max": "10f",
+          "unit": "F"
+        },
+        "reasoning": "Based on standard 130nm oxide thickness (~4nm)."
+      },
+      "importance": "optional"
+    },
+    "inverter_delay": {
+      "description": "The propagation delay through an inverter stage.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "389",
+        "reference": "Example 13.3, Equation: t_{PHL1} + t_{PLH1} = 0.7 * (R_{eff,n} + R_{eff,p}) * C_{load}"
+      },
+      "equation": {
+        "formula": "t_{delay} = 0.7 \\cdot R_{eff} \\cdot C_{load}",
+        "explanation": "First-order RC delay model for CMOS logic gates.",
+        "assumptions": "Assumes step input and linear effective resistance."
+      },
+      "sky130_expected": {
+        "calculation": "R_{eff,n} \\approx 400 \\Omega, R_{eff,p} \\approx 1086 \\Omega. C_{load} \\approx 10 fF. t_{PHL} + t_{PLH} = 0.7 * (400 + 1086) * 10fF = 10.4 ps.",
+        "range": {
+          "min": "5p",
+          "typical": "10p",
+          "max": "20p",
+          "unit": "s"
+        },
+        "reasoning": "Standard FO1 inverter delay in 130nm is typically around 10-15ps."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the Clock-to-Q delay and the peak contention current of the level-sensitive latch. Initial conditions are set to force a state flip (and thus contention) on the first clock rising edge.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "clock_to_q_delay",
+      "contention_current"
+    ],
+    "spice": "* Level-Sensitive Latch Testbench\n.param W_xm1=1 L_xm1=0.15\n.param W_xm2=2 L_xm2=0.15\n.param W_xm3=1 L_xm3=1.5\n.param W_xm4=2 L_xm4=1.5\n.param W_xm5=1 L_xm5=0.15\n.param W_xm6=2 L_xm6=0.15\n.param W_xm7=1 L_xm7=0.15\n\n.lib ${SKY130_PDK} tt\n\nxm1 Q_bar N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 Q_bar N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 N001 Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N001 Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm5 Q Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 Q Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 D clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nVD D 0 DC 1.8\n\n* Clock stimulus\nVclk clock 0 PULSE(0 1.8 1n 50p 50p 4n 10n)\n\n* Initial conditions to force contention (Latch holds 0, D is 1)\n.ic v(N001)=0 v(Q_bar)=1.8 v(Q)=0\n\n.control\ntran 1p 5n uic\n\n* Measure Clock-to-Q delay\nmeas tran delay_clk2q trig v(clock) val=0.9 rise=1 targ v(Q) val=0.9 rise=1\n\n* Measure contention current (current supplied by VD through the pass gate fighting I2)\n* Current leaving the positive terminal of VD is negative in ngspice, so we find the minimum.\nmeas tran peak_contention_current min i(VD)\nlet contention_ua = -peak_contention_current * 1e6\n\nprint delay_clk2q contention_ua\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 13.18\",\n    \"page\": \"385\",\n    \"circuit_type\": \"Level-sensitive latch\",\n    \"description\": \"A level-sensitive latch using an NMOS pass transistor to drive a cross-coupled inverter pair. The feedback inverter uses long-channel devices to reduce contention current when the input fights the feedback loop.\"\n  },\n  \"step2_metrics\": {\n    \"metastability_delay\": {\n      \"description\": \"The time required for the cross-coupled inverters to resolve a metastable state into a valid logic level.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Figure 13.17\"\n      },\n      \"equation\": {\n        \"formula\": \"t_resolve \\\\propto \\\\frac{C_{node}}{g_m}\",\n        \"explanation\": \"The delay is determined by the gain-bandwidth product of the cross-coupled inverters.\",\n        \"assumptions\": \"Assumes the input is exactly at the switching threshold V_SP.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"g_m \\\\approx \\\\mu_n C_{ox} (W/L) (V_{DD}/2 - V_{th}) = 270\\\\mu \\\\cdot (1/0.15) \\\\cdot (0.9 - 0.42) \\\\approx 864 \\\\mu S. C_{node} \\\\approx 10fF. \\\\tau = C/g_m \\\\approx 11.5ps. Resolution takes several time constants.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"100p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends heavily on the initial voltage difference from V_SP, but typically resolves within 100-500ps in a 130nm process.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"contention_current\": {\n      \"description\": \"The peak current that flows from VDD to GND when the D input (via the pass gate) fights the output of the feedback inverter (I2) during a state change.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"385\",\n        \"reference\": \"Text discussion: 'contention current that flows when the D input is fighting with the output of I2'\"\n      },\n      \"equation\": {\n        \"formula\": \"I_{contention} \\\\approx \\\\frac{1}{2} \\\\mu_n C_{ox} (W/L)_{I2} (V_{DD}-V_{th})^2\",\n        \"explanation\": \"The contention current is limited by the saturation current of the weak feedback inverter's ON transistor.\",\n        \"assumptions\": \"Assumes the pass gate is strong enough to hold the node near VDD while the feedback NMOS is fully ON.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Using the long-channel feedback NMOS (W=1, L=1.5): I_{contention} = 0.5 \\\\cdot 270\\\\mu A/V^2 \\\\cdot (1/1.5) \\\\cdot (1.8V - 0.42V)^2 = 171 \\\\mu A.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"170u\",\n          \"max\": \"300u\",\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"The long channel length (L=1.5um) of the feedback inverter intentionally chokes this current to save power and allow the pass gate to overpower it.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"clock_to_q_delay\": {\n      \"description\": \"The propagation delay from the clock signal going high to the Q output changing state.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"385\",\n        \"reference\": \"Figure 13.19\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{delay} \\\\approx t_{pass\\\\_gate} + t_{inv1} + t_{inv3}\",\n        \"explanation\": \"The total delay is the sum of the RC delays through the pass transistor and the two forward-path inverters.\",\n        \"assumptions\": \"Assumes step input for clock and ignores wire parasitics.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_{pass} \\\\approx 400\\\\Omega, C_{node} \\\\approx 10fF \\\\rightarrow t_{pass} \\\\approx 3ps. R_{inv1} \\\\approx 1k\\\\Omega, C_{Qbar} \\\\approx 10fF \\\\rightarrow t_{inv1} \\\\approx 7ps. Total delay is roughly 15-30ps.\",\n        \"range\": {\n          \"min\": \"10p\",\n          \"typical\": \"25p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"In 130nm, a 3-stage unloaded path (pass gate + 2 inverters) is extremely fast, typically under 50ps.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"setup_time\": {\n      \"description\": \"The minimum time the D input must be stable before the clock signal transitions low to ensure correct data capture.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"388\",\n        \"reference\": \"Figure 13.25 and text 'Flip-Flop Timing'\"\n      },\n      \"equation\": {\n        \"formula\": \"t_s \\\\approx t_{pass\\\\_gate} + t_{inv1}\",\n        \"explanation\": \"The data must propagate through the pass gate and the first inverter to establish a stable logic level on the internal node before the clock falls.\",\n        \"assumptions\": \"Assumes the feedback inverter is weak and doesn't significantly slow down the forward propagation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_s is roughly the delay to node Q_bar. t_{pass} (3ps) + t_{inv1} (7ps) = 10ps. Adding margin for slow edges gives ~20ps.\",\n        \"range\": {\n          \"min\": \"5p\",\n          \"typical\": \"20p\",\n          \"max\": \"50p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Setup time is directly related to the forward propagation delay to the internal storage node.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"hold_time\": {\n      \"description\": \"The minimum time the D input must remain stable after the clock signal transitions low.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"389\",\n        \"reference\": \"Figure 13.26\"\n      },\n      \"equation\": {\n        \"formula\": \"t_h \\\\approx t_{clk\\\\_delay} - t_{D\\\\_delay}\",\n        \"explanation\": \"Hold time can be negative if the clock turns off the pass gate before the changing D input can propagate through it.\",\n        \"assumptions\": \"Assumes sharp clock edges.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Since the pass gate turns off almost immediately when the clock falls, the hold time is near zero or slightly negative.\",\n        \"range\": {\n          \"min\": \"-20p\",\n          \"typical\": \"0\",\n          \"max\": \"20p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"A single pass-gate latch typically has a zero or negative hold time because the isolation occurs instantly at the input.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_capacitance\": {\n      \"description\": \"The input capacitance of an inverter stage.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"389\",\n        \"reference\": \"Example 13.3, Equation: C_{in1} = 3/2 * (C_{oxn1} + C_{oxp1})\"\n      },\n      \"equation\": {\n        \"formula\": \"C_{in} = \\\\frac{3}{2} (W_n L_n C_{ox} + W_p L_p C_{ox})\",\n        \"explanation\": \"Approximates the gate capacitance including Miller effects during switching.\",\n        \"assumptions\": \"Assumes standard switching conditions where Miller multiplier is roughly 1.5.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C_{ox} \\\\approx 8.6 fF/\\\\mu m^2. For W_n=1, W_p=2, L=0.15: C_{oxn} = 1.29 fF, C_{oxp} = 2.58 fF. C_{in} = 1.5 * (1.29 + 2.58) = 5.8 fF.\",\n        \"range\": {\n          \"min\": \"4f\",\n          \"typical\": \"5.8f\",\n          \"max\": \"10f\",\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Based on standard 130nm oxide thickness (~4nm).\"\n      },\n      \"importance\": \"optional\"\n    },\n    \"inverter_delay\": {\n      \"description\": \"The propagation delay through an inverter stage.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"389\",\n        \"reference\": \"Example 13.3, Equation: t_{PHL1} + t_{PLH1} = 0.7 * (R_{eff,n} + R_{eff,p}) * C_{load}\"\n      },\n      \"equation\": {\n        \"formula\": \"t_{delay} = 0.7 \\\\cdot R_{eff} \\\\cdot C_{load}\",\n        \"explanation\": \"First-order RC delay model for CMOS logic gates.\",\n        \"assumptions\": \"Assumes step input and linear effective resistance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"R_{eff,n} \\\\approx 400 \\\\Omega, R_{eff,p} \\\\approx 1086 \\\\Omega. C_{load} \\\\approx 10 fF. t_{PHL} + t_{PLH} = 0.7 * (400 + 1086) * 10fF = 10.4 ps.\",\n        \"range\": {\n          \"min\": \"5p\",\n          \"typical\": \"10p\",\n          \"max\": \"20p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Standard FO1 inverter delay in 130nm is typically around 10-15ps.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the Clock-to-Q delay and the peak contention current of the level-sensitive latch. Initial conditions are set to force a state flip (and thus contention) on the first clock rising edge.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"clock_to_q_delay\",\n      \"contention_current\"\n    ],\n    \"spice\": \"* Level-Sensitive Latch Testbench\\n.param W_xm1=1 L_xm1=0.15\\n.param W_xm2=2 L_xm2=0.15\\n.param W_xm3=1 L_xm3=1.5\\n.param W_xm4=2 L_xm4=1.5\\n.param W_xm5=1 L_xm5=0.15\\n.param W_xm6=2 L_xm6=0.15\\n.param W_xm7=1 L_xm7=0.15\\n\\n.lib ${SKY130_PDK} tt\\n\\nxm1 Q_bar N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 Q_bar N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 N001 Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N001 Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 Q Q_bar 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 Q Q_bar VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 D clock N001 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nVD D 0 DC 1.8\\n\\n* Clock stimulus\\nVclk clock 0 PULSE(0 1.8 1n 50p 50p 4n 10n)\\n\\n* Initial conditions to force contention (Latch holds 0, D is 1)\\n.ic v(N001)=0 v(Q_bar)=1.8 v(Q)=0\\n\\n.control\\ntran 1p 5n uic\\n\\n* Measure Clock-to-Q delay\\nmeas tran delay_clk2q trig v(clock) val=0.9 rise=1 targ v(Q) val=0.9 rise=1\\n\\n* Measure contention current (current supplied by VD through the pass gate fighting I2)\\n* Current leaving the positive terminal of VD is negative in ngspice, so we find the minimum.\\nmeas tran peak_contention_current min i(VD)\\nlet contention_ua = -peak_contention_current * 1e6\\n\\nprint delay_clk2q contention_ua\\nquit\\n.endc\"\n  }\n}\n```"
+}

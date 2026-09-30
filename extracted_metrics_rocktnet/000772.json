@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Pseudo-differential cascode amplifier and common-source amplifiers",
+    "description": "The circuit consists of a pseudo-differential cascode amplifier (XM1, XM3, XM5, XM6) and two independent common-source amplifiers (XM2, XM4). Given the RF transceiver context, this is likely used as a low-noise amplifier (LNA), RF buffer, or a transconductance stage in the front-end.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_1",
+        "LABEL_NET_3",
+        "N4",
+        "N9"
+      ],
+      "output": [
+        "N10",
+        "N11",
+        "N6",
+        "N7"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Dual-Mode 802.11b/Bluetooth Radio in 0.35-um CMOS",
+      "figure": "unknown",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "Voltage Gain (Cascode)": {
+      "description": "Maximum AC voltage gain of the pseudo-differential cascode amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20 dB",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/Vov. With W/L=5/0.5, Vov~0.48V, Id~310uA, gm~1.3mS. With a 5kOhm load, Gain = gm*Rload = 6.5 V/V = 16.2 dB.",
+        "range": {
+          "min": 10,
+          "typical": 16,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the chosen load resistor in the testbench. 5kOhm gives a reasonable gain comparable to the paper."
+      },
+      "importance": "essential"
+    },
+    "Voltage Gain (CS)": {
+      "description": "Maximum AC voltage gain of the common-source amplifier pair",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to the cascode stage, gm~1.3mS. With a 5kOhm load, Gain = gm*Rload = 6.5 V/V = 16.2 dB.",
+        "range": {
+          "min": 10,
+          "typical": 16,
+          "max": 25,
+          "unit": "dB"
+        },
+        "reasoning": "The common-source pair has similar dimensions and bias, yielding similar gain."
+      },
+      "importance": "recommended"
+    },
+    "Bandwidth": {
+      "description": "0dB crossover frequency of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "2.4 GHz",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2*pi*Rload*Cout). With Rload=5kOhm and Cout~10fF, the -3dB BW is ~3.1 GHz. The 0dB bandwidth will be higher.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 5000000000.0,
+          "max": 15000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The bandwidth is limited by the RC time constant at the output node. 2.4 GHz operation is well within the capabilities of SKY130."
+      },
+      "importance": "essential"
+    },
+    "Power Consumption": {
+      "description": "Total DC power consumption of the circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "65 mA (total RX)",
+        "technology": "0.35-um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "4 branches * 310uA = 1.24mA. Power = 1.24mA * 1.8V = 2.23 mW.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.0022,
+          "max": 0.005,
+          "unit": "W"
+        },
+        "reasoning": "Calculated based on the bias conditions (0.9V gate) and transistor sizes in SKY130."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC voltage gain, bandwidth, and DC power consumption of the pseudo-differential cascode and common-source amplifiers.",
+    "analyses": [
+      "AC",
+      "OP"
+    ],
+    "metrics_measured": [
+      "Voltage Gain (Cascode)",
+      "Voltage Gain (CS)",
+      "Bandwidth",
+      "Power Consumption"
+    ],
+    "spice": "* Pseudo-differential cascode amplifier testbench\n.lib \"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\n* Power supply\nVDD VDD 0 1.8\n\n* Load resistors (5k ohms for reasonable gain)\nR1 VDD N11 5k\nR2 VDD N10 5k\nR3 VDD N6 5k\nR4 VDD N7 5k\n\n* Bias and Input Sources\nVbias_casc N2 0 1.2\nVbias_in1 LABEL_NET_1 0 0.9 ac 1\nVbias_in3 LABEL_NET_3 0 0.9 ac -1\nVbias_in4 N4 0 0.9 ac 1\nVbias_in9 N9 0 0.9 ac -1\n\n* DUT\nXM1 N11 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N6 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N10 N2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N7 N9 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N3 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N1 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\n.control\n  * DC Operating Point and Power\n  op\n  let power = -i(VDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 100 1Meg 100G\n  \n  * Cascode Amplifier Gain\n  let vout_diff = v(N10) - v(N11)\n  let gain_mag = mag(vout_diff) / 2\n  let gain_db = 20 * log10(gain_mag)\n  \n  * Common-Source Amplifier Gain\n  let vout_cs_diff = v(N6) - v(N7)\n  let gain_cs_mag = mag(vout_cs_diff) / 2\n  let gain_cs_db = 20 * log10(gain_cs_mag)\n  \n  * Measurements\n  meas ac gain_max max gain_db\n  meas ac gain_cs_max max gain_cs_db\n  meas ac gain_2G4 find gain_db at=2.4Gig\n  meas ac bw_0db when gain_db=0 fall=1\n  \n  print gain_max gain_cs_max gain_2G4 bw_0db\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Pseudo-differential cascode amplifier and common-source amplifiers\",\n    \"description\": \"The circuit consists of a pseudo-differential cascode amplifier (XM1, XM3, XM5, XM6) and two independent common-source amplifiers (XM2, XM4). Given the RF transceiver context, this is likely used as a low-noise amplifier (LNA), RF buffer, or a transconductance stage in the front-end.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_1\",\n        \"LABEL_NET_3\",\n        \"N4\",\n        \"N9\"\n      ],\n      \"output\": [\n        \"N10\",\n        \"N11\",\n        \"N6\",\n        \"N7\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Dual-Mode 802.11b/Bluetooth Radio in 0.35-um CMOS\",\n      \"figure\": \"unknown\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"Voltage Gain (Cascode)\": {\n      \"description\": \"Maximum AC voltage gain of the pseudo-differential cascode amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20 dB\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/Vov. With W/L=5/0.5, Vov~0.48V, Id~310uA, gm~1.3mS. With a 5kOhm load, Gain = gm*Rload = 6.5 V/V = 16.2 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 16,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the chosen load resistor in the testbench. 5kOhm gives a reasonable gain comparable to the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Voltage Gain (CS)\": {\n      \"description\": \"Maximum AC voltage gain of the common-source amplifier pair\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to the cascode stage, gm~1.3mS. With a 5kOhm load, Gain = gm*Rload = 6.5 V/V = 16.2 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 16,\n          \"max\": 25,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The common-source pair has similar dimensions and bias, yielding similar gain.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Bandwidth\": {\n      \"description\": \"0dB crossover frequency of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"2.4 GHz\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2*pi*Rload*Cout). With Rload=5kOhm and Cout~10fF, the -3dB BW is ~3.1 GHz. The 0dB bandwidth will be higher.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 5e9,\n          \"max\": 15e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The bandwidth is limited by the RC time constant at the output node. 2.4 GHz operation is well within the capabilities of SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power Consumption\": {\n      \"description\": \"Total DC power consumption of the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"65 mA (total RX)\",\n        \"technology\": \"0.35-um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"4 branches * 310uA = 1.24mA. Power = 1.24mA * 1.8V = 2.23 mW.\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 2.2e-3,\n          \"max\": 5e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Calculated based on the bias conditions (0.9V gate) and transistor sizes in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC voltage gain, bandwidth, and DC power consumption of the pseudo-differential cascode and common-source amplifiers.\",\n    \"analyses\": [\n      \"AC\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"Voltage Gain (Cascode)\",\n      \"Voltage Gain (CS)\",\n      \"Bandwidth\",\n      \"Power Consumption\"\n    ],\n    \"spice\": \"* Pseudo-differential cascode amplifier testbench\\n.lib \\\"${SKY130_PDK}/libs.tech/ngspice/sky130.lib.spice\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\n* Power supply\\nVDD VDD 0 1.8\\n\\n* Load resistors (5k ohms for reasonable gain)\\nR1 VDD N11 5k\\nR2 VDD N10 5k\\nR3 VDD N6 5k\\nR4 VDD N7 5k\\n\\n* Bias and Input Sources\\nVbias_casc N2 0 1.2\\nVbias_in1 LABEL_NET_1 0 0.9 ac 1\\nVbias_in3 LABEL_NET_3 0 0.9 ac -1\\nVbias_in4 N4 0 0.9 ac 1\\nVbias_in9 N9 0 0.9 ac -1\\n\\n* DUT\\nXM1 N11 N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N6 N4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N10 N2 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N7 N9 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N3 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N1 LABEL_NET_3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\n.control\\n  * DC Operating Point and Power\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 100 1Meg 100G\\n  \\n  * Cascode Amplifier Gain\\n  let vout_diff = v(N10) - v(N11)\\n  let gain_mag = mag(vout_diff) / 2\\n  let gain_db = 20 * log10(gain_mag)\\n  \\n  * Common-Source Amplifier Gain\\n  let vout_cs_diff = v(N6) - v(N7)\\n  let gain_cs_mag = mag(vout_cs_diff) / 2\\n  let gain_cs_db = 20 * log10(gain_cs_mag)\\n  \\n  * Measurements\\n  meas ac gain_max max gain_db\\n  meas ac gain_cs_max max gain_cs_db\\n  meas ac gain_2G4 find gain_db at=2.4Gig\\n  meas ac bw_0db when gain_db=0 fall=1\\n  \\n  print gain_max gain_cs_max gain_2G4 bw_0db\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1408090",
+  "_case": "1408090_image_10"
+}

@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Analog Equalizer Interpolator / Variable Gain Amplifier",
+    "description": "A bipolar differential interpolator stage used in an adaptive cable equalizer. It steers a tail current between two differential pairs (fast and slow paths) based on a control voltage, blending their outputs to compensate for frequency-dependent cable loss.",
+    "node_mapping": {
+      "input": [
+        "VFAST_P",
+        "VFAST_N",
+        "VSLOW_P",
+        "VSLOW_N"
+      ],
+      "output": [
+        "VEQ_P",
+        "VEQ_N"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VCONTROL_P",
+        "VCONTROL_N"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 10 Gb/s BiCMOS Adaptive Cable Equalizer",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the interpolator stage.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "350 mW",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_tail = 1.8V * 1mA = 1.8mW. (Note: The 350mW reported in the paper is for the entire chip including CDR and output buffers).",
+        "range": {
+          "min": "1.5m",
+          "typical": "1.8m",
+          "max": "2.0m",
+          "unit": "W"
+        },
+        "reasoning": "Based on a standard 1mA tail current for a high-speed differential pair in a 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain": {
+      "description": "Low-frequency differential voltage gain of the active path.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "22 dB (max compensation)",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * R_load. For I_tail = 1mA, Ic = 0.5mA, gm = Ic/Vt = 19.2mS. With R_load = 1kOhm, Gain = 19.2 V/V = 25.6 dB.",
+        "range": {
+          "min": "20",
+          "typical": "25",
+          "max": "30",
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using standard bipolar transconductance at room temperature with 1kOhm load resistors."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3db": {
+      "description": "The frequency at which the AC voltage gain drops by 3 dB from its low-frequency value.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "5 GHz (operating frequency)",
+        "technology": "SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * R_load * C_total). Assuming C_total ~ 15fF (Cjc + load parasitics), BW = 1 / (2 * pi * 1k * 15f) = 10.6 GHz.",
+        "range": {
+          "min": "5G",
+          "typical": "10G",
+          "max": "20G",
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the RC time constant at the output nodes. A 1kOhm resistor and small parasitic capacitances yield a bandwidth in the 10 GHz range."
+      },
+      "importance": "essential"
+    },
+    "transient_swing": {
+      "description": "Peak-to-peak differential output voltage swing for a small-signal high-frequency input.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "For a 20mVpp differential input, Output Swing = 20mV * 19.2 V/V = 384mV.",
+        "range": {
+          "min": "0.3",
+          "typical": "0.38",
+          "max": "0.5",
+          "unit": "V"
+        },
+        "reasoning": "Verifies the time-domain large-signal behavior and ensures the stage does not clip prematurely."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC voltage gain, -3dB bandwidth, and transient output swing of the equalizer interpolator stage.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain",
+      "bandwidth_3db",
+      "transient_swing"
+    ],
+    "spice": "* Adaptive Cable Equalizer Interpolator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model for simulation (since netlist uses 'npn')\n.model npn npn(is=1e-16 bf=100 cje=10f cjc=10f)\n\n* DUT\nI1 E_TAIL GND 1m\nQ1 VEQ_P VFAST_N E_LEFT npn\nQ2 E_RIGHT VCONTROL_N E_TAIL npn\nQ3 E_LEFT VCONTROL_P E_TAIL npn\nQ4 VEQ_N VFAST_P E_LEFT npn\nQ5 VEQ_P VSLOW_P E_RIGHT npn\nQ6 VEQ_N VSLOW_N E_RIGHT npn\nR1 VDD VEQ_P 1k\nR2 VDD VEQ_N 1k\n\n* Biasing and Sources\nVVDD VDD GND 1.8\nVVCONTROL_P VCONTROL_P GND 1.2\nVVCONTROL_N VCONTROL_N GND 0.6\n\n* Inputs (Fast path active, Slow path AC grounded)\nVFAST_P VFAST_P GND dc 0.9 ac 0.5 sin(0.9 0.01 1G)\nVFAST_N VFAST_N GND dc 0.9 ac -0.5 sin(0.9 -0.01 1G)\nVSLOW_P VSLOW_P GND dc 0.9 ac 0\nVSLOW_N VSLOW_N GND dc 0.9 ac 0\n\n.control\n* DC Analysis\nop\nlet power = -i(VVDD)*1.8\nprint power\nmeas dc power_meas param power\n\n* AC Analysis\nac dec 100 1Meg 100Gig\nlet vout_diff = v(VEQ_P) - v(VEQ_N)\nlet gain_db = vdb(vout_diff)\nmeas ac low_freq_gain find gain_db at=1Meg\nmeas ac bw_3db when gain_db='low_freq_gain-3' fall=1\n\n* Transient Analysis\ntran 10p 5n\nlet vout_diff_tran = v(VEQ_P) - v(VEQ_N)\nmeas tran vout_max max vout_diff_tran from=2n to=5n\nmeas tran vout_min min vout_diff_tran from=2n to=5n\nlet tran_swing = vout_max - vout_min\nprint tran_swing\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Analog Equalizer Interpolator / Variable Gain Amplifier\",\n    \"description\": \"A bipolar differential interpolator stage used in an adaptive cable equalizer. It steers a tail current between two differential pairs (fast and slow paths) based on a control voltage, blending their outputs to compensate for frequency-dependent cable loss.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VFAST_P\",\n        \"VFAST_N\",\n        \"VSLOW_P\",\n        \"VSLOW_N\"\n      ],\n      \"output\": [\n        \"VEQ_P\",\n        \"VEQ_N\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VCONTROL_P\",\n        \"VCONTROL_N\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 10 Gb/s BiCMOS Adaptive Cable Equalizer\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the interpolator stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"350 mW\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_tail = 1.8V * 1mA = 1.8mW. (Note: The 350mW reported in the paper is for the entire chip including CDR and output buffers).\",\n        \"range\": {\n          \"min\": \"1.5m\",\n          \"typical\": \"1.8m\",\n          \"max\": \"2.0m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a standard 1mA tail current for a high-speed differential pair in a 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain\": {\n      \"description\": \"Low-frequency differential voltage gain of the active path.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"22 dB (max compensation)\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * R_load. For I_tail = 1mA, Ic = 0.5mA, gm = Ic/Vt = 19.2mS. With R_load = 1kOhm, Gain = 19.2 V/V = 25.6 dB.\",\n        \"range\": {\n          \"min\": \"20\",\n          \"typical\": \"25\",\n          \"max\": \"30\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using standard bipolar transconductance at room temperature with 1kOhm load resistors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3db\": {\n      \"description\": \"The frequency at which the AC voltage gain drops by 3 dB from its low-frequency value.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"5 GHz (operating frequency)\",\n        \"technology\": \"SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * R_load * C_total). Assuming C_total ~ 15fF (Cjc + load parasitics), BW = 1 / (2 * pi * 1k * 15f) = 10.6 GHz.\",\n        \"range\": {\n          \"min\": \"5G\",\n          \"typical\": \"10G\",\n          \"max\": \"20G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the RC time constant at the output nodes. A 1kOhm resistor and small parasitic capacitances yield a bandwidth in the 10 GHz range.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transient_swing\": {\n      \"description\": \"Peak-to-peak differential output voltage swing for a small-signal high-frequency input.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 20mVpp differential input, Output Swing = 20mV * 19.2 V/V = 384mV.\",\n        \"range\": {\n          \"min\": \"0.3\",\n          \"typical\": \"0.38\",\n          \"max\": \"0.5\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Verifies the time-domain large-signal behavior and ensures the stage does not clip prematurely.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC voltage gain, -3dB bandwidth, and transient output swing of the equalizer interpolator stage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain\",\n      \"bandwidth_3db\",\n      \"transient_swing\"\n    ],\n    \"spice\": \"* Adaptive Cable Equalizer Interpolator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model for simulation (since netlist uses 'npn')\\n.model npn npn(is=1e-16 bf=100 cje=10f cjc=10f)\\n\\n* DUT\\nI1 E_TAIL GND 1m\\nQ1 VEQ_P VFAST_N E_LEFT npn\\nQ2 E_RIGHT VCONTROL_N E_TAIL npn\\nQ3 E_LEFT VCONTROL_P E_TAIL npn\\nQ4 VEQ_N VFAST_P E_LEFT npn\\nQ5 VEQ_P VSLOW_P E_RIGHT npn\\nQ6 VEQ_N VSLOW_N E_RIGHT npn\\nR1 VDD VEQ_P 1k\\nR2 VDD VEQ_N 1k\\n\\n* Biasing and Sources\\nVVDD VDD GND 1.8\\nVVCONTROL_P VCONTROL_P GND 1.2\\nVVCONTROL_N VCONTROL_N GND 0.6\\n\\n* Inputs (Fast path active, Slow path AC grounded)\\nVFAST_P VFAST_P GND dc 0.9 ac 0.5 sin(0.9 0.01 1G)\\nVFAST_N VFAST_N GND dc 0.9 ac -0.5 sin(0.9 -0.01 1G)\\nVSLOW_P VSLOW_P GND dc 0.9 ac 0\\nVSLOW_N VSLOW_N GND dc 0.9 ac 0\\n\\n.control\\n* DC Analysis\\nop\\nlet power = -i(VVDD)*1.8\\nprint power\\nmeas dc power_meas param power\\n\\n* AC Analysis\\nac dec 100 1Meg 100Gig\\nlet vout_diff = v(VEQ_P) - v(VEQ_N)\\nlet gain_db = vdb(vout_diff)\\nmeas ac low_freq_gain find gain_db at=1Meg\\nmeas ac bw_3db when gain_db='low_freq_gain-3' fall=1\\n\\n* Transient Analysis\\ntran 10p 5n\\nlet vout_diff_tran = v(VEQ_P) - v(VEQ_N)\\nmeas tran vout_max max vout_diff_tran from=2n to=5n\\nmeas tran vout_min min vout_diff_tran from=2n to=5n\\nlet tran_swing = vout_max - vout_min\\nprint tran_swing\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1522552",
+  "_case": "1522552_image_8_a"
+}

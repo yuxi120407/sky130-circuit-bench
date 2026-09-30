@@ -1,0 +1,125 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 11.1",
+    "page": "Chapter 11",
+    "circuit_type": "CMOS Inverter",
+    "description": "A standard CMOS inverter consisting of a PMOS pull-up transistor and an NMOS pull-down transistor, driving a capacitive load. It is the fundamental building block for digital logic and can also be analyzed as a simple high-gain analog amplifier."
+  },
+  "step2_metrics": {
+    "switching_threshold": {
+      "description": "The input voltage (VSP) at which the input equals the output (Vin = Vout), causing both transistors to be in saturation.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq 11.2"
+      },
+      "equation": {
+        "formula": "V_SP = (V_DD - |V_THP| + V_THN * sqrt(beta_n / beta_p)) / (1 + sqrt(beta_n / beta_p))",
+        "explanation": "Derived by equating the saturation currents of the NMOS and PMOS transistors.",
+        "assumptions": "Assumes both devices are in strong inversion saturation and channel-length modulation is negligible."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Wn/Ln = 1/0.15 and Wp/Lp = 2/0.15. beta_n = 270u * (1/0.15) = 1800 uA/V^2. beta_p = 50u * (2/0.15) = 666.7 uA/V^2. sqrt(beta_n/beta_p) = sqrt(2.7) = 1.643. V_SP = (1.8 - 0.42 + 0.42 * 1.643) / (1 + 1.643) = (1.38 + 0.69) / 2.643 = 0.783 V.",
+        "range": {
+          "min": 0.7,
+          "typical": 0.78,
+          "max": 0.9,
+          "unit": "V"
+        },
+        "reasoning": "The threshold is slightly skewed below VDD/2 (0.9V) because the NMOS is significantly stronger than the PMOS even with a 2:1 sizing ratio due to the high electron mobility in SKY130."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "The small-signal voltage gain of the inverter when biased at its switching threshold.",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq 11.15"
+      },
+      "equation": {
+        "formula": "A_v = -(g_mn + g_mp) / (g_dsn + g_dsp)",
+        "explanation": "The ratio of total transconductance to total output conductance when both devices act as current sources.",
+        "assumptions": "Biased exactly at VSP; both devices in saturation."
+      },
+      "sky130_expected": {
+        "calculation": "At V_SP = 0.783V, I_D = 0.5 * 1800u * (0.783 - 0.42)^2 = 118.6 uA. g_mn = sqrt(2 * 1800u * 118.6u) = 653 uS. g_mp = sqrt(2 * 666.7u * 118.6u) = 397 uS. g_dsn = 0.1 * 118.6u = 11.86 uS. g_dsp = 0.1 * 118.6u = 11.86 uS. A_v = (653 + 397) / (11.86 + 11.86) = 1050 / 23.72 = 44.2 V/V.",
+        "range": {
+          "min": 30,
+          "typical": 44,
+          "max": 60,
+          "unit": "V/V"
+        },
+        "reasoning": "Gain is limited by the channel length modulation (lambda=0.1/V) of short-channel devices."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "The time required for the output to cross 50% of VDD after the input crosses 50% of VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq 11.25"
+      },
+      "equation": {
+        "formula": "t_pHL = (C_load * V_DD) / (2 * I_Dsatn)",
+        "explanation": "Approximates the discharge of the load capacitor by the average saturation current of the NMOS.",
+        "assumptions": "Input is an ideal step function; load is purely capacitive."
+      },
+      "sky130_expected": {
+        "calculation": "I_Dsatn = 0.5 * 1800u * (1.8 - 0.42)^2 = 1.71 mA. t_pHL = (10e-15 * 1.8) / (2 * 1.71e-3) = 18e-15 / 3.42e-3 = 5.26 ps.",
+        "range": {
+          "min": 4e-12,
+          "typical": 5.5e-12,
+          "max": 1e-11,
+          "unit": "s"
+        },
+        "reasoning": "With a very small 10fF load and strong 1.8V drive, the intrinsic delay is extremely short, dominated by the high saturation current."
+      },
+      "importance": "essential"
+    },
+    "dynamic_power": {
+      "description": "Power dissipated by charging and discharging the load capacitance during switching.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "Chapter 11",
+        "reference": "Eq 11.30"
+      },
+      "equation": {
+        "formula": "P_dyn = f * C_load * V_DD^2",
+        "explanation": "Energy per cycle is C*V^2, multiplied by the switching frequency.",
+        "assumptions": "Full rail-to-rail swing; short-circuit power is negligible."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a switching frequency of 250 MHz (4ns period). P_dyn = 250e6 * 10e-15 * (1.8)^2 = 2.5e8 * 10e-15 * 3.24 = 8.1 uW.",
+        "range": {
+          "min": 5e-06,
+          "typical": 8.1e-06,
+          "max": 1.5e-05,
+          "unit": "W"
+        },
+        "reasoning": "Directly proportional to frequency and load capacitance. 8.1uW is expected for a 10fF load at 250MHz."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the switching threshold, maximum DC gain, propagation delays, rise/fall times, and dynamic power of the SKY130 inverter.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "switching_threshold",
+      "dc_gain",
+      "propagation_delay",
+      "dynamic_power"
+    ],
+    "spice": "* SKY130 Inverter Characterization Testbench\n.lib ${SKY130_PDK} tt\n.option scale=1e-6\n.option warn=0\n\n* Define parameters for the parameterized netlist\n.param W_x1=2 L_x1=0.15\n.param W_x2=1 L_x2=0.15\n\n* DUT Subcircuit\n.subckt SKY130_INV OUT IN VSS VDD\nx1 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 w={W_x1} l={L_x1}\nx2 OUT IN VSS VSS sky130_fd_pr__nfet_01v8 w={W_x2} l={L_x2}\n.ends SKY130_INV\n\n* Sources and Load\nVdd VDD 0 DC 1.8\nVss VSS 0 DC 0\nVin IN 0 DC 0.9 PULSE(0 1.8 1n 50p 50p 1n 2n)\nXinv OUT IN VSS VDD SKY130_INV\nCout OUT 0 10e-15\n\n.control\n* 1. DC Sweep Analysis for Switching Threshold and Gain\ndc Vin 0 1.8 0.01\nmeas dc vsp when v(out)=0.9\nlet gain = deriv(v(out))\nmeas dc max_gain min gain\n\n* 2. Transient Analysis for Delay and Power\ntran 5p 4n\nmeas tran tphl trig v(in) val=0.9 rise=1 targ v(out) val=0.9 fall=1\nmeas tran tplh trig v(in) val=0.9 fall=1 targ v(out) val=0.9 rise=1\nmeas tran trise trig v(out) val=0.36 rise=1 targ v(out) val=1.44 rise=1\nmeas tran tfall trig v(out) val=1.44 fall=1 targ v(out) val=0.36 fall=1\n\n* Measure average current from VDD to calculate power\nmeas tran avg_current avg i(Vdd)\nlet power = -avg_current * 1.8\nprint power\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 11.1\",\n    \"page\": \"Chapter 11\",\n    \"circuit_type\": \"CMOS Inverter\",\n    \"description\": \"A standard CMOS inverter consisting of a PMOS pull-up transistor and an NMOS pull-down transistor, driving a capacitive load. It is the fundamental building block for digital logic and can also be analyzed as a simple high-gain analog amplifier.\"\n  },\n  \"step2_metrics\": {\n    \"switching_threshold\": {\n      \"description\": \"The input voltage (VSP) at which the input equals the output (Vin = Vout), causing both transistors to be in saturation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq 11.2\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = (V_DD - |V_THP| + V_THN * sqrt(beta_n / beta_p)) / (1 + sqrt(beta_n / beta_p))\",\n        \"explanation\": \"Derived by equating the saturation currents of the NMOS and PMOS transistors.\",\n        \"assumptions\": \"Assumes both devices are in strong inversion saturation and channel-length modulation is negligible.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Wn/Ln = 1/0.15 and Wp/Lp = 2/0.15. beta_n = 270u * (1/0.15) = 1800 uA/V^2. beta_p = 50u * (2/0.15) = 666.7 uA/V^2. sqrt(beta_n/beta_p) = sqrt(2.7) = 1.643. V_SP = (1.8 - 0.42 + 0.42 * 1.643) / (1 + 1.643) = (1.38 + 0.69) / 2.643 = 0.783 V.\",\n        \"range\": {\n          \"min\": 0.7,\n          \"typical\": 0.78,\n          \"max\": 0.9,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The threshold is slightly skewed below VDD/2 (0.9V) because the NMOS is significantly stronger than the PMOS even with a 2:1 sizing ratio due to the high electron mobility in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"The small-signal voltage gain of the inverter when biased at its switching threshold.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq 11.15\"\n      },\n      \"equation\": {\n        \"formula\": \"A_v = -(g_mn + g_mp) / (g_dsn + g_dsp)\",\n        \"explanation\": \"The ratio of total transconductance to total output conductance when both devices act as current sources.\",\n        \"assumptions\": \"Biased exactly at VSP; both devices in saturation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At V_SP = 0.783V, I_D = 0.5 * 1800u * (0.783 - 0.42)^2 = 118.6 uA. g_mn = sqrt(2 * 1800u * 118.6u) = 653 uS. g_mp = sqrt(2 * 666.7u * 118.6u) = 397 uS. g_dsn = 0.1 * 118.6u = 11.86 uS. g_dsp = 0.1 * 118.6u = 11.86 uS. A_v = (653 + 397) / (11.86 + 11.86) = 1050 / 23.72 = 44.2 V/V.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 44,\n          \"max\": 60,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Gain is limited by the channel length modulation (lambda=0.1/V) of short-channel devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"The time required for the output to cross 50% of VDD after the input crosses 50% of VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq 11.25\"\n      },\n      \"equation\": {\n        \"formula\": \"t_pHL = (C_load * V_DD) / (2 * I_Dsatn)\",\n        \"explanation\": \"Approximates the discharge of the load capacitor by the average saturation current of the NMOS.\",\n        \"assumptions\": \"Input is an ideal step function; load is purely capacitive.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_Dsatn = 0.5 * 1800u * (1.8 - 0.42)^2 = 1.71 mA. t_pHL = (10e-15 * 1.8) / (2 * 1.71e-3) = 18e-15 / 3.42e-3 = 5.26 ps.\",\n        \"range\": {\n          \"min\": 4e-12,\n          \"typical\": 5.5e-12,\n          \"max\": 10e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"With a very small 10fF load and strong 1.8V drive, the intrinsic delay is extremely short, dominated by the high saturation current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dynamic_power\": {\n      \"description\": \"Power dissipated by charging and discharging the load capacitance during switching.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"Chapter 11\",\n        \"reference\": \"Eq 11.30\"\n      },\n      \"equation\": {\n        \"formula\": \"P_dyn = f * C_load * V_DD^2\",\n        \"explanation\": \"Energy per cycle is C*V^2, multiplied by the switching frequency.\",\n        \"assumptions\": \"Full rail-to-rail swing; short-circuit power is negligible.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a switching frequency of 250 MHz (4ns period). P_dyn = 250e6 * 10e-15 * (1.8)^2 = 2.5e8 * 10e-15 * 3.24 = 8.1 uW.\",\n        \"range\": {\n          \"min\": 5e-6,\n          \"typical\": 8.1e-6,\n          \"max\": 15e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Directly proportional to frequency and load capacitance. 8.1uW is expected for a 10fF load at 250MHz.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the switching threshold, maximum DC gain, propagation delays, rise/fall times, and dynamic power of the SKY130 inverter.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"switching_threshold\",\n      \"dc_gain\",\n      \"propagation_delay\",\n      \"dynamic_power\"\n    ],\n    \"spice\": \"* SKY130 Inverter Characterization Testbench\\n.lib ${SKY130_PDK} tt\\n.option scale=1e-6\\n.option warn=0\\n\\n* Define parameters for the parameterized netlist\\n.param W_x1=2 L_x1=0.15\\n.param W_x2=1 L_x2=0.15\\n\\n* DUT Subcircuit\\n.subckt SKY130_INV OUT IN VSS VDD\\nx1 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 w={W_x1} l={L_x1}\\nx2 OUT IN VSS VSS sky130_fd_pr__nfet_01v8 w={W_x2} l={L_x2}\\n.ends SKY130_INV\\n\\n* Sources and Load\\nVdd VDD 0 DC 1.8\\nVss VSS 0 DC 0\\nVin IN 0 DC 0.9 PULSE(0 1.8 1n 50p 50p 1n 2n)\\nXinv OUT IN VSS VDD SKY130_INV\\nCout OUT 0 10e-15\\n\\n.control\\n* 1. DC Sweep Analysis for Switching Threshold and Gain\\ndc Vin 0 1.8 0.01\\nmeas dc vsp when v(out)=0.9\\nlet gain = deriv(v(out))\\nmeas dc max_gain min gain\\n\\n* 2. Transient Analysis for Delay and Power\\ntran 5p 4n\\nmeas tran tphl trig v(in) val=0.9 rise=1 targ v(out) val=0.9 fall=1\\nmeas tran tplh trig v(in) val=0.9 fall=1 targ v(out) val=0.9 rise=1\\nmeas tran trise trig v(out) val=0.36 rise=1 targ v(out) val=1.44 rise=1\\nmeas tran tfall trig v(out) val=1.44 fall=1 targ v(out) val=0.36 fall=1\\n\\n* Measure average current from VDD to calculate power\\nmeas tran avg_current avg i(Vdd)\\nlet power = -avg_current * 1.8\\nprint power\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

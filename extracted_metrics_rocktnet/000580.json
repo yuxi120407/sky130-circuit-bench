@@ -1,0 +1,106 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Latch-Type Voltage Sense Amplifier",
+    "description": "A cross-coupled inverter pair with a tail current source and precharge transistors. It amplifies a small initial voltage difference on its internal nodes into a full CMOS logic level when enabled.",
+    "node_mapping": {
+      "input": [
+        "EN",
+        "V1",
+        "V2"
+      ],
+      "output": [
+        "V1",
+        "V2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Yield and Speed Optimization of a Latch-Type Voltage Sense Amplifier",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "sensing_delay": {
+      "description": "Time from the enable signal (EN) reaching 50% VDD to the output node (V2) discharging to 50% VDD.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly stated, but speed optimization is a key focus.",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay \u2248 C_load * (VDD/2) / I_discharge. With W=5u, L=0.5u, C_load is ~20fF. I_discharge is limited by the tail NMOS and cross-coupled NMOS in series, roughly 2mA. Delay \u2248 20fF * 0.9V / 2mA = 9ps. Adding EN rise time and parasitic effects, expect 20ps - 100ps.",
+        "range": {
+          "min": "20p",
+          "typical": "50p",
+          "max": "100p",
+          "unit": "s"
+        },
+        "reasoning": "Calculated based on SKY130 NMOS drive strength and estimated parasitic capacitance of the W=5u devices."
+      },
+      "importance": "essential"
+    },
+    "average_power": {
+      "description": "Average power consumption during the sensing phase.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Energy per sensing event \u2248 C * VDD^2 = 20fF * 1.8^2 = 65fJ. Over a 3ns measurement window, average power = 65fJ / 3ns \u2248 21uW.",
+        "range": {
+          "min": "10u",
+          "typical": "25u",
+          "max": "100u",
+          "unit": "W"
+        },
+        "reasoning": "Based on dynamic power charging/discharging the internal nodes."
+      },
+      "importance": "recommended"
+    },
+    "initial_vdiff": {
+      "description": "Initial voltage difference between V1 and V2 before sensing begins.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "130-nm CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "A 50uA current source pulls down V2 against the precharge PMOS (XM7). Ron of XM7 \u2248 1 / (50uA/V^2 * 10 * (1.8-0.42)) \u2248 1.45k\u03a9. Vdiff = 50uA * 1.45k\u03a9 = 72.5mV.",
+        "range": {
+          "min": "50m",
+          "typical": "75m",
+          "max": "100m",
+          "unit": "V"
+        },
+        "reasoning": "Determined by the testbench setup to simulate a typical SRAM bitline differential voltage."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the sensing delay and power consumption of the latch-type sense amplifier. A 50uA current source is used to create an initial voltage difference between V1 and V2 during the precharge phase.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "sensing_delay",
+      "average_power",
+      "initial_vdiff"
+    ],
+    "spice": "* Latch-Type Sense Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\nXM1 V1 V2 N_TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 V1 V2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM3 V2 V1 N_TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 V2 V1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N_TAIL EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 V1 EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 V2 EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\n\nVVDD VDD 0 1.8\nVEN EN 0 PULSE(0 1.8 2n 50p 50p 10n 20n)\nI_diff V2 0 50u\n\n.control\ntran 1p 10n\nmeas tran v1_init find v(V1) at=1.9n\nmeas tran v2_init find v(V2) at=1.9n\nmeas tran delay trig v(EN) val=0.9 rise=1 targ v(V2) val=0.9 fall=1\nlet pwr = -i(VVDD)*1.8\nmeas tran avg_power avg pwr from=2n to=5n\nmeas tran i_peak min i(VVDD)\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Latch-Type Voltage Sense Amplifier\",\n    \"description\": \"A cross-coupled inverter pair with a tail current source and precharge transistors. It amplifies a small initial voltage difference on its internal nodes into a full CMOS logic level when enabled.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"EN\",\n        \"V1\",\n        \"V2\"\n      ],\n      \"output\": [\n        \"V1\",\n        \"V2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Yield and Speed Optimization of a Latch-Type Voltage Sense Amplifier\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"sensing_delay\": {\n      \"description\": \"Time from the enable signal (EN) reaching 50% VDD to the output node (V2) discharging to 50% VDD.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated, but speed optimization is a key focus.\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay \u2248 C_load * (VDD/2) / I_discharge. With W=5u, L=0.5u, C_load is ~20fF. I_discharge is limited by the tail NMOS and cross-coupled NMOS in series, roughly 2mA. Delay \u2248 20fF * 0.9V / 2mA = 9ps. Adding EN rise time and parasitic effects, expect 20ps - 100ps.\",\n        \"range\": {\n          \"min\": \"20p\",\n          \"typical\": \"50p\",\n          \"max\": \"100p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 NMOS drive strength and estimated parasitic capacitance of the W=5u devices.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"average_power\": {\n      \"description\": \"Average power consumption during the sensing phase.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Energy per sensing event \u2248 C * VDD^2 = 20fF * 1.8^2 = 65fJ. Over a 3ns measurement window, average power = 65fJ / 3ns \u2248 21uW.\",\n        \"range\": {\n          \"min\": \"10u\",\n          \"typical\": \"25u\",\n          \"max\": \"100u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on dynamic power charging/discharging the internal nodes.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"initial_vdiff\": {\n      \"description\": \"Initial voltage difference between V1 and V2 before sensing begins.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"130-nm CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"A 50uA current source pulls down V2 against the precharge PMOS (XM7). Ron of XM7 \u2248 1 / (50uA/V^2 * 10 * (1.8-0.42)) \u2248 1.45k\u03a9. Vdiff = 50uA * 1.45k\u03a9 = 72.5mV.\",\n        \"range\": {\n          \"min\": \"50m\",\n          \"typical\": \"75m\",\n          \"max\": \"100m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the testbench setup to simulate a typical SRAM bitline differential voltage.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the sensing delay and power consumption of the latch-type sense amplifier. A 50uA current source is used to create an initial voltage difference between V1 and V2 during the precharge phase.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"sensing_delay\",\n      \"average_power\",\n      \"initial_vdiff\"\n    ],\n    \"spice\": \"* Latch-Type Sense Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\nXM1 V1 V2 N_TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 V1 V2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 V2 V1 N_TAIL GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 V2 V1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N_TAIL EN GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 V1 EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 V2 EN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\n\\nVVDD VDD 0 1.8\\nVEN EN 0 PULSE(0 1.8 2n 50p 50p 10n 20n)\\nI_diff V2 0 50u\\n\\n.control\\ntran 1p 10n\\nmeas tran v1_init find v(V1) at=1.9n\\nmeas tran v2_init find v(V2) at=1.9n\\nmeas tran delay trig v(EN) val=0.9 rise=1 targ v(V2) val=0.9 fall=1\\nlet pwr = -i(VVDD)*1.8\\nmeas tran avg_power avg pwr from=2n to=5n\\nmeas tran i_peak min i(VVDD)\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1308589",
+  "_case": "1308589_image_1_a"
+}

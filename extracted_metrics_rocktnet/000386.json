@@ -1,0 +1,153 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Merged CMOS LNA and Mixer",
+    "description": "A front-end receiver circuit combining a cascode low-noise amplifier (LNA) and an active mixer. The LNA (XM1, XM4) provides initial RF amplification, and the active mixer (XM5, XM2, XM3) downconverts the RF signal to a baseband/IF frequency using a differential local oscillator (LO).",
+    "node_mapping": {
+      "input": [
+        "N4",
+        "N2"
+      ],
+      "output": [
+        "N1",
+        "IF_OUT",
+        "IF_OUT_BAR"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBIAS",
+        "LO",
+        "LO_BAR"
+      ],
+      "ground": [
+        "GND",
+        "N3"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Merged CMOS LNA and Mixer for a WCDMA Receiver",
+      "figure": "none",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "lna_gain": {
+      "description": "Voltage gain of the LNA stage at the 2.1 GHz operating frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "7 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With W=5u, L=0.5u, and Vgs=0.7V, gm is approx 750uS. Using a 2k ohm load, Gain = gm * Rload = 1.5 (3.5 dB).",
+        "range": {
+          "min": 0,
+          "typical": 3.5,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "Gain depends heavily on the chosen load resistor and bias current. 3.5 dB is expected for a 2k load with the provided small device sizes."
+      },
+      "importance": "essential"
+    },
+    "conversion_gain": {
+      "description": "Total voltage conversion gain from RF input to differential IF output.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "23 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Mixer CG = (2/pi) * gm * Rload ~ 0.95. Total Gain = LNA_Gain * Mixer_CG = 1.5 * 0.95 = 1.42 (3 dB).",
+        "range": {
+          "min": 0,
+          "typical": 3,
+          "max": 10,
+          "unit": "dB"
+        },
+        "reasoning": "The paper reports 23 dB likely due to larger device sizes, higher load impedances, or additional baseband amplification. With W=5u, 3 dB is expected."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumption of the LNA and Mixer.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "21.6 mW (8 mA from 2.7 V)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id ~ 105uA per branch (LNA and Mixer). Total Id ~ 210uA. Power = 1.8V * 210uA = 0.38 mW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.0004,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Significantly lower than the paper because the provided netlist uses small W=5u devices compared to a full WCDMA front-end."
+      },
+      "importance": "essential"
+    },
+    "noise_figure": {
+      "description": "Noise figure of the merged LNA and mixer from 5 kHz to 5 MHz IF.",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "3.4 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Dependent on gm and channel noise factor gamma.",
+        "range": {
+          "min": 3,
+          "typical": 5,
+          "max": 8,
+          "unit": "dB"
+        },
+        "reasoning": "Modern 130nm nodes have good noise performance, but the small W=5u limits the minimum achievable NF without matching."
+      },
+      "importance": "recommended"
+    },
+    "iip3": {
+      "description": "Third-order input-referred intercept point.",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1.5 dBm",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by transistor linearity and overdrive voltage.",
+        "range": {
+          "min": -5,
+          "typical": 0,
+          "max": 5,
+          "unit": "dBm"
+        },
+        "reasoning": "Typical for a CMOS active mixer and cascode LNA without specific linearization techniques."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure LNA gain at 2.1 GHz, Mixer conversion gain at 1 MHz IF, and total DC power consumption.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "lna_gain",
+      "conversion_gain",
+      "power_consumption"
+    ],
+    "spice": "* Merged LNA and Mixer Testbench\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n\n* DUT\nXM1 N5 N4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 IF_OUT LO N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 IF_OUT_BAR LO_BAR N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N1 VBIAS N5 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\n\n* Power supply\nVVDD VDD 0 1.8\n\n* LNA Bias and Load\nV_LNA_SRC N3 0 0\nV_VBIAS VBIAS 0 1.2\nR_LNA_LOAD VDD N1 2k\nV_LNA_IN N4 0 DC 0.7 AC 1 SIN(0.7 10m 2.1G)\n\n* Mixer Bias and AC Coupling from LNA\nC_AC N1 N2 10p\nV_MIX_BIAS N2_bias 0 0.7\nR_MIX_BIAS N2_bias N2 10k\n\n* LO Signals (2.101 GHz for 1 MHz IF)\nV_LO LO 0 DC 1.2 SIN(1.2 0.6 2.101G)\nV_LO_BAR LO_BAR 0 DC 1.2 SIN(1.2 0.6 2.101G 0 0 180)\n\n* Mixer Loads\nR_MIX_LOAD1 VDD IF_OUT 2k\nR_MIX_LOAD2 VDD IF_OUT_BAR 2k\nC_MIX_LOAD1 IF_OUT 0 5p\nC_MIX_LOAD2 IF_OUT_BAR 0 5p\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n  * 1. DC Power Consumption\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. LNA Voltage Gain\n  ac dec 10 1G 10G\n  let lna_gain_db = vdb(N1)\n  meas ac lna_gain_2_1G find lna_gain_db at=2.1G\n\n  * 3. Mixer Conversion Gain\n  tran 10p 2u\n  * Measure peak-to-peak of single-ended IF output over the second 1MHz cycle\n  meas tran if_max max v(IF_OUT) from=1u to=2u\n  meas tran if_min min v(IF_OUT) from=1u to=2u\n  let if_pp = if_max - if_min\n  * Differential conversion gain = (Differential Output Amp) / (Input Amp)\n  * Diff Output Amp = if_pp. Input Amp = 10mV.\n  let conv_gain = if_pp / 10m\n  let conv_gain_db = 20 * log10(conv_gain)\n  print conv_gain_db\n  \n  quit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Merged CMOS LNA and Mixer\",\n    \"description\": \"A front-end receiver circuit combining a cascode low-noise amplifier (LNA) and an active mixer. The LNA (XM1, XM4) provides initial RF amplification, and the active mixer (XM5, XM2, XM3) downconverts the RF signal to a baseband/IF frequency using a differential local oscillator (LO).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N4\",\n        \"N2\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"IF_OUT\",\n        \"IF_OUT_BAR\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBIAS\",\n        \"LO\",\n        \"LO_BAR\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N3\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Merged CMOS LNA and Mixer for a WCDMA Receiver\",\n      \"figure\": \"none\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"lna_gain\": {\n      \"description\": \"Voltage gain of the LNA stage at the 2.1 GHz operating frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"7 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With W=5u, L=0.5u, and Vgs=0.7V, gm is approx 750uS. Using a 2k ohm load, Gain = gm * Rload = 1.5 (3.5 dB).\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 3.5,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Gain depends heavily on the chosen load resistor and bias current. 3.5 dB is expected for a 2k load with the provided small device sizes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"conversion_gain\": {\n      \"description\": \"Total voltage conversion gain from RF input to differential IF output.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"23 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Mixer CG = (2/pi) * gm * Rload ~ 0.95. Total Gain = LNA_Gain * Mixer_CG = 1.5 * 0.95 = 1.42 (3 dB).\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 3,\n          \"max\": 10,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The paper reports 23 dB likely due to larger device sizes, higher load impedances, or additional baseband amplification. With W=5u, 3 dB is expected.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the LNA and Mixer.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"21.6 mW (8 mA from 2.7 V)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id ~ 105uA per branch (LNA and Mixer). Total Id ~ 210uA. Power = 1.8V * 210uA = 0.38 mW.\",\n        \"range\": {\n          \"min\": 0.1e-3,\n          \"typical\": 0.4e-3,\n          \"max\": 1.0e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Significantly lower than the paper because the provided netlist uses small W=5u devices compared to a full WCDMA front-end.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"noise_figure\": {\n      \"description\": \"Noise figure of the merged LNA and mixer from 5 kHz to 5 MHz IF.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"3.4 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dependent on gm and channel noise factor gamma.\",\n        \"range\": {\n          \"min\": 3,\n          \"typical\": 5,\n          \"max\": 8,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Modern 130nm nodes have good noise performance, but the small W=5u limits the minimum achievable NF without matching.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"iip3\": {\n      \"description\": \"Third-order input-referred intercept point.\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1.5 dBm\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by transistor linearity and overdrive voltage.\",\n        \"range\": {\n          \"min\": -5,\n          \"typical\": 0,\n          \"max\": 5,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Typical for a CMOS active mixer and cascode LNA without specific linearization techniques.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure LNA gain at 2.1 GHz, Mixer conversion gain at 1 MHz IF, and total DC power consumption.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"lna_gain\",\n      \"conversion_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Merged LNA and Mixer Testbench\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n\\n* DUT\\nXM1 N5 N4 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 IF_OUT LO N0 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 IF_OUT_BAR LO_BAR N0 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N1 VBIAS N5 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\n\\n* Power supply\\nVVDD VDD 0 1.8\\n\\n* LNA Bias and Load\\nV_LNA_SRC N3 0 0\\nV_VBIAS VBIAS 0 1.2\\nR_LNA_LOAD VDD N1 2k\\nV_LNA_IN N4 0 DC 0.7 AC 1 SIN(0.7 10m 2.1G)\\n\\n* Mixer Bias and AC Coupling from LNA\\nC_AC N1 N2 10p\\nV_MIX_BIAS N2_bias 0 0.7\\nR_MIX_BIAS N2_bias N2 10k\\n\\n* LO Signals (2.101 GHz for 1 MHz IF)\\nV_LO LO 0 DC 1.2 SIN(1.2 0.6 2.101G)\\nV_LO_BAR LO_BAR 0 DC 1.2 SIN(1.2 0.6 2.101G 0 0 180)\\n\\n* Mixer Loads\\nR_MIX_LOAD1 VDD IF_OUT 2k\\nR_MIX_LOAD2 VDD IF_OUT_BAR 2k\\nC_MIX_LOAD1 IF_OUT 0 5p\\nC_MIX_LOAD2 IF_OUT_BAR 0 5p\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n  * 1. DC Power Consumption\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. LNA Voltage Gain\\n  ac dec 10 1G 10G\\n  let lna_gain_db = vdb(N1)\\n  meas ac lna_gain_2_1G find lna_gain_db at=2.1G\\n\\n  * 3. Mixer Conversion Gain\\n  tran 10p 2u\\n  * Measure peak-to-peak of single-ended IF output over the second 1MHz cycle\\n  meas tran if_max max v(IF_OUT) from=1u to=2u\\n  meas tran if_min min v(IF_OUT) from=1u to=2u\\n  let if_pp = if_max - if_min\\n  * Differential conversion gain = (Differential Output Amp) / (Input Amp)\\n  * Diff Output Amp = if_pp. Input Amp = 10mV.\\n  let conv_gain = if_pp / 10m\\n  let conv_gain_db = 20 * log10(conv_gain)\\n  print conv_gain_db\\n  \\n  quit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1202008",
+  "_case": "1202008_image_2_a"
+}

@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully Differential Folded Cascode OTA",
+    "description": "A fully differential folded cascode operational transconductance amplifier (OTA) with an NMOS input pair and PMOS cascode loads. It serves as the first integrator in a chopper-stabilized delta-sigma audio ADC, providing high gain and accommodating the required output swing.",
+    "node_mapping": {
+      "input": [
+        "INP",
+        "INN"
+      ],
+      "output": [
+        "OUTP",
+        "OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS_1",
+        "BIAS_2",
+        "BIAS_3",
+        "BIAS_4"
+      ],
+      "ground": [
+        "GND",
+        "N6"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 114-dB 68-mW Chopper-Stabilized Stereo Multibit Audio ADC in 5.62 mm2",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "DC_Gain": {
+      "description": "Low-frequency differential open-loop voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "60 dB",
+        "technology": "5V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Intrinsic gain of folded cascode is approximately gm_in * (Rout_pmos || Rout_nmos). With L=0.5um, intrinsic gain is typically 50-70 dB.",
+        "range": {
+          "min": 50,
+          "typical": 60,
+          "max": 70,
+          "unit": "dB"
+        },
+        "reasoning": "Matches the paper's reported 60 dB, which is standard for a single-stage folded cascode topology."
+      },
+      "importance": "essential"
+    },
+    "Unity_Gain_Frequency": {
+      "description": "Frequency at which the open-loop differential gain drops to 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "UGF = gm_in / (2 * pi * C_load). Assuming I_tail = 50uA, gm_in ~= 0.5mA/V. With C_load = 3.5pF, UGF ~= 0.5e-3 / (2*pi*3.5e-12) = 22.7 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 20000000.0,
+          "max": 40000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends heavily on the bias current set in the testbench, but 20 MHz is typical for audio ADC integrators driving a few pF."
+      },
+      "importance": "essential"
+    },
+    "Phase_Margin": {
+      "description": "Phase margin at the unity gain frequency to ensure stability",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the non-dominant pole at the folding node (N2, N3).",
+        "range": {
+          "min": 60,
+          "typical": 75,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "A well-designed folded cascode with a 3.5pF load should easily achieve >60 degrees of phase margin."
+      },
+      "importance": "essential"
+    },
+    "Power_Dissipation": {
+      "description": "Total DC power consumption of the OTA",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "128 uW",
+        "technology": "5V CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Power = VDD * I_total. If I_tail = 50uA and folding branches are 50uA each, I_total = 150uA. Power = 1.8V * 150uA = 270 uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.00025,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for 1.8V supply. The paper's 128 uW might refer to a lower bias current or a specific sub-block."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point, open-loop AC gain, phase margin, and transient response of the fully differential folded cascode OTA. An ideal behavioral CMFB is included to stabilize the output common-mode voltage.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "DC_Gain",
+      "Unity_Gain_Frequency",
+      "Phase_Margin",
+      "Power_Dissipation"
+    ],
+    "spice": "* Folded Cascode OTA Testbench\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\nXM1 N3 INN N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N0 BIAS_4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 OUTN BIAS_3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 OUTP BIAS_2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM5 OUTN BIAS_2 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N3 BIAS_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N2 INP N0 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N10 BIAS_4 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N2 BIAS_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 OUTP BIAS_3 N10 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N7 BIAS_4 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\n\n* Fix floating N6 node (assumed ground connection for bottom current sources)\nV_N6 N6 0 0\n\n* Power Supply\nV_VDD VDD 0 1.8\n\n* Biasing\nV_BIAS4 BIAS_4 0 0.6\nV_BIAS3 BIAS_3 0 1.0\nV_BIAS2 BIAS_2 0 0.8\n\n* Ideal CMFB for BIAS_1 to hold output common-mode at 0.9V\nB_CMFB BIAS_1 0 V=1.0+10*(v(OUTP)+v(OUTN)-1.8)\n\n* Input Signals (Common mode = 0.9V, AC = 1V diff, Transient = 100mV diff peak)\nV_INCM IN_CM 0 0.9\nV_INP INP IN_CM DC 0 AC 0.5 SIN(0 0.05 1MEG 0 0)\nV_INN INN IN_CM DC 0 AC -0.5 SIN(0 -0.05 1MEG 0 0)\n\n* Load Capacitors (from paper)\nC_LP OUTP 0 3.5p\nC_LN OUTN 0 3.5p\n\n* Differential Output VCVS for easy measurement\nE_DIFF OUT_DIFF 0 OUTP OUTN 1\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(V_VDD) * 1.8\n  print power\n  print v(OUTP) v(OUTN) v(BIAS_1)\n\n  * AC Analysis\n  ac dec 100 1 1G\n  let gain_db = vdb(OUT_DIFF)\n  let phase = 180/PI * cph(v(OUT_DIFF))\n  let phase_margin = 180 + phase\n  \n  meas ac dc_gain find gain_db at=10\n  meas ac ugf when gain_db=0 fall=1\n  meas ac pm find phase_margin when gain_db=0 fall=1\n\n  * Transient Analysis\n  tran 10n 5u\n  meas tran vout_diff_max max v(OUT_DIFF)\n  meas tran vout_diff_min min v(OUT_DIFF)\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully Differential Folded Cascode OTA\",\n    \"description\": \"A fully differential folded cascode operational transconductance amplifier (OTA) with an NMOS input pair and PMOS cascode loads. It serves as the first integrator in a chopper-stabilized delta-sigma audio ADC, providing high gain and accommodating the required output swing.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"INP\",\n        \"INN\"\n      ],\n      \"output\": [\n        \"OUTP\",\n        \"OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS_1\",\n        \"BIAS_2\",\n        \"BIAS_3\",\n        \"BIAS_4\"\n      ],\n      \"ground\": [\n        \"GND\",\n        \"N6\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 114-dB 68-mW Chopper-Stabilized Stereo Multibit Audio ADC in 5.62 mm2\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"DC_Gain\": {\n      \"description\": \"Low-frequency differential open-loop voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"60 dB\",\n        \"technology\": \"5V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Intrinsic gain of folded cascode is approximately gm_in * (Rout_pmos || Rout_nmos). With L=0.5um, intrinsic gain is typically 50-70 dB.\",\n        \"range\": {\n          \"min\": 50,\n          \"typical\": 60,\n          \"max\": 70,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Matches the paper's reported 60 dB, which is standard for a single-stage folded cascode topology.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Unity_Gain_Frequency\": {\n      \"description\": \"Frequency at which the open-loop differential gain drops to 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = gm_in / (2 * pi * C_load). Assuming I_tail = 50uA, gm_in ~= 0.5mA/V. With C_load = 3.5pF, UGF ~= 0.5e-3 / (2*pi*3.5e-12) = 22.7 MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 20e6,\n          \"max\": 40e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends heavily on the bias current set in the testbench, but 20 MHz is typical for audio ADC integrators driving a few pF.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Phase_Margin\": {\n      \"description\": \"Phase margin at the unity gain frequency to ensure stability\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the non-dominant pole at the folding node (N2, N3).\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 75,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"A well-designed folded cascode with a 3.5pF load should easily achieve >60 degrees of phase margin.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Dissipation\": {\n      \"description\": \"Total DC power consumption of the OTA\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"128 uW\",\n        \"technology\": \"5V CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = VDD * I_total. If I_tail = 50uA and folding branches are 50uA each, I_total = 150uA. Power = 1.8V * 150uA = 270 uW.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 250e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for 1.8V supply. The paper's 128 uW might refer to a lower bias current or a specific sub-block.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point, open-loop AC gain, phase margin, and transient response of the fully differential folded cascode OTA. An ideal behavioral CMFB is included to stabilize the output common-mode voltage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"DC_Gain\",\n      \"Unity_Gain_Frequency\",\n      \"Phase_Margin\",\n      \"Power_Dissipation\"\n    ],\n    \"spice\": \"* Folded Cascode OTA Testbench\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\nXM1 N3 INN N0 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N0 BIAS_4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 OUTN BIAS_3 N7 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 OUTP BIAS_2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 OUTN BIAS_2 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N3 BIAS_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N2 INP N0 GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N10 BIAS_4 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N2 BIAS_1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 OUTP BIAS_3 N10 GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N7 BIAS_4 N6 GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\n\\n* Fix floating N6 node (assumed ground connection for bottom current sources)\\nV_N6 N6 0 0\\n\\n* Power Supply\\nV_VDD VDD 0 1.8\\n\\n* Biasing\\nV_BIAS4 BIAS_4 0 0.6\\nV_BIAS3 BIAS_3 0 1.0\\nV_BIAS2 BIAS_2 0 0.8\\n\\n* Ideal CMFB for BIAS_1 to hold output common-mode at 0.9V\\nB_CMFB BIAS_1 0 V=1.0+10*(v(OUTP)+v(OUTN)-1.8)\\n\\n* Input Signals (Common mode = 0.9V, AC = 1V diff, Transient = 100mV diff peak)\\nV_INCM IN_CM 0 0.9\\nV_INP INP IN_CM DC 0 AC 0.5 SIN(0 0.05 1MEG 0 0)\\nV_INN INN IN_CM DC 0 AC -0.5 SIN(0 -0.05 1MEG 0 0)\\n\\n* Load Capacitors (from paper)\\nC_LP OUTP 0 3.5p\\nC_LN OUTN 0 3.5p\\n\\n* Differential Output VCVS for easy measurement\\nE_DIFF OUT_DIFF 0 OUTP OUTN 1\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(V_VDD) * 1.8\\n  print power\\n  print v(OUTP) v(OUTN) v(BIAS_1)\\n\\n  * AC Analysis\\n  ac dec 100 1 1G\\n  let gain_db = vdb(OUT_DIFF)\\n  let phase = 180/PI * cph(v(OUT_DIFF))\\n  let phase_margin = 180 + phase\\n  \\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugf when gain_db=0 fall=1\\n  meas ac pm find phase_margin when gain_db=0 fall=1\\n\\n  * Transient Analysis\\n  tran 10n 5u\\n  meas tran vout_diff_max max v(OUT_DIFF)\\n  meas tran vout_diff_min min v(OUT_DIFF)\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1253852",
+  "_case": "1253852_image_5"
+}

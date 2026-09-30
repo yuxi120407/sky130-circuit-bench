@@ -1,0 +1,101 @@
+{
+  "step1_analysis": {
+    "circuit_type": "LC Tank / Resonator Model",
+    "description": "A lumped-element passive network representing the LC tank or split inductor of a millimeter-wave VCO. It determines the oscillation frequency and phase noise performance of the circuit.",
+    "node_mapping": {
+      "input": [
+        "n0"
+      ],
+      "output": [
+        "n1"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "n2"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 33.6-to-46.2GHz 32nm CMOS VCO with 177.5dBc/Hz Minimum Noise FOM Using Inductor Splitting for Tuning Extension",
+      "figure": "N/A",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "resonance_frequency": {
+      "description": "The frequency at which the tank's reactive components cancel out, setting the VCO's operating frequency.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "33.6-to-46.2GHz",
+        "technology": "32nm"
+      },
+      "sky130_expected": {
+        "calculation": "f_res = 1 / (2 * pi * sqrt(L1 * C2)). With L1=100pH and C2=150fF, f_res is approximately 41 GHz.",
+        "range": {
+          "min": "33G",
+          "typical": "41G",
+          "max": "47G",
+          "unit": "Hz"
+        },
+        "reasoning": "Matches the paper's reported operating frequency range for the VCO."
+      },
+      "importance": "essential"
+    },
+    "peak_impedance": {
+      "description": "The parallel equivalent resistance (Rp) of the tank at resonance, which determines the required negative resistance and impacts efficiency.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "20% (Efficiency)",
+        "technology": "32nm"
+      },
+      "sky130_expected": {
+        "calculation": "Dominated by the parallel resistor R1. Set to 500 ohms in the testbench.",
+        "range": {
+          "min": "300",
+          "typical": "500",
+          "max": "1000",
+          "unit": "ohm"
+        },
+        "reasoning": "A typical mm-wave LC tank has an Rp in the range of a few hundred ohms to support oscillation with reasonable power."
+      },
+      "importance": "essential"
+    },
+    "quality_factor": {
+      "description": "The Q-factor of the tank, which is critical for achieving the reported phase noise FOM.",
+      "unit": "-",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "177.5dBc/Hz (FOM)",
+        "technology": "32nm"
+      },
+      "sky130_expected": {
+        "calculation": "Q = Rp / (2 * pi * f_res * L1) = 500 / (2 * pi * 41e9 * 100e-12) \u2248 19.4",
+        "range": {
+          "min": "10",
+          "typical": "19",
+          "max": "25",
+          "unit": "-"
+        },
+        "reasoning": "High Q is required for good phase noise. On-chip mm-wave inductors typically achieve Q between 10 and 20."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the resonance frequency, peak impedance, and quality factor of the LC tank using a differential AC current drive.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "resonance_frequency",
+      "peak_impedance",
+      "quality_factor"
+    ],
+    "spice": "* LC Tank Characterization\n.lib \"${SKY130_PDK}\" tt\n.param L1_val=100p C1_val=10f R1_val=500 R2_val=1k C2_val=150f\n\n* DUT\nL1 n0 n1 {L1_val}\nC1 n0 n2 {C1_val}\nR1 n0 n1 {R1_val}\nR2 n1 n2 {R2_val}\nC2 n0 n1 {C2_val}\n\n* Ground connection for n2\nVgnd n2 0 DC 0\n\n* Differential AC drive\nI1 n0 0 AC 0.5\nI2 n1 0 AC -0.5\n\n.control\nac dec 100 1G 100G\n\nlet Z_mag = mag(v(n0) - v(n1))\nlet Z_phase = 180/PI * cph(v(n0) - v(n1))\n\nmeas ac Z_peak max Z_mag\nmeas ac f_res when Z_phase=0 fall=1\n\nlet Z_3dB = Z_peak / 1.41421356\nmeas ac f_low when Z_mag=Z_3dB rise=1\nmeas ac f_high when Z_mag=Z_3dB fall=1\n\nmeas ac Q_tank param='f_res / (f_high - f_low)'\n\nprint f_res Z_peak Q_tank\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"LC Tank / Resonator Model\",\n    \"description\": \"A lumped-element passive network representing the LC tank or split inductor of a millimeter-wave VCO. It determines the oscillation frequency and phase noise performance of the circuit.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n0\"\n      ],\n      \"output\": [\n        \"n1\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"n2\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 33.6-to-46.2GHz 32nm CMOS VCO with 177.5dBc/Hz Minimum Noise FOM Using Inductor Splitting for Tuning Extension\",\n      \"figure\": \"N/A\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"resonance_frequency\": {\n      \"description\": \"The frequency at which the tank's reactive components cancel out, setting the VCO's operating frequency.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"33.6-to-46.2GHz\",\n        \"technology\": \"32nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_res = 1 / (2 * pi * sqrt(L1 * C2)). With L1=100pH and C2=150fF, f_res is approximately 41 GHz.\",\n        \"range\": {\n          \"min\": \"33G\",\n          \"typical\": \"41G\",\n          \"max\": \"47G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Matches the paper's reported operating frequency range for the VCO.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"peak_impedance\": {\n      \"description\": \"The parallel equivalent resistance (Rp) of the tank at resonance, which determines the required negative resistance and impacts efficiency.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"20% (Efficiency)\",\n        \"technology\": \"32nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Dominated by the parallel resistor R1. Set to 500 ohms in the testbench.\",\n        \"range\": {\n          \"min\": \"300\",\n          \"typical\": \"500\",\n          \"max\": \"1000\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"A typical mm-wave LC tank has an Rp in the range of a few hundred ohms to support oscillation with reasonable power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"quality_factor\": {\n      \"description\": \"The Q-factor of the tank, which is critical for achieving the reported phase noise FOM.\",\n      \"unit\": \"-\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"177.5dBc/Hz (FOM)\",\n        \"technology\": \"32nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Q = Rp / (2 * pi * f_res * L1) = 500 / (2 * pi * 41e9 * 100e-12) \u2248 19.4\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"19\",\n          \"max\": \"25\",\n          \"unit\": \"-\"\n        },\n        \"reasoning\": \"High Q is required for good phase noise. On-chip mm-wave inductors typically achieve Q between 10 and 20.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the resonance frequency, peak impedance, and quality factor of the LC tank using a differential AC current drive.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"resonance_frequency\",\n      \"peak_impedance\",\n      \"quality_factor\"\n    ],\n    \"spice\": \"* LC Tank Characterization\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.param L1_val=100p C1_val=10f R1_val=500 R2_val=1k C2_val=150f\\n\\n* DUT\\nL1 n0 n1 {L1_val}\\nC1 n0 n2 {C1_val}\\nR1 n0 n1 {R1_val}\\nR2 n1 n2 {R2_val}\\nC2 n0 n1 {C2_val}\\n\\n* Ground connection for n2\\nVgnd n2 0 DC 0\\n\\n* Differential AC drive\\nI1 n0 0 AC 0.5\\nI2 n1 0 AC -0.5\\n\\n.control\\nac dec 100 1G 100G\\n\\nlet Z_mag = mag(v(n0) - v(n1))\\nlet Z_phase = 180/PI * cph(v(n0) - v(n1))\\n\\nmeas ac Z_peak max Z_mag\\nmeas ac f_res when Z_phase=0 fall=1\\n\\nlet Z_3dB = Z_peak / 1.41421356\\nmeas ac f_low when Z_mag=Z_3dB rise=1\\nmeas ac f_high when Z_mag=Z_3dB fall=1\\n\\nmeas ac Q_tank param='f_res / (f_high - f_low)'\\n\\nprint f_res Z_peak Q_tank\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6487765",
+  "_case": "6487765_image_2_a"
+}

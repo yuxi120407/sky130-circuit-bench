@@ -1,0 +1,156 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Analog front-end / Pixel processing block",
+    "description": "A silicon retina pixel processing block consisting of two parts: a programmable current sink/integrator (Part 1) and a current-starved inverter driving two PMOS source followers (Part 2) for gradient extraction and buffering.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_3",
+        "LABEL_NET_4",
+        "LABEL_NET_6"
+      ],
+      "output": [
+        "N2",
+        "N0",
+        "N5"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "N8"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 100 100 Pixel Silicon Retina for Gradient Extraction With Steering Filter Capabilities and Temporal Output Coding",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption of the pixel block.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "180 ph (likely OCR error for 180 uW)",
+        "technology": "0.5 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "13 transistors biased mostly in saturation. Assuming VDD=1.8V and bias voltages of 0.9V, current per branch is ~100-300uA. Total current ~1.5mA. Power = 1.8V * 1.5mA = 2.7mW.",
+        "range": {
+          "min": "1m",
+          "typical": "2.7m",
+          "max": "5m",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V process. The original 0.5um process likely operated at 3.3V or 5V, but with smaller W/L ratios or subthreshold biasing to achieve 180uW. With standard 0.9V bias in SKY130, power will be higher unless biased in weak inversion."
+      },
+      "importance": "essential"
+    },
+    "delay": {
+      "description": "Propagation delay from the inverter input to the source follower output.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "60 ns",
+        "technology": "0.5 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay = C_load / gm. With parasitic capacitance only (~10fF) and gm ~ 1mA/V, intrinsic delay is < 1ns. The 60ns reported likely includes array routing capacitance.",
+        "range": {
+          "min": "100p",
+          "typical": "500p",
+          "max": "2n",
+          "unit": "s"
+        },
+        "reasoning": "Intrinsic delay of a single isolated pixel in SKY130 is much faster than the array-level 60ns reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "gain_inv": {
+      "description": "Low-frequency AC voltage gain of the current-starved inverter stage.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * (ro_p || ro_n). gm ~ 1mA/V, ro ~ 10kOhm. Gain ~ 10 V/V = 20 dB.",
+        "range": {
+          "min": "10",
+          "typical": "20",
+          "max": "30",
+          "unit": "dB"
+        },
+        "reasoning": "Standard common-source amplifier gain in 130nm technology with minimum length devices."
+      },
+      "importance": "recommended"
+    },
+    "gain_sf": {
+      "description": "AC voltage gain of the PMOS source follower buffer.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm / (gm + gmb + 1/ro). Typically around 0.8 V/V.",
+        "range": {
+          "min": "-3",
+          "typical": "-2",
+          "max": "-1",
+          "unit": "dB"
+        },
+        "reasoning": "Source followers always have a gain slightly less than 1 (0 dB) due to body effect and finite output resistance."
+      },
+      "importance": "recommended"
+    },
+    "discharge_rate": {
+      "description": "Slew rate of the integration node (N5) when discharged by the programmable current sink.",
+      "unit": "V/s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "dV/dt = I / C. I ~ 10uA (with N8=0.5V), C ~ 25fF (MOSCAP). dV/dt = 10uA / 25fF = 0.4 V/ns = 4e8 V/s.",
+        "range": {
+          "min": "1e8",
+          "typical": "4e8",
+          "max": "1e9",
+          "unit": "V/s"
+        },
+        "reasoning": "Depends heavily on the bias voltage N8 and the size of the MOSCAP. Measured over a 1ns window after the pulse."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain of the inverter and source follower, transient delay, and the discharge rate of the integrator node.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "gain_inv",
+      "gain_sf",
+      "delay",
+      "discharge_rate"
+    ],
+    "spice": "* Silicon Retina Pixel Block Testbench\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\nXM1 N4 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N5 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N4 LABEL_NET_2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N1 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N10 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 GND N3 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N2 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N3 LABEL_NET_3 N10 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 LABEL_NET_4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 GND N3 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N0 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N5 LABEL_NET_6 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM13 N5 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\n\n* Power Supply\nVVDD VDD 0 1.8\n\n* Biases\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_2 LABEL_NET_2 0 0.9\nVN8 N8 0 0.5\nVLABEL_NET_1 LABEL_NET_1 0 1.8\n\n* Input for Inverter (AC and Tran)\nVIN VIN_NODE 0 DC 0.9 AC 1 PULSE(0 1.8 10n 1n 1n 40n 100n)\nR3 LABEL_NET_3 VIN_NODE 0 1m\nR4 LABEL_NET_4 VIN_NODE 0 1m\n\n* Input for MOSCAP Integrator\nVLABEL_NET_6 LABEL_NET_6 0 PULSE(0 1.8 10n 1n 1n 40n 100n)\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 10 1k 1G\n  let gain_inv_db = vdb(N3)\n  let gain_sf_db = vdb(N2) - vdb(N3)\n  meas ac low_freq_gain_inv find gain_inv_db at=1k\n  meas ac low_freq_gain_sf find gain_sf_db at=1k\n  meas ac ugf_inv when gain_inv_db = 0 fall=1\n\n  * Transient Analysis\n  tran 0.1n 100n\n  meas tran delay_fall trig v(VIN_NODE) val=0.9 rise=1 targ v(N2) val=0.9 fall=1\n  meas tran delay_rise trig v(VIN_NODE) val=0.9 fall=1 targ v(N2) val=0.9 rise=1\n  \n  * Measure discharge rate of N5\n  meas tran v_n5_t1 find v(N5) at=12n\n  meas tran v_n5_t2 find v(N5) at=13n\n  let discharge_rate = (v_n5_t1 - v_n5_t2) / 1n\n  print discharge_rate\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Analog front-end / Pixel processing block\",\n    \"description\": \"A silicon retina pixel processing block consisting of two parts: a programmable current sink/integrator (Part 1) and a current-starved inverter driving two PMOS source followers (Part 2) for gradient extraction and buffering.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_3\",\n        \"LABEL_NET_4\",\n        \"LABEL_NET_6\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N0\",\n        \"N5\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"N8\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 100 100 Pixel Silicon Retina for Gradient Extraction With Steering Filter Capabilities and Temporal Output Coding\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption of the pixel block.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"180 ph (likely OCR error for 180 uW)\",\n        \"technology\": \"0.5 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"13 transistors biased mostly in saturation. Assuming VDD=1.8V and bias voltages of 0.9V, current per branch is ~100-300uA. Total current ~1.5mA. Power = 1.8V * 1.5mA = 2.7mW.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"2.7m\",\n          \"max\": \"5m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V process. The original 0.5um process likely operated at 3.3V or 5V, but with smaller W/L ratios or subthreshold biasing to achieve 180uW. With standard 0.9V bias in SKY130, power will be higher unless biased in weak inversion.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay\": {\n      \"description\": \"Propagation delay from the inverter input to the source follower output.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"60 ns\",\n        \"technology\": \"0.5 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay = C_load / gm. With parasitic capacitance only (~10fF) and gm ~ 1mA/V, intrinsic delay is < 1ns. The 60ns reported likely includes array routing capacitance.\",\n        \"range\": {\n          \"min\": \"100p\",\n          \"typical\": \"500p\",\n          \"max\": \"2n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Intrinsic delay of a single isolated pixel in SKY130 is much faster than the array-level 60ns reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_inv\": {\n      \"description\": \"Low-frequency AC voltage gain of the current-starved inverter stage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * (ro_p || ro_n). gm ~ 1mA/V, ro ~ 10kOhm. Gain ~ 10 V/V = 20 dB.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"20\",\n          \"max\": \"30\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard common-source amplifier gain in 130nm technology with minimum length devices.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"gain_sf\": {\n      \"description\": \"AC voltage gain of the PMOS source follower buffer.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm / (gm + gmb + 1/ro). Typically around 0.8 V/V.\",\n        \"range\": {\n          \"min\": \"-3\",\n          \"typical\": \"-2\",\n          \"max\": \"-1\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Source followers always have a gain slightly less than 1 (0 dB) due to body effect and finite output resistance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"discharge_rate\": {\n      \"description\": \"Slew rate of the integration node (N5) when discharged by the programmable current sink.\",\n      \"unit\": \"V/s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"dV/dt = I / C. I ~ 10uA (with N8=0.5V), C ~ 25fF (MOSCAP). dV/dt = 10uA / 25fF = 0.4 V/ns = 4e8 V/s.\",\n        \"range\": {\n          \"min\": \"1e8\",\n          \"typical\": \"4e8\",\n          \"max\": \"1e9\",\n          \"unit\": \"V/s\"\n        },\n        \"reasoning\": \"Depends heavily on the bias voltage N8 and the size of the MOSCAP. Measured over a 1ns window after the pulse.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain of the inverter and source follower, transient delay, and the discharge rate of the integrator node.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"gain_inv\",\n      \"gain_sf\",\n      \"delay\",\n      \"discharge_rate\"\n    ],\n    \"spice\": \"* Silicon Retina Pixel Block Testbench\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\nXM1 N4 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N5 LABEL_NET_1 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N4 LABEL_NET_2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N1 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N10 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 GND N3 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N2 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N3 LABEL_NET_3 N10 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 LABEL_NET_4 GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 GND N3 N2 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N0 N4 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N5 LABEL_NET_6 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 N5 N8 GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\\n\\n* Power Supply\\nVVDD VDD 0 1.8\\n\\n* Biases\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\nVN8 N8 0 0.5\\nVLABEL_NET_1 LABEL_NET_1 0 1.8\\n\\n* Input for Inverter (AC and Tran)\\nVIN VIN_NODE 0 DC 0.9 AC 1 PULSE(0 1.8 10n 1n 1n 40n 100n)\\nR3 LABEL_NET_3 VIN_NODE 0 1m\\nR4 LABEL_NET_4 VIN_NODE 0 1m\\n\\n* Input for MOSCAP Integrator\\nVLABEL_NET_6 LABEL_NET_6 0 PULSE(0 1.8 10n 1n 1n 40n 100n)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 10 1k 1G\\n  let gain_inv_db = vdb(N3)\\n  let gain_sf_db = vdb(N2) - vdb(N3)\\n  meas ac low_freq_gain_inv find gain_inv_db at=1k\\n  meas ac low_freq_gain_sf find gain_sf_db at=1k\\n  meas ac ugf_inv when gain_inv_db = 0 fall=1\\n\\n  * Transient Analysis\\n  tran 0.1n 100n\\n  meas tran delay_fall trig v(VIN_NODE) val=0.9 rise=1 targ v(N2) val=0.9 fall=1\\n  meas tran delay_rise trig v(VIN_NODE) val=0.9 fall=1 targ v(N2) val=0.9 rise=1\\n  \\n  * Measure discharge rate of N5\\n  meas tran v_n5_t1 find v(N5) at=12n\\n  meas tran v_n5_t2 find v(N5) at=13n\\n  let discharge_rate = (v_n5_t1 - v_n5_t2) / 1n\\n  print discharge_rate\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "982422",
+  "_case": "982422_image_10"
+}

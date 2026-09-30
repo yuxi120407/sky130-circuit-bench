@@ -1,0 +1,129 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Continuous-Time Comparator / Q-Enhanced Gm Cell",
+    "description": "A differential amplifier stage with cross-coupled PMOS and NMOS loads. The cross-coupling provides positive feedback (negative resistance), which is typically used either to enhance the Q-factor in a continuous-time bandpass filter (Gm-C) or to act as a high-speed continuous-time comparator/latch in a sigma-delta modulator.",
+    "node_mapping": {
+      "input": [
+        "VINP",
+        "VINN"
+      ],
+      "output": [
+        "V1OUTP",
+        "V1OUTN"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "VSS",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-MHz-Bandwidth Second-Order Continuous-Time Quadrature Bandpass Sigma\u2013Delta Modulator for Low-IF Radio Receivers",
+      "figure": "Unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption of the stage",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "21.8 mW",
+        "technology": "0.65um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming Vgs=0.9V for the input pair, Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.9-0.42)^2 = 311uA per side. Total current ~622uA. Power = 1.8V * 622uA = 1.12mW.",
+        "range": {
+          "min": "0.5m",
+          "typical": "1.1m",
+          "max": "2.0m",
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 21.8mW for the entire ADC. This single stage consumes a small fraction of the total power."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Differential DC gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Gain = Gm * Rout. Gm ~ 1.3mS. Rout is boosted by the cross-coupled negative resistance, potentially reaching 10k-50k ohms. Gain ~ 13 to 65 V/V (22 to 36 dB).",
+        "range": {
+          "min": "15",
+          "typical": "25",
+          "max": "40",
+          "unit": "dB"
+        },
+        "reasoning": "Typical gain for a single-stage pre-amplifier or Q-enhanced Gm cell."
+      },
+      "importance": "essential"
+    },
+    "bw_3db": {
+      "description": "3dB bandwidth of the amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1.5 MHz (ADC bandwidth)",
+        "technology": "0.65um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Bandwidth = 1 / (2 * pi * Rout * Cout). With Rout ~ 20k and Cout ~ 50fF, BW ~ 160 MHz.",
+        "range": {
+          "min": "100M",
+          "typical": "200M",
+          "max": "500M",
+          "unit": "Hz"
+        },
+        "reasoning": "The amplifier must be fast enough to process the 100 MHz clock frequency reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "t_delay": {
+      "description": "Propagation delay from input to output",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "110 ps",
+        "technology": "0.65um BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay is roughly Cout / Gm. 50fF / 1.3mS ~ 38ps. Adding internal parasitic delays brings it to ~50-100ps.",
+        "range": {
+          "min": "30p",
+          "typical": "80p",
+          "max": "150p",
+          "unit": "s"
+        },
+        "reasoning": "Matches the order of magnitude of the 110ps delay reported in the paper for the comparator/latch."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for measuring DC power, AC gain, bandwidth, and transient delay of the amplifier/comparator stage.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "bw_3db",
+      "t_delay"
+    ],
+    "spice": "* Continuous-Time Amplifier / Comparator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm8=5u L_xm8=0.5u\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVINP VINP 0 DC 0.9 AC 0.5 PULSE(0.8 1.0 1n 100p 100p 5n 10n)\nVVINN VINN 0 DC 0.9 AC -0.5 PULSE(1.0 0.8 1n 100p 100p 5n 10n)\n\nXM6 V1OUTP V1OUTP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM3 N0 V1OUTP N7 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM7 V1OUTN V1OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM4 N2 V1OUTN N6 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM9 V1OUTN V1OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 V1OUTP V1OUTN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM1 N7 VINP VSS GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N6 VINN VSS GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM5 V1OUTN V1OUTP N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM8 V1OUTP V1OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\n\n.control\nop\nlet power = -i(VVDD) * 1.8\nprint power\n\nac dec 100 1k 10G\nlet gain_mag = vmag(v(V1OUTP) - v(V1OUTN))\nlet gain_db = 20 * log10(gain_mag)\nmeas ac dc_gain find gain_db at=1k\nmeas ac max_gain max gain_mag\nlet gain_3db = max_gain / 1.414\nmeas ac bw_3db when gain_mag=gain_3db fall=1\n\ntran 10p 10n\nmeas tran t_delay trig v(VINP) val=0.9 rise=1 targ v(V1OUTP) val=0.9 rise=1\nmeas tran vout_p_max max v(V1OUTP)\nmeas tran vout_p_min min v(V1OUTP)\nmeas tran vout_n_max max v(V1OUTN)\nmeas tran vout_n_min min v(V1OUTN)\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Continuous-Time Comparator / Q-Enhanced Gm Cell\",\n    \"description\": \"A differential amplifier stage with cross-coupled PMOS and NMOS loads. The cross-coupling provides positive feedback (negative resistance), which is typically used either to enhance the Q-factor in a continuous-time bandpass filter (Gm-C) or to act as a high-speed continuous-time comparator/latch in a sigma-delta modulator.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VINP\",\n        \"VINN\"\n      ],\n      \"output\": [\n        \"V1OUTP\",\n        \"V1OUTN\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"VSS\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-MHz-Bandwidth Second-Order Continuous-Time Quadrature Bandpass Sigma\u2013Delta Modulator for Low-IF Radio Receivers\",\n      \"figure\": \"Unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption of the stage\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"21.8 mW\",\n        \"technology\": \"0.65um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming Vgs=0.9V for the input pair, Id = 0.5 * 270uA/V^2 * (5/0.5) * (0.9-0.42)^2 = 311uA per side. Total current ~622uA. Power = 1.8V * 622uA = 1.12mW.\",\n        \"range\": {\n          \"min\": \"0.5m\",\n          \"typical\": \"1.1m\",\n          \"max\": \"2.0m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 21.8mW for the entire ADC. This single stage consumes a small fraction of the total power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Differential DC gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = Gm * Rout. Gm ~ 1.3mS. Rout is boosted by the cross-coupled negative resistance, potentially reaching 10k-50k ohms. Gain ~ 13 to 65 V/V (22 to 36 dB).\",\n        \"range\": {\n          \"min\": \"15\",\n          \"typical\": \"25\",\n          \"max\": \"40\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical gain for a single-stage pre-amplifier or Q-enhanced Gm cell.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bw_3db\": {\n      \"description\": \"3dB bandwidth of the amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1.5 MHz (ADC bandwidth)\",\n        \"technology\": \"0.65um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bandwidth = 1 / (2 * pi * Rout * Cout). With Rout ~ 20k and Cout ~ 50fF, BW ~ 160 MHz.\",\n        \"range\": {\n          \"min\": \"100M\",\n          \"typical\": \"200M\",\n          \"max\": \"500M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The amplifier must be fast enough to process the 100 MHz clock frequency reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_delay\": {\n      \"description\": \"Propagation delay from input to output\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"110 ps\",\n        \"technology\": \"0.65um BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay is roughly Cout / Gm. 50fF / 1.3mS ~ 38ps. Adding internal parasitic delays brings it to ~50-100ps.\",\n        \"range\": {\n          \"min\": \"30p\",\n          \"typical\": \"80p\",\n          \"max\": \"150p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Matches the order of magnitude of the 110ps delay reported in the paper for the comparator/latch.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for measuring DC power, AC gain, bandwidth, and transient delay of the amplifier/comparator stage.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"bw_3db\",\n      \"t_delay\"\n    ],\n    \"spice\": \"* Continuous-Time Amplifier / Comparator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVINP VINP 0 DC 0.9 AC 0.5 PULSE(0.8 1.0 1n 100p 100p 5n 10n)\\nVVINN VINN 0 DC 0.9 AC -0.5 PULSE(1.0 0.8 1n 100p 100p 5n 10n)\\n\\nXM6 V1OUTP V1OUTP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM3 N0 V1OUTP N7 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM7 V1OUTN V1OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM4 N2 V1OUTN N6 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM9 V1OUTN V1OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 V1OUTP V1OUTN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM1 N7 VINP VSS GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N6 VINN VSS GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM5 V1OUTN V1OUTP N0 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM8 V1OUTP V1OUTP VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\n\\n.control\\nop\\nlet power = -i(VVDD) * 1.8\\nprint power\\n\\nac dec 100 1k 10G\\nlet gain_mag = vmag(v(V1OUTP) - v(V1OUTN))\\nlet gain_db = 20 * log10(gain_mag)\\nmeas ac dc_gain find gain_db at=1k\\nmeas ac max_gain max gain_mag\\nlet gain_3db = max_gain / 1.414\\nmeas ac bw_3db when gain_mag=gain_3db fall=1\\n\\ntran 10p 10n\\nmeas tran t_delay trig v(VINP) val=0.9 rise=1 targ v(V1OUTP) val=0.9 rise=1\\nmeas tran vout_p_max max v(V1OUTP)\\nmeas tran vout_p_min min v(V1OUTP)\\nmeas tran vout_n_max max v(V1OUTN)\\nmeas tran vout_n_min min v(V1OUTN)\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1088089",
+  "_case": "1088089_image_13_a"
+}

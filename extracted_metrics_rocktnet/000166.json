@@ -1,0 +1,105 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Capacitive Amplifier / Resonator Stage",
+    "description": "A fully differential amplifier with capacitive feedback. In the context of the paper, this represents a continuous-time equivalent or a specific charge-transfer phase of a switched-capacitor resonator used in a bandpass sigma-delta ADC.",
+    "node_mapping": {
+      "input": [
+        "IN1",
+        "IN2"
+      ],
+      "output": [
+        "OP",
+        "OM"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 80-MHz Bandpass Sigma-Delta Modulator for a 100-MHz IF Receiver",
+      "figure": "Generic SC stage",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "midband_gain": {
+      "description": "Closed-loop AC voltage gain in the passband",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(CiA / CiB) = 20 * log10(2p / 1p) = 6.02 dB",
+        "range": {
+          "min": 5.9,
+          "typical": 6.02,
+          "max": 6.1,
+          "unit": "dB"
+        },
+        "reasoning": "The closed-loop gain is strictly determined by the ratio of the input capacitor (CiA) to the feedback capacitor (CiB)."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB closed-loop bandwidth",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "80 MHz (sampling frequency)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the op-amp's Gain-Bandwidth Product (GBW). Modeled here with a ~53 MHz closed-loop BW.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 53000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "In a real SC circuit sampled at 80MHz, the closed-loop bandwidth must be at least 5x the sampling frequency for proper settling. Here, it is determined by the behavioral op-amp model's dominant pole."
+      },
+      "importance": "essential"
+    },
+    "transient_swing": {
+      "description": "Maximum peak-to-peak single-ended output voltage swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Input single-ended amplitude * Gain * 2 = 0.1V * 2 * 2 = 0.4V peak-to-peak",
+        "range": {
+          "min": 0.38,
+          "typical": 0.4,
+          "max": 0.42,
+          "unit": "V"
+        },
+        "reasoning": "Linear transient response based on the closed-loop gain of 2."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for the differential capacitive amplifier measuring closed-loop gain, bandwidth, and transient swing. A behavioral op-amp model is used since transistor-level details were not provided. High-value resistors are added to prevent floating virtual grounds.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "midband_gain",
+      "bandwidth",
+      "transient_swing"
+    ],
+    "spice": "* Differential Capacitive Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param CiA=2p CiB=1p\n\n* DUT (Note: Changed A1 to X1 for standard SPICE subcircuit instantiation)\nX1 IN- IN+ OP OM amplifier\nC2 IN- OP {CiB}\nC1 IN+ OM {CiB}\nC4 IN- IN1 {CiA}\nC3 IN+ IN2 {CiA}\n\n* DC bias resistors to prevent floating nodes (virtual grounds)\nRbias1 IN- OP 1G\nRbias2 IN+ OM 1G\n\n* Behavioral Amplifier Model\n.subckt amplifier inn inp outp outn\nB1 outp_ideal 0 V=0.9 + 1000*(V(inp)-V(inn))\nB2 outn_ideal 0 V=0.9 - 1000*(V(inp)-V(inn))\nR1 outp_ideal outp 1k\nC1 outp 0 1n\nR2 outn_ideal outn 1k\nC2 outn 0 1n\n.ends\n\n* Stimulus\nVcm cm 0 DC 0.9\nV1 IN1 cm DC 0 AC 1 SIN(0 0.1 1MEG)\nV2 IN2 cm DC 0 AC -1 SIN(0 -0.1 1MEG)\n\n.control\nop\nprint v(OP) v(OM) v(IN-) v(IN+)\n\nac dec 20 1k 1G\nlet out_diff = v(OP) - v(OM)\nlet in_diff = v(IN1) - v(IN2)\nlet gain_mag = mag(out_diff) / mag(in_diff)\nlet gain_db = 20 * log10(gain_mag)\nmeas ac midband_gain find gain_db at=10k\nmeas ac bw when gain_db=3.02 fall=1\n\ntran 1n 5u\nmeas tran op_max max v(OP)\nmeas tran op_min min v(OP)\nlet swing = op_max - op_min\nprint swing\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Capacitive Amplifier / Resonator Stage\",\n    \"description\": \"A fully differential amplifier with capacitive feedback. In the context of the paper, this represents a continuous-time equivalent or a specific charge-transfer phase of a switched-capacitor resonator used in a bandpass sigma-delta ADC.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN1\",\n        \"IN2\"\n      ],\n      \"output\": [\n        \"OP\",\n        \"OM\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"0\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 80-MHz Bandpass Sigma-Delta Modulator for a 100-MHz IF Receiver\",\n      \"figure\": \"Generic SC stage\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"midband_gain\": {\n      \"description\": \"Closed-loop AC voltage gain in the passband\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(CiA / CiB) = 20 * log10(2p / 1p) = 6.02 dB\",\n        \"range\": {\n          \"min\": 5.9,\n          \"typical\": 6.02,\n          \"max\": 6.1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The closed-loop gain is strictly determined by the ratio of the input capacitor (CiA) to the feedback capacitor (CiB).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB closed-loop bandwidth\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"80 MHz (sampling frequency)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the op-amp's Gain-Bandwidth Product (GBW). Modeled here with a ~53 MHz closed-loop BW.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 53e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"In a real SC circuit sampled at 80MHz, the closed-loop bandwidth must be at least 5x the sampling frequency for proper settling. Here, it is determined by the behavioral op-amp model's dominant pole.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transient_swing\": {\n      \"description\": \"Maximum peak-to-peak single-ended output voltage swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Input single-ended amplitude * Gain * 2 = 0.1V * 2 * 2 = 0.4V peak-to-peak\",\n        \"range\": {\n          \"min\": 0.38,\n          \"typical\": 0.4,\n          \"max\": 0.42,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Linear transient response based on the closed-loop gain of 2.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for the differential capacitive amplifier measuring closed-loop gain, bandwidth, and transient swing. A behavioral op-amp model is used since transistor-level details were not provided. High-value resistors are added to prevent floating virtual grounds.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"midband_gain\",\n      \"bandwidth\",\n      \"transient_swing\"\n    ],\n    \"spice\": \"* Differential Capacitive Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param CiA=2p CiB=1p\\n\\n* DUT (Note: Changed A1 to X1 for standard SPICE subcircuit instantiation)\\nX1 IN- IN+ OP OM amplifier\\nC2 IN- OP {CiB}\\nC1 IN+ OM {CiB}\\nC4 IN- IN1 {CiA}\\nC3 IN+ IN2 {CiA}\\n\\n* DC bias resistors to prevent floating nodes (virtual grounds)\\nRbias1 IN- OP 1G\\nRbias2 IN+ OM 1G\\n\\n* Behavioral Amplifier Model\\n.subckt amplifier inn inp outp outn\\nB1 outp_ideal 0 V=0.9 + 1000*(V(inp)-V(inn))\\nB2 outn_ideal 0 V=0.9 - 1000*(V(inp)-V(inn))\\nR1 outp_ideal outp 1k\\nC1 outp 0 1n\\nR2 outn_ideal outn 1k\\nC2 outn 0 1n\\n.ends\\n\\n* Stimulus\\nVcm cm 0 DC 0.9\\nV1 IN1 cm DC 0 AC 1 SIN(0 0.1 1MEG)\\nV2 IN2 cm DC 0 AC -1 SIN(0 -0.1 1MEG)\\n\\n.control\\nop\\nprint v(OP) v(OM) v(IN-) v(IN+)\\n\\nac dec 20 1k 1G\\nlet out_diff = v(OP) - v(OM)\\nlet in_diff = v(IN1) - v(IN2)\\nlet gain_mag = mag(out_diff) / mag(in_diff)\\nlet gain_db = 20 * log10(gain_mag)\\nmeas ac midband_gain find gain_db at=10k\\nmeas ac bw when gain_db=3.02 fall=1\\n\\ntran 1n 5u\\nmeas tran op_max max v(OP)\\nmeas tran op_min min v(OP)\\nlet swing = op_max - op_min\\nprint swing\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1015676",
+  "_case": "1015676_image_8_b"
+}

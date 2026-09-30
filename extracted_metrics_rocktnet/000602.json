@@ -1,0 +1,110 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Dynamic Logic Gate with Multiple-Input Boost Circuit",
+    "description": "The circuit consists of a dynamic logic stage (precharge and evaluate transistors) and a multiple-input boost circuit using MOS capacitors. The boost circuit is designed to drive the bulk terminals of input devices to improve switching speed and flexibility in CMOS bulk input differential logic (BIDL).",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "LABEL_NET_3",
+        "LABEL_NET_4",
+        "LABEL_NET_5",
+        "LABEL_NET_6"
+      ],
+      "output": [
+        "N0",
+        "N1",
+        "N2"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Design and Application of CMOS Bulk Input Scheme",
+      "figure": "Multiple-Input Boost Circuit / Dynamic Gate",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Average dynamic power consumption during continuous switching.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "6 mW / 24 mW",
+        "technology": "Not specified (likely 0.25um or 0.18um based on 2.5V supply)"
+      },
+      "sky130_expected": {
+        "calculation": "P = C_total * VDD^2 * f. With VDD=1.8V and f=1GHz, assuming ~50fF total switched capacitance, P \u2248 50e-15 * 1.8^2 * 1e9 = 162 uW. Short-circuit and leakage power will add to this.",
+        "range": {
+          "min": "100u",
+          "typical": "500u",
+          "max": "2m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled down from the paper's 2.5V to SKY130's 1.8V, resulting in lower dynamic power. The exact value depends heavily on the input data activity factor and clock frequency."
+      },
+      "importance": "essential"
+    },
+    "operating_frequency": {
+      "description": "Maximum clock frequency at which the dynamic node correctly precharges and evaluates.",
+      "unit": "Hz",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1 GHz / 2 GHz",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constant of the precharge PMOS and evaluate NMOS stack. SKY130 0.5um devices can easily switch at 1-2 GHz.",
+        "range": {
+          "min": "500M",
+          "typical": "1G",
+          "max": "2.5G",
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 is a 130nm process, but the extracted L=0.5um limits the maximum speed compared to minimum-length (0.15um) devices. 1 GHz is a reasonable target."
+      },
+      "importance": "essential"
+    },
+    "boost_voltage_swing": {
+      "description": "Voltage swing at the boosted node (N1) driven by the MOS capacitors.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Capacitive voltage divider between the input MOSCAPs and parasitic capacitance at N1. Swing = VDD * (C_boost / (C_boost + C_parasitic)).",
+        "range": {
+          "min": "0.5",
+          "typical": "1.2",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "The multiple inputs couple into N1. Depending on how many inputs transition simultaneously, the swing will vary but should be a significant fraction of VDD."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to verify the precharge/evaluate phases of the dynamic logic and the voltage coupling of the multiple-input boost circuit. Measures node voltage swings and average power consumption at 1 GHz.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "boost_voltage_swing"
+    ],
+    "spice": "* Testbench for Bulk Input Scheme Circuit\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm13=5u L_xm13=0.5u\n\nVVDD VDD 0 1.8\n* 1 GHz Clocks and Inputs\nVLABEL_NET_0 LABEL_NET_0 0 PULSE(0 1.8 0 50p 50p 450p 1n)\nVLABEL_NET_1 LABEL_NET_1 0 PULSE(0 1.8 100p 50p 50p 450p 1n)\nVLABEL_NET_2 LABEL_NET_2 0 PULSE(0 1.8 200p 50p 50p 450p 1n)\nVLABEL_NET_3 LABEL_NET_3 0 PULSE(0 1.8 300p 50p 50p 450p 1n)\nVLABEL_NET_4 LABEL_NET_4 0 PULSE(0 1.8 400p 50p 50p 450p 1n)\nVLABEL_NET_5 LABEL_NET_5 0 PULSE(0 1.8 500p 50p 50p 450p 1n)\nVLABEL_NET_6 LABEL_NET_6 0 PULSE(0 1.8 600p 50p 50p 450p 1n)\n\nXM1 N2 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 GND LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 LABEL_NET_2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N2 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N0 LABEL_NET_3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N1 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N2 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N0 N2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N1 LABEL_NET_4 N1 N1 sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM11 N1 N1 GND N1 sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM12 N1 LABEL_NET_5 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\nXM13 N1 LABEL_NET_6 N1 N1 sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\n\n.control\ntran 10p 10n\n\n* Measure voltage swings on dynamic and boosted nodes\nmeas tran v_max_n2 max v(N2)\nmeas tran v_min_n2 min v(N2)\nmeas tran v_max_n1 max v(N1)\nmeas tran v_min_n1 min v(N1)\nmeas tran v_max_n0 max v(N0)\nmeas tran v_min_n0 min v(N0)\n\n* Measure average power consumption\nmeas tran avg_current avg i(VVDD)\nlet avg_power = -avg_current * 1.8\nprint avg_power\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Dynamic Logic Gate with Multiple-Input Boost Circuit\",\n    \"description\": \"The circuit consists of a dynamic logic stage (precharge and evaluate transistors) and a multiple-input boost circuit using MOS capacitors. The boost circuit is designed to drive the bulk terminals of input devices to improve switching speed and flexibility in CMOS bulk input differential logic (BIDL).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_4\",\n        \"LABEL_NET_5\",\n        \"LABEL_NET_6\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N1\",\n        \"N2\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Design and Application of CMOS Bulk Input Scheme\",\n      \"figure\": \"Multiple-Input Boost Circuit / Dynamic Gate\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Average dynamic power consumption during continuous switching.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"6 mW / 24 mW\",\n        \"technology\": \"Not specified (likely 0.25um or 0.18um based on 2.5V supply)\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = C_total * VDD^2 * f. With VDD=1.8V and f=1GHz, assuming ~50fF total switched capacitance, P \u2248 50e-15 * 1.8^2 * 1e9 = 162 uW. Short-circuit and leakage power will add to this.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"500u\",\n          \"max\": \"2m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down from the paper's 2.5V to SKY130's 1.8V, resulting in lower dynamic power. The exact value depends heavily on the input data activity factor and clock frequency.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"operating_frequency\": {\n      \"description\": \"Maximum clock frequency at which the dynamic node correctly precharges and evaluates.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz / 2 GHz\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constant of the precharge PMOS and evaluate NMOS stack. SKY130 0.5um devices can easily switch at 1-2 GHz.\",\n        \"range\": {\n          \"min\": \"500M\",\n          \"typical\": \"1G\",\n          \"max\": \"2.5G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 is a 130nm process, but the extracted L=0.5um limits the maximum speed compared to minimum-length (0.15um) devices. 1 GHz is a reasonable target.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"boost_voltage_swing\": {\n      \"description\": \"Voltage swing at the boosted node (N1) driven by the MOS capacitors.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Capacitive voltage divider between the input MOSCAPs and parasitic capacitance at N1. Swing = VDD * (C_boost / (C_boost + C_parasitic)).\",\n        \"range\": {\n          \"min\": \"0.5\",\n          \"typical\": \"1.2\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The multiple inputs couple into N1. Depending on how many inputs transition simultaneously, the swing will vary but should be a significant fraction of VDD.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to verify the precharge/evaluate phases of the dynamic logic and the voltage coupling of the multiple-input boost circuit. Measures node voltage swings and average power consumption at 1 GHz.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"boost_voltage_swing\"\n    ],\n    \"spice\": \"* Testbench for Bulk Input Scheme Circuit\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n\\nVVDD VDD 0 1.8\\n* 1 GHz Clocks and Inputs\\nVLABEL_NET_0 LABEL_NET_0 0 PULSE(0 1.8 0 50p 50p 450p 1n)\\nVLABEL_NET_1 LABEL_NET_1 0 PULSE(0 1.8 100p 50p 50p 450p 1n)\\nVLABEL_NET_2 LABEL_NET_2 0 PULSE(0 1.8 200p 50p 50p 450p 1n)\\nVLABEL_NET_3 LABEL_NET_3 0 PULSE(0 1.8 300p 50p 50p 450p 1n)\\nVLABEL_NET_4 LABEL_NET_4 0 PULSE(0 1.8 400p 50p 50p 450p 1n)\\nVLABEL_NET_5 LABEL_NET_5 0 PULSE(0 1.8 500p 50p 50p 450p 1n)\\nVLABEL_NET_6 LABEL_NET_6 0 PULSE(0 1.8 600p 50p 50p 450p 1n)\\n\\nXM1 N2 LABEL_NET_0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 GND LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 LABEL_NET_2 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N2 N0 N3 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N0 LABEL_NET_3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N1 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N2 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N0 N2 N0 GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 VDD GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N1 LABEL_NET_4 N1 N1 sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM11 N1 N1 GND N1 sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM12 N1 LABEL_NET_5 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm12} w={W_xm12}\\nXM13 N1 LABEL_NET_6 N1 N1 sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\\n\\n.control\\ntran 10p 10n\\n\\n* Measure voltage swings on dynamic and boosted nodes\\nmeas tran v_max_n2 max v(N2)\\nmeas tran v_min_n2 min v(N2)\\nmeas tran v_max_n1 max v(N1)\\nmeas tran v_min_n1 min v(N1)\\nmeas tran v_max_n0 max v(N0)\\nmeas tran v_min_n0 min v(N0)\\n\\n* Measure average power consumption\\nmeas tran avg_current avg i(VVDD)\\nlet avg_power = -avg_current * 1.8\\nprint avg_power\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1317054",
+  "_case": "1317054_image_12"
+}

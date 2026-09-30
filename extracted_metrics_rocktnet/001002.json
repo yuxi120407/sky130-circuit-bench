@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Differential Delay Cell / Latch",
+    "description": "A differential circuit consisting of two inverters (XM15/17 and XM12/16) and a cross-coupled PMOS pair (XM14/13). The cross-coupled pair provides positive feedback to increase the gain and reduce transition times, commonly used as a delay cell in a ring oscillator (VCO) for a PLL or as a bistable latch.",
+    "node_mapping": {
+      "input": [
+        "N7",
+        "N5"
+      ],
+      "output": [
+        "N1",
+        "N3"
+      ],
+      "supply": [
+        "N6",
+        "VDD"
+      ],
+      "bias": [
+        "N0",
+        "N2"
+      ],
+      "ground": [
+        "N4",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Self-Calibrating NFC SoC with a Triple-Mode Reconfigurable PLL and a Single-Path PICC-PCD Receiver in 0.11\u00b5m CMOS",
+      "figure": "N/A",
+      "year": 2014
+    }
+  },
+  "step2_metrics": {
+    "dc_power": {
+      "description": "DC power consumption of the cell at the metastable point (inputs at VDD/2)",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.11\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Power = I(VDD) * 1.8V. With W=5u, L=0.5u, both NMOS and PMOS are ON at VDD/2. Current is roughly 100uA per branch.",
+        "range": {
+          "min": "50u",
+          "typical": "360u",
+          "max": "1m",
+          "unit": "W"
+        },
+        "reasoning": "Adjusted for SKY130 1.8V supply and the specific W/L dimensions provided in the netlist."
+      },
+      "importance": "essential"
+    },
+    "diff_gain": {
+      "description": "Differential small-signal AC gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "24dB",
+        "technology": "0.11\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Rout. The cross-coupled PMOS provides negative resistance (-2/gm_p) which increases the effective Rout, boosting the gain.",
+        "range": {
+          "min": "10",
+          "typical": "24",
+          "max": "40",
+          "unit": "dB"
+        },
+        "reasoning": "Matches the paper's reported 24dB gain, which is typical for a cross-coupled delay cell stage."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the delay cell",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "13.56MHz",
+        "technology": "0.11\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "BW = 1 / (2 * pi * Rout * Cout). Assuming Cout ~ 20fF (parasitics + 10fF load).",
+        "range": {
+          "min": "10M",
+          "typical": "500M",
+          "max": "2G",
+          "unit": "Hz"
+        },
+        "reasoning": "Must be wide enough to support the 13.56MHz NFC carrier and its harmonics for the PLL."
+      },
+      "importance": "recommended"
+    },
+    "prop_delay": {
+      "description": "Propagation delay from input crossing VDD/2 to output crossing VDD/2",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "0.11\u00b5m"
+      },
+      "sky130_expected": {
+        "calculation": "td = (Cout * Vswing) / I_drive. With 10fF load, 1.8V swing, and ~200uA peak drive current.",
+        "range": {
+          "min": "50p",
+          "typical": "150p",
+          "max": "500p",
+          "unit": "s"
+        },
+        "reasoning": "Typical delay for a 130nm ring oscillator stage to achieve frequencies in the tens to hundreds of MHz."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC differential gain, bandwidth, and transient propagation delay. The cross-coupled PMOS drains (N0, N2) are tied to the inverter outputs (N1, N3) to complete the latch/delay cell structure.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "dc_power",
+      "diff_gain",
+      "bandwidth",
+      "prop_delay",
+      "rise_time"
+    ],
+    "spice": "* Differential Delay Cell / Latch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameters\n.param W_xm15=5u L_xm15=0.5u\n.param W_xm17=5u L_xm17=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm16=5u L_xm16=0.5u\n.param W_xm12=5u L_xm12=0.5u\n\n* DUT\nXM15 N1 N7 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm15} w={W_xm15}\nXM17 N1 N7 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\nXM14 N0 N2 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\nXM13 N2 N0 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM16 N3 N5 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm16} w={W_xm16}\nXM12 N3 N5 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\n\n* Power Supplies\nVVDD VDD 0 1.8\nVGND GND 0 0\nV_N6 N6 0 1.8\nV_N4 N4 0 0\n\n* Tie cross-coupled PMOS drains to inverter outputs\nV_tie1 N0 N1 0\nV_tie2 N2 N3 0\n\n* Inputs (DC=0.9V for AC symmetry, Pulse for Tran)\nV_in_plus N7 0 dc 0.9 ac 0.5 pulse(0 1.8 1n 0.1n 0.1n 4n 10n)\nV_in_minus N5 0 dc 0.9 ac -0.5 pulse(1.8 0 1n 0.1n 0.1n 4n 10n)\n\n* Load Capacitors\nC1 N1 0 10f\nC2 N3 0 10f\n\n.control\n  * 1. DC Operating Point\n  op\n  let power = -i(V_N6) * 1.8\n  print power\n\n  * 2. AC Analysis\n  ac dec 100 1Meg 10G\n  let vout_diff = v(N3) - v(N1)\n  let gain_db = 20 * log10(mag(vout_diff))\n  meas ac dc_gain find gain_db at=1Meg\n  let gain_3db = dc_gain - 3\n  meas ac bandwidth when gain_db=gain_3db fall=1\n\n  * 3. Transient Analysis\n  tran 10p 10n\n  * Measure propagation delay (N5 falling -> N3 rising)\n  meas tran prop_delay trig v(N5) val=0.9 fall=1 targ v(N3) val=0.9 rise=1\n  * Measure rise time (20% to 80% of 1.8V)\n  meas tran rise_time trig v(N3) val=0.36 rise=1 targ v(N3) val=1.44 rise=1\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Differential Delay Cell / Latch\",\n    \"description\": \"A differential circuit consisting of two inverters (XM15/17 and XM12/16) and a cross-coupled PMOS pair (XM14/13). The cross-coupled pair provides positive feedback to increase the gain and reduce transition times, commonly used as a delay cell in a ring oscillator (VCO) for a PLL or as a bistable latch.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N7\",\n        \"N5\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"N3\"\n      ],\n      \"supply\": [\n        \"N6\",\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\",\n        \"N2\"\n      ],\n      \"ground\": [\n        \"N4\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Self-Calibrating NFC SoC with a Triple-Mode Reconfigurable PLL and a Single-Path PICC-PCD Receiver in 0.11\u00b5m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2014\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_power\": {\n      \"description\": \"DC power consumption of the cell at the metastable point (inputs at VDD/2)\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.11\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Power = I(VDD) * 1.8V. With W=5u, L=0.5u, both NMOS and PMOS are ON at VDD/2. Current is roughly 100uA per branch.\",\n        \"range\": {\n          \"min\": \"50u\",\n          \"typical\": \"360u\",\n          \"max\": \"1m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Adjusted for SKY130 1.8V supply and the specific W/L dimensions provided in the netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"diff_gain\": {\n      \"description\": \"Differential small-signal AC gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"24dB\",\n        \"technology\": \"0.11\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Rout. The cross-coupled PMOS provides negative resistance (-2/gm_p) which increases the effective Rout, boosting the gain.\",\n        \"range\": {\n          \"min\": \"10\",\n          \"typical\": \"24\",\n          \"max\": \"40\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Matches the paper's reported 24dB gain, which is typical for a cross-coupled delay cell stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the delay cell\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"13.56MHz\",\n        \"technology\": \"0.11\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"BW = 1 / (2 * pi * Rout * Cout). Assuming Cout ~ 20fF (parasitics + 10fF load).\",\n        \"range\": {\n          \"min\": \"10M\",\n          \"typical\": \"500M\",\n          \"max\": \"2G\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Must be wide enough to support the 13.56MHz NFC carrier and its harmonics for the PLL.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"prop_delay\": {\n      \"description\": \"Propagation delay from input crossing VDD/2 to output crossing VDD/2\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"0.11\u00b5m\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"td = (Cout * Vswing) / I_drive. With 10fF load, 1.8V swing, and ~200uA peak drive current.\",\n        \"range\": {\n          \"min\": \"50p\",\n          \"typical\": \"150p\",\n          \"max\": \"500p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Typical delay for a 130nm ring oscillator stage to achieve frequencies in the tens to hundreds of MHz.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC differential gain, bandwidth, and transient propagation delay. The cross-coupled PMOS drains (N0, N2) are tied to the inverter outputs (N1, N3) to complete the latch/delay cell structure.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"dc_power\",\n      \"diff_gain\",\n      \"bandwidth\",\n      \"prop_delay\",\n      \"rise_time\"\n    ],\n    \"spice\": \"* Differential Delay Cell / Latch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameters\\n.param W_xm15=5u L_xm15=0.5u\\n.param W_xm17=5u L_xm17=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm16=5u L_xm16=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n\\n* DUT\\nXM15 N1 N7 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm15} w={W_xm15}\\nXM17 N1 N7 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\\nXM14 N0 N2 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\\nXM13 N2 N0 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM16 N3 N5 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm16} w={W_xm16}\\nXM12 N3 N5 N6 VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\n\\n* Power Supplies\\nVVDD VDD 0 1.8\\nVGND GND 0 0\\nV_N6 N6 0 1.8\\nV_N4 N4 0 0\\n\\n* Tie cross-coupled PMOS drains to inverter outputs\\nV_tie1 N0 N1 0\\nV_tie2 N2 N3 0\\n\\n* Inputs (DC=0.9V for AC symmetry, Pulse for Tran)\\nV_in_plus N7 0 dc 0.9 ac 0.5 pulse(0 1.8 1n 0.1n 0.1n 4n 10n)\\nV_in_minus N5 0 dc 0.9 ac -0.5 pulse(1.8 0 1n 0.1n 0.1n 4n 10n)\\n\\n* Load Capacitors\\nC1 N1 0 10f\\nC2 N3 0 10f\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let power = -i(V_N6) * 1.8\\n  print power\\n\\n  * 2. AC Analysis\\n  ac dec 100 1Meg 10G\\n  let vout_diff = v(N3) - v(N1)\\n  let gain_db = 20 * log10(mag(vout_diff))\\n  meas ac dc_gain find gain_db at=1Meg\\n  let gain_3db = dc_gain - 3\\n  meas ac bandwidth when gain_db=gain_3db fall=1\\n\\n  * 3. Transient Analysis\\n  tran 10p 10n\\n  * Measure propagation delay (N5 falling -> N3 rising)\\n  meas tran prop_delay trig v(N5) val=0.9 fall=1 targ v(N3) val=0.9 rise=1\\n  * Measure rise time (20% to 80% of 1.8V)\\n  meas tran rise_time trig v(N3) val=0.36 rise=1 targ v(N3) val=1.44 rise=1\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "6757380",
+  "_case": "6757380_image_3_b"
+}

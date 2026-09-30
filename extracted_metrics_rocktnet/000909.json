@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Monotonic Digitally Controlled Delay Element (DCDE)",
+    "description": "A digitally controlled delay line consisting of a current-starved inverter followed by a three-stage standard inverter buffer chain. The delay is monotonically adjusted by switching PMOS transistors in a diode-connected bias network, which modulates the control voltage (VG) and the tail current of the first stage.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "A",
+        "B"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VG",
+        "N6"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Monotonic Digitally Controlled Delay Element",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "delay_min": {
+      "description": "Minimum propagation delay from IN to OUT (when control input A=0, maximizing bias voltage and tail current).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.06 ns",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "With a 2pF load, the output stage delay dominates. dt = C*dV/I = 2pF*0.9V/2.5mA = 720ps. Combined with the intrinsic delay of 4 stages, total delay is ~1-2ns.",
+        "range": {
+          "min": 1e-09,
+          "typical": 1.5e-09,
+          "max": 2.5e-09,
+          "unit": "s"
+        },
+        "reasoning": "Matches the order of magnitude of the paper's 2.06ns reported value, assuming the 2pF load is applied."
+      },
+      "importance": "essential"
+    },
+    "delay_max": {
+      "description": "Maximum propagation delay from IN to OUT (when control input A=1.8V, reducing bias voltage and tail current).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2.42 ns",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Delay increases as tail current decreases when A=1.8V turns off one of the pull-up PMOS devices in the bias network.",
+        "range": {
+          "min": 1.2e-09,
+          "typical": 1.8e-09,
+          "max": 3e-09,
+          "unit": "s"
+        },
+        "reasoning": "Expected to be higher than delay_min, aligning with the 2.42ns reported value."
+      },
+      "importance": "essential"
+    },
+    "delay_resolution": {
+      "description": "Difference in delay between adjacent digital control states (A=0 vs A=1.8V).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "2 ps",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "delay_max - delay_min",
+        "range": {
+          "min": 1e-11,
+          "typical": 5e-11,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "The paper reports 2ps resolution for a full multi-bit vector. With only one effective bit toggling a large W=5u transistor in this extracted netlist, the step size will be larger."
+      },
+      "importance": "recommended"
+    },
+    "power_consumption": {
+      "description": "Average static and dynamic power consumption during operation.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "170 uW to 340 uW",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Static power from bias network (~400uA * 1.8V = 720uW) + Dynamic power (2pF * 1.8V^2 * 50MHz = 324uW).",
+        "range": {
+          "min": 0.0005,
+          "typical": 0.001,
+          "max": 0.002,
+          "unit": "W"
+        },
+        "reasoning": "Higher than paper due to the unoptimized W=5u L=0.5u sizing in the extracted netlist and the heavy 2pF load."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure minimum delay, maximum delay, and average power consumption by toggling the digital control input A halfway through the simulation.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "delay_min",
+      "delay_max",
+      "power_consumption"
+    ],
+    "spice": "* DCDE Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm15=5u L_xm15=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm16=5u L_xm16=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm1=5u L_xm1=0.5u\n\nXM6 VG GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM15 OUT N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\nXM5 VG VG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM13 N1 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\nXM7 VG VG GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\nXM3 VG VG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM11 N2 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM2 VG B VG VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM8 N6 VG GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 IN N6 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM4 VG VG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXM12 N2 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM14 N1 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\nXM16 OUT N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm16} w={W_xm16}\nXM10 N3 IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\nXM1 VG A VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\n\nVVDD VDD 0 1.8\nVIN IN 0 PULSE(0 1.8 5n 100p 100p 10n 20n)\nVA A 0 PULSE(0 1.8 40n 100p 100p 50n 100n)\nVB B 0 DC 0\nCLOAD OUT 0 2p\n\n.control\ntran 100p 100n\n\n* Measure delay with A=0 (first pulse at 5ns)\nmeas tran delay_rise_A0 trig v(in) val=0.9 rise=1 targ v(out) val=0.9 rise=1\nmeas tran delay_fall_A0 trig v(in) val=0.9 fall=1 targ v(out) val=0.9 fall=1\n\n* Measure delay with A=1.8 (third pulse at 45ns)\nmeas tran delay_rise_A1 trig v(in) val=0.9 rise=3 targ v(out) val=0.9 rise=3\nmeas tran delay_fall_A1 trig v(in) val=0.9 fall=3 targ v(out) val=0.9 fall=3\n\n* Measure average power\nmeas tran pwr_avg avg i(VVDD)\nlet power_W = -pwr_avg * 1.8\nprint power_W\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Monotonic Digitally Controlled Delay Element (DCDE)\",\n    \"description\": \"A digitally controlled delay line consisting of a current-starved inverter followed by a three-stage standard inverter buffer chain. The delay is monotonically adjusted by switching PMOS transistors in a diode-connected bias network, which modulates the control voltage (VG) and the tail current of the first stage.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"A\",\n        \"B\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VG\",\n        \"N6\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Monotonic Digitally Controlled Delay Element\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"delay_min\": {\n      \"description\": \"Minimum propagation delay from IN to OUT (when control input A=0, maximizing bias voltage and tail current).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.06 ns\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With a 2pF load, the output stage delay dominates. dt = C*dV/I = 2pF*0.9V/2.5mA = 720ps. Combined with the intrinsic delay of 4 stages, total delay is ~1-2ns.\",\n        \"range\": {\n          \"min\": 1e-09,\n          \"typical\": 1.5e-09,\n          \"max\": 2.5e-09,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Matches the order of magnitude of the paper's 2.06ns reported value, assuming the 2pF load is applied.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_max\": {\n      \"description\": \"Maximum propagation delay from IN to OUT (when control input A=1.8V, reducing bias voltage and tail current).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2.42 ns\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay increases as tail current decreases when A=1.8V turns off one of the pull-up PMOS devices in the bias network.\",\n        \"range\": {\n          \"min\": 1.2e-09,\n          \"typical\": 1.8e-09,\n          \"max\": 3e-09,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Expected to be higher than delay_min, aligning with the 2.42ns reported value.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"delay_resolution\": {\n      \"description\": \"Difference in delay between adjacent digital control states (A=0 vs A=1.8V).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"2 ps\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"delay_max - delay_min\",\n        \"range\": {\n          \"min\": 10e-12,\n          \"typical\": 50e-12,\n          \"max\": 200e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The paper reports 2ps resolution for a full multi-bit vector. With only one effective bit toggling a large W=5u transistor in this extracted netlist, the step size will be larger.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Average static and dynamic power consumption during operation.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"170 uW to 340 uW\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Static power from bias network (~400uA * 1.8V = 720uW) + Dynamic power (2pF * 1.8V^2 * 50MHz = 324uW).\",\n        \"range\": {\n          \"min\": 500e-06,\n          \"typical\": 1e-03,\n          \"max\": 2e-03,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Higher than paper due to the unoptimized W=5u L=0.5u sizing in the extracted netlist and the heavy 2pF load.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure minimum delay, maximum delay, and average power consumption by toggling the digital control input A halfway through the simulation.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"delay_min\",\n      \"delay_max\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* DCDE Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm15=5u L_xm15=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm16=5u L_xm16=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM6 VG GND VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM15 OUT N1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm15} w={W_xm15}\\nXM5 VG VG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM13 N1 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm13} w={W_xm13}\\nXM7 VG VG GND GND sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\nXM3 VG VG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM11 N2 N3 GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM2 VG B VG VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM8 N6 VG GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 IN N6 GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM4 VG VG VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXM12 N2 N3 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM14 N1 N2 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\\nXM16 OUT N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm16} w={W_xm16}\\nXM10 N3 IN VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\nXM1 VG A VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVVDD VDD 0 1.8\\nVIN IN 0 PULSE(0 1.8 5n 100p 100p 10n 20n)\\nVA A 0 PULSE(0 1.8 40n 100p 100p 50n 100n)\\nVB B 0 DC 0\\nCLOAD OUT 0 2p\\n\\n.control\\ntran 100p 100n\\n\\n* Measure delay with A=0 (first pulse at 5ns)\\nmeas tran delay_rise_A0 trig v(in) val=0.9 rise=1 targ v(out) val=0.9 rise=1\\nmeas tran delay_fall_A0 trig v(in) val=0.9 fall=1 targ v(out) val=0.9 fall=1\\n\\n* Measure delay with A=1.8 (third pulse at 45ns)\\nmeas tran delay_rise_A1 trig v(in) val=0.9 rise=3 targ v(out) val=0.9 rise=3\\nmeas tran delay_fall_A1 trig v(in) val=0.9 fall=3 targ v(out) val=0.9 fall=3\\n\\n* Measure average power\\nmeas tran pwr_avg avg i(VVDD)\\nlet power_W = -pwr_avg * 1.8\\nprint power_W\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1522561",
+  "_case": "1522561_image_7"
+}

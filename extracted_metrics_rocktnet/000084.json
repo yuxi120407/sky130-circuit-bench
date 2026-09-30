@@ -1,0 +1,152 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Low-Noise Amplifier (LNA) core",
+    "description": "A broadband active-feedback LNA core utilizing cross-coupled bipolar transistors to achieve wideband input matching and amplification.",
+    "node_mapping": {
+      "input": [
+        "n4"
+      ],
+      "output": [
+        "n0"
+      ],
+      "supply": [
+        "label_net_0",
+        "n2"
+      ],
+      "bias": [
+        "n1",
+        "n3"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Brief Papers",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_dc": {
+      "description": "DC power consumption of the LNA",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "5 mA at 2.7-3.6V (13.5 - 18 mW)",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "5mA * 1.8V",
+        "range": {
+          "min": 0.008,
+          "typical": 0.009,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Assuming the same bias current of 5mA is used on a 1.8V supply."
+      },
+      "importance": "essential"
+    },
+    "gain_900m": {
+      "description": "Voltage gain at 900 MHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "17 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Based on paper",
+        "range": {
+          "min": 14,
+          "typical": 17,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Targeting the paper's reported low-band gain."
+      },
+      "importance": "essential"
+    },
+    "gain_1_9g": {
+      "description": "Voltage gain at 1.9 GHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "15 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Based on paper",
+        "range": {
+          "min": 12,
+          "typical": 15,
+          "max": 18,
+          "unit": "dB"
+        },
+        "reasoning": "Targeting the paper's reported high-band gain."
+      },
+      "importance": "essential"
+    },
+    "nf_900m": {
+      "description": "Noise figure at 900 MHz",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "1.2 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Based on paper",
+        "range": {
+          "min": 1.0,
+          "typical": 1.2,
+          "max": 2.0,
+          "unit": "dB"
+        },
+        "reasoning": "SiGe BJTs have excellent noise performance; generic models might be slightly higher, but we target the reported value."
+      },
+      "importance": "essential"
+    },
+    "nf_1_9g": {
+      "description": "Noise figure at 1.9 GHz",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "1.5 dB",
+        "technology": "Infineon B7HF SiGe"
+      },
+      "sky130_expected": {
+        "calculation": "Based on paper",
+        "range": {
+          "min": 1.2,
+          "typical": 1.5,
+          "max": 2.5,
+          "unit": "dB"
+        },
+        "reasoning": "Targeting the paper's reported high-band NF."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC gain, bandwidth, and Noise Figure of the LNA core.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran",
+      "Noise"
+    ],
+    "metrics_measured": [
+      "power_dc",
+      "gain_900m",
+      "gain_1_9g",
+      "nf_900m",
+      "nf_1_9g"
+    ],
+    "spice": "* LNA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Generic NPN model since SKY130 doesn't have a simple 'npn' device\n.model npn npn (bf=100 is=1e-14 vaf=50 cjc=1p cje=2p)\n\n* DUT\nQ1 n4 n0 n3 npn\nQ2 n1 n1 n4 npn\nQ3 n2 n1 n0 npn\nQ4 n0 n4 GND npn\nR1 n3 GND 50\nR2 n1 n2 1k\nI1 label_net_0 n2 5m\n\n* Biasing and Supplies\nV_vdd label_net_0 0 1.8\n\n* RF Input (AC and Transient)\nV_in in_src 0 dc 0 ac 2 sin(0 10m 900Meg)\nR_in in_src in_ac 50\nC_in in_ac n4 10p\n\n* RF Output\nC_out n0 out_ac 10p\nR_load out_ac 0 50\n\n.control\n* DC Analysis\nop\nlet power = -i(V_vdd) * 1.8\nprint power\n\n* AC Analysis\nac dec 50 100Meg 10Gig\nlet gain_db = vdb(out_ac)\nmeas ac max_gain max gain_db\nmeas ac gain_900m find gain_db at=900Meg\nmeas ac gain_1_9g find gain_db at=1.9Gig\n\n* Transient Analysis\ntran 10p 5n\nmeas tran vout_pp pp v(out_ac)\n\n* Noise Analysis\nnoise v(out_ac, 0) V_in dec 20 100Meg 10Gig\nsetplot noise1\n* Calculate NF in dB (8e-19 is 4*k*T*50 at 290K)\nlet nf_db = 10 * log10(inoise_spectrum / 8e-19)\nmeas noise nf_900m find nf_db at=900Meg\nmeas noise nf_1_9g find nf_db at=1.9Gig\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Low-Noise Amplifier (LNA) core\",\n    \"description\": \"A broadband active-feedback LNA core utilizing cross-coupled bipolar transistors to achieve wideband input matching and amplification.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n4\"\n      ],\n      \"output\": [\n        \"n0\"\n      ],\n      \"supply\": [\n        \"label_net_0\",\n        \"n2\"\n      ],\n      \"bias\": [\n        \"n1\",\n        \"n3\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Brief Papers\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_dc\": {\n      \"description\": \"DC power consumption of the LNA\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"5 mA at 2.7-3.6V (13.5 - 18 mW)\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"5mA * 1.8V\",\n        \"range\": {\n          \"min\": 0.008,\n          \"typical\": 0.009,\n          \"max\": 0.010,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Assuming the same bias current of 5mA is used on a 1.8V supply.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_900m\": {\n      \"description\": \"Voltage gain at 900 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"17 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Based on paper\",\n        \"range\": {\n          \"min\": 14,\n          \"typical\": 17,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Targeting the paper's reported low-band gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"gain_1_9g\": {\n      \"description\": \"Voltage gain at 1.9 GHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"15 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Based on paper\",\n        \"range\": {\n          \"min\": 12,\n          \"typical\": 15,\n          \"max\": 18,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Targeting the paper's reported high-band gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"nf_900m\": {\n      \"description\": \"Noise figure at 900 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"1.2 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Based on paper\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.2,\n          \"max\": 2.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"SiGe BJTs have excellent noise performance; generic models might be slightly higher, but we target the reported value.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"nf_1_9g\": {\n      \"description\": \"Noise figure at 1.9 GHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"1.5 dB\",\n        \"technology\": \"Infineon B7HF SiGe\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Based on paper\",\n        \"range\": {\n          \"min\": 1.2,\n          \"typical\": 1.5,\n          \"max\": 2.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Targeting the paper's reported high-band NF.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC gain, bandwidth, and Noise Figure of the LNA core.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\",\n      \"Noise\"\n    ],\n    \"metrics_measured\": [\n      \"power_dc\",\n      \"gain_900m\",\n      \"gain_1_9g\",\n      \"nf_900m\",\n      \"nf_1_9g\"\n    ],\n    \"spice\": \"* LNA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Generic NPN model since SKY130 doesn't have a simple 'npn' device\\n.model npn npn (bf=100 is=1e-14 vaf=50 cjc=1p cje=2p)\\n\\n* DUT\\nQ1 n4 n0 n3 npn\\nQ2 n1 n1 n4 npn\\nQ3 n2 n1 n0 npn\\nQ4 n0 n4 GND npn\\nR1 n3 GND 50\\nR2 n1 n2 1k\\nI1 label_net_0 n2 5m\\n\\n* Biasing and Supplies\\nV_vdd label_net_0 0 1.8\\n\\n* RF Input (AC and Transient)\\nV_in in_src 0 dc 0 ac 2 sin(0 10m 900Meg)\\nR_in in_src in_ac 50\\nC_in in_ac n4 10p\\n\\n* RF Output\\nC_out n0 out_ac 10p\\nR_load out_ac 0 50\\n\\n.control\\n* DC Analysis\\nop\\nlet power = -i(V_vdd) * 1.8\\nprint power\\n\\n* AC Analysis\\nac dec 50 100Meg 10Gig\\nlet gain_db = vdb(out_ac)\\nmeas ac max_gain max gain_db\\nmeas ac gain_900m find gain_db at=900Meg\\nmeas ac gain_1_9g find gain_db at=1.9Gig\\n\\n* Transient Analysis\\ntran 10p 5n\\nmeas tran vout_pp pp v(out_ac)\\n\\n* Noise Analysis\\nnoise v(out_ac, 0) V_in dec 20 100Meg 10Gig\\nsetplot noise1\\n* Calculate NF in dB (8e-19 is 4*k*T*50 at 290K)\\nlet nf_db = 10 * log10(inoise_spectrum / 8e-19)\\nmeas noise nf_900m find nf_db at=900Meg\\nmeas noise nf_1_9g find nf_db at=1.9Gig\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "933471",
+  "_case": "933471_image_5"
+}

@@ -1,0 +1,123 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 18.33",
+    "page": "542 (Page 5 of PDF)",
+    "circuit_type": "Charge Pump (Voltage Generator)",
+    "description": "A simple voltage pump circuit used to generate a DC voltage greater than VDD. It uses an oscillator driving a capacitor to pump charge through diode-connected NMOS transistors."
+  },
+  "step2_metrics": {
+    "node_a_low_voltage": {
+      "description": "The minimum voltage at node A when the inverter output is low.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Page 542 text"
+      },
+      "equation": {
+        "formula": "V_{A,low} = VDD - V_{THN}",
+        "explanation": "M1 acts as a diode pulling node A up to VDD minus one threshold voltage.",
+        "assumptions": "Assumes steady state and ignores body effect for the basic formula."
+      },
+      "sky130_expected": {
+        "calculation": "1.8V - 0.42V = 1.38V",
+        "range": {
+          "min": 1.0,
+          "typical": 1.38,
+          "max": 1.5,
+          "unit": "V"
+        },
+        "reasoning": "Ideally 1.38V. However, because the source of M1 is at ~1.38V and its body is at 0V, the body effect will increase Vth, lowering the actual voltage to around 1.0V - 1.2V."
+      },
+      "importance": "essential"
+    },
+    "node_a_high_voltage": {
+      "description": "The maximum voltage at node A when the inverter output goes high.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Page 542 text"
+      },
+      "equation": {
+        "formula": "V_{A,high} = 2 \\cdot VDD - V_{THN}",
+        "explanation": "When the inverter output steps from 0 to VDD, node A is booted up by VDD from its initial state of VDD - VTHN.",
+        "assumptions": "Assumes C1 >> parasitic capacitance at node A."
+      },
+      "sky130_expected": {
+        "calculation": "2 * 1.8V - 0.42V = 3.18V",
+        "range": {
+          "min": 2.5,
+          "typical": 3.18,
+          "max": 3.3,
+          "unit": "V"
+        },
+        "reasoning": "Ideally 3.18V. With body effect increasing Vth of M1, the pre-boot voltage is lower, so the booted voltage will also be lower (e.g., 1.1V + 1.8V = 2.9V)."
+      },
+      "importance": "essential"
+    },
+    "steady_state_output_voltage": {
+      "description": "The maximum steady-state DC output voltage across the load capacitor.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Page 542 text"
+      },
+      "equation": {
+        "formula": "V_{out} = 2(VDD - V_{THN})",
+        "explanation": "Node A reaches 2*VDD - VTHN, and M2 drops another VTHN to charge Cload.",
+        "assumptions": "Assumes no DC load current and C1 >> Cload (or sufficient cycles to fully charge)."
+      },
+      "sky130_expected": {
+        "calculation": "2 * (1.8V - 0.42V) = 2.76V",
+        "range": {
+          "min": 1.8,
+          "typical": 2.76,
+          "max": 3.0,
+          "unit": "V"
+        },
+        "reasoning": "Ideally 2.76V. In reality, severe body effect on both M1 and M2 (since their sources are well above ground) will increase Vth significantly, likely limiting the output to ~2.0V - 2.4V."
+      },
+      "importance": "essential"
+    },
+    "startup_time": {
+      "description": "The time required for the output voltage to reach its steady-state maximum.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "6",
+        "reference": "Fig 18.34"
+      },
+      "equation": {
+        "formula": "N/A",
+        "explanation": "Requires several oscillator cycles to reach steady state as charge is incrementally pumped into Cload.",
+        "assumptions": "Depends on the ratio of C1 to Cload and the oscillator frequency."
+      },
+      "sky130_expected": {
+        "calculation": "Based on Fig 18.34, it takes ~5-10 cycles. At 10MHz (100ns period), this is 0.5us to 1.0us.",
+        "range": {
+          "min": 1e-07,
+          "typical": 5e-07,
+          "max": 2e-06,
+          "unit": "s"
+        },
+        "reasoning": "With C1 = Cload = 1pF, it takes several cycles to transfer charge. A 10MHz clock will yield a startup time in the sub-microsecond range."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the charge pump's node A voltage swings, steady-state output voltage, and startup behavior using a 10MHz oscillator input.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "node_a_low_voltage",
+      "node_a_high_voltage",
+      "steady_state_output_voltage"
+    ],
+    "spice": "* Charge Pump Testbench\n.lib ${SKY130_PDK} tt\n\n* Define parameters for the parameterized subcircuits (10/1 ratio as per text)\n.param W_xm1i=1.5 L_xm1i=0.15\n.param W_xm2i=3.0 L_xm2i=0.15\n.param W_xm1=1.5 L_xm1=0.15\n.param W_xm2=1.5 L_xm2=0.15\n\n* DUT\nxm1i N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\nVDD VDD 0 1.8\nxm2i N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\nCload Vout 0 1e-12\nxm2 A A Vout 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 VDD VDD A 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nC2 A N002 1e-12\n\n* Stimulus: 10MHz oscillator (100ns period)\nVosc N001 0 PULSE(0 1.8 0 1n 1n 49n 100n)\n\n* Control block\n.control\n* Run transient for 2us to ensure steady state is reached\ntran 1n 2u\n\n* Measure steady state voltages in the last 0.5us\nmeas tran vout_max MAX v(vout) from=1.5u to=2u\nmeas tran va_max MAX v(a) from=1.5u to=2u\nmeas tran va_min MIN v(a) from=1.5u to=2u\n\nprint vout_max va_max va_min\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 18.33\",\n    \"page\": \"542 (Page 5 of PDF)\",\n    \"circuit_type\": \"Charge Pump (Voltage Generator)\",\n    \"description\": \"A simple voltage pump circuit used to generate a DC voltage greater than VDD. It uses an oscillator driving a capacitor to pump charge through diode-connected NMOS transistors.\"\n  },\n  \"step2_metrics\": {\n    \"node_a_low_voltage\": {\n      \"description\": \"The minimum voltage at node A when the inverter output is low.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Page 542 text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{A,low} = VDD - V_{THN}\",\n        \"explanation\": \"M1 acts as a diode pulling node A up to VDD minus one threshold voltage.\",\n        \"assumptions\": \"Assumes steady state and ignores body effect for the basic formula.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1.8V - 0.42V = 1.38V\",\n        \"range\": {\n          \"min\": 1.0,\n          \"typical\": 1.38,\n          \"max\": 1.5,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ideally 1.38V. However, because the source of M1 is at ~1.38V and its body is at 0V, the body effect will increase Vth, lowering the actual voltage to around 1.0V - 1.2V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"node_a_high_voltage\": {\n      \"description\": \"The maximum voltage at node A when the inverter output goes high.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Page 542 text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{A,high} = 2 \\\\cdot VDD - V_{THN}\",\n        \"explanation\": \"When the inverter output steps from 0 to VDD, node A is booted up by VDD from its initial state of VDD - VTHN.\",\n        \"assumptions\": \"Assumes C1 >> parasitic capacitance at node A.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2 * 1.8V - 0.42V = 3.18V\",\n        \"range\": {\n          \"min\": 2.5,\n          \"typical\": 3.18,\n          \"max\": 3.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ideally 3.18V. With body effect increasing Vth of M1, the pre-boot voltage is lower, so the booted voltage will also be lower (e.g., 1.1V + 1.8V = 2.9V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"steady_state_output_voltage\": {\n      \"description\": \"The maximum steady-state DC output voltage across the load capacitor.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Page 542 text\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{out} = 2(VDD - V_{THN})\",\n        \"explanation\": \"Node A reaches 2*VDD - VTHN, and M2 drops another VTHN to charge Cload.\",\n        \"assumptions\": \"Assumes no DC load current and C1 >> Cload (or sufficient cycles to fully charge).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"2 * (1.8V - 0.42V) = 2.76V\",\n        \"range\": {\n          \"min\": 1.8,\n          \"typical\": 2.76,\n          \"max\": 3.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ideally 2.76V. In reality, severe body effect on both M1 and M2 (since their sources are well above ground) will increase Vth significantly, likely limiting the output to ~2.0V - 2.4V.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"startup_time\": {\n      \"description\": \"The time required for the output voltage to reach its steady-state maximum.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"6\",\n        \"reference\": \"Fig 18.34\"\n      },\n      \"equation\": {\n        \"formula\": \"N/A\",\n        \"explanation\": \"Requires several oscillator cycles to reach steady state as charge is incrementally pumped into Cload.\",\n        \"assumptions\": \"Depends on the ratio of C1 to Cload and the oscillator frequency.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Based on Fig 18.34, it takes ~5-10 cycles. At 10MHz (100ns period), this is 0.5us to 1.0us.\",\n        \"range\": {\n          \"min\": 1e-7,\n          \"typical\": 5e-7,\n          \"max\": 2e-6,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"With C1 = Cload = 1pF, it takes several cycles to transfer charge. A 10MHz clock will yield a startup time in the sub-microsecond range.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the charge pump's node A voltage swings, steady-state output voltage, and startup behavior using a 10MHz oscillator input.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"node_a_low_voltage\",\n      \"node_a_high_voltage\",\n      \"steady_state_output_voltage\"\n    ],\n    \"spice\": \"* Charge Pump Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Define parameters for the parameterized subcircuits (10/1 ratio as per text)\\n.param W_xm1i=1.5 L_xm1i=0.15\\n.param W_xm2i=3.0 L_xm2i=0.15\\n.param W_xm1=1.5 L_xm1=0.15\\n.param W_xm2=1.5 L_xm2=0.15\\n\\n* DUT\\nxm1i N002 N001 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1i} l={L_xm1i}\\nVDD VDD 0 1.8\\nxm2i N002 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2i} l={L_xm2i}\\nCload Vout 0 1e-12\\nxm2 A A Vout 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 VDD VDD A 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nC2 A N002 1e-12\\n\\n* Stimulus: 10MHz oscillator (100ns period)\\nVosc N001 0 PULSE(0 1.8 0 1n 1n 49n 100n)\\n\\n* Control block\\n.control\\n* Run transient for 2us to ensure steady state is reached\\ntran 1n 2u\\n\\n* Measure steady state voltages in the last 0.5us\\nmeas tran vout_max MAX v(vout) from=1.5u to=2u\\nmeas tran va_max MAX v(a) from=1.5u to=2u\\nmeas tran va_min MIN v(a) from=1.5u to=2u\\n\\nprint vout_max va_max va_min\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

@@ -1,0 +1,92 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Double-Balanced Active Mixer (Gilbert Cell)",
+    "description": "A SiGe bipolar double-balanced active mixer used for direct downconversion. It features an RF transconductance stage, a switching quad, and an LO buffer.",
+    "node_mapping": {
+      "input": [
+        "RF_IN+",
+        "RF_IN-",
+        "LO_IN+",
+        "LO_IN-"
+      ],
+      "output": [
+        "OUT+",
+        "OUT-"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "BIAS1",
+        "BIAS2",
+        "BIAS3",
+        "BIAS4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "SiGe Bipolar Transceiver Circuits Operating at 60 GHz",
+      "figure": "N/A",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Ratio of the IF output voltage to the RF input voltage.",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 dB (system/LNA)",
+        "technology": "0.12um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 (2/\u03c0) * gm * Rload. With 1mA tail current, gm \u2248 20mA/V. For Rload=500\u03a9, Gain \u2248 6.3 V/V = 16 dB.",
+        "range": {
+          "min": 10,
+          "typical": 15,
+          "max": 20,
+          "unit": "dB"
+        },
+        "reasoning": "Standard Gilbert cell mixer gain depends on load resistors and tail current."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power dissipated by the circuit.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "10.8 mW (6mA * 1.8V for LNA)",
+        "technology": "0.12um SiGe BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "VCC * I_total. Assuming 5 current branches at ~1mA each, total current is 5mA. 5mA * 1.8V = 9mW.",
+        "range": {
+          "min": 0.005,
+          "typical": 0.01,
+          "max": 0.02,
+          "unit": "W"
+        },
+        "reasoning": "Based on typical bias currents for high-frequency operation."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures Conversion Gain and Power Consumption of the mixer.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "conversion_gain",
+      "power_consumption"
+    ],
+    "spice": "* Double-Balanced Mixer Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param VCC_val = 1.8\n.param f_rf = 1G\n.param f_lo = 0.9G\n.param f_if = 0.1G\n\nV1 VCC GND dc 'VCC_val'\nVbias1 BIAS1 GND dc 0.8\nVbias2 BIAS2 GND dc 1.4\nVbias3 BIAS3 GND dc 0.8\nVbias4 BIAS4 GND dc 0.8\n\nVlo_cm LO_CM GND dc 1.5\nVlo_p LO_IN+ LO_CM dc 0 sin(0 0.3 'f_lo' 0 0 0)\nVlo_n LO_IN- LO_CM dc 0 sin(0 0.3 'f_lo' 0 0 180)\n\nVrf_cm RF_CM GND dc 0\nVrf_p RF_IN+ RF_CM dc 0 sin(0 0.01 'f_rf' 0 0 0)\nVrf_n RF_IN- RF_CM dc 0 sin(0 0.01 'f_rf' 0 0 180)\n\n.model npn npn is=1e-16 bf=100 tf=10p cje=10f cjc=10f vaf=50\n\nQ1 VCC LO_IN+ N1 npn\nQ2 VCC LO_IN- N2 npn\nQ3 VCC N1 N3 npn\nQ4 VCC N2 N4 npn\nQ5 N5 N9 N11 npn\nQ6 N6 N10 N12 npn\nQ7 OUT- N7 N5 npn\nQ8 OUT+ N8 N5 npn\nQ9 OUT- N8 N6 npn\nQ10 OUT+ N7 N6 npn\nQ11 N13 BIAS3 N14 npn\nQ12 N1 BIAS1 N15 npn\nQ13 N2 BIAS1 N16 npn\nQ14 N3 BIAS1 N17 npn\nQ15 N4 BIAS1 N18 npn\nR1 N1 N2 1k\nR2 N7 N8 1k\nR3 VCC OUT- 500\nR4 VCC OUT+ 500\nR5 N11 N13 20\nR6 N12 N13 20\nR7 N9 BIAS4 10k\nR8 N10 BIAS4 10k\nR9 N7 BIAS2 10k\nR10 N8 BIAS2 10k\nR11 N14 GND 50\nR12 N15 GND 50\nR13 N16 GND 50\nR14 N17 GND 50\nR15 N18 GND 50\nC1 N3 N7 1p\nC2 N4 N8 1p\nC3 RF_IN+ N9 1p\nC4 RF_IN- N10 1p\nC5 VCC OUT- 2p\nC6 VCC OUT+ 2p\nCbyp1 BIAS1 GND 10p\nCbyp2 BIAS2 GND 10p\nCbyp3 BIAS3 GND 10p\nCbyp4 BIAS4 GND 10p\n\nB1 OUT_DIFF 0 V=V(OUT+)-V(OUT-)\n\n.control\ntran 0.1n 50n\nmeas tran out_max max v(OUT_DIFF) from=30n to=50n\nmeas tran out_min min v(OUT_DIFF) from=30n to=50n\nlet out_pp = out_max - out_min\n* RF input is 10mV peak each, so 20mV peak diff, 40mV pp diff.\nlet cg = out_pp / 0.04\nlet cg_db = 20 * log10(cg)\nprint cg_db\n\nop\nlet power = -i(V1) * 1.8\nprint power\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Double-Balanced Active Mixer (Gilbert Cell)\",\n    \"description\": \"A SiGe bipolar double-balanced active mixer used for direct downconversion. It features an RF transconductance stage, a switching quad, and an LO buffer.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"RF_IN+\",\n        \"RF_IN-\",\n        \"LO_IN+\",\n        \"LO_IN-\"\n      ],\n      \"output\": [\n        \"OUT+\",\n        \"OUT-\"\n      ],\n      \"supply\": [\n        \"VCC\"\n      ],\n      \"bias\": [\n        \"BIAS1\",\n        \"BIAS2\",\n        \"BIAS3\",\n        \"BIAS4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"SiGe Bipolar Transceiver Circuits Operating at 60 GHz\",\n      \"figure\": \"N/A\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Ratio of the IF output voltage to the RF input voltage.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 dB (system/LNA)\",\n        \"technology\": \"0.12um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 (2/\u03c0) * gm * Rload. With 1mA tail current, gm \u2248 20mA/V. For Rload=500\u03a9, Gain \u2248 6.3 V/V = 16 dB.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 15,\n          \"max\": 20,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Standard Gilbert cell mixer gain depends on load resistors and tail current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power dissipated by the circuit.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"10.8 mW (6mA * 1.8V for LNA)\",\n        \"technology\": \"0.12um SiGe BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"VCC * I_total. Assuming 5 current branches at ~1mA each, total current is 5mA. 5mA * 1.8V = 9mW.\",\n        \"range\": {\n          \"min\": 5e-3,\n          \"typical\": 10e-3,\n          \"max\": 20e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on typical bias currents for high-frequency operation.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures Conversion Gain and Power Consumption of the mixer.\",\n    \"analyses\": [\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"conversion_gain\",\n      \"power_consumption\"\n    ],\n    \"spice\": \"* Double-Balanced Mixer Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param VCC_val = 1.8\\n.param f_rf = 1G\\n.param f_lo = 0.9G\\n.param f_if = 0.1G\\n\\nV1 VCC GND dc 'VCC_val'\\nVbias1 BIAS1 GND dc 0.8\\nVbias2 BIAS2 GND dc 1.4\\nVbias3 BIAS3 GND dc 0.8\\nVbias4 BIAS4 GND dc 0.8\\n\\nVlo_cm LO_CM GND dc 1.5\\nVlo_p LO_IN+ LO_CM dc 0 sin(0 0.3 'f_lo' 0 0 0)\\nVlo_n LO_IN- LO_CM dc 0 sin(0 0.3 'f_lo' 0 0 180)\\n\\nVrf_cm RF_CM GND dc 0\\nVrf_p RF_IN+ RF_CM dc 0 sin(0 0.01 'f_rf' 0 0 0)\\nVrf_n RF_IN- RF_CM dc 0 sin(0 0.01 'f_rf' 0 0 180)\\n\\n.model npn npn is=1e-16 bf=100 tf=10p cje=10f cjc=10f vaf=50\\n\\nQ1 VCC LO_IN+ N1 npn\\nQ2 VCC LO_IN- N2 npn\\nQ3 VCC N1 N3 npn\\nQ4 VCC N2 N4 npn\\nQ5 N5 N9 N11 npn\\nQ6 N6 N10 N12 npn\\nQ7 OUT- N7 N5 npn\\nQ8 OUT+ N8 N5 npn\\nQ9 OUT- N8 N6 npn\\nQ10 OUT+ N7 N6 npn\\nQ11 N13 BIAS3 N14 npn\\nQ12 N1 BIAS1 N15 npn\\nQ13 N2 BIAS1 N16 npn\\nQ14 N3 BIAS1 N17 npn\\nQ15 N4 BIAS1 N18 npn\\nR1 N1 N2 1k\\nR2 N7 N8 1k\\nR3 VCC OUT- 500\\nR4 VCC OUT+ 500\\nR5 N11 N13 20\\nR6 N12 N13 20\\nR7 N9 BIAS4 10k\\nR8 N10 BIAS4 10k\\nR9 N7 BIAS2 10k\\nR10 N8 BIAS2 10k\\nR11 N14 GND 50\\nR12 N15 GND 50\\nR13 N16 GND 50\\nR14 N17 GND 50\\nR15 N18 GND 50\\nC1 N3 N7 1p\\nC2 N4 N8 1p\\nC3 RF_IN+ N9 1p\\nC4 RF_IN- N10 1p\\nC5 VCC OUT- 2p\\nC6 VCC OUT+ 2p\\nCbyp1 BIAS1 GND 10p\\nCbyp2 BIAS2 GND 10p\\nCbyp3 BIAS3 GND 10p\\nCbyp4 BIAS4 GND 10p\\n\\nB1 OUT_DIFF 0 V=V(OUT+)-V(OUT-)\\n\\n.control\\ntran 0.1n 50n\\nmeas tran out_max max v(OUT_DIFF) from=30n to=50n\\nmeas tran out_min min v(OUT_DIFF) from=30n to=50n\\nlet out_pp = out_max - out_min\\n* RF input is 10mV peak each, so 20mV peak diff, 40mV pp diff.\\nlet cg = out_pp / 0.04\\nlet cg_db = 20 * log10(cg)\\nprint cg_db\\n\\nop\\nlet power = -i(V1) * 1.8\\nprint power\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1374999",
+  "_case": "1374999_image_9"
+}

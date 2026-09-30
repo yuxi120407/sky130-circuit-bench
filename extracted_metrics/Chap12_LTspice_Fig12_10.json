@@ -1,0 +1,228 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 12.2",
+    "page": "355",
+    "circuit_type": "Three-input CMOS NAND gate driving a capacitive load",
+    "description": "Figure 12.2 shows the schematic of an n-input static CMOS NAND gate with parallel PMOS pull-up devices and series NMOS pull-down devices. The provided netlist implements N=3 with all inputs tied together to Vin, driving a 50 fF load capacitance C1 as analyzed in Example 12.3 and Figure 12.10 (page 361)."
+  },
+  "step2_metrics": {
+    "switching_point_voltage": {
+      "description": "Switching point voltage (Vsp) where Vin = Vout when all inputs are tied together",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "355",
+        "reference": "Eq. (12.7)"
+      },
+      "equation": {
+        "formula": "V_SP = (sqrt(beta_n / (N^2 * beta_p)) * V_THN + (VDD - V_THP)) / (1 + sqrt(beta_n / (N^2 * beta_p)))",
+        "explanation": "Calculates the DC switching threshold of an n-input NAND gate where all N inputs switch simultaneously. The series NMOS effective transconductance scales by 1/N while the parallel PMOS devices conduct in parallel scaling effective transconductance by N.",
+        "assumptions": "All inputs tied together; transistors operate in saturation at switching threshold; channel length modulation neglected."
+      },
+      "sky130_expected": {
+        "calculation": "With N=3, equal transistor sizing (W/L ratio identical for NMOS and PMOS): beta_n/beta_p = (un*Cox)/(up*Cox) = 270u / 50u = 5.4. Then transconductance ratio sqrt(beta_n / (N^2 * beta_p)) = sqrt(5.4 / 9) = sqrt(0.6) = 0.7746. Using VDD = 1.8 V, V_THN = 0.42 V, V_THP = 0.42 V: V_SP = [0.7746 * 0.42 + (1.8 - 0.42)] / (1 + 0.7746) = (0.3253 + 1.38) / 1.7746 = 1.7053 / 1.7746 = 0.961 V.",
+        "range": {
+          "min": 0.85,
+          "typical": 0.96,
+          "max": 1.1,
+          "unit": "V"
+        },
+        "reasoning": "In Sky130 with equal W/L devices, the 3 series NMOS balance the 3 parallel PMOS, centering Vsp very close to ideal VDD/2 (0.9 V)."
+      },
+      "importance": "essential"
+    },
+    "transconductance_ratio": {
+      "description": "Effective transconductance ratio between NMOS network and PMOS network for N-input NAND",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "356",
+        "reference": "Page 356, Example 12.1"
+      },
+      "equation": {
+        "formula": "ratio = sqrt(beta_n / (N^2 * beta_p)) = (1 / N) * sqrt(beta_n / beta_p)",
+        "explanation": "Ratio of the effective pull-down transconductance to the pull-up transconductance when all inputs are tied together.",
+        "assumptions": "N identical NMOS in series and N identical PMOS in parallel."
+      },
+      "sky130_expected": {
+        "calculation": "ratio = (1 / 3) * sqrt(270 / 50) = (1 / 3) * sqrt(5.4) = 2.3238 / 3 = 0.775.",
+        "range": {
+          "min": 0.65,
+          "typical": 0.775,
+          "max": 0.9,
+          "unit": "V/V"
+        },
+        "reasoning": "Determined directly by mobility ratio (un/up = 5.4) and series/parallel scaling factor 1/N = 1/3."
+      },
+      "importance": "recommended"
+    },
+    "high_to_low_delay": {
+      "description": "High-to-low propagation delay (tPHL) driving load capacitance Cload",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "361",
+        "reference": "Eq. (12.17), Eq. (12.18)"
+      },
+      "equation": {
+        "formula": "t_PHL \u2248 0.7 * N * R_n * C_load + 0.35 * R_n * C_oxn * N^2",
+        "explanation": "Delay when all inputs transition high, discharging Cload through N NMOS devices in series.",
+        "assumptions": "Step input on Vin; load capacitance Cload (50 fF) dominates output node capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "For W=1u, L=0.15u: ID_sat_n \u2248 0.5 * 270uA/V^2 * (1/0.15) * (1.8 - 0.42)^2 \u2248 1.71 mA; Rn \u2248 VDD / (2 * ID_sat_n) \u2248 1.8 / 3.42 mA \u2248 526 ohm. For N=3 series NMOS and Cload = 50 fF: t_PHL \u2248 0.7 * 3 * 526 * 50e-15 \u2248 55 ps. Accounting for channel resistance and internal node charge sharing, expected t_PHL is approximately 60 ps to 120 ps.",
+        "range": {
+          "min": 4e-11,
+          "typical": 8e-11,
+          "max": 1.5e-10,
+          "unit": "s"
+        },
+        "reasoning": "Dominant delay term comes from 3 series NMOS discharging the 50 fF load capacitance."
+      },
+      "importance": "essential"
+    },
+    "low_to_high_delay": {
+      "description": "Low-to-high propagation delay (tPLH) with all PMOS switching in parallel",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "361",
+        "reference": "Eq. (12.15), Eq. (12.16)"
+      },
+      "equation": {
+        "formula": "t_PLH \u2248 0.7 * (R_p / N) * C_load",
+        "explanation": "Delay when all inputs transition low, charging Cload through N parallel PMOS devices.",
+        "assumptions": "All N inputs switch simultaneously; Cload (50 fF) dominates node capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "For W=1u, L=0.15u: ID_sat_p \u2248 0.5 * 50uA/V^2 * (1/0.15) * (1.8 - 0.42)^2 \u2248 0.317 mA; Rp \u2248 1.8 / (2 * 0.317 mA) \u2248 2.84 k_ohm. With N=3 PMOS in parallel: Rp_eff = 2840 / 3 \u2248 947 ohm. t_PLH \u2248 0.7 * 947 * 50e-15 \u2248 33 ps. Accounting for parasitics, typical t_PLH is around 40 ps to 70 ps.",
+        "range": {
+          "min": 2.5e-11,
+          "typical": 4.5e-11,
+          "max": 9e-11,
+          "unit": "s"
+        },
+        "reasoning": "Parallel PMOS pull-up configuration reduces effective resistance by a factor of 3."
+      },
+      "importance": "essential"
+    },
+    "output_high_voltage": {
+      "description": "Static output high voltage when input is at logic low (0 V)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "356",
+        "reference": "Fig. 12.3"
+      },
+      "equation": {
+        "formula": "V_OH = VDD",
+        "explanation": "With Vin = 0 V, all PMOS pull-up transistors are fully turned on and NMOS pull-down transistors are off, pulling Vout to VDD.",
+        "assumptions": "Zero DC load current."
+      },
+      "sky130_expected": {
+        "calculation": "V_OH = VDD = 1.8 V.",
+        "range": {
+          "min": 1.79,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "Full rail-to-rail swing in static CMOS."
+      },
+      "importance": "recommended"
+    },
+    "output_low_voltage": {
+      "description": "Static output low voltage when input is at logic high (VDD)",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "356",
+        "reference": "Fig. 12.3"
+      },
+      "equation": {
+        "formula": "V_OL = 0 V",
+        "explanation": "With Vin = VDD, NMOS transistors are fully on and PMOS transistors are off, pulling Vout down to ground.",
+        "assumptions": "Zero DC load current."
+      },
+      "sky130_expected": {
+        "calculation": "V_OL = 0 V.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.0,
+          "max": 0.01,
+          "unit": "V"
+        },
+        "reasoning": "Static CMOS pulls completely to 0 V under purely capacitive load."
+      },
+      "importance": "recommended"
+    },
+    "fall_time": {
+      "description": "Output fall time (90% to 10% of VDD)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "361",
+        "reference": "Fig. 12.10"
+      },
+      "equation": {
+        "formula": "t_fall \u2248 2.2 * (N * R_n) * C_load",
+        "explanation": "Transition time for the output to discharge from 1.62 V (90%) to 0.18 V (10%).",
+        "assumptions": "Series discharge through 3 NMOS devices."
+      },
+      "sky130_expected": {
+        "calculation": "t_fall \u2248 2.2 * (3 * 526) * 50e-15 \u2248 174 ps.",
+        "range": {
+          "min": 1e-10,
+          "typical": 1.8e-10,
+          "max": 3e-10,
+          "unit": "s"
+        },
+        "reasoning": "RC discharge of 50 fF through 3 series NMOS channels."
+      },
+      "importance": "recommended"
+    },
+    "rise_time": {
+      "description": "Output rise time (10% to 90% of VDD)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "361",
+        "reference": "Fig. 12.10"
+      },
+      "equation": {
+        "formula": "t_rise \u2248 2.2 * (R_p / N) * C_load",
+        "explanation": "Transition time for the output to charge from 0.18 V (10%) to 1.62 V (90%).",
+        "assumptions": "Parallel charge through 3 PMOS devices."
+      },
+      "sky130_expected": {
+        "calculation": "t_rise \u2248 2.2 * 947 * 50e-15 \u2248 104 ps.",
+        "range": {
+          "min": 6e-11,
+          "typical": 1.1e-10,
+          "max": 2e-10,
+          "unit": "s"
+        },
+        "reasoning": "RC charging of 50 fF through 3 parallel PMOS channels."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench for 3-input CMOS NAND gate measuring DC switching point (Vsp), VOH, VOL, propagation delays (tPHL, tPLH), and rise/fall times with 50 fF capacitive load.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "switching_point_voltage",
+      "output_high_voltage",
+      "output_low_voltage",
+      "high_to_low_delay",
+      "low_to_high_delay",
+      "fall_time",
+      "rise_time"
+    ],
+    "spice": "* 3-Input CMOS NAND Gate Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Sizing parameters\n.param W_xm1=1u L_xm1=0.15u\n.param W_xm2=1u L_xm2=0.15u\n.param W_xm3=1u L_xm3=0.15u\n.param W_xm4=1u L_xm4=0.15u\n.param W_xm5=1u L_xm5=0.15u\n.param W_xm6=1u L_xm6=0.15u\n\n* Power Supply\nVDD VDD 0 1.8\n\n* Circuit under test\nxm4 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm1 P001 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm2 P002 Vin P001 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Vout Vin P002 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm5 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm6 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nC1 Vout 0 5e-14\n\n* Input Source: Pulse for Transient, Swept for DC\nVin Vin 0 pulse(0 1.8 0.5n 50p 50p 1n 2.5n)\n\n.control\n* === DC Analysis: VTC and Switching Point ===\ndc Vin 0 1.8 0.002\nlet diff = v(Vout) - v(Vin)\nmeas dc switching_point_voltage when diff=0\nmeas dc output_high_voltage find v(Vout) at=0\nmeas dc output_low_voltage find v(Vout) at=1.8\n\n* === Transient Analysis: Propagation Delays and Edge Times ===\ntran 5p 3n\nmeas tran high_to_low_delay trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\nmeas tran low_to_high_delay trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\nmeas tran fall_time trig v(Vout) val=1.62 fall=1 targ v(Vout) val=0.18 fall=1\nmeas tran rise_time trig v(Vout) val=0.18 rise=1 targ v(Vout) val=1.62 rise=1\n\nprint switching_point_voltage output_high_voltage output_low_voltage\nprint high_to_low_delay low_to_high_delay fall_time rise_time\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 12.2\",\n    \"page\": \"355\",\n    \"circuit_type\": \"Three-input CMOS NAND gate driving a capacitive load\",\n    \"description\": \"Figure 12.2 shows the schematic of an n-input static CMOS NAND gate with parallel PMOS pull-up devices and series NMOS pull-down devices. The provided netlist implements N=3 with all inputs tied together to Vin, driving a 50 fF load capacitance C1 as analyzed in Example 12.3 and Figure 12.10 (page 361).\"\n  },\n  \"step2_metrics\": {\n    \"switching_point_voltage\": {\n      \"description\": \"Switching point voltage (Vsp) where Vin = Vout when all inputs are tied together\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"355\",\n        \"reference\": \"Eq. (12.7)\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = (sqrt(beta_n / (N^2 * beta_p)) * V_THN + (VDD - V_THP)) / (1 + sqrt(beta_n / (N^2 * beta_p)))\",\n        \"explanation\": \"Calculates the DC switching threshold of an n-input NAND gate where all N inputs switch simultaneously. The series NMOS effective transconductance scales by 1/N while the parallel PMOS devices conduct in parallel scaling effective transconductance by N.\",\n        \"assumptions\": \"All inputs tied together; transistors operate in saturation at switching threshold; channel length modulation neglected.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With N=3, equal transistor sizing (W/L ratio identical for NMOS and PMOS): beta_n/beta_p = (un*Cox)/(up*Cox) = 270u / 50u = 5.4. Then transconductance ratio sqrt(beta_n / (N^2 * beta_p)) = sqrt(5.4 / 9) = sqrt(0.6) = 0.7746. Using VDD = 1.8 V, V_THN = 0.42 V, V_THP = 0.42 V: V_SP = [0.7746 * 0.42 + (1.8 - 0.42)] / (1 + 0.7746) = (0.3253 + 1.38) / 1.7746 = 1.7053 / 1.7746 = 0.961 V.\",\n        \"range\": {\n          \"min\": 0.85,\n          \"typical\": 0.96,\n          \"max\": 1.1,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"In Sky130 with equal W/L devices, the 3 series NMOS balance the 3 parallel PMOS, centering Vsp very close to ideal VDD/2 (0.9 V).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transconductance_ratio\": {\n      \"description\": \"Effective transconductance ratio between NMOS network and PMOS network for N-input NAND\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"356\",\n        \"reference\": \"Page 356, Example 12.1\"\n      },\n      \"equation\": {\n        \"formula\": \"ratio = sqrt(beta_n / (N^2 * beta_p)) = (1 / N) * sqrt(beta_n / beta_p)\",\n        \"explanation\": \"Ratio of the effective pull-down transconductance to the pull-up transconductance when all inputs are tied together.\",\n        \"assumptions\": \"N identical NMOS in series and N identical PMOS in parallel.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"ratio = (1 / 3) * sqrt(270 / 50) = (1 / 3) * sqrt(5.4) = 2.3238 / 3 = 0.775.\",\n        \"range\": {\n          \"min\": 0.65,\n          \"typical\": 0.775,\n          \"max\": 0.9,\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Determined directly by mobility ratio (un/up = 5.4) and series/parallel scaling factor 1/N = 1/3.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"high_to_low_delay\": {\n      \"description\": \"High-to-low propagation delay (tPHL) driving load capacitance Cload\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"361\",\n        \"reference\": \"Eq. (12.17), Eq. (12.18)\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL \u2248 0.7 * N * R_n * C_load + 0.35 * R_n * C_oxn * N^2\",\n        \"explanation\": \"Delay when all inputs transition high, discharging Cload through N NMOS devices in series.\",\n        \"assumptions\": \"Step input on Vin; load capacitance Cload (50 fF) dominates output node capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For W=1u, L=0.15u: ID_sat_n \u2248 0.5 * 270uA/V^2 * (1/0.15) * (1.8 - 0.42)^2 \u2248 1.71 mA; Rn \u2248 VDD / (2 * ID_sat_n) \u2248 1.8 / 3.42 mA \u2248 526 ohm. For N=3 series NMOS and Cload = 50 fF: t_PHL \u2248 0.7 * 3 * 526 * 50e-15 \u2248 55 ps. Accounting for channel resistance and internal node charge sharing, expected t_PHL is approximately 60 ps to 120 ps.\",\n        \"range\": {\n          \"min\": 4e-11,\n          \"typical\": 8e-11,\n          \"max\": 1.5e-10,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Dominant delay term comes from 3 series NMOS discharging the 50 fF load capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"low_to_high_delay\": {\n      \"description\": \"Low-to-high propagation delay (tPLH) with all PMOS switching in parallel\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"361\",\n        \"reference\": \"Eq. (12.15), Eq. (12.16)\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PLH \u2248 0.7 * (R_p / N) * C_load\",\n        \"explanation\": \"Delay when all inputs transition low, charging Cload through N parallel PMOS devices.\",\n        \"assumptions\": \"All N inputs switch simultaneously; Cload (50 fF) dominates node capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For W=1u, L=0.15u: ID_sat_p \u2248 0.5 * 50uA/V^2 * (1/0.15) * (1.8 - 0.42)^2 \u2248 0.317 mA; Rp \u2248 1.8 / (2 * 0.317 mA) \u2248 2.84 k_ohm. With N=3 PMOS in parallel: Rp_eff = 2840 / 3 \u2248 947 ohm. t_PLH \u2248 0.7 * 947 * 50e-15 \u2248 33 ps. Accounting for parasitics, typical t_PLH is around 40 ps to 70 ps.\",\n        \"range\": {\n          \"min\": 2.5e-11,\n          \"typical\": 4.5e-11,\n          \"max\": 9e-11,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Parallel PMOS pull-up configuration reduces effective resistance by a factor of 3.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_high_voltage\": {\n      \"description\": \"Static output high voltage when input is at logic low (0 V)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"356\",\n        \"reference\": \"Fig. 12.3\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OH = VDD\",\n        \"explanation\": \"With Vin = 0 V, all PMOS pull-up transistors are fully turned on and NMOS pull-down transistors are off, pulling Vout to VDD.\",\n        \"assumptions\": \"Zero DC load current.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_OH = VDD = 1.8 V.\",\n        \"range\": {\n          \"min\": 1.79,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Full rail-to-rail swing in static CMOS.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"output_low_voltage\": {\n      \"description\": \"Static output low voltage when input is at logic high (VDD)\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"356\",\n        \"reference\": \"Fig. 12.3\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OL = 0 V\",\n        \"explanation\": \"With Vin = VDD, NMOS transistors are fully on and PMOS transistors are off, pulling Vout down to ground.\",\n        \"assumptions\": \"Zero DC load current.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_OL = 0 V.\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 0.0,\n          \"max\": 0.01,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Static CMOS pulls completely to 0 V under purely capacitive load.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"fall_time\": {\n      \"description\": \"Output fall time (90% to 10% of VDD)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"361\",\n        \"reference\": \"Fig. 12.10\"\n      },\n      \"equation\": {\n        \"formula\": \"t_fall \u2248 2.2 * (N * R_n) * C_load\",\n        \"explanation\": \"Transition time for the output to discharge from 1.62 V (90%) to 0.18 V (10%).\",\n        \"assumptions\": \"Series discharge through 3 NMOS devices.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_fall \u2248 2.2 * (3 * 526) * 50e-15 \u2248 174 ps.\",\n        \"range\": {\n          \"min\": 1e-10,\n          \"typical\": 1.8e-10,\n          \"max\": 3e-10,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"RC discharge of 50 fF through 3 series NMOS channels.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"rise_time\": {\n      \"description\": \"Output rise time (10% to 90% of VDD)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"361\",\n        \"reference\": \"Fig. 12.10\"\n      },\n      \"equation\": {\n        \"formula\": \"t_rise \u2248 2.2 * (R_p / N) * C_load\",\n        \"explanation\": \"Transition time for the output to charge from 0.18 V (10%) to 1.62 V (90%).\",\n        \"assumptions\": \"Parallel charge through 3 PMOS devices.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"t_rise \u2248 2.2 * 947 * 50e-15 \u2248 104 ps.\",\n        \"range\": {\n          \"min\": 6e-11,\n          \"typical\": 1.1e-10,\n          \"max\": 2e-10,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"RC charging of 50 fF through 3 parallel PMOS channels.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench for 3-input CMOS NAND gate measuring DC switching point (Vsp), VOH, VOL, propagation delays (tPHL, tPLH), and rise/fall times with 50 fF capacitive load.\",\n    \"analyses\": [\"DC\", \"Tran\"],\n    \"metrics_measured\": [\n      \"switching_point_voltage\",\n      \"output_high_voltage\",\n      \"output_low_voltage\",\n      \"high_to_low_delay\",\n      \"low_to_high_delay\",\n      \"fall_time\",\n      \"rise_time\"\n    ],\n    \"spice\": \"* 3-Input CMOS NAND Gate Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Sizing parameters\\n.param W_xm1=1u L_xm1=0.15u\\n.param W_xm2=1u L_xm2=0.15u\\n.param W_xm3=1u L_xm3=0.15u\\n.param W_xm4=1u L_xm4=0.15u\\n.param W_xm5=1u L_xm5=0.15u\\n.param W_xm6=1u L_xm6=0.15u\\n\\n* Power Supply\\nVDD VDD 0 1.8\\n\\n* Circuit under test\\nxm4 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm1 P001 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 P002 Vin P001 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Vout Vin P002 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm5 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nC1 Vout 0 5e-14\\n\\n* Input Source: Pulse for Transient, Swept for DC\\nVin Vin 0 pulse(0 1.8 0.5n 50p 50p 1n 2.5n)\\n\\n.control\\n* === DC Analysis: VTC and Switching Point ===\\ndc Vin 0 1.8 0.002\\nlet diff = v(Vout) - v(Vin)\\nmeas dc switching_point_voltage when diff=0\\nmeas dc output_high_voltage find v(Vout) at=0\\nmeas dc output_low_voltage find v(Vout) at=1.8\\n\\n* === Transient Analysis: Propagation Delays and Edge Times ===\\ntran 5p 3n\\nmeas tran high_to_low_delay trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\\nmeas tran low_to_high_delay trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\\nmeas tran fall_time trig v(Vout) val=1.62 fall=1 targ v(Vout) val=0.18 fall=1\\nmeas tran rise_time trig v(Vout) val=0.18 rise=1 targ v(Vout) val=1.62 rise=1\\n\\nprint switching_point_voltage output_high_voltage output_low_voltage\\nprint high_to_low_delay low_to_high_delay fall_time rise_time\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

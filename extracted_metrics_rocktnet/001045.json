@@ -1,0 +1,130 @@
+{
+  "step1_analysis": {
+    "circuit_type": "SPDT Transmit/Receive (T/R) Switch",
+    "description": "A single-pole double-throw switch used to connect an antenna to either a transmitter or a receiver. It uses DC biasing on the source/drain nodes to reduce junction capacitance and improve power handling.",
+    "node_mapping": {
+      "input": [
+        "TX_AND_DRAIN_DC_BIAS"
+      ],
+      "output": [
+        "ANT",
+        "RX_AND_DRAIN_DC_BIAS"
+      ],
+      "supply": [],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "TX_SOURCE_DC_BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 0.5-m CMOS T/R Switch for 900-MHz Wireless Applications",
+      "figure": "Schematic",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Insertion_Loss_dB": {
+      "description": "S21 transmission from TX to ANT in TX mode at 900 MHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "-0.7 dB",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ron = 1 / (un*Cox * W/L * (Vgs-Vth)) = 1 / (270u * 10 * (0.9-0.42)) = 771 ohms. S21 = 100 / (100 + 771) = 0.115 -> -18.8 dB.",
+        "range": {
+          "min": -22,
+          "typical": -19,
+          "max": -16,
+          "unit": "dB"
+        },
+        "reasoning": "The extracted netlist uses default W=5um which is much smaller than typical mm-sized switch transistors, resulting in high Ron and high insertion loss."
+      },
+      "importance": "essential"
+    },
+    "Isolation_dB": {
+      "description": "S31 leakage from TX to RX in TX mode at 900 MHz",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "-42 dB",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Coupling through XM2 Cgs (~6fF). Zc = 1/(2*pi*900M*6fF) = 29kOhm. Attenuation = 50/29k = 0.0017 (-55dB). Total S31 = -19dB - 55dB = -74dB.",
+        "range": {
+          "min": -85,
+          "typical": -74,
+          "max": -65,
+          "unit": "dB"
+        },
+        "reasoning": "Isolation is dominated by the parasitic capacitance of the OFF transistor XM2."
+      },
+      "importance": "essential"
+    },
+    "Transient_Swing_ANT": {
+      "description": "Peak-to-peak voltage swing at the antenna for a 10dBm (2V peak open-circuit) input at 900 MHz",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "15 dBm output power",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vout_peak = 2V * 50 / (50 + 771 + 50) = 0.115V. Vout_pp = 0.23V.",
+        "range": {
+          "min": 0.15,
+          "typical": 0.23,
+          "max": 0.3,
+          "unit": "V"
+        },
+        "reasoning": "Due to the high insertion loss from the small W=5um transistor, the output swing is heavily attenuated."
+      },
+      "importance": "recommended"
+    },
+    "DC_Power": {
+      "description": "DC power consumption of the switch biasing circuit",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "0 W (passive)",
+        "technology": "0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Leakage currents only, expected to be in the pW to nW range.",
+        "range": {
+          "min": 0,
+          "typical": 1e-09,
+          "max": 1e-06,
+          "unit": "W"
+        },
+        "reasoning": "The switch is passive and only draws leakage current from the DC bias sources."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure insertion loss, isolation, transient swing, and DC power of the T/R switch in TX mode.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Insertion_Loss_dB",
+      "Isolation_dB",
+      "Transient_Swing_ANT",
+      "DC_Power"
+    ],
+    "spice": "* T/R Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n\nXM1 ANT LABEL_NET_0 TX_AND_DRAIN_DC_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 LABEL_NET_1 ANT RX_AND_DRAIN_DC_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 TX_AND_DRAIN_DC_BIAS LABEL_NET_2 TX_SOURCE_DC_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\n\n* DC Biasing (0.9V to reduce junction capacitance as per paper)\nVdc dc_bias 0 0.9\nRdc_tx TX_AND_DRAIN_DC_BIAS dc_bias 10k\nRdc_ant ANT dc_bias 10k\nRdc_rx RX_AND_DRAIN_DC_BIAS dc_bias 10k\nRdc_tx_src TX_SOURCE_DC_BIAS dc_bias 10k\n\n* Control Voltages (TX Mode: XM1 ON, XM2 OFF, XM3 OFF)\n* Note: LABEL_NET_1 is set to 0.9V to prevent XM2 from turning on due to swapped D/G in extraction\nVctrl0 LABEL_NET_0 0 1.8\nVctrl1 LABEL_NET_1 0 0.9\nVctrl2 LABEL_NET_2 0 0.9\n\n* RF Ports (50 ohm system)\nVac tx_ac 0 dc 0 ac 2 sin(0 2 900Meg)\nRin tx_ac TX_AND_DRAIN_DC_BIAS 50\n\nCout ANT ant_ac 1u\nRout ant_ac 0 50\n\nCrx RX_AND_DRAIN_DC_BIAS rx_ac 1u\nRrx rx_ac 0 50\n\n.control\n* 1. DC Operating Point\nop\nlet dc_power = -i(Vdc) * 0.9\nprint dc_power\n\n* 2. AC Analysis for Insertion Loss and Isolation\nac dec 100 100Meg 10Gig\nlet s21_db = vdb(ant_ac)\nlet s31_db = vdb(rx_ac)\nmeas ac insertion_loss_db find s21_db at=900Meg\nmeas ac isolation_db find s31_db at=900Meg\nprint insertion_loss_db isolation_db\n\n* 3. Transient Analysis for Voltage Swing\ntran 10p 5n\nmeas tran v_max max v(ant_ac)\nmeas tran v_min min v(ant_ac)\nlet transient_swing_ant = v_max - v_min\nprint transient_swing_ant\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"SPDT Transmit/Receive (T/R) Switch\",\n    \"description\": \"A single-pole double-throw switch used to connect an antenna to either a transmitter or a receiver. It uses DC biasing on the source/drain nodes to reduce junction capacitance and improve power handling.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"TX_AND_DRAIN_DC_BIAS\"\n      ],\n      \"output\": [\n        \"ANT\",\n        \"RX_AND_DRAIN_DC_BIAS\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"TX_SOURCE_DC_BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 0.5-m CMOS T/R Switch for 900-MHz Wireless Applications\",\n      \"figure\": \"Schematic\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Insertion_Loss_dB\": {\n      \"description\": \"S21 transmission from TX to ANT in TX mode at 900 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"-0.7 dB\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ron = 1 / (un*Cox * W/L * (Vgs-Vth)) = 1 / (270u * 10 * (0.9-0.42)) = 771 ohms. S21 = 100 / (100 + 771) = 0.115 -> -18.8 dB.\",\n        \"range\": {\n          \"min\": -22,\n          \"typical\": -19,\n          \"max\": -16,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The extracted netlist uses default W=5um which is much smaller than typical mm-sized switch transistors, resulting in high Ron and high insertion loss.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Isolation_dB\": {\n      \"description\": \"S31 leakage from TX to RX in TX mode at 900 MHz\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"-42 dB\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Coupling through XM2 Cgs (~6fF). Zc = 1/(2*pi*900M*6fF) = 29kOhm. Attenuation = 50/29k = 0.0017 (-55dB). Total S31 = -19dB - 55dB = -74dB.\",\n        \"range\": {\n          \"min\": -85,\n          \"typical\": -74,\n          \"max\": -65,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Isolation is dominated by the parasitic capacitance of the OFF transistor XM2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Transient_Swing_ANT\": {\n      \"description\": \"Peak-to-peak voltage swing at the antenna for a 10dBm (2V peak open-circuit) input at 900 MHz\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"15 dBm output power\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vout_peak = 2V * 50 / (50 + 771 + 50) = 0.115V. Vout_pp = 0.23V.\",\n        \"range\": {\n          \"min\": 0.15,\n          \"typical\": 0.23,\n          \"max\": 0.3,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Due to the high insertion loss from the small W=5um transistor, the output swing is heavily attenuated.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"DC_Power\": {\n      \"description\": \"DC power consumption of the switch biasing circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"0 W (passive)\",\n        \"technology\": \"0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Leakage currents only, expected to be in the pW to nW range.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 1e-9,\n          \"max\": 1e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The switch is passive and only draws leakage current from the DC bias sources.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure insertion loss, isolation, transient swing, and DC power of the T/R switch in TX mode.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Insertion_Loss_dB\",\n      \"Isolation_dB\",\n      \"Transient_Swing_ANT\",\n      \"DC_Power\"\n    ],\n    \"spice\": \"* T/R Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n\\nXM1 ANT LABEL_NET_0 TX_AND_DRAIN_DC_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 LABEL_NET_1 ANT RX_AND_DRAIN_DC_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 TX_AND_DRAIN_DC_BIAS LABEL_NET_2 TX_SOURCE_DC_BIAS GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\n\\n* DC Biasing (0.9V to reduce junction capacitance as per paper)\\nVdc dc_bias 0 0.9\\nRdc_tx TX_AND_DRAIN_DC_BIAS dc_bias 10k\\nRdc_ant ANT dc_bias 10k\\nRdc_rx RX_AND_DRAIN_DC_BIAS dc_bias 10k\\nRdc_tx_src TX_SOURCE_DC_BIAS dc_bias 10k\\n\\n* Control Voltages (TX Mode: XM1 ON, XM2 OFF, XM3 OFF)\\n* Note: LABEL_NET_1 is set to 0.9V to prevent XM2 from turning on due to swapped D/G in extraction\\nVctrl0 LABEL_NET_0 0 1.8\\nVctrl1 LABEL_NET_1 0 0.9\\nVctrl2 LABEL_NET_2 0 0.9\\n\\n* RF Ports (50 ohm system)\\nVac tx_ac 0 dc 0 ac 2 sin(0 2 900Meg)\\nRin tx_ac TX_AND_DRAIN_DC_BIAS 50\\n\\nCout ANT ant_ac 1u\\nRout ant_ac 0 50\\n\\nCrx RX_AND_DRAIN_DC_BIAS rx_ac 1u\\nRrx rx_ac 0 50\\n\\n.control\\n* 1. DC Operating Point\\nop\\nlet dc_power = -i(Vdc) * 0.9\\nprint dc_power\\n\\n* 2. AC Analysis for Insertion Loss and Isolation\\nac dec 100 100Meg 10Gig\\nlet s21_db = vdb(ant_ac)\\nlet s31_db = vdb(rx_ac)\\nmeas ac insertion_loss_db find s21_db at=900Meg\\nmeas ac isolation_db find s31_db at=900Meg\\nprint insertion_loss_db isolation_db\\n\\n* 3. Transient Analysis for Voltage Swing\\ntran 10p 5n\\nmeas tran v_max max v(ant_ac)\\nmeas tran v_min min v(ant_ac)\\nlet transient_swing_ant = v_max - v_min\\nprint transient_swing_ant\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "910487",
+  "_case": "910487_image_6"
+}

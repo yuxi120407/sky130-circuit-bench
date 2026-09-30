@@ -1,0 +1,151 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 18.21",
+    "page": "536",
+    "circuit_type": "PMOS input buffer (Self-biased differential amplifier)",
+    "description": "A high-speed digital input buffer utilizing a PMOS differential pair with a self-biased PMOS tail current source and an NMOS current mirror load, followed by a CMOS output inverter. It is designed to cleanly slice input data by comparing it against a reference voltage (Vinm)."
+  },
+  "step2_metrics": {
+    "logic_high_output": {
+      "description": "The output voltage level when Vinp > Vinm, representing a digital '1'.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "534",
+        "reference": "Eq 18.22"
+      },
+      "equation": {
+        "formula": "Vout = VDD (when Vinp > Vinm)",
+        "explanation": "When the non-inverting input exceeds the inverting input, the differential amplifier pulls the inverter's input low, causing the inverter's output to pull up to the positive supply rail.",
+        "assumptions": "Assumes the input difference is large enough to fully switch the differential stage and the output inverter is unloaded resistively."
+      },
+      "sky130_expected": {
+        "calculation": "The output is driven by a PMOS transistor (xm5) connected to VDD. With no DC resistive load (only capacitive Cload = 50fF), it will pull exactly to VDD.",
+        "range": {
+          "min": 1.79,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "CMOS inverters drive rail-to-rail when driving purely capacitive loads."
+      },
+      "importance": "essential"
+    },
+    "logic_low_output": {
+      "description": "The output voltage level when Vinp < Vinm, representing a digital '0'.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "534",
+        "reference": "Eq 18.23"
+      },
+      "equation": {
+        "formula": "Vout = 0 (when Vinp < Vinm)",
+        "explanation": "When the non-inverting input is below the inverting input, the differential amplifier pulls the inverter's input high, causing the inverter's output to pull down to ground.",
+        "assumptions": "Assumes the input difference is large enough to fully switch the differential stage."
+      },
+      "sky130_expected": {
+        "calculation": "The output is driven by an NMOS transistor (xm7) connected to ground. With no DC resistive load, it will pull exactly to 0V.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.0,
+          "max": 0.01,
+          "unit": "V"
+        },
+        "reasoning": "CMOS inverters drive rail-to-rail when driving purely capacitive loads."
+      },
+      "importance": "essential"
+    },
+    "dc_offset": {
+      "description": "The difference between Vinp and Vinm required to make the output switch exactly at VDD/2.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "535",
+        "reference": "Discussion of Fig 18.18 and Fig 18.22"
+      },
+      "equation": {
+        "formula": "V_offset = Vinp_switch - Vinm",
+        "explanation": "Due to the asymmetric nature of the self-biased diff-amp and the switching threshold of the output inverter not perfectly matching the diff-amp's balance point, a systematic offset exists.",
+        "assumptions": "Assumes typical process corners. Offset will vary with PVT and device sizing."
+      },
+      "sky130_expected": {
+        "calculation": "The diff-amp output (N002) must reach the inverter threshold (~0.9V). The diode-connected NMOS (xm1) sets the bias voltage at N003 to Vthn + Vov ~ 0.6V. Because 0.9V != 0.6V, the diff-amp must be unbalanced (I_xm4 > I_xm2) to pull N002 to 0.9V. This requires Vinp to be slightly lower than Vinm.",
+        "range": {
+          "min": -0.05,
+          "typical": -0.01,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Systematic offset is typically in the tens of millivolts range for this topology unless specifically sized to align the diff-amp output DC level with the inverter threshold."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay_tplh": {
+      "description": "Time delay from Vinp crossing Vinm (going high) to Vout crossing VDD/2 (going high).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "536",
+        "reference": "Fig 18.22"
+      },
+      "equation": {
+        "formula": "t_PLH = t_diff_fall + t_inv_rise",
+        "explanation": "The total delay is the sum of the time it takes the diff-amp to discharge node N002 and the time it takes the output inverter to charge Cload.",
+        "assumptions": "Assumes step input. Delay depends heavily on tail current, internal parasitic capacitance at N002, and Cload."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming typical sizing (W/L=4u/0.15u for PMOS, 2u/0.15u for NMOS), tail current is ~100uA. Discharging N002 (C~10fF) takes ~100ps. Charging Cload (50fF) via inverter PMOS takes ~100ps. Total tPLH ~ 200ps.",
+        "range": {
+          "min": 1e-10,
+          "typical": 3e-10,
+          "max": 1e-09,
+          "unit": "s"
+        },
+        "reasoning": "Depends on the exact parameterized W/L values, but for a high-speed buffer in 130nm driving 50fF, delays are typically sub-nanosecond."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay_tphl": {
+      "description": "Time delay from Vinp crossing Vinm (going low) to Vout crossing VDD/2 (going low).",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "536",
+        "reference": "Fig 18.22"
+      },
+      "equation": {
+        "formula": "t_PHL = t_diff_rise + t_inv_fall",
+        "explanation": "The total delay is the sum of the time it takes the diff-amp to charge node N002 and the time it takes the output inverter to discharge Cload.",
+        "assumptions": "Assumes step input. Often differs from t_PLH due to asymmetric drive strength in the diff-amp (current mirror vs tail current source)."
+      },
+      "sky130_expected": {
+        "calculation": "Charging N002 is limited by the PMOS input pair and tail current. Discharging Cload is done by the inverter NMOS. Similar order of magnitude to tPLH, ~200-400ps.",
+        "range": {
+          "min": 1e-10,
+          "typical": 3e-10,
+          "max": 1e-09,
+          "unit": "s"
+        },
+        "reasoning": "As noted in the text (page 535), tPLH and tPHL are often different due to the circuit's asymmetry and offset."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures DC transfer characteristics (logic levels, offset) and transient propagation delays (tPLH, tPHL) of the PMOS input buffer.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "logic_high_output",
+      "logic_low_output",
+      "dc_offset",
+      "propagation_delay_tplh",
+      "propagation_delay_tphl"
+    ],
+    "spice": "* Testbench for PMOS Input Buffer (Fig 18.21)\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the parameterized netlist\n.param W_xm1=2u L_xm1=0.15u\n.param W_xm2=2u L_xm2=0.15u\n.param W_xm3=4u L_xm3=0.15u\n.param W_xm4=4u L_xm4=0.15u\n.param W_xm5=4u L_xm5=0.15u\n.param W_xm6=8u L_xm6=0.15u\n.param W_xm7=2u L_xm7=0.15u\n\n* --- DUT Netlist ---\nxm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm3 N003 Vinm N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm4 N002 Vinp N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm2 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nVinm Vinm 0 200m\nxm5 Vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm7 Vout N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\nCload Vout 0 5e-14\nxm6 N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\n* -------------------\n\n* Input stimulus for transient analysis\nVinp Vinp 0 PULSE(0.0 0.4 2n 0.1n 0.1n 4n 10n)\n\n.control\n* 1. DC Analysis for Logic Levels and Offset\ndc Vinp 0 0.4 0.001\nmeas dc logic_low min v(Vout)\nmeas dc logic_high max v(Vout)\n* Find switching threshold (Vout = VDD/2 = 0.9V)\nmeas dc vswitch find v(Vinp) when v(Vout)=0.9\n* Calculate offset relative to Vinm (200mV)\nlet dc_offset = vswitch - 0.2\nprint logic_low logic_high dc_offset\n\n* 2. Transient Analysis for Propagation Delays\ntran 10p 10n\n* Measure tPLH: Vinp goes high (crossing 200mV), Vout goes high (crossing 0.9V)\nmeas tran tplh trig v(Vinp) val=0.2 rise=1 targ v(Vout) val=0.9 rise=1\n* Measure tPHL: Vinp goes low (crossing 200mV), Vout goes low (crossing 0.9V)\nmeas tran tphl trig v(Vinp) val=0.2 fall=1 targ v(Vout) val=0.9 fall=1\nprint tplh tphl\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 18.21\",\n    \"page\": \"536\",\n    \"circuit_type\": \"PMOS input buffer (Self-biased differential amplifier)\",\n    \"description\": \"A high-speed digital input buffer utilizing a PMOS differential pair with a self-biased PMOS tail current source and an NMOS current mirror load, followed by a CMOS output inverter. It is designed to cleanly slice input data by comparing it against a reference voltage (Vinm).\"\n  },\n  \"step2_metrics\": {\n    \"logic_high_output\": {\n      \"description\": \"The output voltage level when Vinp > Vinm, representing a digital '1'.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"534\",\n        \"reference\": \"Eq 18.22\"\n      },\n      \"equation\": {\n        \"formula\": \"Vout = VDD (when Vinp > Vinm)\",\n        \"explanation\": \"When the non-inverting input exceeds the inverting input, the differential amplifier pulls the inverter's input low, causing the inverter's output to pull up to the positive supply rail.\",\n        \"assumptions\": \"Assumes the input difference is large enough to fully switch the differential stage and the output inverter is unloaded resistively.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The output is driven by a PMOS transistor (xm5) connected to VDD. With no DC resistive load (only capacitive Cload = 50fF), it will pull exactly to VDD.\",\n        \"range\": {\n          \"min\": 1.79,\n          \"typical\": 1.8,\n          \"max\": 1.8,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CMOS inverters drive rail-to-rail when driving purely capacitive loads.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"logic_low_output\": {\n      \"description\": \"The output voltage level when Vinp < Vinm, representing a digital '0'.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"534\",\n        \"reference\": \"Eq 18.23\"\n      },\n      \"equation\": {\n        \"formula\": \"Vout = 0 (when Vinp < Vinm)\",\n        \"explanation\": \"When the non-inverting input is below the inverting input, the differential amplifier pulls the inverter's input high, causing the inverter's output to pull down to ground.\",\n        \"assumptions\": \"Assumes the input difference is large enough to fully switch the differential stage.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The output is driven by an NMOS transistor (xm7) connected to ground. With no DC resistive load, it will pull exactly to 0V.\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 0.0,\n          \"max\": 0.01,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"CMOS inverters drive rail-to-rail when driving purely capacitive loads.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_offset\": {\n      \"description\": \"The difference between Vinp and Vinm required to make the output switch exactly at VDD/2.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"535\",\n        \"reference\": \"Discussion of Fig 18.18 and Fig 18.22\"\n      },\n      \"equation\": {\n        \"formula\": \"V_offset = Vinp_switch - Vinm\",\n        \"explanation\": \"Due to the asymmetric nature of the self-biased diff-amp and the switching threshold of the output inverter not perfectly matching the diff-amp's balance point, a systematic offset exists.\",\n        \"assumptions\": \"Assumes typical process corners. Offset will vary with PVT and device sizing.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The diff-amp output (N002) must reach the inverter threshold (~0.9V). The diode-connected NMOS (xm1) sets the bias voltage at N003 to Vthn + Vov ~ 0.6V. Because 0.9V != 0.6V, the diff-amp must be unbalanced (I_xm4 > I_xm2) to pull N002 to 0.9V. This requires Vinp to be slightly lower than Vinm.\",\n        \"range\": {\n          \"min\": -0.05,\n          \"typical\": -0.01,\n          \"max\": 0.05,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Systematic offset is typically in the tens of millivolts range for this topology unless specifically sized to align the diff-amp output DC level with the inverter threshold.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay_tplh\": {\n      \"description\": \"Time delay from Vinp crossing Vinm (going high) to Vout crossing VDD/2 (going high).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"536\",\n        \"reference\": \"Fig 18.22\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PLH = t_diff_fall + t_inv_rise\",\n        \"explanation\": \"The total delay is the sum of the time it takes the diff-amp to discharge node N002 and the time it takes the output inverter to charge Cload.\",\n        \"assumptions\": \"Assumes step input. Delay depends heavily on tail current, internal parasitic capacitance at N002, and Cload.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming typical sizing (W/L=4u/0.15u for PMOS, 2u/0.15u for NMOS), tail current is ~100uA. Discharging N002 (C~10fF) takes ~100ps. Charging Cload (50fF) via inverter PMOS takes ~100ps. Total tPLH ~ 200ps.\",\n        \"range\": {\n          \"min\": 1e-10,\n          \"typical\": 3e-10,\n          \"max\": 1e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Depends on the exact parameterized W/L values, but for a high-speed buffer in 130nm driving 50fF, delays are typically sub-nanosecond.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay_tphl\": {\n      \"description\": \"Time delay from Vinp crossing Vinm (going low) to Vout crossing VDD/2 (going low).\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"536\",\n        \"reference\": \"Fig 18.22\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL = t_diff_rise + t_inv_fall\",\n        \"explanation\": \"The total delay is the sum of the time it takes the diff-amp to charge node N002 and the time it takes the output inverter to discharge Cload.\",\n        \"assumptions\": \"Assumes step input. Often differs from t_PLH due to asymmetric drive strength in the diff-amp (current mirror vs tail current source).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Charging N002 is limited by the PMOS input pair and tail current. Discharging Cload is done by the inverter NMOS. Similar order of magnitude to tPLH, ~200-400ps.\",\n        \"range\": {\n          \"min\": 1e-10,\n          \"typical\": 3e-10,\n          \"max\": 1e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"As noted in the text (page 535), tPLH and tPHL are often different due to the circuit's asymmetry and offset.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures DC transfer characteristics (logic levels, offset) and transient propagation delays (tPLH, tPHL) of the PMOS input buffer.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"logic_high_output\",\n      \"logic_low_output\",\n      \"dc_offset\",\n      \"propagation_delay_tplh\",\n      \"propagation_delay_tphl\"\n    ],\n    \"spice\": \"* Testbench for PMOS Input Buffer (Fig 18.21)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm1=2u L_xm1=0.15u\\n.param W_xm2=2u L_xm2=0.15u\\n.param W_xm3=4u L_xm3=0.15u\\n.param W_xm4=4u L_xm4=0.15u\\n.param W_xm5=4u L_xm5=0.15u\\n.param W_xm6=8u L_xm6=0.15u\\n.param W_xm7=2u L_xm7=0.15u\\n\\n* --- DUT Netlist ---\\nxm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm3 N003 Vinm N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 N002 Vinp N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm2 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nVinm Vinm 0 200m\\nxm5 Vout N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm7 Vout N002 0 0 sky130_fd_pr__nfet_01v8 w={W_xm7} l={L_xm7}\\nCload Vout 0 5e-14\\nxm6 N001 N003 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\n* -------------------\\n\\n* Input stimulus for transient analysis\\nVinp Vinp 0 PULSE(0.0 0.4 2n 0.1n 0.1n 4n 10n)\\n\\n.control\\n* 1. DC Analysis for Logic Levels and Offset\\ndc Vinp 0 0.4 0.001\\nmeas dc logic_low min v(Vout)\\nmeas dc logic_high max v(Vout)\\n* Find switching threshold (Vout = VDD/2 = 0.9V)\\nmeas dc vswitch find v(Vinp) when v(Vout)=0.9\\n* Calculate offset relative to Vinm (200mV)\\nlet dc_offset = vswitch - 0.2\\nprint logic_low logic_high dc_offset\\n\\n* 2. Transient Analysis for Propagation Delays\\ntran 10p 10n\\n* Measure tPLH: Vinp goes high (crossing 200mV), Vout goes high (crossing 0.9V)\\nmeas tran tplh trig v(Vinp) val=0.2 rise=1 targ v(Vout) val=0.9 rise=1\\n* Measure tPHL: Vinp goes low (crossing 200mV), Vout goes low (crossing 0.9V)\\nmeas tran tphl trig v(Vinp) val=0.2 fall=1 targ v(Vout) val=0.9 fall=1\\nprint tplh tphl\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

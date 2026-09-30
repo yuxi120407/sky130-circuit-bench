@@ -1,0 +1,152 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 24.43 (assumed based on topology)",
+    "page": "N/A",
+    "circuit_type": "Three-stage Class AB Op-Amp with Indirect Miller Compensation",
+    "description": "A three-stage operational amplifier featuring a self-cascoded NMOS differential input stage, a PMOS differential second stage, and a Class AB output stage. It uses indirect Miller compensation via capacitors C2 and C3 connected to the cascode nodes of the input stage."
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "DC open-loop gain of the op-amp",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "A_OL = A1 * A2 * A3",
+        "explanation": "Product of the gains of the three stages",
+        "assumptions": "Assuming typical gm and ro for 130nm"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming I_d = 5uA, Vov = 0.2V -> gm = 50uA/V, ro = 2MOhm. Stage 1 gain \u2248 gm*ro = 100. Stage 2 gain \u2248 50. Stage 3 gain \u2248 100. Total gain = 500,000 V/V = 114 dB.",
+        "range": {
+          "min": 80,
+          "typical": 114,
+          "max": 140,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on transistor lengths and exact biasing, but 3 stages typically yield >100dB."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency where open-loop gain is 0 dB",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "f_un = gm1 / (2 * pi * Cc)",
+        "explanation": "Determined by input stage transconductance and compensation capacitor",
+        "assumptions": "Dominant pole approximation holds"
+      },
+      "sky130_expected": {
+        "calculation": "gm1 = 50uA/V, Cc = 240fF. f_un = 50e-6 / (2 * pi * 240e-15) = 33.15 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 33000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Scales with bias current and input pair sizing."
+      },
+      "importance": "essential"
+    },
+    "phase_margin": {
+      "description": "Phase difference from -180 degrees at unity-gain frequency",
+      "unit": "degrees",
+      "analysis_type": "AC",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "PM = 180 - arctan(f_un/f_p1) - arctan(f_un/f_p2)",
+        "explanation": "Phase margin calculation",
+        "assumptions": "Higher order poles are beyond f_un"
+      },
+      "sky130_expected": {
+        "calculation": "Typically designed for 60 degrees for optimal step response without excessive ringing.",
+        "range": {
+          "min": 45,
+          "typical": 60,
+          "max": 90,
+          "unit": "degrees"
+        },
+        "reasoning": "Stability requirement."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "SR = I_tail / Cc",
+        "explanation": "Limited by the current available to charge the compensation capacitor",
+        "assumptions": "Class A limitation in the input stage"
+      },
+      "sky130_expected": {
+        "calculation": "I_tail = 10uA, Cc = 240fF. SR = 10uA / 240fF = 41.6 V/us.",
+        "range": {
+          "min": 10,
+          "typical": 41,
+          "max": 100,
+          "unit": "V/us"
+        },
+        "reasoning": "Depends on the tail current of the input differential pair."
+      },
+      "importance": "essential"
+    },
+    "power_dissipation": {
+      "description": "Total DC power consumed by the op-amp",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "N/A",
+        "reference": "Standard Op-Amp Theory"
+      },
+      "equation": {
+        "formula": "P_diss = VDD * I_total",
+        "explanation": "Sum of all branch currents multiplied by supply voltage",
+        "assumptions": "Static power only"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming total current of 100uA across all stages and bias circuit. P_diss = 1.8V * 100uA = 180 uW.",
+        "range": {
+          "min": 5e-05,
+          "typical": 0.00018,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Depends on the reference current and mirror ratios."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC open-loop gain, unity-gain frequency, phase margin, and transient slew rate.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_dissipation",
+      "open_loop_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate"
+    ],
+    "spice": "* Op-Amp Testbench\n.lib ${SKY130_PDK} tt\n\n* Parameters for DUT (dummy values to allow parsing, user should replace)\n.param W_xm1=5u L_xm1=0.5u W_xm2=5u L_xm2=0.5u W_xm3=5u L_xm3=0.5u W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u W_xm6t=5u L_xm6t=0.5u W_xm6=5u L_xm6=0.5u W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u W_xm9=5u L_xm9=0.5u W_xm10=5u L_xm10=0.5u W_xm11=5u L_xm11=0.5u\n.param W_xm12=5u L_xm12=0.5u W_xm13=5u L_xm13=0.5u W_xm14=5u L_xm14=0.5u W_xm15=5u L_xm15=0.5u\n.param W_xmsu1=5u L_xmsu1=0.5u W_xmsu2=5u L_xmsu2=0.5u W_xmsu3=5u L_xmsu3=0.5u\n.param W_xma3=5u L_xma3=0.5u W_xma4=5u L_xma4=0.5u\n\n* DUT\nVDD VDD 0 1.8\nxm2 fbr Vp N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm1 fbl Vm N002 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm4 out12 out11 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nxm3 out11 out11 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\nxm6t N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\nxm5 N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\nxm6 N001 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm7 N001 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 out12 Vp fbr 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\nxm9 out11 Vm fbl 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\nxm10 Out22 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\nxm11 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\nxm12 N003 Out12 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\nxm13 Out22 Out11 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm13} l={L_xm13}\nxm14 out Out22 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\nxm15 out Out12 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\nC1 out 0 1e-11\nC2 out fbr 2.4e-13\nC3 Out22 fbl 2.4e-13\nC4 Vm 0 1e-06\nR1 out Vm 10000000.0\n\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  R1 N004 0 4k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n.ends SUB_1\n\n* Stimulus\nVinp Vp 0 DC 0.9 AC 1 PULSE(0.9 1.8 10n 1n 1n 1u 2u)\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VDD) * 1.8\n  print power\n\n  * AC Analysis\n  ac dec 100 1 1G\n  let gain_db = vdb(out)\n  let phase = 180/PI * cph(v(out))\n  meas ac dc_gain find gain_db at=1\n  meas ac f_un when gain_db=0 fall=1\n  meas ac pm find phase when gain_db=0 fall=1\n\n  * Transient Analysis for Slew Rate\n  tran 1n 2u\n  meas tran t_rise trig v(out) val=1.0 rise=1 targ v(out) val=1.3 rise=1\n  let slew_rate = 0.3 / t_rise\n  print slew_rate\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 24.43 (assumed based on topology)\",\n    \"page\": \"N/A\",\n    \"circuit_type\": \"Three-stage Class AB Op-Amp with Indirect Miller Compensation\",\n    \"description\": \"A three-stage operational amplifier featuring a self-cascoded NMOS differential input stage, a PMOS differential second stage, and a Class AB output stage. It uses indirect Miller compensation via capacitors C2 and C3 connected to the cascode nodes of the input stage.\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"DC open-loop gain of the op-amp\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"A_OL = A1 * A2 * A3\",\n        \"explanation\": \"Product of the gains of the three stages\",\n        \"assumptions\": \"Assuming typical gm and ro for 130nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming I_d = 5uA, Vov = 0.2V -> gm = 50uA/V, ro = 2MOhm. Stage 1 gain \u2248 gm*ro = 100. Stage 2 gain \u2248 50. Stage 3 gain \u2248 100. Total gain = 500,000 V/V = 114 dB.\",\n        \"range\": {\n          \"min\": 80,\n          \"typical\": 114,\n          \"max\": 140,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on transistor lengths and exact biasing, but 3 stages typically yield >100dB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency where open-loop gain is 0 dB\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"f_un = gm1 / (2 * pi * Cc)\",\n        \"explanation\": \"Determined by input stage transconductance and compensation capacitor\",\n        \"assumptions\": \"Dominant pole approximation holds\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm1 = 50uA/V, Cc = 240fF. f_un = 50e-6 / (2 * pi * 240e-15) = 33.15 MHz.\",\n        \"range\": {\n          \"min\": 1e7,\n          \"typical\": 3.3e7,\n          \"max\": 1e8,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Scales with bias current and input pair sizing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"phase_margin\": {\n      \"description\": \"Phase difference from -180 degrees at unity-gain frequency\",\n      \"unit\": \"degrees\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"PM = 180 - arctan(f_un/f_p1) - arctan(f_un/f_p2)\",\n        \"explanation\": \"Phase margin calculation\",\n        \"assumptions\": \"Higher order poles are beyond f_un\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Typically designed for 60 degrees for optimal step response without excessive ringing.\",\n        \"range\": {\n          \"min\": 45,\n          \"typical\": 60,\n          \"max\": 90,\n          \"unit\": \"degrees\"\n        },\n        \"reasoning\": \"Stability requirement.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"SR = I_tail / Cc\",\n        \"explanation\": \"Limited by the current available to charge the compensation capacitor\",\n        \"assumptions\": \"Class A limitation in the input stage\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_tail = 10uA, Cc = 240fF. SR = 10uA / 240fF = 41.6 V/us.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 41,\n          \"max\": 100,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Depends on the tail current of the input differential pair.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total DC power consumed by the op-amp\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"N/A\",\n        \"reference\": \"Standard Op-Amp Theory\"\n      },\n      \"equation\": {\n        \"formula\": \"P_diss = VDD * I_total\",\n        \"explanation\": \"Sum of all branch currents multiplied by supply voltage\",\n        \"assumptions\": \"Static power only\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming total current of 100uA across all stages and bias circuit. P_diss = 1.8V * 100uA = 180 uW.\",\n        \"range\": {\n          \"min\": 5e-5,\n          \"typical\": 1.8e-4,\n          \"max\": 5e-4,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Depends on the reference current and mirror ratios.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC open-loop gain, unity-gain frequency, phase margin, and transient slew rate.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_dissipation\",\n      \"open_loop_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Op-Amp Testbench\\n.lib ${SKY130_PDK} tt\\n\\n* Parameters for DUT (dummy values to allow parsing, user should replace)\\n.param W_xm1=5u L_xm1=0.5u W_xm2=5u L_xm2=0.5u W_xm3=5u L_xm3=0.5u W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u W_xm6t=5u L_xm6t=0.5u W_xm6=5u L_xm6=0.5u W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u W_xm9=5u L_xm9=0.5u W_xm10=5u L_xm10=0.5u W_xm11=5u L_xm11=0.5u\\n.param W_xm12=5u L_xm12=0.5u W_xm13=5u L_xm13=0.5u W_xm14=5u L_xm14=0.5u W_xm15=5u L_xm15=0.5u\\n.param W_xmsu1=5u L_xmsu1=0.5u W_xmsu2=5u L_xmsu2=0.5u W_xmsu3=5u L_xmsu3=0.5u\\n.param W_xma3=5u L_xma3=0.5u W_xma4=5u L_xma4=0.5u\\n\\n* DUT\\nVDD VDD 0 1.8\\nxm2 fbr Vp N002 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm1 fbl Vm N002 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm4 out12 out11 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nxm3 out11 out11 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\nxm6t N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6t} l={L_xm6t}\\nX_U1 Vbiasn Vbiasp VDD 0 SUB_1\\nxm5 N002 Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\nxm6 N001 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 N001 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 out12 Vp fbr 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\nxm9 out11 Vm fbl 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 Out22 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\nxm11 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\nxm12 N003 Out12 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm12} l={L_xm12}\\nxm13 Out22 Out11 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xm13} l={L_xm13}\\nxm14 out Out22 0 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\nxm15 out Out12 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm15} l={L_xm15}\\nC1 out 0 1e-11\\nC2 out fbr 2.4e-13\\nC3 Out22 fbl 2.4e-13\\nC4 Vm 0 1e-06\\nR1 out Vm 10000000.0\\n\\n.subckt SUB_1 Vbiasn Vbiasp VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 Vbiasn GND 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 Vbiasn 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 Vbiasn Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 Vbiasn Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  R1 N004 0 4k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xm2 Vbiasp Vbiasn 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  xm6 N003 N003 N004 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n.ends SUB_1\\n\\n* Stimulus\\nVinp Vp 0 DC 0.9 AC 1 PULSE(0.9 1.8 10n 1n 1n 1u 2u)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VDD) * 1.8\\n  print power\\n\\n  * AC Analysis\\n  ac dec 100 1 1G\\n  let gain_db = vdb(out)\\n  let phase = 180/PI * cph(v(out))\\n  meas ac dc_gain find gain_db at=1\\n  meas ac f_un when gain_db=0 fall=1\\n  meas ac pm find phase when gain_db=0 fall=1\\n\\n  * Transient Analysis for Slew Rate\\n  tran 1n 2u\\n  meas tran t_rise trig v(out) val=1.0 rise=1 targ v(out) val=1.3 rise=1\\n  let slew_rate = 0.3 / t_rise\\n  print slew_rate\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}

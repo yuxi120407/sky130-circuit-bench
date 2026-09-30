@@ -1,0 +1,176 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 13.17",
+    "page": "384",
+    "circuit_type": "Cross-Coupled Inverter Latch (Metastability Test Circuit)",
+    "description": "Figure 13.17 shows a cross-coupled inverter latch loaded with two 50 fF capacitors at nodes In and Out to simulate the delay and behavior associated with metastability when initialized near VDD/2."
+  },
+  "step2_metrics": {
+    "switching_point_voltage": {
+      "description": "Inverter switching point voltage (Vsp) where Vin = Vout, representing the metastable operating point of the cross-coupled pair",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "384",
+        "reference": "Fig 13.16 & text on page 384-385"
+      },
+      "equation": {
+        "formula": "V_SP = (VDD - |Vthp| + sqrt(beta_n / beta_p) * Vthn) / (1 + sqrt(beta_n / beta_p))",
+        "explanation": "At the switching point, both PMOS and NMOS are in saturation with equal drain currents, setting the metastable voltage where positive feedback initiates.",
+        "assumptions": "Both transistors in saturation; lambda channel-length modulation neglected for first-order Vsp calculation."
+      },
+      "sky130_expected": {
+        "calculation": "With VDD = 1.8 V, Vthn = 0.42 V, |Vthp| = 0.42 V, beta_n = 270u * (10/1) = 2.7 mA/V^2, beta_p = 50u * (20/1) = 1.0 mA/V^2: sqrt(beta_n/beta_p) = sqrt(2.7) = 1.643. V_SP = (1.8 - 0.42 + 1.643 * 0.42) / (1 + 1.643) = (1.38 + 0.690) / 2.643 = 0.783 V (or 0.90 V if beta-matched).",
+        "range": {
+          "min": 0.75,
+          "typical": 0.85,
+          "max": 0.95,
+          "unit": "V"
+        },
+        "reasoning": "Standard CMOS inverters with PMOS/NMOS sizing ratio around 2:1 place Vsp slightly below VDD/2 due to higher electron mobility."
+      },
+      "importance": "essential"
+    },
+    "metastability_resolution_time": {
+      "description": "Time required for the cross-coupled nodes to escape the metastable state and transition to valid logic levels (10% to 90% VDD)",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "384",
+        "reference": "Fig 13.17"
+      },
+      "equation": {
+        "formula": "t_resolve = tau * ln(VDD / (2 * delta_V0)), where tau = C_load / gm",
+        "explanation": "Due to positive feedback around the cross-coupled loop, an initial differential voltage delta_V0 grows exponentially with time constant tau until reaching rail voltages.",
+        "assumptions": "C_load = 50 fF on each node as drawn in Fig. 13.17; initial voltage perturbation delta_V0 = 1 mV from metastable point."
+      },
+      "sky130_expected": {
+        "calculation": "At V_SP \u2248 0.85 V, gm = gmn + gmp \u2248 1.58 mA/V. tau = C_load / gm = 50 fF / 1.58 mA/V \u2248 31.6 ps. For delta_V0 = 1 mV, ln((VDD/2)/delta_V0) = ln(900) \u2248 6.8, yielding an intrinsic regeneration delay of ~0.22 ns. With finite slew rate and settling in layout/models, Baker observes ~2.5 ns in Fig 13.17 simulation.",
+        "range": {
+          "min": 5e-10,
+          "typical": 2.5e-09,
+          "max": 3.8e-09,
+          "unit": "s"
+        },
+        "reasoning": "Baker explicitly notes on page 384: 'It takes approximately 2.5 ns for the In/Out signals to change states' under 50 fF load."
+      },
+      "importance": "essential"
+    },
+    "small_signal_loop_gain": {
+      "description": "Small-signal open-loop voltage gain around the regenerative loop at the metastable point",
+      "unit": "dB",
+      "analysis_type": "DC",
+      "source": {
+        "page": "384",
+        "reference": "Page 384 text"
+      },
+      "equation": {
+        "formula": "T = A_v^2 = (gm * (ro_n || ro_p))^2",
+        "explanation": "The regeneration speed depends directly on the gain around the feedback loop. Higher gain shortens metastability delay and sharpens the butterfly curve transition.",
+        "assumptions": "Small-signal model evaluated at the metastable operating point V_SP."
+      },
+      "sky130_expected": {
+        "calculation": "At ID \u2248 180 uA, ro_n || ro_p = 1 / ((lambda_n + lambda_p) * ID) = 1 / (0.2 * 180u) \u2248 27.8 kOhm. Single inverter gain |Av| = gm * ro = 1.58m * 27.8k \u2248 43.9 (32.8 dB). Loop gain T = Av^2 \u2248 1930 (65.7 dB).",
+        "range": {
+          "min": 40.0,
+          "typical": 65.0,
+          "max": 80.0,
+          "unit": "dB"
+        },
+        "reasoning": "Two cascaded submicron CMOS inverters biased in high-gain saturation provide 50 to 70 dB of loop gain."
+      },
+      "importance": "recommended"
+    },
+    "output_high_voltage": {
+      "description": "Output high voltage level (VOH) after resolving to the stable logic state",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "384",
+        "reference": "Fig 13.16 & Fig 13.17"
+      },
+      "equation": {
+        "formula": "V_OH = VDD",
+        "explanation": "In full CMOS static cross-coupled inverters, PMOS pulls up fully to VDD when the opposing NMOS turns off.",
+        "assumptions": "No resistive load connected to ground."
+      },
+      "sky130_expected": {
+        "calculation": "V_OH = VDD = 1.8 V.",
+        "range": {
+          "min": 1.78,
+          "typical": 1.8,
+          "max": 1.8,
+          "unit": "V"
+        },
+        "reasoning": "Static CMOS logic achieves rail-to-rail voltage swing."
+      },
+      "importance": "essential"
+    },
+    "output_low_voltage": {
+      "description": "Output low voltage level (VOL) after resolving to the stable logic state",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "384",
+        "reference": "Fig 13.16 & Fig 13.17"
+      },
+      "equation": {
+        "formula": "V_OL = 0 V",
+        "explanation": "In full CMOS static cross-coupled inverters, NMOS pulls down fully to 0 V when the opposing PMOS turns off.",
+        "assumptions": "No resistive pull-up."
+      },
+      "sky130_expected": {
+        "calculation": "V_OL = 0 V.",
+        "range": {
+          "min": 0.0,
+          "typical": 0.0,
+          "max": 0.02,
+          "unit": "V"
+        },
+        "reasoning": "Static CMOS pull-down brings the node to ground."
+      },
+      "importance": "essential"
+    },
+    "metastable_current": {
+      "description": "Direct-path supply current drawn by the latch while lingering at the metastable state",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "385",
+        "reference": "Page 385 text (contention and wasted current at metastable state)"
+      },
+      "equation": {
+        "formula": "I_DD,meta = 2 * (1/2 * beta_n * (V_SP - Vthn)^2)",
+        "explanation": "While both inverters are at V_SP, both PMOS and NMOS in each inverter are conducting direct saturation current.",
+        "assumptions": "Both inverters identical and symmetrically biased at V_SP."
+      },
+      "sky130_expected": {
+        "calculation": "For one inverter: I_D \u2248 0.5 * 2.7m * (0.85 - 0.42)^2 \u2248 250 uA. For two inverters: I_DD,meta = 2 * 250 uA \u2248 500 uA.",
+        "range": {
+          "min": 0.0002,
+          "typical": 0.00045,
+          "max": 0.0008,
+          "unit": "A"
+        },
+        "reasoning": "Direct-path current peaks near VDD/2 when both NMOS and PMOS channels are fully open."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient and operating point testbench for the cross-coupled inverter latch under 50 fF capacitive load, simulating metastability resolution delay as depicted in Figure 13.17.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "switching_point_voltage",
+      "metastability_resolution_time",
+      "output_high_voltage",
+      "output_low_voltage",
+      "metastable_current"
+    ],
+    "spice": "* Cross-Coupled Inverter Latch Metastability Simulation (Fig 13.17)\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=1.5u L_xm1=0.15u\n.param W_xm2=3.0u L_xm2=0.15u\n.param W_xm3=1.5u L_xm3=0.15u\n.param W_xm4=3.0u L_xm4=0.15u\n\n* DUT - Cross-coupled inverters with 50fF capacitors\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nVDD VDD 0 1.8\nxm2 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Vin Vout 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 Vin Vout VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\nC1 Vout 0 5e-14\nC2 Vin 0 5e-14\n\n* Initial condition placed near metastable switching point (VDD/2 = 0.9V)\n* with a tiny 0.5mV perturbation to trigger resolution\n.ic v(Vin)=0.9005 v(Vout)=0.8995\n\n.control\n* Run transient analysis for 4ns as in Fig 13.17\ntran 10p 4n uic\n\n* Measure final resolved logic levels\nmeas tran voh max v(Vin)\nmeas tran vol min v(Vout)\n\n* Measure resolution time to reach valid logic levels (10% to 90% of VDD)\nmeas tran t_resolve trig v(Vin) val=0.95 rise=1 targ v(Vin) val=1.62 rise=1\n\n* Measure peak supply current during metastable state\nlet idd = -i(VDD)\nmeas tran idd_meta max idd\n\n* Measure switching point voltage at t=0\nmeas tran v_sp find v(Vin) at=10p\n\nprint voh vol t_resolve idd_meta v_sp\nplot v(Vin) v(Vout)\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 13.17\",\n    \"page\": \"384\",\n    \"circuit_type\": \"Cross-Coupled Inverter Latch (Metastability Test Circuit)\",\n    \"description\": \"Figure 13.17 shows a cross-coupled inverter latch loaded with two 50 fF capacitors at nodes In and Out to simulate the delay and behavior associated with metastability when initialized near VDD/2.\"\n  },\n  \"step2_metrics\": {\n    \"switching_point_voltage\": {\n      \"description\": \"Inverter switching point voltage (Vsp) where Vin = Vout, representing the metastable operating point of the cross-coupled pair\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Fig 13.16 & text on page 384-385\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = (VDD - |Vthp| + sqrt(beta_n / beta_p) * Vthn) / (1 + sqrt(beta_n / beta_p))\",\n        \"explanation\": \"At the switching point, both PMOS and NMOS are in saturation with equal drain currents, setting the metastable voltage where positive feedback initiates.\",\n        \"assumptions\": \"Both transistors in saturation; lambda channel-length modulation neglected for first-order Vsp calculation.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With VDD = 1.8 V, Vthn = 0.42 V, |Vthp| = 0.42 V, beta_n = 270u * (10/1) = 2.7 mA/V^2, beta_p = 50u * (20/1) = 1.0 mA/V^2: sqrt(beta_n/beta_p) = sqrt(2.7) = 1.643. V_SP = (1.8 - 0.42 + 1.643 * 0.42) / (1 + 1.643) = (1.38 + 0.690) / 2.643 = 0.783 V (or 0.90 V if beta-matched).\",\n        \"range\": {\n          \"min\": 0.75,\n          \"typical\": 0.85,\n          \"max\": 0.95,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Standard CMOS inverters with PMOS/NMOS sizing ratio around 2:1 place Vsp slightly below VDD/2 due to higher electron mobility.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"metastability_resolution_time\": {\n      \"description\": \"Time required for the cross-coupled nodes to escape the metastable state and transition to valid logic levels (10% to 90% VDD)\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Fig 13.17\"\n      },\n      \"equation\": {\n        \"formula\": \"t_resolve = tau * ln(VDD / (2 * delta_V0)), where tau = C_load / gm\",\n        \"explanation\": \"Due to positive feedback around the cross-coupled loop, an initial differential voltage delta_V0 grows exponentially with time constant tau until reaching rail voltages.\",\n        \"assumptions\": \"C_load = 50 fF on each node as drawn in Fig. 13.17; initial voltage perturbation delta_V0 = 1 mV from metastable point.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At V_SP \u2248 0.85 V, gm = gmn + gmp \u2248 1.58 mA/V. tau = C_load / gm = 50 fF / 1.58 mA/V \u2248 31.6 ps. For delta_V0 = 1 mV, ln((VDD/2)/delta_V0) = ln(900) \u2248 6.8, yielding an intrinsic regeneration delay of ~0.22 ns. With finite slew rate and settling in layout/models, Baker observes ~2.5 ns in Fig 13.17 simulation.\",\n        \"range\": {\n          \"min\": 0.5e-9,\n          \"typical\": 2.5e-9,\n          \"max\": 3.8e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Baker explicitly notes on page 384: 'It takes approximately 2.5 ns for the In/Out signals to change states' under 50 fF load.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"small_signal_loop_gain\": {\n      \"description\": \"Small-signal open-loop voltage gain around the regenerative loop at the metastable point\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Page 384 text\"\n      },\n      \"equation\": {\n        \"formula\": \"T = A_v^2 = (gm * (ro_n || ro_p))^2\",\n        \"explanation\": \"The regeneration speed depends directly on the gain around the feedback loop. Higher gain shortens metastability delay and sharpens the butterfly curve transition.\",\n        \"assumptions\": \"Small-signal model evaluated at the metastable operating point V_SP.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"At ID \u2248 180 uA, ro_n || ro_p = 1 / ((lambda_n + lambda_p) * ID) = 1 / (0.2 * 180u) \u2248 27.8 kOhm. Single inverter gain |Av| = gm * ro = 1.58m * 27.8k \u2248 43.9 (32.8 dB). Loop gain T = Av^2 \u2248 1930 (65.7 dB).\",\n        \"range\": {\n          \"min\": 40.0,\n          \"typical\": 65.0,\n          \"max\": 80.0,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Two cascaded submicron CMOS inverters biased in high-gain saturation provide 50 to 70 dB of loop gain.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"output_high_voltage\": {\n      \"description\": \"Output high voltage level (VOH) after resolving to the stable logic state\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Fig 13.16 & Fig 13.17\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OH = VDD\",\n        \"explanation\": \"In full CMOS static cross-coupled inverters, PMOS pulls up fully to VDD when the opposing NMOS turns off.\",\n        \"assumptions\": \"No resistive load connected to ground.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_OH = VDD = 1.8 V.\",\n        \"range\": {\n          \"min\": 1.78,\n          \"typical\": 1.80,\n          \"max\": 1.80,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Static CMOS logic achieves rail-to-rail voltage swing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_low_voltage\": {\n      \"description\": \"Output low voltage level (VOL) after resolving to the stable logic state\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"384\",\n        \"reference\": \"Fig 13.16 & Fig 13.17\"\n      },\n      \"equation\": {\n        \"formula\": \"V_OL = 0 V\",\n        \"explanation\": \"In full CMOS static cross-coupled inverters, NMOS pulls down fully to 0 V when the opposing PMOS turns off.\",\n        \"assumptions\": \"No resistive pull-up.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_OL = 0 V.\",\n        \"range\": {\n          \"min\": 0.0,\n          \"typical\": 0.0,\n          \"max\": 0.02,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Static CMOS pull-down brings the node to ground.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"metastable_current\": {\n      \"description\": \"Direct-path supply current drawn by the latch while lingering at the metastable state\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"385\",\n        \"reference\": \"Page 385 text (contention and wasted current at metastable state)\"\n      },\n      \"equation\": {\n        \"formula\": \"I_DD,meta = 2 * (1/2 * beta_n * (V_SP - Vthn)^2)\",\n        \"explanation\": \"While both inverters are at V_SP, both PMOS and NMOS in each inverter are conducting direct saturation current.\",\n        \"assumptions\": \"Both inverters identical and symmetrically biased at V_SP.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For one inverter: I_D \u2248 0.5 * 2.7m * (0.85 - 0.42)^2 \u2248 250 uA. For two inverters: I_DD,meta = 2 * 250 uA \u2248 500 uA.\",\n        \"range\": {\n          \"min\": 200e-6,\n          \"typical\": 450e-6,\n          \"max\": 800e-6,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Direct-path current peaks near VDD/2 when both NMOS and PMOS channels are fully open.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient and operating point testbench for the cross-coupled inverter latch under 50 fF capacitive load, simulating metastability resolution delay as depicted in Figure 13.17.\",\n    \"analyses\": [\"Tran\", \"OP\"],\n    \"metrics_measured\": [\n      \"switching_point_voltage\",\n      \"metastability_resolution_time\",\n      \"output_high_voltage\",\n      \"output_low_voltage\",\n      \"metastable_current\"\n    ],\n    \"spice\": \"* Cross-Coupled Inverter Latch Metastability Simulation (Fig 13.17)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=1.5u L_xm1=0.15u\\n.param W_xm2=3.0u L_xm2=0.15u\\n.param W_xm3=1.5u L_xm3=0.15u\\n.param W_xm4=3.0u L_xm4=0.15u\\n\\n* DUT - Cross-coupled inverters with 50fF capacitors\\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nVDD VDD 0 1.8\\nxm2 Vout Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Vin Vout 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 Vin Vout VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\nC1 Vout 0 5e-14\\nC2 Vin 0 5e-14\\n\\n* Initial condition placed near metastable switching point (VDD/2 = 0.9V)\\n* with a tiny 0.5mV perturbation to trigger resolution\\n.ic v(Vin)=0.9005 v(Vout)=0.8995\\n\\n.control\\n* Run transient analysis for 4ns as in Fig 13.17\\ntran 10p 4n uic\\n\\n* Measure final resolved logic levels\\nmeas tran voh max v(Vin)\\nmeas tran vol min v(Vout)\\n\\n* Measure resolution time to reach valid logic levels (10% to 90% of VDD)\\nmeas tran t_resolve trig v(Vin) val=0.95 rise=1 targ v(Vin) val=1.62 rise=1\\n\\n* Measure peak supply current during metastable state\\nlet idd = -i(VDD)\\nmeas tran idd_meta max idd\\n\\n* Measure switching point voltage at t=0\\nmeas tran v_sp find v(Vin) at=10p\\n\\nprint voh vol t_resolve idd_meta v_sp\\nplot v(Vin) v(Vout)\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```"
+}

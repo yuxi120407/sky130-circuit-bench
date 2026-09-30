@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched-Capacitor Integrator",
+    "description": "A discrete-time non-inverting integrator using switched capacitors and an operational amplifier. It samples the input voltage on CI during phase 1 and transfers the charge to CF during phase 2, integrating the input signal over time.",
+    "node_mapping": {
+      "input": [
+        "Vin"
+      ],
+      "output": [
+        "Vout"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND",
+        "0"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1-V 10.7-MHz Switched-Opamp Bandpass Sigma-Delta Modulator Using Double-Sampling Finite-Gain-Compensation Technique",
+      "figure": "Generic SC Integrator",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "voltage_step": {
+      "description": "Output voltage change per integration cycle",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_step = Vin * (CI / CF) = 0.1V * (1pF / 1pF) = 0.1V",
+        "range": {
+          "min": 0.09,
+          "typical": 0.1,
+          "max": 0.11,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the capacitor ratio and input voltage. Should be exactly 0.1V with ideal components."
+      },
+      "importance": "essential"
+    },
+    "settling_time": {
+      "description": "Time required for the output to settle to 90% of its final step value during the integration phase",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "50 MHz sampling",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Must settle within half a clock period (10ns for 50MHz)",
+        "range": {
+          "min": 1e-09,
+          "typical": 5e-09,
+          "max": 1e-08,
+          "unit": "s"
+        },
+        "reasoning": "For 50MHz operation, the integration phase is <10ns, so settling must be faster than that to avoid errors."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total power dissipated by the circuit",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "12 mW",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on the opamp design. Scaled for 1.8V.",
+        "range": {
+          "min": 0.001,
+          "typical": 0.005,
+          "max": 0.015,
+          "unit": "W"
+        },
+        "reasoning": "Typical SC integrators in this speed range consume a few mW. The paper reports 12mW for the whole modulator."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the integration voltage step and settling time over multiple clock cycles using non-overlapping clocks.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "voltage_step",
+      "settling_time"
+    ],
+    "spice": "* Switched-Capacitor Integrator Testbench\n\n.param C_val = 1p\n.param V_in = 0.1\n\n* DUT (Adapted for standard SPICE syntax)\nXAo Vout XIN 0 amplifier\nXS1 N3 Vin phi1 0 switch_ideal\nCF Vout XIN {C_val}\nCI N2 N3 {C_val}\nXS2 XIN N2 phi2 0 switch_ideal\nXS3 N3 0 phi2 0 switch_ideal\nXS4 N2 0 phi1 0 switch_ideal\n\n* Models and Subcircuits\n.subckt switch_ideal n1 n2 ctrl ctrl_ref\nS1 n1 n2 ctrl ctrl_ref sw_mod\n.model sw_mod sw vt=0.9 vh=0.1 ron=100 roff=1G\n.ends\n\n.subckt amplifier out in_neg in_pos\n* Simple Opamp Macro Model (Gain = 1000, GBW = 159MHz)\nG1 0 int in_pos in_neg 1m\nR1 int 0 1Meg\nC1 int 0 1p\nE1 out 0 int 0 1\n.ends\n\n* Sources\nVVDD VDD 0 DC 1.8\nRdummy VDD 0 1k\nVVIN Vin 0 DC {V_in}\n* 50MHz Non-overlapping clocks\nVphi1 phi1 0 PULSE(0 1.8 0 0.1n 0.1n 9n 20n)\nVphi2 phi2 0 PULSE(0 1.8 10n 0.1n 0.1n 9n 20n)\n\n* Reset switch to initialize CF\nXS_rst Vout XIN rst 0 switch_ideal\nVrst rst 0 PULSE(1.8 0 0 0.1n 0.1n 19n 1000s)\n\n.control\ntran 0.1n 100n\n* Measure voltage step between cycle 1 and cycle 2\nmeas tran vout_c1 find v(Vout) at=39n\nmeas tran vout_c2 find v(Vout) at=59n\nlet v_step = vout_c2 - vout_c1\nprint v_step\n\n* Measure settling time during the 2nd active integration phase (3rd phi2 pulse)\n* Vout goes from 0.1V to 0.2V; 90% of the step is 0.19V\nmeas tran t_settle trig v(phi2) val=0.9 rise=3 targ v(Vout) val=0.19 rise=1\nprint t_settle\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched-Capacitor Integrator\",\n    \"description\": \"A discrete-time non-inverting integrator using switched capacitors and an operational amplifier. It samples the input voltage on CI during phase 1 and transfers the charge to CF during phase 2, integrating the input signal over time.\",\n    \"node_mapping\": {\n      \"input\": [\"Vin\"],\n      \"output\": [\"Vout\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [],\n      \"ground\": [\"GND\", \"0\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1-V 10.7-MHz Switched-Opamp Bandpass Sigma-Delta Modulator Using Double-Sampling Finite-Gain-Compensation Technique\",\n      \"figure\": \"Generic SC Integrator\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"voltage_step\": {\n      \"description\": \"Output voltage change per integration cycle\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_step = Vin * (CI / CF) = 0.1V * (1pF / 1pF) = 0.1V\",\n        \"range\": { \"min\": 0.09, \"typical\": 0.1, \"max\": 0.11, \"unit\": \"V\" },\n        \"reasoning\": \"Determined by the capacitor ratio and input voltage. Should be exactly 0.1V with ideal components.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"settling_time\": {\n      \"description\": \"Time required for the output to settle to 90% of its final step value during the integration phase\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"50 MHz sampling\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Must settle within half a clock period (10ns for 50MHz)\",\n        \"range\": { \"min\": 1e-9, \"typical\": 5e-9, \"max\": 10e-9, \"unit\": \"s\" },\n        \"reasoning\": \"For 50MHz operation, the integration phase is <10ns, so settling must be faster than that to avoid errors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power dissipated by the circuit\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"12 mW\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on the opamp design. Scaled for 1.8V.\",\n        \"range\": { \"min\": 1e-3, \"typical\": 5e-3, \"max\": 15e-3, \"unit\": \"W\" },\n        \"reasoning\": \"Typical SC integrators in this speed range consume a few mW. The paper reports 12mW for the whole modulator.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the integration voltage step and settling time over multiple clock cycles using non-overlapping clocks.\",\n    \"analyses\": [\"Tran\"],\n    \"metrics_measured\": [\"voltage_step\", \"settling_time\"],\n    \"spice\": \"* Switched-Capacitor Integrator Testbench\\n\\n.param C_val = 1p\\n.param V_in = 0.1\\n\\n* DUT (Adapted for standard SPICE syntax)\\nXAo Vout XIN 0 amplifier\\nXS1 N3 Vin phi1 0 switch_ideal\\nCF Vout XIN {C_val}\\nCI N2 N3 {C_val}\\nXS2 XIN N2 phi2 0 switch_ideal\\nXS3 N3 0 phi2 0 switch_ideal\\nXS4 N2 0 phi1 0 switch_ideal\\n\\n* Models and Subcircuits\\n.subckt switch_ideal n1 n2 ctrl ctrl_ref\\nS1 n1 n2 ctrl ctrl_ref sw_mod\\n.model sw_mod sw vt=0.9 vh=0.1 ron=100 roff=1G\\n.ends\\n\\n.subckt amplifier out in_neg in_pos\\n* Simple Opamp Macro Model (Gain = 1000, GBW = 159MHz)\\nG1 0 int in_pos in_neg 1m\\nR1 int 0 1Meg\\nC1 int 0 1p\\nE1 out 0 int 0 1\\n.ends\\n\\n* Sources\\nVVDD VDD 0 DC 1.8\\nRdummy VDD 0 1k\\nVVIN Vin 0 DC {V_in}\\n* 50MHz Non-overlapping clocks\\nVphi1 phi1 0 PULSE(0 1.8 0 0.1n 0.1n 9n 20n)\\nVphi2 phi2 0 PULSE(0 1.8 10n 0.1n 0.1n 9n 20n)\\n\\n* Reset switch to initialize CF\\nXS_rst Vout XIN rst 0 switch_ideal\\nVrst rst 0 PULSE(1.8 0 0 0.1n 0.1n 19n 1000s)\\n\\n.control\\ntran 0.1n 100n\\n* Measure voltage step between cycle 1 and cycle 2\\nmeas tran vout_c1 find v(Vout) at=39n\\nmeas tran vout_c2 find v(Vout) at=59n\\nlet v_step = vout_c2 - vout_c1\\nprint v_step\\n\\n* Measure settling time during the 2nd active integration phase (3rd phi2 pulse)\\n* Vout goes from 0.1V to 0.2V; 90% of the step is 0.19V\\nmeas tran t_settle trig v(phi2) val=0.9 rise=3 targ v(Vout) val=0.19 rise=1\\nprint t_settle\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1035935",
+  "_case": "1035935_image_4"
+}

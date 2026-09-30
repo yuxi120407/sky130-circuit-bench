@@ -1,0 +1,127 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Fully differential capacitive feedback amplifier / Integrator",
+    "description": "This circuit is a fully differential capacitive feedback amplifier, likely serving as a discrete-time integrator or a multiplying digital-to-analog converter (MDAC) stage in a sigma-delta modulator. It uses an operational amplifier with input and feedback capacitors to set the closed-loop gain and perform charge transfer.",
+    "node_mapping": {
+      "input": [
+        "Vstep_p",
+        "Vstep_n"
+      ],
+      "output": [
+        "Vout_p",
+        "Vout_n"
+      ],
+      "supply": [],
+      "bias": [
+        "LABEL_NET_0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 2.5-V Sigma\u2013Delta Modulator for Broadband Communications Applications",
+      "figure": "Generic",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "closed_loop_gain": {
+      "description": "Closed-loop AC gain of the amplifier stage",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "6 dB",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(C_s / C_f) = 20 * log10(2pF / 1pF) = 6.02 dB",
+        "range": {
+          "min": 5.9,
+          "typical": 6.0,
+          "max": 6.1,
+          "unit": "dB"
+        },
+        "reasoning": "The closed-loop gain is strictly determined by the ratio of the input sampling capacitors (C3, C4) to the feedback capacitors (C1, C2)."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "-3dB bandwidth of the closed-loop amplifier",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "4 MHz",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "GBW * beta = 10 MHz * (1pF / 3.1pF) \u2248 3.2 MHz",
+        "range": {
+          "min": 2000000.0,
+          "typical": 4000000.0,
+          "max": 10000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Depends on the core op-amp's gain-bandwidth product and the capacitive feedback factor (beta). Modeled here to match the paper's ~4 MHz target."
+      },
+      "importance": "essential"
+    },
+    "opamp_open_loop_gain": {
+      "description": "Open-loop DC gain of the core operational amplifier",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "95 dB",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm * ro of the cascoded op-amp stages",
+        "range": {
+          "min": 80,
+          "typical": 95,
+          "max": 110,
+          "unit": "dB"
+        },
+        "reasoning": "High open-loop gain is required to minimize leakage and harmonic distortion in the sigma-delta modulator integrator."
+      },
+      "importance": "recommended"
+    },
+    "power_consumption": {
+      "description": "Total power consumption of the block",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "150 mW",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "I_vdd * 1.8V",
+        "range": {
+          "min": 0.001,
+          "typical": 0.005,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "The paper reports 150 mW for the entire broadband modulator. A single integrator op-amp in SKY130 would likely consume 1-10 mW depending on slew rate requirements."
+      },
+      "importance": "optional"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the closed-loop AC gain, bandwidth, and transient step response of the capacitive feedback amplifier.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "closed_loop_gain",
+      "bandwidth",
+      "step_response"
+    ],
+    "spice": "* Capacitive Feedback Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized capacitor values\n.param C_f = 1p\n.param C_s = 2p\n.param C_L = 0.5p\n.param C_p = 0.1p\n\n* Ideal fully differential amplifier subcircuit (Macro-model)\n* Modeled for ~96dB open-loop gain and ~10MHz GBW with 0.5pF load\n.subckt amplifier out_p cm out_n in_m in_p\n  G1 out_p cm in_m cm 31.4u\n  R1 out_p cm 2G\n  G2 out_n cm in_p cm 31.4u\n  R2 out_n cm 2G\n.ends\n\n* DUT (Modified A1 to X1 for subcircuit call, added capacitor values)\nX1 Vout_p LABEL_NET_0 Vout_n N3 N2 amplifier\nC1 Vout_n N2 {C_f}\nC2 Vout_p N3 {C_f}\nC3 N3 Vstep_p {C_s}\nC4 N2 Vstep_n {C_s}\nC5 Vout_n GND {C_L}\nC6 N2 GND {C_p}\nC7 Vout_p GND {C_L}\nC8 N3 GND {C_p}\n\n* DC feedback resistors to establish operating point (1 Gohm)\nR_fb1 Vout_n N2 1G\nR_fb2 Vout_p N3 1G\n\n* Bias and Stimulus\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVstep_p Vstep_p LABEL_NET_0 dc 0 ac 1 pulse(0 0.1 10n 1n 1n 1u 2u)\nVstep_n Vstep_n LABEL_NET_0 dc 0 ac -1 pulse(0 -0.1 10n 1n 1n 1u 2u)\n\n* Dummy VDD for power measurement reference\nVdd vdd 0 1.8\nRdummy vdd 0 1k\n\n* Differential measurement helpers\nE_out_diff out_diff 0 Vout_p Vout_n 1\nE_in_diff in_diff 0 Vstep_p Vstep_n 1\n\n.control\n  * DC Operating Point\n  op\n  print v(Vout_p) v(Vout_n) v(N3) v(N2)\n  let power = -i(Vdd) * 1.8\n  print power\n\n  * AC Analysis for Closed-Loop Gain and Bandwidth\n  ac dec 100 100 100Meg\n  let gain_db = vdb(out_diff) - vdb(in_diff)\n  meas ac midband_gain_db find gain_db at=10k\n  meas ac bw_3db when gain_db=(midband_gain_db - 3) fall=1\n\n  * Transient Analysis for Step Response\n  tran 1n 2u\n  meas tran vout_step_min min v(out_diff)\n  meas tran vout_step_max max v(out_diff)\n  \n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Fully differential capacitive feedback amplifier / Integrator\",\n    \"description\": \"This circuit is a fully differential capacitive feedback amplifier, likely serving as a discrete-time integrator or a multiplying digital-to-analog converter (MDAC) stage in a sigma-delta modulator. It uses an operational amplifier with input and feedback capacitors to set the closed-loop gain and perform charge transfer.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"Vstep_p\",\n        \"Vstep_n\"\n      ],\n      \"output\": [\n        \"Vout_p\",\n        \"Vout_n\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"LABEL_NET_0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 2.5-V Sigma\u2013Delta Modulator for Broadband Communications Applications\",\n      \"figure\": \"Generic\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"closed_loop_gain\": {\n      \"description\": \"Closed-loop AC gain of the amplifier stage\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"6 dB\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(C_s / C_f) = 20 * log10(2pF / 1pF) = 6.02 dB\",\n        \"range\": {\n          \"min\": 5.9,\n          \"typical\": 6.0,\n          \"max\": 6.1,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The closed-loop gain is strictly determined by the ratio of the input sampling capacitors (C3, C4) to the feedback capacitors (C1, C2).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"-3dB bandwidth of the closed-loop amplifier\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"4 MHz\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"GBW * beta = 10 MHz * (1pF / 3.1pF) \u2248 3.2 MHz\",\n        \"range\": {\n          \"min\": 2e6,\n          \"typical\": 4e6,\n          \"max\": 10e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Depends on the core op-amp's gain-bandwidth product and the capacitive feedback factor (beta). Modeled here to match the paper's ~4 MHz target.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"opamp_open_loop_gain\": {\n      \"description\": \"Open-loop DC gain of the core operational amplifier\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"95 dB\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm * ro of the cascoded op-amp stages\",\n        \"range\": {\n          \"min\": 80,\n          \"typical\": 95,\n          \"max\": 110,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"High open-loop gain is required to minimize leakage and harmonic distortion in the sigma-delta modulator integrator.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total power consumption of the block\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"150 mW\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_vdd * 1.8V\",\n        \"range\": {\n          \"min\": 1e-3,\n          \"typical\": 5e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The paper reports 150 mW for the entire broadband modulator. A single integrator op-amp in SKY130 would likely consume 1-10 mW depending on slew rate requirements.\"\n      },\n      \"importance\": \"optional\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the closed-loop AC gain, bandwidth, and transient step response of the capacitive feedback amplifier.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"closed_loop_gain\",\n      \"bandwidth\",\n      \"step_response\"\n    ],\n    \"spice\": \"* Capacitive Feedback Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized capacitor values\\n.param C_f = 1p\\n.param C_s = 2p\\n.param C_L = 0.5p\\n.param C_p = 0.1p\\n\\n* Ideal fully differential amplifier subcircuit (Macro-model)\\n* Modeled for ~96dB open-loop gain and ~10MHz GBW with 0.5pF load\\n.subckt amplifier out_p cm out_n in_m in_p\\n  G1 out_p cm in_m cm 31.4u\\n  R1 out_p cm 2G\\n  G2 out_n cm in_p cm 31.4u\\n  R2 out_n cm 2G\\n.ends\\n\\n* DUT (Modified A1 to X1 for subcircuit call, added capacitor values)\\nX1 Vout_p LABEL_NET_0 Vout_n N3 N2 amplifier\\nC1 Vout_n N2 {C_f}\\nC2 Vout_p N3 {C_f}\\nC3 N3 Vstep_p {C_s}\\nC4 N2 Vstep_n {C_s}\\nC5 Vout_n GND {C_L}\\nC6 N2 GND {C_p}\\nC7 Vout_p GND {C_L}\\nC8 N3 GND {C_p}\\n\\n* DC feedback resistors to establish operating point (1 Gohm)\\nR_fb1 Vout_n N2 1G\\nR_fb2 Vout_p N3 1G\\n\\n* Bias and Stimulus\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVstep_p Vstep_p LABEL_NET_0 dc 0 ac 1 pulse(0 0.1 10n 1n 1n 1u 2u)\\nVstep_n Vstep_n LABEL_NET_0 dc 0 ac -1 pulse(0 -0.1 10n 1n 1n 1u 2u)\\n\\n* Dummy VDD for power measurement reference\\nVdd vdd 0 1.8\\nRdummy vdd 0 1k\\n\\n* Differential measurement helpers\\nE_out_diff out_diff 0 Vout_p Vout_n 1\\nE_in_diff in_diff 0 Vstep_p Vstep_n 1\\n\\n.control\\n  * DC Operating Point\\n  op\\n  print v(Vout_p) v(Vout_n) v(N3) v(N2)\\n  let power = -i(Vdd) * 1.8\\n  print power\\n\\n  * AC Analysis for Closed-Loop Gain and Bandwidth\\n  ac dec 100 100 100Meg\\n  let gain_db = vdb(out_diff) - vdb(in_diff)\\n  meas ac midband_gain_db find gain_db at=10k\\n  meas ac bw_3db when gain_db=(midband_gain_db - 3) fall=1\\n\\n  * Transient Analysis for Step Response\\n  tran 1n 2u\\n  meas tran vout_step_min min v(out_diff)\\n  meas tran vout_step_max max v(out_diff)\\n  \\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "972139",
+  "_case": "972139_image_1"
+}

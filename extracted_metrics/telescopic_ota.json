@@ -1,0 +1,152 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 24.21 (Typical for Baker's CMOS)",
+    "page": "750 (Approximate for Chapter 24)",
+    "circuit_type": "Fully Differential Telescopic OTA",
+    "description": "A fully differential telescopic operational transconductance amplifier (OTA) featuring an NMOS input differential pair, NMOS and PMOS cascodes for high output impedance, and tail/cascode biasing networks."
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "Low-frequency DC open-loop differential gain.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "750",
+        "reference": "Eq 24.45"
+      },
+      "equation": {
+        "formula": "A_v = g_{m3} (R_{outN} || R_{outP})",
+        "explanation": "Gain is the transconductance of the input pair multiplied by the parallel combination of the NMOS and PMOS cascode output impedances.",
+        "assumptions": "R_{outN} = g_{m5} r_{o5} r_{o3} and R_{outP} = g_{m7} r_{o7} r_{o9}"
+      },
+      "sky130_expected": {
+        "calculation": "Assuming W/L_N = 40, W/L_P = 40, I_tail = 20uA (10uA per branch). g_{m3} = sqrt(2 * 270u * 40 * 10u) = 464 uS. g_{m7} = sqrt(2 * 50u * 40 * 10u) = 200 uS. r_o = 1 / (0.1 * 10u) = 1 MOhm. R_{outN} = 464u * 1M * 1M = 464 MOhm. R_{outP} = 200u * 1M * 1M = 200 MOhm. R_out = 464M || 200M = 139 MOhm. A_v = 464u * 139M = 64,496 V/V = 96.2 dB.",
+        "range": {
+          "min": 80,
+          "typical": 96,
+          "max": 105,
+          "unit": "dB"
+        },
+        "reasoning": "Depends heavily on the exact W/L ratios chosen for the parameterized netlist and the resulting channel length modulation (lambda) at the specific operating point."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency where the open-loop gain drops to 0 dB (1 V/V).",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "751",
+        "reference": "Eq 24.48"
+      },
+      "equation": {
+        "formula": "f_{un} = g_{m3} / (2 \\pi C_L)",
+        "explanation": "Determined by the input transconductance charging and discharging the load capacitance.",
+        "assumptions": "Dominant pole is at the output node; non-dominant poles are at much higher frequencies."
+      },
+      "sky130_expected": {
+        "calculation": "g_{m3} = 464 uS. C_L = 1 pF (from netlist). f_{un} = 464u / (2 * pi * 1p) = 73.8 MHz.",
+        "range": {
+          "min": 50000000.0,
+          "typical": 74000000.0,
+          "max": 100000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Scales linearly with the chosen input pair W/L and tail current."
+      },
+      "importance": "essential"
+    },
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "752",
+        "reference": "Eq 24.50"
+      },
+      "equation": {
+        "formula": "SR = I_{tail} / C_L",
+        "explanation": "When a large differential step is applied, one input transistor turns off and the entire tail current is steered into the load capacitor.",
+        "assumptions": "C_L is much larger than internal parasitic capacitances."
+      },
+      "sky130_expected": {
+        "calculation": "I_{tail} = 20 uA. C_L = 1 pF. SR = 20uA / 1pF = 20 V/us.",
+        "range": {
+          "min": 10,
+          "typical": 20,
+          "max": 30,
+          "unit": "V/us"
+        },
+        "reasoning": "Directly proportional to the tail current set by the bias network."
+      },
+      "importance": "essential"
+    },
+    "power_dissipation": {
+      "description": "Total static power consumption of the OTA and its bias network.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "source": {
+        "page": "753",
+        "reference": "Power Discussion"
+      },
+      "equation": {
+        "formula": "P = V_{DD} \\cdot (I_{tail} + \\sum I_{bias})",
+        "explanation": "Sum of currents from the supply multiplied by the supply voltage.",
+        "assumptions": "Static DC conditions."
+      },
+      "sky130_expected": {
+        "calculation": "I_{tail} = 20 uA. Bias branches: IBIAS_N (10uA) + IBIAS_P (10uA) + IBIAS_NC (10uA) = 30 uA. Total current = 50 uA. P = 1.8V * 50uA = 90 uW.",
+        "range": {
+          "min": 8e-05,
+          "typical": 9e-05,
+          "max": 0.0001,
+          "unit": "W"
+        },
+        "reasoning": "Fixed by the ideal current sources in the bias network and the current mirror ratios."
+      },
+      "importance": "recommended"
+    },
+    "output_swing": {
+      "description": "Maximum peak-to-peak differential voltage swing before transistors enter the triode region.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "754",
+        "reference": "Eq 24.55"
+      },
+      "equation": {
+        "formula": "V_{swing,diff} = 2 \\cdot (V_{DD} - 2V_{OD,p} - 3V_{OD,n})",
+        "explanation": "The output is limited by the overdrive voltages (V_DS,sat) of the 5 stacked transistors in the telescopic branch.",
+        "assumptions": "V_OD = V_GS - V_th."
+      },
+      "sky130_expected": {
+        "calculation": "V_{OD,n} approx 43mV (diff pair, cascode) and 86mV (tail). V_{OD,p} approx 100mV (cascode) and 141mV (source). Single-ended swing = 1.8 - (0.100 + 0.141) - (0.043 + 0.043 + 0.086) = 1.387 V. Differential swing = 2 * 1.387 = 2.77 V.",
+        "range": {
+          "min": 2.0,
+          "typical": 2.77,
+          "max": 3.0,
+          "unit": "V"
+        },
+        "reasoning": "Telescopic OTAs have notoriously poor output swing due to the high number of stacked devices."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power, AC open-loop gain, unity-gain frequency, phase margin, and transient slew rate of the Fully Differential Telescopic OTA. Includes an ideal CMFB to stabilize the high-impedance output nodes.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "open_loop_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "slew_rate",
+      "power_dissipation"
+    ],
+    "spice": "* Telescopic OTA Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameter definitions for the parameterized netlist\n.param W_xm1=5 L_xm1=0.5\n.param W_xm2=10 L_xm2=0.5\n.param W_xm3=20 L_xm3=0.5\n.param W_xm4=20 L_xm4=0.5\n.param W_xm5=20 L_xm5=0.5\n.param W_xm6=20 L_xm6=0.5\n.param W_xm7=20 L_xm7=0.5\n.param W_xm8=20 L_xm8=0.5\n.param W_xm9=10 L_xm9=0.5\n.param W_xm10=10 L_xm10=0.5\n.param W_XMN_BIAS=5 L_XMN_BIAS=0.5\n.param W_XMP_BIAS=10 L_XMP_BIAS=0.5\n.param W_XMN_BIASC=1 L_XMN_BIASC=0.5\n\n* --- DUT Netlist ---\n.subckt TELESCOPIC_OTA VBIASN VBIASNC VBIASP1 VBIASP2 VINN VINP VOUTN VOUTP VDD 0\nxm1 ID   VBIASN  0   0  sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm2 NET10 VBIASN 0   0  sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm3 NET8   VINP NET10 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm4 NET014 VINN NET10 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\nxm5 VOUTN VBIASNC NET8   0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5} \nxm6 VOUTP VBIASNC NET014 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\nxm7 VOUTN VBIASP1 NET06 VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\nxm8 VOUTP VBIASP1 NET012 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\nxm9  NET06 VBIASP2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\nxm10 NET012 VBIASP2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\n.ends TELESCOPIC_OTA\n\nVDD VDD 0 DC 1.8\nIBIAS_N VDD VBIASN DC 10e-6\nXMN_BIAS VBIASN VBIASN 0 0 sky130_fd_pr__nfet_01v8 w={W_XMN_BIAS} l={L_XMN_BIAS}\nIBIAS_P VBIASP2 0 DC 10e-6\nXMP_BIAS VBIASP2 VBIASP2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XMP_BIAS} l={L_XMP_BIAS}\nVBIASP1 VBIASP1 0 DC=1.15\nIBIAS_NC VDD VBIASNC DC 10e-6\nXMN_BIASC VBIASNC VBIASNC 0 0 sky130_fd_pr__nfet_01v8 w={W_XMN_BIASC} l={L_XMN_BIASC}\n\nXOTA VBIASN VBIASNC VBIASP1 VBIASP2 VINN VINP VOUTN VOUTP VDD 0 TELESCOPIC_OTA\nCLOADP VOUTP 0 1e-12\nCLOADN VOUTN 0 1e-12\n* --- End DUT Netlist ---\n\n* Ideal Common-Mode Feedback (CMFB) to hold output CM at 0.9V\nB_cmfb_p VOUTP 0 I=1e-3 * ( (V(VOUTP)+V(VOUTN))/2 - 0.9 )\nB_cmfb_n VOUTN 0 I=1e-3 * ( (V(VOUTP)+V(VOUTN))/2 - 0.9 )\n\n* Stimulus\nV_IN_CM V_CM 0 DC 0.9\nV_IN_DIFF V_DIFF 0 DC 0 AC 1 PULSE(-0.5 0.5 10n 100p 100p 100n 200n)\n\nB_INP VINP 0 V=V(V_CM) + 0.5*V(V_DIFF)\nB_INN VINN 0 V=V(V_CM) - 0.5*V(V_DIFF)\n\n* Differential Output Node for easy measurement\nB_OUT_DIFF VOUT_DIFF 0 V=V(VOUTP) - V(VOUTN)\n\n.control\n* 1. DC Operating Point & Power\nop\nlet power = -i(VDD) * 1.8\nprint power\n\n* 2. AC Analysis\nac dec 100 1 1G\nlet gain_db = vdb(VOUT_DIFF)\nlet phase = 180/PI * cph(v(VOUT_DIFF))\nmeas ac dc_gain find gain_db at=10\nmeas ac f_ug when gain_db=0 fall=1\nmeas ac phase_at_ug find phase when gain_db=0 fall=1\nlet pm = 180 + phase_at_ug\nprint pm\n\n* 3. Transient Analysis (Slew Rate)\ntran 100p 200n\n* Measure time to slew 1V (from -0.5V to +0.5V)\nmeas tran t_rise trig v(VOUT_DIFF) val=-0.5 rise=1 targ v(VOUT_DIFF) val=0.5 rise=1\nlet sr_rise = 1.0 / t_rise\nprint sr_rise\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 24.21 (Typical for Baker's CMOS)\",\n    \"page\": \"750 (Approximate for Chapter 24)\",\n    \"circuit_type\": \"Fully Differential Telescopic OTA\",\n    \"description\": \"A fully differential telescopic operational transconductance amplifier (OTA) featuring an NMOS input differential pair, NMOS and PMOS cascodes for high output impedance, and tail/cascode biasing networks.\"\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"Low-frequency DC open-loop differential gain.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"750\",\n        \"reference\": \"Eq 24.45\"\n      },\n      \"equation\": {\n        \"formula\": \"A_v = g_{m3} (R_{outN} || R_{outP})\",\n        \"explanation\": \"Gain is the transconductance of the input pair multiplied by the parallel combination of the NMOS and PMOS cascode output impedances.\",\n        \"assumptions\": \"R_{outN} = g_{m5} r_{o5} r_{o3} and R_{outP} = g_{m7} r_{o7} r_{o9}\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming W/L_N = 40, W/L_P = 40, I_tail = 20uA (10uA per branch). g_{m3} = sqrt(2 * 270u * 40 * 10u) = 464 uS. g_{m7} = sqrt(2 * 50u * 40 * 10u) = 200 uS. r_o = 1 / (0.1 * 10u) = 1 MOhm. R_{outN} = 464u * 1M * 1M = 464 MOhm. R_{outP} = 200u * 1M * 1M = 200 MOhm. R_out = 464M || 200M = 139 MOhm. A_v = 464u * 139M = 64,496 V/V = 96.2 dB.\",\n        \"range\": {\n          \"min\": 80,\n          \"typical\": 96,\n          \"max\": 105,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Depends heavily on the exact W/L ratios chosen for the parameterized netlist and the resulting channel length modulation (lambda) at the specific operating point.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency where the open-loop gain drops to 0 dB (1 V/V).\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"751\",\n        \"reference\": \"Eq 24.48\"\n      },\n      \"equation\": {\n        \"formula\": \"f_{un} = g_{m3} / (2 \\\\pi C_L)\",\n        \"explanation\": \"Determined by the input transconductance charging and discharging the load capacitance.\",\n        \"assumptions\": \"Dominant pole is at the output node; non-dominant poles are at much higher frequencies.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"g_{m3} = 464 uS. C_L = 1 pF (from netlist). f_{un} = 464u / (2 * pi * 1p) = 73.8 MHz.\",\n        \"range\": {\n          \"min\": 50e6,\n          \"typical\": 74e6,\n          \"max\": 100e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Scales linearly with the chosen input pair W/L and tail current.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"752\",\n        \"reference\": \"Eq 24.50\"\n      },\n      \"equation\": {\n        \"formula\": \"SR = I_{tail} / C_L\",\n        \"explanation\": \"When a large differential step is applied, one input transistor turns off and the entire tail current is steered into the load capacitor.\",\n        \"assumptions\": \"C_L is much larger than internal parasitic capacitances.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_{tail} = 20 uA. C_L = 1 pF. SR = 20uA / 1pF = 20 V/us.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 20,\n          \"max\": 30,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Directly proportional to the tail current set by the bias network.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total static power consumption of the OTA and its bias network.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"source\": {\n        \"page\": \"753\",\n        \"reference\": \"Power Discussion\"\n      },\n      \"equation\": {\n        \"formula\": \"P = V_{DD} \\\\cdot (I_{tail} + \\\\sum I_{bias})\",\n        \"explanation\": \"Sum of currents from the supply multiplied by the supply voltage.\",\n        \"assumptions\": \"Static DC conditions.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_{tail} = 20 uA. Bias branches: IBIAS_N (10uA) + IBIAS_P (10uA) + IBIAS_NC (10uA) = 30 uA. Total current = 50 uA. P = 1.8V * 50uA = 90 uW.\",\n        \"range\": {\n          \"min\": 80e-6,\n          \"typical\": 90e-6,\n          \"max\": 100e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Fixed by the ideal current sources in the bias network and the current mirror ratios.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"output_swing\": {\n      \"description\": \"Maximum peak-to-peak differential voltage swing before transistors enter the triode region.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"754\",\n        \"reference\": \"Eq 24.55\"\n      },\n      \"equation\": {\n        \"formula\": \"V_{swing,diff} = 2 \\\\cdot (V_{DD} - 2V_{OD,p} - 3V_{OD,n})\",\n        \"explanation\": \"The output is limited by the overdrive voltages (V_DS,sat) of the 5 stacked transistors in the telescopic branch.\",\n        \"assumptions\": \"V_OD = V_GS - V_th.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_{OD,n} approx 43mV (diff pair, cascode) and 86mV (tail). V_{OD,p} approx 100mV (cascode) and 141mV (source). Single-ended swing = 1.8 - (0.100 + 0.141) - (0.043 + 0.043 + 0.086) = 1.387 V. Differential swing = 2 * 1.387 = 2.77 V.\",\n        \"range\": {\n          \"min\": 2.0,\n          \"typical\": 2.77,\n          \"max\": 3.0,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Telescopic OTAs have notoriously poor output swing due to the high number of stacked devices.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power, AC open-loop gain, unity-gain frequency, phase margin, and transient slew rate of the Fully Differential Telescopic OTA. Includes an ideal CMFB to stabilize the high-impedance output nodes.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"open_loop_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"slew_rate\",\n      \"power_dissipation\"\n    ],\n    \"spice\": \"* Telescopic OTA Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameter definitions for the parameterized netlist\\n.param W_xm1=5 L_xm1=0.5\\n.param W_xm2=10 L_xm2=0.5\\n.param W_xm3=20 L_xm3=0.5\\n.param W_xm4=20 L_xm4=0.5\\n.param W_xm5=20 L_xm5=0.5\\n.param W_xm6=20 L_xm6=0.5\\n.param W_xm7=20 L_xm7=0.5\\n.param W_xm8=20 L_xm8=0.5\\n.param W_xm9=10 L_xm9=0.5\\n.param W_xm10=10 L_xm10=0.5\\n.param W_XMN_BIAS=5 L_XMN_BIAS=0.5\\n.param W_XMP_BIAS=10 L_XMP_BIAS=0.5\\n.param W_XMN_BIASC=1 L_XMN_BIASC=0.5\\n\\n* --- DUT Netlist ---\\n.subckt TELESCOPIC_OTA VBIASN VBIASNC VBIASP1 VBIASP2 VINN VINP VOUTN VOUTP VDD 0\\nxm1 ID   VBIASN  0   0  sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 NET10 VBIASN 0   0  sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 NET8   VINP NET10 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm4 NET014 VINN NET10 0 sky130_fd_pr__nfet_01v8 w={W_xm4} l={L_xm4}\\nxm5 VOUTN VBIASNC NET8   0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5} \\nxm6 VOUTP VBIASNC NET014 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\nxm7 VOUTN VBIASP1 NET06 VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\nxm8 VOUTP VBIASP1 NET012 VDD sky130_fd_pr__pfet_01v8 w={W_xm8} l={L_xm8}\\nxm9  NET06 VBIASP2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm9} l={L_xm9}\\nxm10 NET012 VBIASP2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm10} l={L_xm10}\\n.ends TELESCOPIC_OTA\\n\\nVDD VDD 0 DC 1.8\\nIBIAS_N VDD VBIASN DC 10e-6\\nXMN_BIAS VBIASN VBIASN 0 0 sky130_fd_pr__nfet_01v8 w={W_XMN_BIAS} l={L_XMN_BIAS}\\nIBIAS_P VBIASP2 0 DC 10e-6\\nXMP_BIAS VBIASP2 VBIASP2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_XMP_BIAS} l={L_XMP_BIAS}\\nVBIASP1 VBIASP1 0 DC=1.15\\nIBIAS_NC VDD VBIASNC DC 10e-6\\nXMN_BIASC VBIASNC VBIASNC 0 0 sky130_fd_pr__nfet_01v8 w={W_XMN_BIASC} l={L_XMN_BIASC}\\n\\nXOTA VBIASN VBIASNC VBIASP1 VBIASP2 VINN VINP VOUTN VOUTP VDD 0 TELESCOPIC_OTA\\nCLOADP VOUTP 0 1e-12\\nCLOADN VOUTN 0 1e-12\\n* --- End DUT Netlist ---\\n\\n* Ideal Common-Mode Feedback (CMFB) to hold output CM at 0.9V\\nB_cmfb_p VOUTP 0 I=1e-3 * ( (V(VOUTP)+V(VOUTN))/2 - 0.9 )\\nB_cmfb_n VOUTN 0 I=1e-3 * ( (V(VOUTP)+V(VOUTN))/2 - 0.9 )\\n\\n* Stimulus\\nV_IN_CM V_CM 0 DC 0.9\\nV_IN_DIFF V_DIFF 0 DC 0 AC 1 PULSE(-0.5 0.5 10n 100p 100p 100n 200n)\\n\\nB_INP VINP 0 V=V(V_CM) + 0.5*V(V_DIFF)\\nB_INN VINN 0 V=V(V_CM) - 0.5*V(V_DIFF)\\n\\n* Differential Output Node for easy measurement\\nB_OUT_DIFF VOUT_DIFF 0 V=V(VOUTP) - V(VOUTN)\\n\\n.control\\n* 1. DC Operating Point & Power\\nop\\nlet power = -i(VDD) * 1.8\\nprint power\\n\\n* 2. AC Analysis\\nac dec 100 1 1G\\nlet gain_db = vdb(VOUT_DIFF)\\nlet phase = 180/PI * cph(v(VOUT_DIFF))\\nmeas ac dc_gain find gain_db at=10\\nmeas ac f_ug when gain_db=0 fall=1\\nmeas ac phase_at_ug find phase when gain_db=0 fall=1\\nlet pm = 180 + phase_at_ug\\nprint pm\\n\\n* 3. Transient Analysis (Slew Rate)\\ntran 100p 200n\\n* Measure time to slew 1V (from -0.5V to +0.5V)\\nmeas tran t_rise trig v(VOUT_DIFF) val=-0.5 rise=1 targ v(VOUT_DIFF) val=0.5 rise=1\\nlet sr_rise = 1.0 / t_rise\\nprint sr_rise\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

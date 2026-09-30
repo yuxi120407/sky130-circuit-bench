@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Active-RC Loop Filter (Fully Differential Integrator)",
+    "description": "This circuit is a fully differential active-RC integrator/filter used as a loop filter in a continuous-time delta-sigma modulator. It provides noise shaping and high gain in the audio band to achieve high SNR, utilizing a two-stage cascaded amplifier design with Miller compensation.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "GND"
+      ],
+      "output": [
+        "N2",
+        "N0"
+      ],
+      "supply": [],
+      "bias": [
+        "LABEL_NET_0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Delta-Sigma Modulator for a 1-Bit Digital Switching Amplifier",
+      "figure": "Generic",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "dc_gain": {
+      "description": "Closed-loop DC gain of the active-RC filter.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "111 dB (Op-amp open-loop)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(R3/R6)",
+        "range": {
+          "min": 19,
+          "typical": 20,
+          "max": 21,
+          "unit": "dB"
+        },
+        "reasoning": "Determined by the feedback resistor ratio (assuming 100k/10k for typical audio integrator)."
+      },
+      "importance": "essential"
+    },
+    "bandwidth": {
+      "description": "Unity gain frequency or -3dB bandwidth of the filter.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "22 kHz (Audio band)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * PI * R3 * C2)",
+        "range": {
+          "min": 10000,
+          "typical": 15900,
+          "max": 22000,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by the RC time constant of the feedback network (assuming 100k and 1nF)."
+      },
+      "importance": "essential"
+    },
+    "thd": {
+      "description": "Total Harmonic Distortion for a 1kHz sine wave.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "0.0015%",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Simulated via Fourier analysis",
+        "range": {
+          "min": 0.001,
+          "typical": 0.01,
+          "max": 0.1,
+          "unit": "%"
+        },
+        "reasoning": "Depends on the linearity of the op-amp and the voltage swing. Expected to be low due to high loop gain."
+      },
+      "importance": "essential"
+    },
+    "snr": {
+      "description": "Signal-to-Noise Ratio integrated over the audio band (10 Hz to 22 kHz).",
+      "unit": "dB",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "111 dB",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(Vsig_rms / Vnoise_rms)",
+        "range": {
+          "min": 90,
+          "typical": 100,
+          "max": 120,
+          "unit": "dB"
+        },
+        "reasoning": "Thermal noise from resistors dominates. Vnoise ~ sqrt(4kTR * BW)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure AC response (Gain, Bandwidth), Transient response (THD), and Noise (SNR) of the Delta-Sigma loop filter.",
+    "analyses": [
+      "AC",
+      "Tran",
+      "Noise"
+    ],
+    "metrics_measured": [
+      "dc_gain",
+      "bandwidth",
+      "thd",
+      "snr"
+    ],
+    "spice": "* Delta-Sigma Modulator Loop Filter Testbench\n.lib \"${SKY130_PDK}\" tt\n.param VDD=1.8\n\n* Behavioral Amplifier Subcircuit (Fully Differential)\n.subckt amplifier outP outN inP inN\nG1 outP 0 inP inN 10m\nG2 outN 0 inN inP 10m\nR1 outP 0 100k\nR2 outN 0 100k\nC1 outP 0 1p\nC2 outN 0 1p\n.ends\n\n* DUT (Modified to include 'X' for subcircuits and typical component values)\nXOP2 N2 N0 N6 N4 amplifier\nXOP1 N6 N4 A N3 amplifier\nR1 N6 N7 1k\nR2 N3 GND 10k\nR3 A N2 100k\nR4 N4 N5 1k\nR5 N0 N3 100k\nR6 A LABEL_NET_0 10k\nC1 N2 N7 10p\nC2 A N2 1n\nC3 N0 N5 10p\nC4 N0 N3 1n\n\n* Differential Output Converter for easy measurement\nE_diff out_diff 0 N2 N0 1\n\n* Sources\nVLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 1 SIN(0.9 0.1 1k)\n\n.control\n* AC Analysis\nac dec 100 1 10Meg\nlet gain_db = vdb(out_diff)\nlet phase = 180/PI * cph(v(out_diff))\nmeas ac dc_gain find gain_db at=10\nmeas ac ugf when gain_db=0 fall=1\nmeas ac phase_margin find phase when gain_db=0 fall=1\n\n* Transient Analysis\ntran 1u 5m\nmeas tran vout_max max v(out_diff)\nmeas tran vout_min min v(out_diff)\nfourier 1k v(out_diff)\n\n* Noise Analysis\nnoise v(out_diff) VLABEL_NET_0 dec 100 10 22k\nsetplot noise1\nprint inoise_total onoise_total\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Active-RC Loop Filter (Fully Differential Integrator)\",\n    \"description\": \"This circuit is a fully differential active-RC integrator/filter used as a loop filter in a continuous-time delta-sigma modulator. It provides noise shaping and high gain in the audio band to achieve high SNR, utilizing a two-stage cascaded amplifier design with Miller compensation.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"GND\"\n      ],\n      \"output\": [\n        \"N2\",\n        \"N0\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"LABEL_NET_0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Delta-Sigma Modulator for a 1-Bit Digital Switching Amplifier\",\n      \"figure\": \"Generic\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"dc_gain\": {\n      \"description\": \"Closed-loop DC gain of the active-RC filter.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"111 dB (Op-amp open-loop)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(R3/R6)\",\n        \"range\": {\n          \"min\": 19,\n          \"typical\": 20,\n          \"max\": 21,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined by the feedback resistor ratio (assuming 100k/10k for typical audio integrator).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth\": {\n      \"description\": \"Unity gain frequency or -3dB bandwidth of the filter.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"22 kHz (Audio band)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * PI * R3 * C2)\",\n        \"range\": {\n          \"min\": 10000,\n          \"typical\": 15900,\n          \"max\": 22000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by the RC time constant of the feedback network (assuming 100k and 1nF).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"thd\": {\n      \"description\": \"Total Harmonic Distortion for a 1kHz sine wave.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"0.0015%\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Simulated via Fourier analysis\",\n        \"range\": {\n          \"min\": 0.001,\n          \"typical\": 0.01,\n          \"max\": 0.1,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Depends on the linearity of the op-amp and the voltage swing. Expected to be low due to high loop gain.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"snr\": {\n      \"description\": \"Signal-to-Noise Ratio integrated over the audio band (10 Hz to 22 kHz).\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"111 dB\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(Vsig_rms / Vnoise_rms)\",\n        \"range\": {\n          \"min\": 90,\n          \"typical\": 100,\n          \"max\": 120,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Thermal noise from resistors dominates. Vnoise ~ sqrt(4kTR * BW).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure AC response (Gain, Bandwidth), Transient response (THD), and Noise (SNR) of the Delta-Sigma loop filter.\",\n    \"analyses\": [\n      \"AC\",\n      \"Tran\",\n      \"Noise\"\n    ],\n    \"metrics_measured\": [\n      \"dc_gain\",\n      \"bandwidth\",\n      \"thd\",\n      \"snr\"\n    ],\n    \"spice\": \"* Delta-Sigma Modulator Loop Filter Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n.param VDD=1.8\\n\\n* Behavioral Amplifier Subcircuit (Fully Differential)\\n.subckt amplifier outP outN inP inN\\nG1 outP 0 inP inN 10m\\nG2 outN 0 inN inP 10m\\nR1 outP 0 100k\\nR2 outN 0 100k\\nC1 outP 0 1p\\nC2 outN 0 1p\\n.ends\\n\\n* DUT (Modified to include 'X' for subcircuits and typical component values)\\nXOP2 N2 N0 N6 N4 amplifier\\nXOP1 N6 N4 A N3 amplifier\\nR1 N6 N7 1k\\nR2 N3 GND 10k\\nR3 A N2 100k\\nR4 N4 N5 1k\\nR5 N0 N3 100k\\nR6 A LABEL_NET_0 10k\\nC1 N2 N7 10p\\nC2 A N2 1n\\nC3 N0 N5 10p\\nC4 N0 N3 1n\\n\\n* Differential Output Converter for easy measurement\\nE_diff out_diff 0 N2 N0 1\\n\\n* Sources\\nVLABEL_NET_0 LABEL_NET_0 0 DC 0.9 AC 1 SIN(0.9 0.1 1k)\\n\\n.control\\n* AC Analysis\\nac dec 100 1 10Meg\\nlet gain_db = vdb(out_diff)\\nlet phase = 180/PI * cph(v(out_diff))\\nmeas ac dc_gain find gain_db at=10\\nmeas ac ugf when gain_db=0 fall=1\\nmeas ac phase_margin find phase when gain_db=0 fall=1\\n\\n* Transient Analysis\\ntran 1u 5m\\nmeas tran vout_max max v(out_diff)\\nmeas tran vout_min min v(out_diff)\\nfourier 1k v(out_diff)\\n\\n* Noise Analysis\\nnoise v(out_diff) VLABEL_NET_0 dec 100 10 22k\\nsetplot noise1\\nprint inoise_total onoise_total\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1501985",
+  "_case": "1501985_image_9"
+}

@@ -1,0 +1,105 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Stacked NMOS Switch (Sustainer Driver Sub-circuit)",
+    "description": "A series stack of four NMOS transistors used as a high-voltage tolerant switch in an AC plasma display panel driver. The stacked configuration distributes high voltage stress across multiple devices, though in this scaled 1.8V testbench it operates as a standard pull-down network.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_1",
+        "LABEL_NET_0",
+        "LABEL_NET_3",
+        "LABEL_NET_5"
+      ],
+      "output": [
+        "LABEL_NET_4"
+      ],
+      "supply": [],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Multilevel Voltage Wave-Shaping Display Driver for AC Plasma Display Panel Application",
+      "figure": "N/A",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "v_out_on": {
+      "description": "Output voltage when the switch stack is fully ON.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "High voltage discrete/power process"
+      },
+      "sky130_expected": {
+        "calculation": "Due to an extraction artifact where XM4's bulk is tied to its gate (LABEL_NET_5) instead of source, a forward-biased diode injects current into N2 when the gate is driven to 1.8V. N2 settles at ~1V (1.8V - Vdiode). The output LABEL_NET_4 pulls down to ~1V instead of 0V.",
+        "range": {
+          "min": 0.8,
+          "typical": 1.0,
+          "max": 1.2,
+          "unit": "V"
+        },
+        "reasoning": "Determined by the voltage divider between the forward-biased bulk-source diode of XM4 and the ON-resistance of the lower three transistors (XM3, XM1, XM2)."
+      },
+      "importance": "essential"
+    },
+    "t_fall": {
+      "description": "Fall time of the output node when the switch turns ON.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "250 ns - 510 ns",
+        "technology": "High voltage discrete/power process"
+      },
+      "sky130_expected": {
+        "calculation": "Time constant of the stack's ON resistance (~1 kOhm) discharging a 1 pF load capacitor is ~1 ns.",
+        "range": {
+          "min": 5e-10,
+          "typical": 1e-09,
+          "max": 5e-09,
+          "unit": "s"
+        },
+        "reasoning": "Scaled down significantly from the paper's high-voltage, high-capacitance (66 nF) discrete power devices to SKY130 on-chip dimensions."
+      },
+      "importance": "essential"
+    },
+    "i_leakage": {
+      "description": "Leakage current through the switch stack when OFF.",
+      "unit": "A",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "High voltage discrete/power process"
+      },
+      "sky130_expected": {
+        "calculation": "Subthreshold leakage of 4 series NMOS devices with W=5u, L=0.5u.",
+        "range": {
+          "min": 1e-12,
+          "typical": 1e-11,
+          "max": 1e-09,
+          "unit": "A"
+        },
+        "reasoning": "Series stacking significantly reduces leakage due to the stack effect."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the switching characteristics, ON-state voltage, and OFF-state leakage of the stacked NMOS switch.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "v_out_on",
+      "v_out_off",
+      "t_fall",
+      "i_leakage"
+    ],
+    "spice": "* Multilevel Voltage Wave-Shaping Display Driver Switch Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n\nXM1 N1 LABEL_NET_0 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N4 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N2 LABEL_NET_3 N1 N1 sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 LABEL_NET_4 LABEL_NET_5 N2 LABEL_NET_5 sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N4 N4 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N4 N4 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N3 N3 N0 N0 sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\n\n* Power supply and load\nVDD VDD 0 1.8\nV_meas VDD VDD_meas 0\nR_pullup VDD_meas LABEL_NET_4 10k\nC_load LABEL_NET_4 0 1p\n\n* Gate drives\nV_g1 LABEL_NET_1 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\nV_g2 LABEL_NET_0 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\nV_g3 LABEL_NET_3 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\nV_g4 LABEL_NET_5 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\n\n* Dummy resistors for floating nodes (artifacts from extraction)\nR_dummy1 N3 0 1G\nR_dummy2 N0 0 1G\n\n.control\ntran 10p 20n\n\n* Measure ON and OFF voltages\nmeas tran v_out_off find v(LABEL_NET_4) at=1n\nmeas tran v_out_on find v(LABEL_NET_4) at=10n\n\n* Measure currents (Note: I(V_meas) is negative when flowing from VDD to circuit)\nmeas tran i_leak find i(V_meas) at=1n\nmeas tran i_on find i(V_meas) at=10n\n\n* Measure fall time (target 1.4V due to bulk diode clamping artifact on XM4)\nmeas tran t_fall trig v(LABEL_NET_1) val=0.9 rise=1 targ v(LABEL_NET_4) val=1.4 fall=1\n\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Stacked NMOS Switch (Sustainer Driver Sub-circuit)\",\n    \"description\": \"A series stack of four NMOS transistors used as a high-voltage tolerant switch in an AC plasma display panel driver. The stacked configuration distributes high voltage stress across multiple devices, though in this scaled 1.8V testbench it operates as a standard pull-down network.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_1\",\n        \"LABEL_NET_0\",\n        \"LABEL_NET_3\",\n        \"LABEL_NET_5\"\n      ],\n      \"output\": [\n        \"LABEL_NET_4\"\n      ],\n      \"supply\": [],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Multilevel Voltage Wave-Shaping Display Driver for AC Plasma Display Panel Application\",\n      \"figure\": \"N/A\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"v_out_on\": {\n      \"description\": \"Output voltage when the switch stack is fully ON.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"High voltage discrete/power process\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Due to an extraction artifact where XM4's bulk is tied to its gate (LABEL_NET_5) instead of source, a forward-biased diode injects current into N2 when the gate is driven to 1.8V. N2 settles at ~1V (1.8V - Vdiode). The output LABEL_NET_4 pulls down to ~1V instead of 0V.\",\n        \"range\": {\n          \"min\": 0.8,\n          \"typical\": 1.0,\n          \"max\": 1.2,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Determined by the voltage divider between the forward-biased bulk-source diode of XM4 and the ON-resistance of the lower three transistors (XM3, XM1, XM2).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_fall\": {\n      \"description\": \"Fall time of the output node when the switch turns ON.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"250 ns - 510 ns\",\n        \"technology\": \"High voltage discrete/power process\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Time constant of the stack's ON resistance (~1 kOhm) discharging a 1 pF load capacitor is ~1 ns.\",\n        \"range\": {\n          \"min\": 0.5e-9,\n          \"typical\": 1e-9,\n          \"max\": 5e-9,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Scaled down significantly from the paper's high-voltage, high-capacitance (66 nF) discrete power devices to SKY130 on-chip dimensions.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"i_leakage\": {\n      \"description\": \"Leakage current through the switch stack when OFF.\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"High voltage discrete/power process\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Subthreshold leakage of 4 series NMOS devices with W=5u, L=0.5u.\",\n        \"range\": {\n          \"min\": 1e-12,\n          \"typical\": 10e-12,\n          \"max\": 1e-9,\n          \"unit\": \"A\"\n        },\n        \"reasoning\": \"Series stacking significantly reduces leakage due to the stack effect.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the switching characteristics, ON-state voltage, and OFF-state leakage of the stacked NMOS switch.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"v_out_on\",\n      \"v_out_off\",\n      \"t_fall\",\n      \"i_leakage\"\n    ],\n    \"spice\": \"* Multilevel Voltage Wave-Shaping Display Driver Switch Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n\\nXM1 N1 LABEL_NET_0 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N4 LABEL_NET_1 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N2 LABEL_NET_3 N1 N1 sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 LABEL_NET_4 LABEL_NET_5 N2 LABEL_NET_5 sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N4 N4 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N4 N4 N4 N4 sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N3 N3 N0 N0 sky130_fd_pr__nfet_01v8 l={L_xm7} w={W_xm7}\\n\\n* Power supply and load\\nVDD VDD 0 1.8\\nV_meas VDD VDD_meas 0\\nR_pullup VDD_meas LABEL_NET_4 10k\\nC_load LABEL_NET_4 0 1p\\n\\n* Gate drives\\nV_g1 LABEL_NET_1 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\\nV_g2 LABEL_NET_0 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\\nV_g3 LABEL_NET_3 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\\nV_g4 LABEL_NET_5 0 PULSE(0 1.8 2n 0.1n 0.1n 10n 20n)\\n\\n* Dummy resistors for floating nodes (artifacts from extraction)\\nR_dummy1 N3 0 1G\\nR_dummy2 N0 0 1G\\n\\n.control\\ntran 10p 20n\\n\\n* Measure ON and OFF voltages\\nmeas tran v_out_off find v(LABEL_NET_4) at=1n\\nmeas tran v_out_on find v(LABEL_NET_4) at=10n\\n\\n* Measure currents (Note: I(V_meas) is negative when flowing from VDD to circuit)\\nmeas tran i_leak find i(V_meas) at=1n\\nmeas tran i_on find i(V_meas) at=10n\\n\\n* Measure fall time (target 1.4V due to bulk diode clamping artifact on XM4)\\nmeas tran t_fall trig v(LABEL_NET_1) val=0.9 rise=1 targ v(LABEL_NET_4) val=1.4 fall=1\\n\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1201996",
+  "_case": "1201996_image_6_b"
+}

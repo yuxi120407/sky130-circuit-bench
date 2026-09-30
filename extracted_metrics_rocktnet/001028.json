@@ -1,0 +1,151 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Continuous-Time Comparator",
+    "description": "A two-stage fully differential continuous-time comparator used in the automatic switched-capacitor (SC) tuning loop of the frequency synthesizer. Each stage consists of a PMOS differential pair with diode-connected NMOS loads, followed by NMOS common-source amplifiers with PMOS current source loads to provide high voltage gain for resolving small voltage differences.",
+    "node_mapping": {
+      "input": [
+        "IN",
+        "VLOW"
+      ],
+      "output": [
+        "L",
+        "L_BAR"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N_BIAS"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 900-MHz 2.5-mA CMOS Frequency Synthesizer with an Automatic SC Tuning Loop",
+      "figure": "Not specified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the comparator.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2.5 mA (for entire synthesizer)",
+        "technology": "0.6um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "The circuit has 7 current branches (1 bias, 2 tails, 4 CS loads). Assuming a 10uA bias current, the total current is 70uA. Power = 70uA * 1.8V = 126 uW.",
+        "range": {
+          "min": "100u",
+          "typical": "126u",
+          "max": "300u",
+          "unit": "W"
+        },
+        "reasoning": "Based on a standard 10uA bias current scaled across the 1:1 current mirrors."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Maximum low-frequency voltage gain from input to output.",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Stage 1 diff pair gain: gm2/gm10 \u2248 sqrt(up/un) \u2248 0.43. Stage 1 CS amp gain: gm4 * (ro4 || ro16) \u2248 116. Total stage 1 gain \u2248 50 V/V. Stage 2 is identical. Total DC gain \u2248 50 * 50 = 2500 V/V (68 dB).",
+        "range": {
+          "min": "1000",
+          "typical": "2500",
+          "max": "5000",
+          "unit": "V/V"
+        },
+        "reasoning": "Calculated using square-law approximations for SKY130 parameters (un*Cox=270u, up*Cox=50u, lambda=0.1)."
+      },
+      "importance": "essential"
+    },
+    "input_offset_voltage": {
+      "description": "Systematic input offset voltage (difference between IN and VLOW when output crosses VDD/2).",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "The circuit is perfectly symmetric by design.",
+        "range": {
+          "min": "-1m",
+          "typical": "0",
+          "max": "1m",
+          "unit": "V"
+        },
+        "reasoning": "Systematic offset should be near zero. Random offset (mismatch) is not simulated in standard TT corner."
+      },
+      "importance": "essential"
+    },
+    "propagation_delay": {
+      "description": "Average time delay between input crossing the reference voltage and output crossing VDD/2.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Determined by the RC time constants of the internal nodes. With 10uA bias and small parasitic capacitances of 5u/0.5u devices.",
+        "range": {
+          "min": "1n",
+          "typical": "2n",
+          "max": "5n",
+          "unit": "s"
+        },
+        "reasoning": "Typical delay for a two-stage continuous-time comparator in 130nm with ~10uA branch currents."
+      },
+      "importance": "essential"
+    },
+    "output_swing": {
+      "description": "Peak-to-peak output voltage swing.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "The CS amplifiers with PMOS current source loads can swing nearly rail-to-rail.",
+        "range": {
+          "min": "1.6",
+          "typical": "1.7",
+          "max": "1.8",
+          "unit": "V"
+        },
+        "reasoning": "Limited only by the Vdsat of the output NMOS and PMOS transistors."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power consumption, DC transfer characteristics (gain, offset), and transient response (propagation delay, output swing) of the comparator. Note: The widths of the CS amplifier NMOS transistors (XM4, XM5, XM3, XM8) have been adjusted to 10u to properly balance the 1:1 PMOS current mirrors and prevent the outputs from railing out systematically.",
+    "analyses": [
+      "OP",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "dc_gain",
+      "input_offset_voltage",
+      "propagation_delay",
+      "output_swing"
+    ],
+    "spice": "* Continuous-Time Comparator Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Adjusted W for CS NMOS to balance the 10uA current mirrors\n.param W_xm12=5u L_xm12=0.5u\n.param W_xm16=5u L_xm16=0.5u\n.param W_xm15=5u L_xm15=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm10=5u L_xm10=0.5u\n.param W_xm4=10u L_xm4=0.5u\n.param W_xm17=5u L_xm17=0.5u\n.param W_xm5=10u L_xm5=0.5u\n.param W_xm18=5u L_xm18=0.5u\n.param W_xm13=5u L_xm13=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm14=5u L_xm14=0.5u\n.param W_xm19=5u L_xm19=0.5u\n.param W_xm11=5u L_xm11=0.5u\n.param W_xm3=10u L_xm3=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm8=10u L_xm8=0.5u\n\nXM12 N_BIAS N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\nXM16 N_OUT1_L N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm16} w={W_xm16}\nXM15 N_TAIL1 N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm15} w={W_xm15}\nXM7 N_OUT1_R N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM2 N_D1_L IN N_TAIL1 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\nXM1 N_D1_R VLOW N_TAIL1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM10 N_D1_L N_D1_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\nXM4 N_OUT1_L N_D1_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM17 N_D1_R N_D1_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\nXM5 N_OUT1_R N_D1_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM18 L N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm18} w={W_xm18}\nXM13 N_TAIL2 N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\nXM6 L_BAR N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\nXM14 N_D2_L N_OUT1_L N_TAIL2 VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\nXM19 N_D2_R N_OUT1_R N_TAIL2 VDD sky130_fd_pr__pfet_01v8 l={L_xm19} w={W_xm19}\nXM11 N_D2_L N_D2_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\nXM3 L N_D2_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM9 N_D2_R N_D2_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\nXM8 L_BAR N_D2_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\n\n* Sources\nVVDD VDD 0 1.8\nVREF VLOW 0 0.9\nIBIAS N_BIAS 0 10u\nVIN IN 0 DC 0.9 PULSE(0.8 1.0 2n 0.1n 0.1n 5n 10n)\n\n.control\n  * 1. Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. DC Sweep for Transfer Curve, Offset, and Gain\n  dc VIN 0.85 0.95 10u\n  meas dc vth_L when v(L)=0.9\n  let offset = vth_L - 0.9\n  print offset\n  let gain_dc = deriv(v(L))\n  meas dc max_gain max gain_dc\n\n  * 3. Transient Analysis for Delay and Swing\n  tran 10p 15n\n  meas tran tpd_rise trig v(IN) val=0.9 rise=1 targ v(L) val=0.9 rise=1\n  meas tran tpd_fall trig v(IN) val=0.9 fall=1 targ v(L) val=0.9 fall=1\n  let tpd_avg = (tpd_rise + tpd_fall) / 2\n  print tpd_avg\n  meas tran vout_max max v(L)\n  meas tran vout_min min v(L)\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Continuous-Time Comparator\",\n    \"description\": \"A two-stage fully differential continuous-time comparator used in the automatic switched-capacitor (SC) tuning loop of the frequency synthesizer. Each stage consists of a PMOS differential pair with diode-connected NMOS loads, followed by NMOS common-source amplifiers with PMOS current source loads to provide high voltage gain for resolving small voltage differences.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"IN\",\n        \"VLOW\"\n      ],\n      \"output\": [\n        \"L\",\n        \"L_BAR\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N_BIAS\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 900-MHz 2.5-mA CMOS Frequency Synthesizer with an Automatic SC Tuning Loop\",\n      \"figure\": \"Not specified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the comparator.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2.5 mA (for entire synthesizer)\",\n        \"technology\": \"0.6um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The circuit has 7 current branches (1 bias, 2 tails, 4 CS loads). Assuming a 10uA bias current, the total current is 70uA. Power = 70uA * 1.8V = 126 uW.\",\n        \"range\": {\n          \"min\": \"100u\",\n          \"typical\": \"126u\",\n          \"max\": \"300u\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a standard 10uA bias current scaled across the 1:1 current mirrors.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Maximum low-frequency voltage gain from input to output.\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Stage 1 diff pair gain: gm2/gm10 \u2248 sqrt(up/un) \u2248 0.43. Stage 1 CS amp gain: gm4 * (ro4 || ro16) \u2248 116. Total stage 1 gain \u2248 50 V/V. Stage 2 is identical. Total DC gain \u2248 50 * 50 = 2500 V/V (68 dB).\",\n        \"range\": {\n          \"min\": \"1000\",\n          \"typical\": \"2500\",\n          \"max\": \"5000\",\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Calculated using square-law approximations for SKY130 parameters (un*Cox=270u, up*Cox=50u, lambda=0.1).\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"input_offset_voltage\": {\n      \"description\": \"Systematic input offset voltage (difference between IN and VLOW when output crosses VDD/2).\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The circuit is perfectly symmetric by design.\",\n        \"range\": {\n          \"min\": \"-1m\",\n          \"typical\": \"0\",\n          \"max\": \"1m\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Systematic offset should be near zero. Random offset (mismatch) is not simulated in standard TT corner.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"propagation_delay\": {\n      \"description\": \"Average time delay between input crossing the reference voltage and output crossing VDD/2.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by the RC time constants of the internal nodes. With 10uA bias and small parasitic capacitances of 5u/0.5u devices.\",\n        \"range\": {\n          \"min\": \"1n\",\n          \"typical\": \"2n\",\n          \"max\": \"5n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Typical delay for a two-stage continuous-time comparator in 130nm with ~10uA branch currents.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_swing\": {\n      \"description\": \"Peak-to-peak output voltage swing.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"The CS amplifiers with PMOS current source loads can swing nearly rail-to-rail.\",\n        \"range\": {\n          \"min\": \"1.6\",\n          \"typical\": \"1.7\",\n          \"max\": \"1.8\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Limited only by the Vdsat of the output NMOS and PMOS transistors.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power consumption, DC transfer characteristics (gain, offset), and transient response (propagation delay, output swing) of the comparator. Note: The widths of the CS amplifier NMOS transistors (XM4, XM5, XM3, XM8) have been adjusted to 10u to properly balance the 1:1 PMOS current mirrors and prevent the outputs from railing out systematically.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"dc_gain\",\n      \"input_offset_voltage\",\n      \"propagation_delay\",\n      \"output_swing\"\n    ],\n    \"spice\": \"* Continuous-Time Comparator Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Adjusted W for CS NMOS to balance the 10uA current mirrors\\n.param W_xm12=5u L_xm12=0.5u\\n.param W_xm16=5u L_xm16=0.5u\\n.param W_xm15=5u L_xm15=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n.param W_xm4=10u L_xm4=0.5u\\n.param W_xm17=5u L_xm17=0.5u\\n.param W_xm5=10u L_xm5=0.5u\\n.param W_xm18=5u L_xm18=0.5u\\n.param W_xm13=5u L_xm13=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm14=5u L_xm14=0.5u\\n.param W_xm19=5u L_xm19=0.5u\\n.param W_xm11=5u L_xm11=0.5u\\n.param W_xm3=10u L_xm3=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm8=10u L_xm8=0.5u\\n\\nXM12 N_BIAS N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm12} w={W_xm12}\\nXM16 N_OUT1_L N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm16} w={W_xm16}\\nXM15 N_TAIL1 N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm15} w={W_xm15}\\nXM7 N_OUT1_R N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM2 N_D1_L IN N_TAIL1 VDD sky130_fd_pr__pfet_01v8 l={L_xm2} w={W_xm2}\\nXM1 N_D1_R VLOW N_TAIL1 VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM10 N_D1_L N_D1_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm10} w={W_xm10}\\nXM4 N_OUT1_L N_D1_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM17 N_D1_R N_D1_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm17} w={W_xm17}\\nXM5 N_OUT1_R N_D1_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM18 L N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm18} w={W_xm18}\\nXM13 N_TAIL2 N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm13} w={W_xm13}\\nXM6 L_BAR N_BIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm6} w={W_xm6}\\nXM14 N_D2_L N_OUT1_L N_TAIL2 VDD sky130_fd_pr__pfet_01v8 l={L_xm14} w={W_xm14}\\nXM19 N_D2_R N_OUT1_R N_TAIL2 VDD sky130_fd_pr__pfet_01v8 l={L_xm19} w={W_xm19}\\nXM11 N_D2_L N_D2_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm11} w={W_xm11}\\nXM3 L N_D2_L GND GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM9 N_D2_R N_D2_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm9} w={W_xm9}\\nXM8 L_BAR N_D2_R GND GND sky130_fd_pr__nfet_01v8 l={L_xm8} w={W_xm8}\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVREF VLOW 0 0.9\\nIBIAS N_BIAS 0 10u\\nVIN IN 0 DC 0.9 PULSE(0.8 1.0 2n 0.1n 0.1n 5n 10n)\\n\\n.control\\n  * 1. Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. DC Sweep for Transfer Curve, Offset, and Gain\\n  dc VIN 0.85 0.95 10u\\n  meas dc vth_L when v(L)=0.9\\n  let offset = vth_L - 0.9\\n  print offset\\n  let gain_dc = deriv(v(L))\\n  meas dc max_gain max gain_dc\\n\\n  * 3. Transient Analysis for Delay and Swing\\n  tran 10p 15n\\n  meas tran tpd_rise trig v(IN) val=0.9 rise=1 targ v(L) val=0.9 rise=1\\n  meas tran tpd_fall trig v(IN) val=0.9 fall=1 targ v(L) val=0.9 fall=1\\n  let tpd_avg = (tpd_rise + tpd_fall) / 2\\n  print tpd_avg\\n  meas tran vout_max max v(L)\\n  meas tran vout_min min v(L)\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "910481",
+  "_case": "910481_image_5_b"
+}

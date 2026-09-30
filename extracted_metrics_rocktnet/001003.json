@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Switched Capacitor / Varactor Bank",
+    "description": "This circuit appears to be a fragment of an LC tank tuning network, likely used in a Chirp-UWB VCO. It consists of NMOS transistors acting as varactors or switched capacitors to tune the oscillation frequency of the tank.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "N5"
+      ],
+      "output": [
+        "VL_PLUS",
+        "VL_MINUS"
+      ],
+      "supply": [],
+      "bias": [
+        "N4"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 1mW 1Mb/s 7.75-to-8.25GHz Chirp-UWB Transceiver with Low Peak-Power Transmission and Fast Synchronization Capability",
+      "figure": "Unknown",
+      "year": 2014
+    }
+  },
+  "step2_metrics": {
+    "Capacitance_VL_PLUS": {
+      "description": "Equivalent capacitance at the positive tank node.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "C = C_db + C_dg for a 5u/0.5u NMOS. C_ox ~ 5fF/um^2, Area = 2.5um^2 -> C_gate ~ 12.5fF.",
+        "range": {
+          "min": 5e-15,
+          "typical": 1.5e-14,
+          "max": 3e-14,
+          "unit": "F"
+        },
+        "reasoning": "Based on standard NMOS parasitic capacitances in SKY130 for the given W/L."
+      },
+      "importance": "essential"
+    },
+    "Capacitance_VL_MINUS": {
+      "description": "Equivalent capacitance at the negative tank node.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "Similar to VL_PLUS, but device is biased differently (G=0.9V).",
+        "range": {
+          "min": 5e-15,
+          "typical": 1.5e-14,
+          "max": 3e-14,
+          "unit": "F"
+        },
+        "reasoning": "Depends on the control voltage LABEL_NET_2 and the resulting channel charge."
+      },
+      "importance": "essential"
+    },
+    "DC_Power": {
+      "description": "DC power consumption of the tuning network.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1mW (total transceiver)",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "P = V * I. If devices are acting purely as capacitors, DC current should be minimal (leakage only).",
+        "range": {
+          "min": 1e-09,
+          "typical": 1e-06,
+          "max": 0.001,
+          "unit": "W"
+        },
+        "reasoning": "Expected to be very low if purely capacitive, but could be higher if any device acts as an active switch to ground."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the equivalent capacitance at the tank nodes (VL_PLUS, VL_MINUS) across frequency, and checks the DC operating point.",
+    "analyses": [
+      "OP",
+      "AC"
+    ],
+    "metrics_measured": [
+      "Capacitance_VL_PLUS",
+      "Capacitance_VL_MINUS",
+      "DC_Power"
+    ],
+    "spice": "* LC Tank Varactor Testbench\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm6=5u L_xm6=0.5u\n\nXM2 N1 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM4 GND N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 VL_PLUS GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM3 GND LABEL_NET_1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM1 N2 N5 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM6 VL_MINUS LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\n\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVLABEL_NET_2 LABEL_NET_2 0 0.9\nVN4 N4 0 0\nVN5 N5 0 0.9\n\nVAC_P VL_PLUS 0 DC 0.9 AC 1\nVAC_M VL_MINUS 0 DC 0.9 AC 1\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\nop\nlet dc_current_p = -i(VAC_P)\nlet dc_current_m = -i(VAC_M)\nlet dc_power = (dc_current_p + dc_current_m) * 0.9\nprint dc_power\n\nac dec 10 1G 10G\nlet omega = 2 * 3.14159265359 * frequency\nlet c_plus = -imag(i(VAC_P)) / omega\nlet c_minus = -imag(i(VAC_M)) / omega\n\nmeas ac c_plus_8g find c_plus at=8G\nmeas ac c_minus_8g find c_minus at=8G\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Switched Capacitor / Varactor Bank\",\n    \"description\": \"This circuit appears to be a fragment of an LC tank tuning network, likely used in a Chirp-UWB VCO. It consists of NMOS transistors acting as varactors or switched capacitors to tune the oscillation frequency of the tank.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"N5\"\n      ],\n      \"output\": [\n        \"VL_PLUS\",\n        \"VL_MINUS\"\n      ],\n      \"supply\": [],\n      \"bias\": [\n        \"N4\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 1mW 1Mb/s 7.75-to-8.25GHz Chirp-UWB Transceiver with Low Peak-Power Transmission and Fast Synchronization Capability\",\n      \"figure\": \"Unknown\",\n      \"year\": 2014\n    }\n  },\n  \"step2_metrics\": {\n    \"Capacitance_VL_PLUS\": {\n      \"description\": \"Equivalent capacitance at the positive tank node.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C = C_db + C_dg for a 5u/0.5u NMOS. C_ox ~ 5fF/um^2, Area = 2.5um^2 -> C_gate ~ 12.5fF.\",\n        \"range\": {\n          \"min\": 5e-15,\n          \"typical\": 15e-15,\n          \"max\": 30e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Based on standard NMOS parasitic capacitances in SKY130 for the given W/L.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Capacitance_VL_MINUS\": {\n      \"description\": \"Equivalent capacitance at the negative tank node.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Similar to VL_PLUS, but device is biased differently (G=0.9V).\",\n        \"range\": {\n          \"min\": 5e-15,\n          \"typical\": 15e-15,\n          \"max\": 30e-15,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Depends on the control voltage LABEL_NET_2 and the resulting channel charge.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"DC_Power\": {\n      \"description\": \"DC power consumption of the tuning network.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1mW (total transceiver)\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = V * I. If devices are acting purely as capacitors, DC current should be minimal (leakage only).\",\n        \"range\": {\n          \"min\": 1e-9,\n          \"typical\": 1e-6,\n          \"max\": 1e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Expected to be very low if purely capacitive, but could be higher if any device acts as an active switch to ground.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the equivalent capacitance at the tank nodes (VL_PLUS, VL_MINUS) across frequency, and checks the DC operating point.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Capacitance_VL_PLUS\",\n      \"Capacitance_VL_MINUS\",\n      \"DC_Power\"\n    ],\n    \"spice\": \"* LC Tank Varactor Testbench\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n\\nXM2 N1 LABEL_NET_0 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM4 GND N2 N1 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 VL_PLUS GND GND GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM3 GND LABEL_NET_1 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM1 N2 N5 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM6 VL_MINUS LABEL_NET_2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\n\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\nVN4 N4 0 0\\nVN5 N5 0 0.9\\n\\nVAC_P VL_PLUS 0 DC 0.9 AC 1\\nVAC_M VL_MINUS 0 DC 0.9 AC 1\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\nop\\nlet dc_current_p = -i(VAC_P)\\nlet dc_current_m = -i(VAC_M)\\nlet dc_power = (dc_current_p + dc_current_m) * 0.9\\nprint dc_power\\n\\nac dec 10 1G 10G\\nlet omega = 2 * 3.14159265359 * frequency\\nlet c_plus = -imag(i(VAC_P)) / omega\\nlet c_minus = -imag(i(VAC_M)) / omega\\n\\nmeas ac c_plus_8g find c_plus at=8G\\nmeas ac c_minus_8g find c_minus at=8G\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6757382",
+  "_case": "6757382_image_3_a"
+}

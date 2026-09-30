@@ -1,0 +1,99 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Figure 12.4",
+    "page": "3",
+    "circuit_type": "3-input NOR gate",
+    "description": "A static CMOS 3-input NOR gate with three parallel NMOS devices in the pull-down network and three series PMOS devices in the pull-up network. In the provided netlist, all three inputs are tied together to a single source (Vin)."
+  },
+  "step2_metrics": {
+    "switching_point_voltage": {
+      "description": "The DC voltage where the input equals the output (V_in = V_out), representing the threshold between logic low and logic high.",
+      "unit": "V",
+      "analysis_type": "DC",
+      "source": {
+        "page": "2",
+        "reference": "Eq 12.8"
+      },
+      "equation": {
+        "formula": "V_SP = (sqrt(N^2 * beta_n / beta_p) * V_THN + (VDD - V_THP)) / (1 + sqrt(N^2 * beta_n / beta_p))",
+        "explanation": "Calculates the switching threshold of an n-input NOR gate when all inputs are tied together.",
+        "assumptions": "Assumes all inputs switch simultaneously and uses a simplified transconductance ratio based on effective beta values for series/parallel combinations."
+      },
+      "sky130_expected": {
+        "calculation": "For a 3-input NOR (N=3), assuming equal W/L for all devices: beta_n/beta_p = (270u)/(50u) = 5.4. The transconductance ratio term is sqrt(3^2 * 5.4) = sqrt(48.6) = 6.97. V_SP = (6.97 * 0.42 + (1.8 - 0.42)) / (1 + 6.97) = (2.927 + 1.38) / 7.97 = 0.54 V.",
+        "range": {
+          "min": 0.4,
+          "typical": 0.54,
+          "max": 0.7,
+          "unit": "V"
+        },
+        "reasoning": "The switching point is heavily skewed towards ground due to the weak series PMOS network and strong parallel NMOS network, which is why NOR gates are less ideal than NAND gates in CMOS."
+      },
+      "importance": "essential"
+    },
+    "t_PHL": {
+      "description": "High-to-low propagation delay time.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "5",
+        "reference": "Eq 12.11"
+      },
+      "equation": {
+        "formula": "t_PHL = 0.7 * (R_n / N) * (N * C_oxn + C_load)",
+        "explanation": "Estimates the discharge time through N parallel NMOS devices.",
+        "assumptions": "Assumes all inputs are tied together and switch simultaneously. For a large external load, C_load dominates the intrinsic capacitance."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming W/L = 1/0.15 = 6.67 and C_load = 50fF. R_n = 1 / (270u * 6.67 * (1.8 - 0.42)) = 402 ohms. t_PHL approx 0.7 * (402 / 3) * 50fF = 4.7 ps.",
+        "range": {
+          "min": 2e-12,
+          "typical": 4.7e-12,
+          "max": 1.5e-11,
+          "unit": "s"
+        },
+        "reasoning": "The parallel NMOS network provides a very low resistance path to ground (R_n / 3), resulting in an extremely fast high-to-low transition."
+      },
+      "importance": "essential"
+    },
+    "t_PLH": {
+      "description": "Low-to-high propagation delay time.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "6",
+        "reference": "Eq 12.14"
+      },
+      "equation": {
+        "formula": "t_PLH = 0.35 * R_p * C_oxp * N^2 + 0.7 * N * R_p * C_load",
+        "explanation": "Estimates the charge time through N series PMOS devices.",
+        "assumptions": "Assumes all inputs are tied together and switch simultaneously. For a large external load, the second term (0.7 * N * R_p * C_load) dominates."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming W/L = 1/0.15 = 6.67 and C_load = 50fF. R_p = 1 / (50u * 6.67 * (1.8 - 0.42)) = 2174 ohms. t_PLH approx 0.7 * 3 * 2174 * 50fF = 228 ps.",
+        "range": {
+          "min": 1.5e-10,
+          "typical": 2.28e-10,
+          "max": 3.5e-10,
+          "unit": "s"
+        },
+        "reasoning": "The series PMOS network has a high resistance (3 * R_p), leading to a significantly slower low-to-high transition compared to the high-to-low transition. This asymmetry is a key characteristic of CMOS NOR gates."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the switching point voltage (V_SP) via DC sweep and propagation delays (t_PHL, t_PLH) via transient analysis for a 3-input NOR gate driving a 50fF load.",
+    "analyses": [
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "switching_point_voltage",
+      "t_PHL",
+      "t_PLH"
+    ],
+    "spice": "* 3-input NOR gate testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=1 L_xm1=0.15\n.param W_xm2=1 L_xm2=0.15\n.param W_xm3=1 L_xm3=0.15\n.param W_xm4=1 L_xm4=0.15\n.param W_xm5=1 L_xm5=0.15\n.param W_xm6=1 L_xm6=0.15\n\n* DUT Netlist\nVin Vin 0 0\nVDD VDD 0 1.8\nxm6 P001 Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\nxm2 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxm3 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\nxm5 P002 Vin P001 VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\nxm4 Vout Vin P002 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n\n* Load capacitance (50fF as used in textbook examples)\nCload Vout 0 50f\n\n.control\n* DC Analysis for V_SP\ndc Vin 0 1.8 0.01\nlet vdiff = v(Vout) - v(Vin)\nmeas dc vsp find v(Vin) when vdiff=0\nprint vsp\n\n* Transient Analysis for delays\n* Alter Vin to be a pulse source for transient analysis\nalter Vin = pulse(0 1.8 1n 0.1n 0.1n 2n 4n)\ntran 10p 5n\nmeas tran t_PHL trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\nmeas tran t_PLH trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\nprint t_PHL t_PLH\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Figure 12.4\",\n    \"page\": \"3\",\n    \"circuit_type\": \"3-input NOR gate\",\n    \"description\": \"A static CMOS 3-input NOR gate with three parallel NMOS devices in the pull-down network and three series PMOS devices in the pull-up network. In the provided netlist, all three inputs are tied together to a single source (Vin).\"\n  },\n  \"step2_metrics\": {\n    \"switching_point_voltage\": {\n      \"description\": \"The DC voltage where the input equals the output (V_in = V_out), representing the threshold between logic low and logic high.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"source\": {\n        \"page\": \"2\",\n        \"reference\": \"Eq 12.8\"\n      },\n      \"equation\": {\n        \"formula\": \"V_SP = (sqrt(N^2 * beta_n / beta_p) * V_THN + (VDD - V_THP)) / (1 + sqrt(N^2 * beta_n / beta_p))\",\n        \"explanation\": \"Calculates the switching threshold of an n-input NOR gate when all inputs are tied together.\",\n        \"assumptions\": \"Assumes all inputs switch simultaneously and uses a simplified transconductance ratio based on effective beta values for series/parallel combinations.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For a 3-input NOR (N=3), assuming equal W/L for all devices: beta_n/beta_p = (270u)/(50u) = 5.4. The transconductance ratio term is sqrt(3^2 * 5.4) = sqrt(48.6) = 6.97. V_SP = (6.97 * 0.42 + (1.8 - 0.42)) / (1 + 6.97) = (2.927 + 1.38) / 7.97 = 0.54 V.\",\n        \"range\": {\n          \"min\": 0.4,\n          \"typical\": 0.54,\n          \"max\": 0.7,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"The switching point is heavily skewed towards ground due to the weak series PMOS network and strong parallel NMOS network, which is why NOR gates are less ideal than NAND gates in CMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_PHL\": {\n      \"description\": \"High-to-low propagation delay time.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"5\",\n        \"reference\": \"Eq 12.11\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PHL = 0.7 * (R_n / N) * (N * C_oxn + C_load)\",\n        \"explanation\": \"Estimates the discharge time through N parallel NMOS devices.\",\n        \"assumptions\": \"Assumes all inputs are tied together and switch simultaneously. For a large external load, C_load dominates the intrinsic capacitance.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming W/L = 1/0.15 = 6.67 and C_load = 50fF. R_n = 1 / (270u * 6.67 * (1.8 - 0.42)) = 402 ohms. t_PHL approx 0.7 * (402 / 3) * 50fF = 4.7 ps.\",\n        \"range\": {\n          \"min\": 2e-12,\n          \"typical\": 4.7e-12,\n          \"max\": 15e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The parallel NMOS network provides a very low resistance path to ground (R_n / 3), resulting in an extremely fast high-to-low transition.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_PLH\": {\n      \"description\": \"Low-to-high propagation delay time.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"6\",\n        \"reference\": \"Eq 12.14\"\n      },\n      \"equation\": {\n        \"formula\": \"t_PLH = 0.35 * R_p * C_oxp * N^2 + 0.7 * N * R_p * C_load\",\n        \"explanation\": \"Estimates the charge time through N series PMOS devices.\",\n        \"assumptions\": \"Assumes all inputs are tied together and switch simultaneously. For a large external load, the second term (0.7 * N * R_p * C_load) dominates.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming W/L = 1/0.15 = 6.67 and C_load = 50fF. R_p = 1 / (50u * 6.67 * (1.8 - 0.42)) = 2174 ohms. t_PLH approx 0.7 * 3 * 2174 * 50fF = 228 ps.\",\n        \"range\": {\n          \"min\": 150e-12,\n          \"typical\": 228e-12,\n          \"max\": 350e-12,\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"The series PMOS network has a high resistance (3 * R_p), leading to a significantly slower low-to-high transition compared to the high-to-low transition. This asymmetry is a key characteristic of CMOS NOR gates.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the switching point voltage (V_SP) via DC sweep and propagation delays (t_PHL, t_PLH) via transient analysis for a 3-input NOR gate driving a 50fF load.\",\n    \"analyses\": [\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"switching_point_voltage\",\n      \"t_PHL\",\n      \"t_PLH\"\n    ],\n    \"spice\": \"* 3-input NOR gate testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=1 L_xm1=0.15\\n.param W_xm2=1 L_xm2=0.15\\n.param W_xm3=1 L_xm3=0.15\\n.param W_xm4=1 L_xm4=0.15\\n.param W_xm5=1 L_xm5=0.15\\n.param W_xm6=1 L_xm6=0.15\\n\\n* DUT Netlist\\nVin Vin 0 0\\nVDD VDD 0 1.8\\nxm6 P001 Vin VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6} l={L_xm6}\\nxm1 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\nxm2 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxm3 Vout Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm3} l={L_xm3}\\nxm5 P002 Vin P001 VDD sky130_fd_pr__pfet_01v8 w={W_xm5} l={L_xm5}\\nxm4 Vout Vin P002 VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n\\n* Load capacitance (50fF as used in textbook examples)\\nCload Vout 0 50f\\n\\n.control\\n* DC Analysis for V_SP\\ndc Vin 0 1.8 0.01\\nlet vdiff = v(Vout) - v(Vin)\\nmeas dc vsp find v(Vin) when vdiff=0\\nprint vsp\\n\\n* Transient Analysis for delays\\n* Alter Vin to be a pulse source for transient analysis\\nalter Vin = pulse(0 1.8 1n 0.1n 0.1n 2n 4n)\\ntran 10p 5n\\nmeas tran t_PHL trig v(Vin) val=0.9 rise=1 targ v(Vout) val=0.9 fall=1\\nmeas tran t_PLH trig v(Vin) val=0.9 fall=1 targ v(Vout) val=0.9 rise=1\\nprint t_PHL t_PLH\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```"
+}

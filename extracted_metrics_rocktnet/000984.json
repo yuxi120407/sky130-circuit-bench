@@ -1,0 +1,108 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Tuned RF Amplifier / LNA",
+    "description": "This circuit is an RF front-end block, likely a Low Noise Amplifier (LNA) or a tuned amplifier stage for a 9.8GHz UWB transceiver. It features an input common-emitter (or common-source) stage with inductive matching, a cascode device, and LC tanks for frequency tuning.",
+    "node_mapping": {
+      "input": [
+        "LABEL_NET_0"
+      ],
+      "output": [
+        "N3"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "B1",
+        "B2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An Ultra-Low-Power 9.8GHz Crystal-Less UWB Transceiver with Digital Baseband Integrated in 0.18\u00b5m BiCMOS",
+      "figure": "25.2.3",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "power_consumption": {
+      "description": "Total DC power consumption of the RF stage.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "Ultra-Low-Power",
+        "technology": "0.18\u00b5m BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "P = I(VDD) * 1.8V. Assuming a typical bias current of 2-5mA for an RF stage.",
+        "range": {
+          "min": "1m",
+          "typical": "5m",
+          "max": "10m",
+          "unit": "W"
+        },
+        "reasoning": "Scaled for SKY130 1.8V supply, maintaining low power consumption suitable for UWB."
+      },
+      "importance": "essential"
+    },
+    "voltage_gain_9p8G": {
+      "description": "AC voltage gain at the target frequency of 9.8GHz.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "9.8GHz (Operating Frequency)",
+        "technology": "0.18\u00b5m BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm * Z_tank at resonance.",
+        "range": {
+          "min": "5",
+          "typical": "12",
+          "max": "20",
+          "unit": "dB"
+        },
+        "reasoning": "Typical gain for a single-stage tuned RF amplifier at ~10GHz in 130nm CMOS."
+      },
+      "importance": "essential"
+    },
+    "transient_swing": {
+      "description": "Peak-to-peak voltage swing at the output node during transient operation.",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "700mV",
+        "technology": "0.18\u00b5m BiCMOS"
+      },
+      "sky130_expected": {
+        "calculation": "V_pp = V_max - V_min from transient analysis.",
+        "range": {
+          "min": "0.1",
+          "typical": "0.5",
+          "max": "1.0",
+          "unit": "V"
+        },
+        "reasoning": "Depends heavily on input drive strength; expected to be in the hundreds of mV range for linear RF operation."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC power consumption, AC voltage gain at 9.8GHz, and transient output swing. Missing passive values are parameterized for a ~10GHz resonance.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power_consumption",
+      "voltage_gain_9p8G",
+      "transient_swing"
+    ],
+    "spice": "* 9.8GHz UWB Transceiver Block Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Parameterized values for ~9.8GHz resonance and device sizing\n.param L1_val=1n C1_val=100f L2_val=1n L3_val=1n C5_val=100f\n.param W_n=10u L_n=0.15u\n\n* Wrapper to map NPN from BiCMOS netlist to SKY130 NMOS\n.subckt npn c b e\nM1 c b e GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\n.ends\n\n* --- DUT ---\nL1 B1 LABEL_NET_0 {L1_val}\nQ1 N4 B2 B2 npn\nQ2 N3 VDD N4 npn\nQ3 N0 B1 GND npn\nC1 N0 B2 {C1_val}\nL2 N0 B2 {L2_val}\nL3 VDD N3 {L3_val}\nC2 B2 B2 1p\nC_BIG N0 N0 1p\nC4 B1 B1 1p\nC5 N3 GND {C5_val}\n* -----------\n\n* Sources\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9 AC 1 SIN(0.9 0.01 9.8G)\n\n* Load\nRload N3 0 50\n\n.control\n  * 1. DC Operating Point & Power\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * 2. AC Analysis for Gain at 9.8GHz\n  ac dec 50 1G 20G\n  let gain_db = vdb(N3)\n  meas ac gain_at_9p8G find gain_db at=9.8G\n  meas ac max_gain max gain_db\n\n  * 3. Transient Analysis for Output Swing\n  tran 2p 1n\n  meas tran v_max max v(N3)\n  meas tran v_min min v(N3)\n  let v_pp = v_max - v_min\n  print v_pp\n\n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Tuned RF Amplifier / LNA\",\n    \"description\": \"This circuit is an RF front-end block, likely a Low Noise Amplifier (LNA) or a tuned amplifier stage for a 9.8GHz UWB transceiver. It features an input common-emitter (or common-source) stage with inductive matching, a cascode device, and LC tanks for frequency tuning.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"LABEL_NET_0\"\n      ],\n      \"output\": [\n        \"N3\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"B1\",\n        \"B2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An Ultra-Low-Power 9.8GHz Crystal-Less UWB Transceiver with Digital Baseband Integrated in 0.18\u00b5m BiCMOS\",\n      \"figure\": \"25.2.3\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumption of the RF stage.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"Ultra-Low-Power\",\n        \"technology\": \"0.18\u00b5m BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = I(VDD) * 1.8V. Assuming a typical bias current of 2-5mA for an RF stage.\",\n        \"range\": {\n          \"min\": \"1m\",\n          \"typical\": \"5m\",\n          \"max\": \"10m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled for SKY130 1.8V supply, maintaining low power consumption suitable for UWB.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"voltage_gain_9p8G\": {\n      \"description\": \"AC voltage gain at the target frequency of 9.8GHz.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"9.8GHz (Operating Frequency)\",\n        \"technology\": \"0.18\u00b5m BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm * Z_tank at resonance.\",\n        \"range\": {\n          \"min\": \"5\",\n          \"typical\": \"12\",\n          \"max\": \"20\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Typical gain for a single-stage tuned RF amplifier at ~10GHz in 130nm CMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"transient_swing\": {\n      \"description\": \"Peak-to-peak voltage swing at the output node during transient operation.\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"700mV\",\n        \"technology\": \"0.18\u00b5m BiCMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"V_pp = V_max - V_min from transient analysis.\",\n        \"range\": {\n          \"min\": \"0.1\",\n          \"typical\": \"0.5\",\n          \"max\": \"1.0\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends heavily on input drive strength; expected to be in the hundreds of mV range for linear RF operation.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC power consumption, AC voltage gain at 9.8GHz, and transient output swing. Missing passive values are parameterized for a ~10GHz resonance.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power_consumption\",\n      \"voltage_gain_9p8G\",\n      \"transient_swing\"\n    ],\n    \"spice\": \"* 9.8GHz UWB Transceiver Block Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Parameterized values for ~9.8GHz resonance and device sizing\\n.param L1_val=1n C1_val=100f L2_val=1n L3_val=1n C5_val=100f\\n.param W_n=10u L_n=0.15u\\n\\n* Wrapper to map NPN from BiCMOS netlist to SKY130 NMOS\\n.subckt npn c b e\\nM1 c b e GND sky130_fd_pr__nfet_01v8 w={W_n} l={L_n}\\n.ends\\n\\n* --- DUT ---\\nL1 B1 LABEL_NET_0 {L1_val}\\nQ1 N4 B2 B2 npn\\nQ2 N3 VDD N4 npn\\nQ3 N0 B1 GND npn\\nC1 N0 B2 {C1_val}\\nL2 N0 B2 {L2_val}\\nL3 VDD N3 {L3_val}\\nC2 B2 B2 1p\\nC_BIG N0 N0 1p\\nC4 B1 B1 1p\\nC5 N3 GND {C5_val}\\n* -----------\\n\\n* Sources\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9 AC 1 SIN(0.9 0.01 9.8G)\\n\\n* Load\\nRload N3 0 50\\n\\n.control\\n  * 1. DC Operating Point & Power\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * 2. AC Analysis for Gain at 9.8GHz\\n  ac dec 50 1G 20G\\n  let gain_db = vdb(N3)\\n  meas ac gain_at_9p8G find gain_db at=9.8G\\n  meas ac max_gain max gain_db\\n\\n  * 3. Transient Analysis for Output Swing\\n  tran 2p 1n\\n  meas tran v_max max v(N3)\\n  meas tran v_min min v(N3)\\n  let v_pp = v_max - v_min\\n  print v_pp\\n\\n  quit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "6487806",
+  "_case": "6487806_image_2_b"
+}

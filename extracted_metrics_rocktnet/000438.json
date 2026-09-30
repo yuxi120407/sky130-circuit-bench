@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Transimpedance Amplifier (TIA) Pre-amplifier",
+    "description": "A single-ended transimpedance pre-amplifier utilizing a common-emitter (mapped to common-source in CMOS) stage with shunt-shunt feedback and an emitter-follower (source-follower) output buffer. It is designed to convert an input current from a photodiode into an output voltage with high bandwidth.",
+    "node_mapping": {
+      "input": [
+        "IN"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VCC"
+      ],
+      "bias": [
+        "N1",
+        "N2",
+        "N3",
+        "N5",
+        "N6",
+        "N8",
+        "N9"
+      ],
+      "ground": [
+        "VEE"
+      ]
+    },
+    "paper_reference": {
+      "title": "40-GHz Transimpedance Amplifier With Differential Outputs Using InP\u2013InGaAs Heterojunction Bipolar Transistors",
+      "figure": "Schematic",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "transimpedance_gain": {
+      "description": "Mid-band transimpedance gain (Zt = Vout/Iin)",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1800 ohm (~65 dB)",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Zt \u2248 Rf. With Rf = 1kOhm, Zt = 20*log10(1000) = 60 dB.",
+        "range": {
+          "min": 55,
+          "typical": 60,
+          "max": 65,
+          "unit": "dB"
+        },
+        "reasoning": "Determined primarily by the feedback resistor Rf. Adjusted to 1kOhm for stable operation in 130nm CMOS."
+      },
+      "importance": "essential"
+    },
+    "bandwidth_3db": {
+      "description": "-3dB bandwidth of the transimpedance gain",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "40 GHz",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "f_3db \u2248 1 / (2*pi*Rf*Cin). Assuming Cin ~ 50fF and Rf = 1kOhm, f_3db \u2248 3.18 GHz.",
+        "range": {
+          "min": 1000000000.0,
+          "typical": 3000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "SKY130 130nm CMOS is significantly slower than InP HBTs; expected bandwidth is in the low GHz range rather than 40 GHz."
+      },
+      "importance": "essential"
+    },
+    "power_dissipation": {
+      "description": "Total DC power consumption",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "Supply voltage 4V",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "P = VDD * I_total \u2248 1.8V * 3mA = 5.4mW",
+        "range": {
+          "min": 0.002,
+          "typical": 0.0054,
+          "max": 0.01,
+          "unit": "W"
+        },
+        "reasoning": "Scaled down for 1.8V supply and typical CMOS bias currents compared to the original 4V HBT design."
+      },
+      "importance": "essential"
+    },
+    "output_voltage_swing": {
+      "description": "Peak-to-peak output voltage for a given input current swing",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "Not explicitly stated",
+        "technology": "InP-InGaAs HBT"
+      },
+      "sky130_expected": {
+        "calculation": "Vout_pp = Iin_pp * Zt = 20uA * 1kOhm = 20mV",
+        "range": {
+          "min": 0.01,
+          "typical": 0.02,
+          "max": 0.05,
+          "unit": "V"
+        },
+        "reasoning": "Depends on the input AC current amplitude (10uA peak used in testbench)."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure transimpedance gain, -3dB bandwidth, power dissipation, and transient output swing of the TIA.",
+    "analyses": [
+      "OP",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "transimpedance_gain",
+      "bandwidth_3db",
+      "power_dissipation",
+      "output_voltage_swing"
+    ],
+    "spice": "* 40-GHz Transimpedance Amplifier (SKY130 Port)\n.lib \"${SKY130_PDK}\" tt\n\n.param W_m1=20u L_m=0.15u\n.param W_m2=10u\n.param W_m3=10u\n.param W_d=20u\n.param R_l=500\n.param R_f=1k\n.param R_e1=1k\n.param R_e2=500\n.param R_s=10k\n.param C_e=1p\n.param I_bias=500u\n\n* DUT Transistors (NPNs mapped to NMOS, Diodes to diode-connected NMOS)\nXM3 N6 N3 OUT VEE sky130_fd_pr__nfet_01v8 W={W_m3} L={L_m}\nXM1 N2 IN N1 VEE sky130_fd_pr__nfet_01v8 W={W_m1} L={L_m}\nXM2 N5 N2 N3 VEE sky130_fd_pr__nfet_01v8 W={W_m2} L={L_m}\nCE N1 VEE {C_e}\nRL N2 VCC {R_l}\nXD1 VCC VCC N5 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\nXD2 N8 N8 N6 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\nRE1 N3 VEE {R_e1}\nXD3 N1 N1 N9 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\nRS IN VEE {R_s}\nXD4 VCC VCC N8 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\nRE2 OUT VEE {R_e2}\nXD5 N9 N9 VEE VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\nRF IN N3 {R_f}\n\n* Sources\nVCC VCC 0 DC 1.8\nVEE VEE 0 DC 0\n* Input current source: DC for self-bias, AC=1 for Zt measurement, SIN for transient\nIIN IN 0 DC {I_bias} AC 1 SIN({I_bias} 10u 1G)\n\n.control\n* DC Operating Point & Power\nop\nlet power = -i(VCC) * 1.8\nprint power\n\n* AC Analysis for Transimpedance Gain and Bandwidth\nac dec 100 1M 100G\n* Since Iin=1A, vdb(OUT) directly gives transimpedance in dB-Ohms\nlet zt_db = vdb(OUT)\nmeas ac zt_mid find zt_db at=10M\nlet zt_3db = zt_mid - 3\nmeas ac bw_3db when zt_db=zt_3db fall=1\n\n* Transient Analysis for Output Swing\ntran 10p 5n\nmeas tran vout_pp pp v(OUT)\n\nquit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Transimpedance Amplifier (TIA) Pre-amplifier\",\n    \"description\": \"A single-ended transimpedance pre-amplifier utilizing a common-emitter (mapped to common-source in CMOS) stage with shunt-shunt feedback and an emitter-follower (source-follower) output buffer. It is designed to convert an input current from a photodiode into an output voltage with high bandwidth.\",\n    \"node_mapping\": {\n      \"input\": [\"IN\"],\n      \"output\": [\"OUT\"],\n      \"supply\": [\"VCC\"],\n      \"bias\": [\"N1\", \"N2\", \"N3\", \"N5\", \"N6\", \"N8\", \"N9\"],\n      \"ground\": [\"VEE\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"40-GHz Transimpedance Amplifier With Differential Outputs Using InP\u2013InGaAs Heterojunction Bipolar Transistors\",\n      \"figure\": \"Schematic\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"transimpedance_gain\": {\n      \"description\": \"Mid-band transimpedance gain (Zt = Vout/Iin)\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1800 ohm (~65 dB)\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zt \u2248 Rf. With Rf = 1kOhm, Zt = 20*log10(1000) = 60 dB.\",\n        \"range\": {\n          \"min\": 55,\n          \"typical\": 60,\n          \"max\": 65,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Determined primarily by the feedback resistor Rf. Adjusted to 1kOhm for stable operation in 130nm CMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"bandwidth_3db\": {\n      \"description\": \"-3dB bandwidth of the transimpedance gain\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"40 GHz\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"f_3db \u2248 1 / (2*pi*Rf*Cin). Assuming Cin ~ 50fF and Rf = 1kOhm, f_3db \u2248 3.18 GHz.\",\n        \"range\": {\n          \"min\": 1e9,\n          \"typical\": 3e9,\n          \"max\": 5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"SKY130 130nm CMOS is significantly slower than InP HBTs; expected bandwidth is in the low GHz range rather than 40 GHz.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_dissipation\": {\n      \"description\": \"Total DC power consumption\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"Supply voltage 4V\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"P = VDD * I_total \u2248 1.8V * 3mA = 5.4mW\",\n        \"range\": {\n          \"min\": 2e-3,\n          \"typical\": 5.4e-3,\n          \"max\": 10e-3,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Scaled down for 1.8V supply and typical CMOS bias currents compared to the original 4V HBT design.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"output_voltage_swing\": {\n      \"description\": \"Peak-to-peak output voltage for a given input current swing\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"Not explicitly stated\",\n        \"technology\": \"InP-InGaAs HBT\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vout_pp = Iin_pp * Zt = 20uA * 1kOhm = 20mV\",\n        \"range\": {\n          \"min\": 0.01,\n          \"typical\": 0.02,\n          \"max\": 0.05,\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Depends on the input AC current amplitude (10uA peak used in testbench).\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure transimpedance gain, -3dB bandwidth, power dissipation, and transient output swing of the TIA.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"transimpedance_gain\",\n      \"bandwidth_3db\",\n      \"power_dissipation\",\n      \"output_voltage_swing\"\n    ],\n    \"spice\": \"* 40-GHz Transimpedance Amplifier (SKY130 Port)\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_m1=20u L_m=0.15u\\n.param W_m2=10u\\n.param W_m3=10u\\n.param W_d=20u\\n.param R_l=500\\n.param R_f=1k\\n.param R_e1=1k\\n.param R_e2=500\\n.param R_s=10k\\n.param C_e=1p\\n.param I_bias=500u\\n\\n* DUT Transistors (NPNs mapped to NMOS, Diodes to diode-connected NMOS)\\nXM3 N6 N3 OUT VEE sky130_fd_pr__nfet_01v8 W={W_m3} L={L_m}\\nXM1 N2 IN N1 VEE sky130_fd_pr__nfet_01v8 W={W_m1} L={L_m}\\nXM2 N5 N2 N3 VEE sky130_fd_pr__nfet_01v8 W={W_m2} L={L_m}\\nCE N1 VEE {C_e}\\nRL N2 VCC {R_l}\\nXD1 VCC VCC N5 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\\nXD2 N8 N8 N6 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\\nRE1 N3 VEE {R_e1}\\nXD3 N1 N1 N9 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\\nRS IN VEE {R_s}\\nXD4 VCC VCC N8 VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\\nRE2 OUT VEE {R_e2}\\nXD5 N9 N9 VEE VEE sky130_fd_pr__nfet_01v8 W={W_d} L={L_m}\\nRF IN N3 {R_f}\\n\\n* Sources\\nVCC VCC 0 DC 1.8\\nVEE VEE 0 DC 0\\n* Input current source: DC for self-bias, AC=1 for Zt measurement, SIN for transient\\nIIN IN 0 DC {I_bias} AC 1 SIN({I_bias} 10u 1G)\\n\\n.control\\n* DC Operating Point & Power\\nop\\nlet power = -i(VCC) * 1.8\\nprint power\\n\\n* AC Analysis for Transimpedance Gain and Bandwidth\\nac dec 100 1M 100G\\n* Since Iin=1A, vdb(OUT) directly gives transimpedance in dB-Ohms\\nlet zt_db = vdb(OUT)\\nmeas ac zt_mid find zt_db at=10M\\nlet zt_3db = zt_mid - 3\\nmeas ac bw_3db when zt_db=zt_3db fall=1\\n\\n* Transient Analysis for Output Swing\\ntran 10p 5n\\nmeas tran vout_pp pp v(OUT)\\n\\nquit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1225793",
+  "_case": "1225793_image_4"
+}

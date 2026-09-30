@@ -1,0 +1,128 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Low Noise Amplifier (LNA)",
+    "description": "An inductively degenerated common-source Low Noise Amplifier (LNA) designed for a 900-MHz GSM receiver. It uses inductive source degeneration (L1) and a gate inductor (L2) for 50-ohm input matching, and an LC tank (L3 and parasitic/added capacitance) at the drain for narrowband amplification.",
+    "node_mapping": {
+      "input": [
+        "In"
+      ],
+      "output": [
+        "OUT"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N0"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 900-MHz Dual-Conversion Low-IF GSM Receiver in 0.35-m CMOS",
+      "figure": "N/A",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "Center_Frequency": {
+      "description": "The frequency at which the LNA voltage gain peaks, determined by the output LC tank.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "900 MHz",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by L3 (8.7nH) and total drain capacitance (Cout ~ 3.5pF). f = 1 / (2*pi*sqrt(8.7nH * 3.5pF)) \u2248 912 MHz.",
+        "range": {
+          "min": "850M",
+          "typical": "900M",
+          "max": "950M",
+          "unit": "Hz"
+        },
+        "reasoning": "Must be tuned to the 900 MHz GSM band as specified in the paper."
+      },
+      "importance": "essential"
+    },
+    "Voltage_Gain": {
+      "description": "Peak AC voltage gain at the center frequency.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "100 dB (entire receiver)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Gain \u2248 gm * R_tank. With gm \u2248 45 mS and R_tank \u2248 333 ohms (three 1k resistors in parallel), Gain \u2248 15 V/V = 23.5 dB.",
+        "range": {
+          "min": "15",
+          "typical": "20",
+          "max": "25",
+          "unit": "dB"
+        },
+        "reasoning": "A typical LNA provides 15-20 dB of gain to suppress the noise contribution of subsequent mixer stages."
+      },
+      "importance": "essential"
+    },
+    "Power_Consumption": {
+      "description": "Total DC power consumed by the LNA from the 1.8V supply.",
+      "unit": "W",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "22 mA (entire receiver)",
+        "technology": "0.35um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * unCox * (W/L) * Vov^2 = 0.5 * 270u * (90/0.15) * 0.28^2 \u2248 6.3 mA. Power = 6.3 mA * 1.8 V = 11.3 mW.",
+        "range": {
+          "min": "5m",
+          "typical": "11m",
+          "max": "20m",
+          "unit": "W"
+        },
+        "reasoning": "LNA power consumption is typically a few milliwatts to balance noise figure, linearity, and power constraints."
+      },
+      "importance": "essential"
+    },
+    "Input_Impedance": {
+      "description": "Magnitude of the input impedance at 900 MHz.",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Zin \u2248 s(L1+L2) + 1/(s*Cgs) + (gm/Cgs)*L1. The inductive degeneration term (gm/Cgs)*L1 is designed to be 50 ohms.",
+        "range": {
+          "min": "30",
+          "typical": "50",
+          "max": "70",
+          "unit": "ohm"
+        },
+        "reasoning": "Standard RF design requires matching the input to a 50-ohm antenna/filter source."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure LNA center frequency, peak voltage gain, input impedance, and DC power consumption.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Center_Frequency",
+      "Voltage_Gain",
+      "Power_Consumption",
+      "Input_Impedance"
+    ],
+    "spice": "* 900-MHz LNA Testbench\n.lib \"sky130_fd_pr/models/sky130.lib.spice\" tt\n\n.param Cp=1.2p\n.param W_m1=90u\n.param L_m1=0.15u\n\n* DUT (Resistor values appended and missing NMOS added)\nL1 N2 GND 2nH\nL2 In N0 22nH\nL3 VDD OUT 8.7nH\nR1 VDD OUT 1k\nR2 VDD OUT 1k\nR3 VDD OUT 1k\nC1 In GND 2pF\nC2 N0 GND {Cp}\nXM1 OUT N0 N2 GND sky130_fd_pr__nfet_01v8 W={W_m1} L={L_m1}\nCout OUT GND 3.5p\n\n* Sources\nVVDD VDD GND 1.8\nVIN In GND DC 0.7 AC 1 SIN(0.7 0.01 900MEG 0 0)\n\n.control\n* DC Operating Point\nop\nlet id_m1 = -i(VVDD)\nlet power = id_m1 * 1.8\nprint id_m1 power\n\n* AC Analysis\nac dec 100 100MEG 10G\nlet gain_db = vdb(OUT)\nlet zin_mag = mag(v(In)/(-i(VIN)))\n\nmeas ac max_gain MAX gain_db\nmeas ac peak_freq MAX_AT gain_db\nmeas ac gain_900mhz find gain_db at=900MEG\nmeas ac zin_900mhz find zin_mag at=900MEG\n\n* Transient Analysis\ntran 10p 10n\nmeas tran vout_pp pp v(OUT)\n\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Low Noise Amplifier (LNA)\",\n    \"description\": \"An inductively degenerated common-source Low Noise Amplifier (LNA) designed for a 900-MHz GSM receiver. It uses inductive source degeneration (L1) and a gate inductor (L2) for 50-ohm input matching, and an LC tank (L3 and parasitic/added capacitance) at the drain for narrowband amplification.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"In\"\n      ],\n      \"output\": [\n        \"OUT\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"N0\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 900-MHz Dual-Conversion Low-IF GSM Receiver in 0.35-m CMOS\",\n      \"figure\": \"N/A\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"Center_Frequency\": {\n      \"description\": \"The frequency at which the LNA voltage gain peaks, determined by the output LC tank.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"900 MHz\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by L3 (8.7nH) and total drain capacitance (Cout ~ 3.5pF). f = 1 / (2*pi*sqrt(8.7nH * 3.5pF)) \u2248 912 MHz.\",\n        \"range\": {\n          \"min\": \"850M\",\n          \"typical\": \"900M\",\n          \"max\": \"950M\",\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Must be tuned to the 900 MHz GSM band as specified in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Voltage_Gain\": {\n      \"description\": \"Peak AC voltage gain at the center frequency.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"100 dB (entire receiver)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain \u2248 gm * R_tank. With gm \u2248 45 mS and R_tank \u2248 333 ohms (three 1k resistors in parallel), Gain \u2248 15 V/V = 23.5 dB.\",\n        \"range\": {\n          \"min\": \"15\",\n          \"typical\": \"20\",\n          \"max\": \"25\",\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"A typical LNA provides 15-20 dB of gain to suppress the noise contribution of subsequent mixer stages.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Power_Consumption\": {\n      \"description\": \"Total DC power consumed by the LNA from the 1.8V supply.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"22 mA (entire receiver)\",\n        \"technology\": \"0.35um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * unCox * (W/L) * Vov^2 = 0.5 * 270u * (90/0.15) * 0.28^2 \u2248 6.3 mA. Power = 6.3 mA * 1.8 V = 11.3 mW.\",\n        \"range\": {\n          \"min\": \"5m\",\n          \"typical\": \"11m\",\n          \"max\": \"20m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"LNA power consumption is typically a few milliwatts to balance noise figure, linearity, and power constraints.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Input_Impedance\": {\n      \"description\": \"Magnitude of the input impedance at 900 MHz.\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Zin \u2248 s(L1+L2) + 1/(s*Cgs) + (gm/Cgs)*L1. The inductive degeneration term (gm/Cgs)*L1 is designed to be 50 ohms.\",\n        \"range\": {\n          \"min\": \"30\",\n          \"typical\": \"50\",\n          \"max\": \"70\",\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"Standard RF design requires matching the input to a 50-ohm antenna/filter source.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure LNA center frequency, peak voltage gain, input impedance, and DC power consumption.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"Center_Frequency\",\n      \"Voltage_Gain\",\n      \"Power_Consumption\",\n      \"Input_Impedance\"\n    ],\n    \"spice\": \"* 900-MHz LNA Testbench\\n.lib \\\"sky130_fd_pr/models/sky130.lib.spice\\\" tt\\n\\n.param Cp=1.2p\\n.param W_m1=90u\\n.param L_m1=0.15u\\n\\n* DUT (Resistor values appended and missing NMOS added)\\nL1 N2 GND 2nH\\nL2 In N0 22nH\\nL3 VDD OUT 8.7nH\\nR1 VDD OUT 1k\\nR2 VDD OUT 1k\\nR3 VDD OUT 1k\\nC1 In GND 2pF\\nC2 N0 GND {Cp}\\nXM1 OUT N0 N2 GND sky130_fd_pr__nfet_01v8 W={W_m1} L={L_m1}\\nCout OUT GND 3.5p\\n\\n* Sources\\nVVDD VDD GND 1.8\\nVIN In GND DC 0.7 AC 1 SIN(0.7 0.01 900MEG 0 0)\\n\\n.control\\n* DC Operating Point\\nop\\nlet id_m1 = -i(VVDD)\\nlet power = id_m1 * 1.8\\nprint id_m1 power\\n\\n* AC Analysis\\nac dec 100 100MEG 10G\\nlet gain_db = vdb(OUT)\\nlet zin_mag = mag(v(In)/(-i(VIN)))\\n\\nmeas ac max_gain MAX gain_db\\nmeas ac peak_freq MAX_AT gain_db\\nmeas ac gain_900mhz find gain_db at=900MEG\\nmeas ac zin_900mhz find zin_mag at=900MEG\\n\\n* Transient Analysis\\ntran 10p 10n\\nmeas tran vout_pp pp v(OUT)\\n\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "972150",
+  "_case": "972150_image_5"
+}

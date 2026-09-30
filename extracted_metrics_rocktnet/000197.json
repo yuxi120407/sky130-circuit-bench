@@ -1,0 +1,103 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Substrate Noise Coupling / Power Distribution Network (PDN) Model",
+    "description": "A lumped-element passive RC network modeling the substrate noise coupling from the power supply (VDD) to the substrate in a digital IC. It includes decoupling capacitance and substrate resistances to estimate noise injection.",
+    "node_mapping": {
+      "input": [
+        "VDD"
+      ],
+      "output": [
+        "substrate"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "Substrate Noise Generation in Complex Digital Systems: Efficient Modeling and Simulation Methodology and Experimental Verification",
+      "figure": "N/A",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Total_Capacitance": {
+      "description": "Low-frequency equivalent capacitance of the power distribution network.",
+      "unit": "F",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "12 pF",
+        "technology": "CMOS ASIC"
+      },
+      "sky130_expected": {
+        "calculation": "C1 + C2 = 1.26nF + 2.28nF = 3.54nF",
+        "range": {
+          "min": 3.5e-09,
+          "typical": 3.54e-09,
+          "max": 3.6e-09,
+          "unit": "F"
+        },
+        "reasoning": "Direct sum of the ideal capacitors in the netlist, representing the total decoupling and parasitic capacitance."
+      },
+      "importance": "essential"
+    },
+    "HF_Transfer_Gain": {
+      "description": "High-frequency voltage transfer ratio from VDD to substrate.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "20 * log10(R2 / (R1 + R2)) = 20 * log10(0.14 / 0.17) = -1.68 dB",
+        "range": {
+          "min": -2.0,
+          "typical": -1.68,
+          "max": -1.5,
+          "unit": "dB"
+        },
+        "reasoning": "At high frequencies, the capacitors act as shorts, and the transfer function is determined by the resistive voltage divider formed by R1 and R2."
+      },
+      "importance": "essential"
+    },
+    "Pole_Frequency": {
+      "description": "The 3-dB cutoff frequency of the high-pass transfer function from VDD to substrate.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "1 GHz",
+        "technology": "N/A"
+      },
+      "sky130_expected": {
+        "calculation": "1 / (2 * pi * (R1 + R2) * C1) = 1 / (2 * pi * 0.17 * 1.26e-9) = 743 MHz",
+        "range": {
+          "min": 700000000.0,
+          "typical": 743000000.0,
+          "max": 800000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Calculated from the RC time constant of the series path C1 and (R1+R2). The 3dB point is relative to the high-frequency gain limit."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure total capacitance, high-frequency transfer gain, and pole frequency of the substrate noise model.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "Total_Capacitance",
+      "HF_Transfer_Gain",
+      "Pole_Frequency"
+    ],
+    "spice": "* Substrate Noise Model Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* DUT\nR1 N1 substrate 0.03\nR2 VSS substrate 0.14\nC1 VDD N1 1.26n\nC2 VDD VSS 2.28n\n\n* Sources\nVVDD VDD 0 DC 1.8 AC 1\nVVSS VSS 0 DC 0\n\n.control\nac dec 100 1k 100G\n\n* Calculate transfer function in dB and total capacitance\nlet transfer_db = vdb(substrate)\nlet C_tot = mag(i(VVDD)) / (2 * 3.14159265 * frequency)\n\n* Measure metrics\nmeas ac Total_Capacitance find C_tot at=10k\nmeas ac HF_Transfer_Gain find transfer_db at=100G\n\n* Pole frequency is 3dB below the HF gain (-1.68 dB - 3.01 dB = -4.69 dB)\nmeas ac Pole_Frequency when transfer_db=-4.69 rise=1\n\nprint Total_Capacitance HF_Transfer_Gain Pole_Frequency\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Substrate Noise Coupling / Power Distribution Network (PDN) Model\",\n    \"description\": \"A lumped-element passive RC network modeling the substrate noise coupling from the power supply (VDD) to the substrate in a digital IC. It includes decoupling capacitance and substrate resistances to estimate noise injection.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VDD\"\n      ],\n      \"output\": [\n        \"substrate\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Substrate Noise Generation in Complex Digital Systems: Efficient Modeling and Simulation Methodology and Experimental Verification\",\n      \"figure\": \"N/A\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Total_Capacitance\": {\n      \"description\": \"Low-frequency equivalent capacitance of the power distribution network.\",\n      \"unit\": \"F\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"12 pF\",\n        \"technology\": \"CMOS ASIC\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"C1 + C2 = 1.26nF + 2.28nF = 3.54nF\",\n        \"range\": {\n          \"min\": 3.5e-9,\n          \"typical\": 3.54e-9,\n          \"max\": 3.6e-9,\n          \"unit\": \"F\"\n        },\n        \"reasoning\": \"Direct sum of the ideal capacitors in the netlist, representing the total decoupling and parasitic capacitance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"HF_Transfer_Gain\": {\n      \"description\": \"High-frequency voltage transfer ratio from VDD to substrate.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"20 * log10(R2 / (R1 + R2)) = 20 * log10(0.14 / 0.17) = -1.68 dB\",\n        \"range\": {\n          \"min\": -2.0,\n          \"typical\": -1.68,\n          \"max\": -1.5,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"At high frequencies, the capacitors act as shorts, and the transfer function is determined by the resistive voltage divider formed by R1 and R2.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Pole_Frequency\": {\n      \"description\": \"The 3-dB cutoff frequency of the high-pass transfer function from VDD to substrate.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"1 GHz\",\n        \"technology\": \"N/A\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / (2 * pi * (R1 + R2) * C1) = 1 / (2 * pi * 0.17 * 1.26e-9) = 743 MHz\",\n        \"range\": {\n          \"min\": 700e6,\n          \"typical\": 743e6,\n          \"max\": 800e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Calculated from the RC time constant of the series path C1 and (R1+R2). The 3dB point is relative to the high-frequency gain limit.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure total capacitance, high-frequency transfer gain, and pole frequency of the substrate noise model.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Total_Capacitance\",\n      \"HF_Transfer_Gain\",\n      \"Pole_Frequency\"\n    ],\n    \"spice\": \"* Substrate Noise Model Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* DUT\\nR1 N1 substrate 0.03\\nR2 VSS substrate 0.14\\nC1 VDD N1 1.26n\\nC2 VDD VSS 2.28n\\n\\n* Sources\\nVVDD VDD 0 DC 1.8 AC 1\\nVVSS VSS 0 DC 0\\n\\n.control\\nac dec 100 1k 100G\\n\\n* Calculate transfer function in dB and total capacitance\\nlet transfer_db = vdb(substrate)\\nlet C_tot = mag(i(VVDD)) / (2 * 3.14159265 * frequency)\\n\\n* Measure metrics\\nmeas ac Total_Capacitance find C_tot at=10k\\nmeas ac HF_Transfer_Gain find transfer_db at=100G\\n\\n* Pole frequency is 3dB below the HF gain (-1.68 dB - 3.01 dB = -4.69 dB)\\nmeas ac Pole_Frequency when transfer_db=-4.69 rise=1\\n\\nprint Total_Capacitance HF_Transfer_Gain Pole_Frequency\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "1020246",
+  "_case": "1020246_image_4"
+}

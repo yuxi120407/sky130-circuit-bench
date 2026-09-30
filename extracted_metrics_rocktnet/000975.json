@@ -1,0 +1,92 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Inverter buffers with dummy capacitive loads",
+    "description": "The circuit consists of two independent CMOS inverters (N7->N3 and N6->N0) loaded with MOS capacitors, alongside isolated dummy MOS capacitor structures (on nodes N4 and N5). Given the SRAM context, it likely serves as a delay matching element, dummy bitline load, or timing generation stage for the sense amplifier.",
+    "node_mapping": {
+      "input": [
+        "N7",
+        "N6"
+      ],
+      "output": [
+        "N3",
+        "N0"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "LABEL_NET_0",
+        "LABEL_NET_1",
+        "LABEL_NET_2",
+        "LABEL_NET_3",
+        "N1",
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "An SRAM Using Output Prediction to Reduce BL-Switching Activity and Statistically-Gated SA for up to 1.9\u00d7 Reduction in Energy/Access",
+      "figure": "unknown",
+      "year": 2013
+    }
+  },
+  "step2_metrics": {
+    "propagation_delay": {
+      "description": "Average propagation delay of the inverters driving their respective MOS capacitive loads.",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Delay \u2248 (C_load * VDD) / (2 * I_on). The load is dominated by the MOS capacitor (W=5u, L=0.5u). C_ox \u2248 10fF/um\u00b2 -> C_load \u2248 25fF. I_on for W=5u NMOS/PMOS is ~1-2mA. Delay \u2248 (25fF * 1.8V) / 2mA \u2248 22ps. Adding parasitic drain capacitances, expect ~50-100ps.",
+        "range": {
+          "min": "30p",
+          "typical": "70p",
+          "max": "150p",
+          "unit": "s"
+        },
+        "reasoning": "Calculated based on SKY130 typical drive current and MOS gate capacitance for the given W/L dimensions."
+      },
+      "importance": "essential"
+    },
+    "static_power": {
+      "description": "Leakage power of the circuit in steady state.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "1W (total chip)",
+        "technology": "65nm"
+      },
+      "sky130_expected": {
+        "calculation": "Leakage current for W=5u devices is typically in the pA to nA range per device. Total leakage for the two inverters is ~10nA. Power = 1.8V * 10nA = 18nW.",
+        "range": {
+          "min": "1n",
+          "typical": "20n",
+          "max": "100n",
+          "unit": "W"
+        },
+        "reasoning": "Based on typical subthreshold leakage for SKY130 standard Vth devices at room temperature."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Measures the propagation delay of the two inverters and the static power consumption. High-value resistors are added to the isolated dummy capacitor nodes to prevent SPICE matrix singularity errors.",
+    "analyses": [
+      "Tran",
+      "OP"
+    ],
+    "metrics_measured": [
+      "propagation_delay",
+      "static_power"
+    ],
+    "spice": "* Testbench for Inverters and Dummy Capacitors\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm6=5u L_xm6=0.5u\n.param W_xm7=5u L_xm7=0.5u\n.param W_xm8=5u L_xm8=0.5u\n.param W_xm9=5u L_xm9=0.5u\n.param W_xm10=5u L_xm10=0.5u\n\nXM1 N3 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N3 N7 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N4 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\nXM5 N5 N2 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\nXM6 N0 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\nXM7 N4 LABEL_NET_0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\nXM8 N0 LABEL_NET_1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\nXM9 N3 LABEL_NET_2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\nXM10 N5 LABEL_NET_3 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\n\n* Power and Bias Sources\nVVDD VDD 0 1.8\nVLABEL_NET_0 LABEL_NET_0 0 0.9\nVLABEL_NET_1 LABEL_NET_1 0 0.9\nVLABEL_NET_2 LABEL_NET_2 0 0.9\nVLABEL_NET_3 LABEL_NET_3 0 0.9\nVN1 N1 0 0.9\nVN2 N2 0 0.9\n\n* Prevent floating nodes on isolated dummy capacitors\nR_N4 N4 0 1G\nR_N5 N5 0 1G\n\n* Input Signals\nVIN1 N7 0 PULSE(0 1.8 1n 0.1n 0.1n 2n 4n)\nVIN2 N6 0 PULSE(0 1.8 1n 0.1n 0.1n 2n 4n)\n\n.lib \"${SKY130_PDK}\" tt\n\n.control\n* Transient Analysis for Delay\ntran 10p 10n\nmeas tran tpd_fall_1 trig v(N7) val=0.9 rise=1 targ v(N3) val=0.9 fall=1\nmeas tran tpd_rise_1 trig v(N7) val=0.9 fall=1 targ v(N3) val=0.9 rise=1\nmeas tran tpd_fall_2 trig v(N6) val=0.9 rise=1 targ v(N0) val=0.9 fall=1\nmeas tran tpd_rise_2 trig v(N6) val=0.9 fall=1 targ v(N0) val=0.9 rise=1\n\nlet avg_tpd_1 = (tpd_fall_1 + tpd_rise_1) / 2\nlet avg_tpd_2 = (tpd_fall_2 + tpd_rise_2) / 2\nprint avg_tpd_1 avg_tpd_2\n\n* DC Operating Point for Static Power\nop\nlet static_power = -i(VVDD) * 1.8\nprint static_power\n\nquit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Inverter buffers with dummy capacitive loads\",\n    \"description\": \"The circuit consists of two independent CMOS inverters (N7->N3 and N6->N0) loaded with MOS capacitors, alongside isolated dummy MOS capacitor structures (on nodes N4 and N5). Given the SRAM context, it likely serves as a delay matching element, dummy bitline load, or timing generation stage for the sense amplifier.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N7\",\n        \"N6\"\n      ],\n      \"output\": [\n        \"N3\",\n        \"N0\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"LABEL_NET_0\",\n        \"LABEL_NET_1\",\n        \"LABEL_NET_2\",\n        \"LABEL_NET_3\",\n        \"N1\",\n        \"N2\"\n      ],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"An SRAM Using Output Prediction to Reduce BL-Switching Activity and Statistically-Gated SA for up to 1.9\u00d7 Reduction in Energy/Access\",\n      \"figure\": \"unknown\",\n      \"year\": 2013\n    }\n  },\n  \"step2_metrics\": {\n    \"propagation_delay\": {\n      \"description\": \"Average propagation delay of the inverters driving their respective MOS capacitive loads.\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Delay \u2248 (C_load * VDD) / (2 * I_on). The load is dominated by the MOS capacitor (W=5u, L=0.5u). C_ox \u2248 10fF/um\u00b2 -> C_load \u2248 25fF. I_on for W=5u NMOS/PMOS is ~1-2mA. Delay \u2248 (25fF * 1.8V) / 2mA \u2248 22ps. Adding parasitic drain capacitances, expect ~50-100ps.\",\n        \"range\": {\n          \"min\": \"30p\",\n          \"typical\": \"70p\",\n          \"max\": \"150p\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Calculated based on SKY130 typical drive current and MOS gate capacitance for the given W/L dimensions.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"static_power\": {\n      \"description\": \"Leakage power of the circuit in steady state.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"1W (total chip)\",\n        \"technology\": \"65nm\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Leakage current for W=5u devices is typically in the pA to nA range per device. Total leakage for the two inverters is ~10nA. Power = 1.8V * 10nA = 18nW.\",\n        \"range\": {\n          \"min\": \"1n\",\n          \"typical\": \"20n\",\n          \"max\": \"100n\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on typical subthreshold leakage for SKY130 standard Vth devices at room temperature.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Measures the propagation delay of the two inverters and the static power consumption. High-value resistors are added to the isolated dummy capacitor nodes to prevent SPICE matrix singularity errors.\",\n    \"analyses\": [\n      \"Tran\",\n      \"OP\"\n    ],\n    \"metrics_measured\": [\n      \"propagation_delay\",\n      \"static_power\"\n    ],\n    \"spice\": \"* Testbench for Inverters and Dummy Capacitors\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm6=5u L_xm6=0.5u\\n.param W_xm7=5u L_xm7=0.5u\\n.param W_xm8=5u L_xm8=0.5u\\n.param W_xm9=5u L_xm9=0.5u\\n.param W_xm10=5u L_xm10=0.5u\\n\\nXM1 N3 N7 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N3 N7 GND GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 N6 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N4 N1 N4 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\nXM5 N5 N2 N5 GND sky130_fd_pr__nfet_01v8 l={L_xm5} w={W_xm5}\\nXM6 N0 N6 GND GND sky130_fd_pr__nfet_01v8 l={L_xm6} w={W_xm6}\\nXM7 N4 LABEL_NET_0 N4 VDD sky130_fd_pr__pfet_01v8 l={L_xm7} w={W_xm7}\\nXM8 N0 LABEL_NET_1 N0 VDD sky130_fd_pr__pfet_01v8 l={L_xm8} w={W_xm8}\\nXM9 N3 LABEL_NET_2 N3 VDD sky130_fd_pr__pfet_01v8 l={L_xm9} w={W_xm9}\\nXM10 N5 LABEL_NET_3 N5 VDD sky130_fd_pr__pfet_01v8 l={L_xm10} w={W_xm10}\\n\\n* Power and Bias Sources\\nVVDD VDD 0 1.8\\nVLABEL_NET_0 LABEL_NET_0 0 0.9\\nVLABEL_NET_1 LABEL_NET_1 0 0.9\\nVLABEL_NET_2 LABEL_NET_2 0 0.9\\nVLABEL_NET_3 LABEL_NET_3 0 0.9\\nVN1 N1 0 0.9\\nVN2 N2 0 0.9\\n\\n* Prevent floating nodes on isolated dummy capacitors\\nR_N4 N4 0 1G\\nR_N5 N5 0 1G\\n\\n* Input Signals\\nVIN1 N7 0 PULSE(0 1.8 1n 0.1n 0.1n 2n 4n)\\nVIN2 N6 0 PULSE(0 1.8 1n 0.1n 0.1n 2n 4n)\\n\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.control\\n* Transient Analysis for Delay\\ntran 10p 10n\\nmeas tran tpd_fall_1 trig v(N7) val=0.9 rise=1 targ v(N3) val=0.9 fall=1\\nmeas tran tpd_rise_1 trig v(N7) val=0.9 fall=1 targ v(N3) val=0.9 rise=1\\nmeas tran tpd_fall_2 trig v(N6) val=0.9 rise=1 targ v(N0) val=0.9 fall=1\\nmeas tran tpd_rise_2 trig v(N6) val=0.9 fall=1 targ v(N0) val=0.9 rise=1\\n\\nlet avg_tpd_1 = (tpd_fall_1 + tpd_rise_1) / 2\\nlet avg_tpd_2 = (tpd_fall_2 + tpd_rise_2) / 2\\nprint avg_tpd_1 avg_tpd_2\\n\\n* DC Operating Point for Static Power\\nop\\nlet static_power = -i(VVDD) * 1.8\\nprint static_power\\n\\nquit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "6487751",
+  "_case": "6487751_image_2_a"
+}

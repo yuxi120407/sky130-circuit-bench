@@ -1,0 +1,134 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Error Amplifier / Peak Detector Comparator",
+    "description": "A four-input transconductance amplifier used in an adaptive tuning scheme. It compares the differential peak-to-peak input voltage with the differential peak-to-peak output voltage to generate a control voltage for impedance matching.",
+    "node_mapping": {
+      "input": [
+        "VOMIN",
+        "VOMAX",
+        "VIMIN",
+        "VIMAX"
+      ],
+      "output": [
+        "VCNTRL"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "VBIAS"
+      ],
+      "ground": [
+        "VSS"
+      ]
+    },
+    "paper_reference": {
+      "title": "A 3.3-V CMOS Adaptive Analog Video Line Driver With Low Distortion Performance",
+      "figure": "Not specified",
+      "year": 2003
+    }
+  },
+  "step2_metrics": {
+    "power": {
+      "description": "Total DC power consumption of the error amplifier",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "26.4 mW (for entire driver)",
+        "technology": "AMI 0.5um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "3 bias branches + 2 diff pairs. Assuming 50uA per branch, total current ~250uA. Power = 250uA * 1.8V = 0.45mW.",
+        "range": {
+          "min": "0.1m",
+          "typical": "0.5m",
+          "max": "2m",
+          "unit": "W"
+        },
+        "reasoning": "The error amplifier consumes a small fraction of the total 26.4mW driver power."
+      },
+      "importance": "essential"
+    },
+    "dc_gain": {
+      "description": "Maximum DC voltage gain from differential input to control voltage",
+      "unit": "V/V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm_diff * (Rout_diff || Rin_mirror) * gm_n3 * Rout_total. Typically 40-60 dB for a two-stage CMOS amplifier.",
+        "range": {
+          "min": "50",
+          "typical": "200",
+          "max": "1000",
+          "unit": "V/V"
+        },
+        "reasoning": "Standard two-stage amplifier gain in 130nm process with 0.5um channel lengths."
+      },
+      "importance": "essential"
+    },
+    "v_offset": {
+      "description": "Input-referred offset voltage",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "30 mV (possibly related)",
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Systematic offset due to asymmetric second stage loading. Should be minimized by design.",
+        "range": {
+          "min": "-0.05",
+          "typical": "0",
+          "max": "0.05",
+          "unit": "V"
+        },
+        "reasoning": "Ideally zero, but systematic offset exists due to Vds mismatch in the current mirror and second stage."
+      },
+      "importance": "essential"
+    },
+    "t_delay": {
+      "description": "Propagation delay for the control voltage to respond to an input peak mismatch",
+      "unit": "s",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5 MHz operation",
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Bandwidth must be sufficient for 5MHz video signals. Delay ~ 1 / (2 * pi * BW).",
+        "range": {
+          "min": "1n",
+          "typical": "10n",
+          "max": "50n",
+          "unit": "s"
+        },
+        "reasoning": "Needs to respond fast enough to track video line variations, but not necessarily at the pixel rate."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure power, DC transfer characteristics (gain, offset, swing), and transient response time of the error amplifier.",
+    "analyses": [
+      "OP",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "power",
+      "dc_gain",
+      "v_offset",
+      "v_swing_high",
+      "v_swing_low",
+      "t_delay_rise",
+      "t_delay_fall"
+    ],
+    "spice": "* Error Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xmp5=5u L_xmp5=0.5u\n.param W_xmp6=5u L_xmp6=0.5u\n.param W_xmp7=5u L_xmp7=0.5u\n.param W_xmp1=5u L_xmp1=0.5u\n.param W_xmp2=5u L_xmp2=0.5u\n.param W_xmp3=5u L_xmp3=0.5u\n.param W_xmp4=5u L_xmp4=0.5u\n.param W_xmn1=5u L_xmn1=0.5u\n.param W_xmn2=5u L_xmn2=0.5u\n.param W_xmn3=5u L_xmn3=0.5u\n\nVVDD VDD 0 1.8\nVVSS VSS 0 0\nVVBIAS VBIAS 0 0.99\n\n* Reference peak-to-peak input (VIMAX - VIMIN = 0.5V)\nVVIMAX VIMAX 0 1.15\nVVIMIN VIMIN 0 0.65\n\n* Output peak-to-peak (VOMAX - VOMIN = 0.5V + Vdiff)\nV_diff Vdiff 0 dc 0 pulse(-0.1 0.1 10n 1n 1n 40n 100n)\nB_VOMAX VOMAX 0 V=1.15 + v(Vdiff)/2\nB_VOMIN VOMIN 0 V=0.65 - v(Vdiff)/2\n\nXMP5 N1 VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp5} w={W_xmp5}\nXMP6 N2 VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp6} w={W_xmp6}\nXMP7 VCNTRL VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp7} w={W_xmp7}\nXMP1 N3 VOMIN N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\nXMP2 N4 VOMAX N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\nXMP3 N4 VIMIN N2 VDD sky130_fd_pr__pfet_01v8 l={L_xmp3} w={W_xmp3}\nXMP4 N3 VIMAX N2 VDD sky130_fd_pr__pfet_01v8 l={L_xmp4} w={W_xmp4}\nXMN1 N3 N3 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\nXMN2 N4 N3 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\nXMN3 VCNTRL N4 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\n\n* Load capacitor\nCL VCNTRL 0 100f\n\n.control\n  * 1. DC Operating Point\n  op\n  let power = -i(VVDD)*1.8\n  print power\n\n  * 2. DC Sweep for Transfer Curve\n  dc V_diff -0.2 0.2 0.001\n  let vcntrl_deriv = deriv(v(VCNTRL))\n  meas dc max_gain max vcntrl_deriv\n  meas dc v_swing_high max v(VCNTRL)\n  meas dc v_swing_low min v(VCNTRL)\n  meas dc v_offset when v(VCNTRL)=0.9\n\n  * 3. Transient Analysis\n  tran 0.1n 100n\n  meas tran t_delay_rise trig v(Vdiff) val=0 rise=1 targ v(VCNTRL) val=0.9 rise=1\n  meas tran t_delay_fall trig v(Vdiff) val=0 fall=1 targ v(VCNTRL) val=0.9 fall=1\n  \n  quit\n.endc\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Error Amplifier / Peak Detector Comparator\",\n    \"description\": \"A four-input transconductance amplifier used in an adaptive tuning scheme. It compares the differential peak-to-peak input voltage with the differential peak-to-peak output voltage to generate a control voltage for impedance matching.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"VOMIN\",\n        \"VOMAX\",\n        \"VIMIN\",\n        \"VIMAX\"\n      ],\n      \"output\": [\n        \"VCNTRL\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"VBIAS\"\n      ],\n      \"ground\": [\n        \"VSS\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A 3.3-V CMOS Adaptive Analog Video Line Driver With Low Distortion Performance\",\n      \"figure\": \"Not specified\",\n      \"year\": 2003\n    }\n  },\n  \"step2_metrics\": {\n    \"power\": {\n      \"description\": \"Total DC power consumption of the error amplifier\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"26.4 mW (for entire driver)\",\n        \"technology\": \"AMI 0.5um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"3 bias branches + 2 diff pairs. Assuming 50uA per branch, total current ~250uA. Power = 250uA * 1.8V = 0.45mW.\",\n        \"range\": {\n          \"min\": \"0.1m\",\n          \"typical\": \"0.5m\",\n          \"max\": \"2m\",\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"The error amplifier consumes a small fraction of the total 26.4mW driver power.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dc_gain\": {\n      \"description\": \"Maximum DC voltage gain from differential input to control voltage\",\n      \"unit\": \"V/V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm_diff * (Rout_diff || Rin_mirror) * gm_n3 * Rout_total. Typically 40-60 dB for a two-stage CMOS amplifier.\",\n        \"range\": {\n          \"min\": \"50\",\n          \"typical\": \"200\",\n          \"max\": \"1000\",\n          \"unit\": \"V/V\"\n        },\n        \"reasoning\": \"Standard two-stage amplifier gain in 130nm process with 0.5um channel lengths.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"v_offset\": {\n      \"description\": \"Input-referred offset voltage\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"30 mV (possibly related)\",\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Systematic offset due to asymmetric second stage loading. Should be minimized by design.\",\n        \"range\": {\n          \"min\": \"-0.05\",\n          \"typical\": \"0\",\n          \"max\": \"0.05\",\n          \"unit\": \"V\"\n        },\n        \"reasoning\": \"Ideally zero, but systematic offset exists due to Vds mismatch in the current mirror and second stage.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"t_delay\": {\n      \"description\": \"Propagation delay for the control voltage to respond to an input peak mismatch\",\n      \"unit\": \"s\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5 MHz operation\",\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Bandwidth must be sufficient for 5MHz video signals. Delay ~ 1 / (2 * pi * BW).\",\n        \"range\": {\n          \"min\": \"1n\",\n          \"typical\": \"10n\",\n          \"max\": \"50n\",\n          \"unit\": \"s\"\n        },\n        \"reasoning\": \"Needs to respond fast enough to track video line variations, but not necessarily at the pixel rate.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure power, DC transfer characteristics (gain, offset, swing), and transient response time of the error amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"power\",\n      \"dc_gain\",\n      \"v_offset\",\n      \"v_swing_high\",\n      \"v_swing_low\",\n      \"t_delay_rise\",\n      \"t_delay_fall\"\n    ],\n    \"spice\": \"* Error Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xmp5=5u L_xmp5=0.5u\\n.param W_xmp6=5u L_xmp6=0.5u\\n.param W_xmp7=5u L_xmp7=0.5u\\n.param W_xmp1=5u L_xmp1=0.5u\\n.param W_xmp2=5u L_xmp2=0.5u\\n.param W_xmp3=5u L_xmp3=0.5u\\n.param W_xmp4=5u L_xmp4=0.5u\\n.param W_xmn1=5u L_xmn1=0.5u\\n.param W_xmn2=5u L_xmn2=0.5u\\n.param W_xmn3=5u L_xmn3=0.5u\\n\\nVVDD VDD 0 1.8\\nVVSS VSS 0 0\\nVVBIAS VBIAS 0 0.99\\n\\n* Reference peak-to-peak input (VIMAX - VIMIN = 0.5V)\\nVVIMAX VIMAX 0 1.15\\nVVIMIN VIMIN 0 0.65\\n\\n* Output peak-to-peak (VOMAX - VOMIN = 0.5V + Vdiff)\\nV_diff Vdiff 0 dc 0 pulse(-0.1 0.1 10n 1n 1n 40n 100n)\\nB_VOMAX VOMAX 0 V=1.15 + v(Vdiff)/2\\nB_VOMIN VOMIN 0 V=0.65 - v(Vdiff)/2\\n\\nXMP5 N1 VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp5} w={W_xmp5}\\nXMP6 N2 VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp6} w={W_xmp6}\\nXMP7 VCNTRL VBIAS VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmp7} w={W_xmp7}\\nXMP1 N3 VOMIN N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp1} w={W_xmp1}\\nXMP2 N4 VOMAX N1 VDD sky130_fd_pr__pfet_01v8 l={L_xmp2} w={W_xmp2}\\nXMP3 N4 VIMIN N2 VDD sky130_fd_pr__pfet_01v8 l={L_xmp3} w={W_xmp3}\\nXMP4 N3 VIMAX N2 VDD sky130_fd_pr__pfet_01v8 l={L_xmp4} w={W_xmp4}\\nXMN1 N3 N3 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmn1} w={W_xmn1}\\nXMN2 N4 N3 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmn2} w={W_xmn2}\\nXMN3 VCNTRL N4 VSS VSS sky130_fd_pr__nfet_01v8 l={L_xmn3} w={W_xmn3}\\n\\n* Load capacitor\\nCL VCNTRL 0 100f\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let power = -i(VVDD)*1.8\\n  print power\\n\\n  * 2. DC Sweep for Transfer Curve\\n  dc V_diff -0.2 0.2 0.001\\n  let vcntrl_deriv = deriv(v(VCNTRL))\\n  meas dc max_gain max vcntrl_deriv\\n  meas dc v_swing_high max v(VCNTRL)\\n  meas dc v_swing_low min v(VCNTRL)\\n  meas dc v_offset when v(VCNTRL)=0.9\\n\\n  * 3. Transient Analysis\\n  tran 0.1n 100n\\n  meas tran t_delay_rise trig v(Vdiff) val=0 rise=1 targ v(VCNTRL) val=0.9 rise=1\\n  meas tran t_delay_fall trig v(Vdiff) val=0 fall=1 targ v(VCNTRL) val=0.9 fall=1\\n  \\n  quit\\n.endc\\n\"\n  }\n}\n```",
+  "_paper_id": "1202009",
+  "_case": "1202009_image_7"
+}

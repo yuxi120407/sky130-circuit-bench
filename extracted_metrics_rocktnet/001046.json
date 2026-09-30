@@ -1,0 +1,133 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Shunt Regulator Error Amplifier and Shunt Transistor",
+    "description": "This circuit regulates the internal supply voltage extracted from an RF field. It uses a differential amplifier to compare a feedback voltage to a reference, driving a PMOS shunt transistor to clamp the supply by shunting excess current to an isolated ground.",
+    "node_mapping": {
+      "input": [
+        "N3",
+        "VREF"
+      ],
+      "output": [
+        "N1",
+        "VDD"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "BIAS"
+      ],
+      "ground": [
+        "N4",
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Secure Contactless Smartcard ASIC with DPA Protection",
+      "figure": "Not specified",
+      "year": 2001
+    }
+  },
+  "step2_metrics": {
+    "open_loop_gain": {
+      "description": "Low-frequency voltage gain of the error amplifier from the feedback input to the shunt gate control node.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "66 dB",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "Gain = gm2 * (ro2 || ro4). With L=0.5u, gm ~ 340uS, Rout ~ 232kOhm, Gain ~ 79 V/V = 38 dB.",
+        "range": {
+          "min": 30,
+          "typical": 38,
+          "max": 45,
+          "unit": "dB"
+        },
+        "reasoning": "Calculated using SKY130 parameters. Lower than the paper's 66 dB due to the use of simple current mirrors and short channel length (L=0.5u) in the extracted netlist, whereas the paper likely used cascoding."
+      },
+      "importance": "essential"
+    },
+    "power_consumption": {
+      "description": "Total DC power consumed by the error amplifier and quiescent shunt current.",
+      "unit": "W",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "2.5 mW",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "I_total = I_tail + I_shunt + I_mirror = 43uA + 21.5uA + 21.5uA = 86uA. Power = 86uA * 1.8V = 155 uW.",
+        "range": {
+          "min": 0.0001,
+          "typical": 0.000155,
+          "max": 0.0005,
+          "unit": "W"
+        },
+        "reasoning": "Based on a tail current set by BIAS=0.6V. The paper's 2.5 mW likely includes the full chip or a much larger nominal shunt current required for RF regulation."
+      },
+      "importance": "essential"
+    },
+    "shunt_impedance": {
+      "description": "Small-signal resistance of the shunt transistor (1/gm).",
+      "unit": "ohm",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "0.5 ohm to 3 ohm",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "1 / gm_shunt = 1 / 146uS = 6.8 kOhm.",
+        "range": {
+          "min": 5000,
+          "typical": 6800,
+          "max": 10000,
+          "unit": "ohm"
+        },
+        "reasoning": "The extracted netlist uses a parameterized W=5u for the shunt transistor, resulting in high impedance. A real RF shunt design would use W > 1000u to achieve the < 3 ohms reported in the paper."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "Frequency at which the error amplifier open-loop gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "3.39 MHz",
+        "technology": "Not specified"
+      },
+      "sky130_expected": {
+        "calculation": "UGF = gm2 / (2 * pi * C_load). Assuming parasitic C_load ~ 10fF, UGF ~ 5 GHz.",
+        "range": {
+          "min": 1000000.0,
+          "typical": 1000000000.0,
+          "max": 5000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Highly dependent on the load capacitance at N1. Without an explicit load capacitor in the netlist, parasitic capacitance dominates, leading to a very high UGF compared to the paper."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure the open-loop gain, unity gain frequency, phase margin, DC trip point, and transient response of the shunt regulator error amplifier.",
+    "analyses": [
+      "OP",
+      "AC",
+      "DC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "open_loop_gain",
+      "unity_gain_frequency",
+      "phase_margin",
+      "power_consumption",
+      "trip_point"
+    ],
+    "spice": "* Testbench for Shunt Regulator Error Amplifier\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm4=5u L_xm4=0.5u\n.param W_xmshunt=5u L_xmshunt=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm5=5u L_xm5=0.5u\n.param W_xm1=5u L_xm1=0.5u\n\nXM4 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\nXMSHUNT N4 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmshunt} w={W_xmshunt}\nXM2 N1 N3 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N0 VREF N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM5 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\nXM1 N2 BIAS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\n* Connect isolated ground N4 to main GND for testing\nV_N4 N4 0 0\n\n* DC Sources\nVVDD VDD 0 1.8\nVVREF VREF 0 0.9\nVBIAS BIAS 0 0.6\n\n* Input Signal at Feedback Node (N3)\nVN3 N3 0 dc 0.9 ac 1 pulse(0.8 1.0 1n 1n 1n 5u 10u)\n\n.control\n  * DC Operating Point\n  op\n  let power = -i(VVDD) * 1.8\n  print power\n\n  * AC Analysis for Open-Loop Gain and Phase\n  ac dec 100 1 10G\n  let gain_db = vdb(N1)\n  let phase = 180/PI * cph(v(N1))\n  meas ac dc_gain find gain_db at=10\n  meas ac ugf when gain_db=0 fall=1\n  meas ac phase_at_ugf find phase when gain_db=0 fall=1\n\n  * DC Sweep for Transfer Characteristic\n  dc VN3 0 1.8 0.01\n  meas dc trip_point when v(N1)=0.9 fall=1\n\n  * Transient Analysis for Step Response\n  tran 10n 10u\n  meas tran trise trig v(N1) val=0.5 rise=1 targ v(N1) val=1.3 rise=1\n  meas tran tfall trig v(N1) val=1.3 fall=1 targ v(N1) val=0.5 fall=1\n\n  quit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Shunt Regulator Error Amplifier and Shunt Transistor\",\n    \"description\": \"This circuit regulates the internal supply voltage extracted from an RF field. It uses a differential amplifier to compare a feedback voltage to a reference, driving a PMOS shunt transistor to clamp the supply by shunting excess current to an isolated ground.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N3\",\n        \"VREF\"\n      ],\n      \"output\": [\n        \"N1\",\n        \"VDD\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [\n        \"BIAS\"\n      ],\n      \"ground\": [\n        \"N4\",\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Secure Contactless Smartcard ASIC with DPA Protection\",\n      \"figure\": \"Not specified\",\n      \"year\": 2001\n    }\n  },\n  \"step2_metrics\": {\n    \"open_loop_gain\": {\n      \"description\": \"Low-frequency voltage gain of the error amplifier from the feedback input to the shunt gate control node.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"66 dB\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Gain = gm2 * (ro2 || ro4). With L=0.5u, gm ~ 340uS, Rout ~ 232kOhm, Gain ~ 79 V/V = 38 dB.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 38,\n          \"max\": 45,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Calculated using SKY130 parameters. Lower than the paper's 66 dB due to the use of simple current mirrors and short channel length (L=0.5u) in the extracted netlist, whereas the paper likely used cascoding.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"power_consumption\": {\n      \"description\": \"Total DC power consumed by the error amplifier and quiescent shunt current.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"2.5 mW\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"I_total = I_tail + I_shunt + I_mirror = 43uA + 21.5uA + 21.5uA = 86uA. Power = 86uA * 1.8V = 155 uW.\",\n        \"range\": {\n          \"min\": 100e-6,\n          \"typical\": 155e-6,\n          \"max\": 500e-6,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Based on a tail current set by BIAS=0.6V. The paper's 2.5 mW likely includes the full chip or a much larger nominal shunt current required for RF regulation.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"shunt_impedance\": {\n      \"description\": \"Small-signal resistance of the shunt transistor (1/gm).\",\n      \"unit\": \"ohm\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"0.5 ohm to 3 ohm\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"1 / gm_shunt = 1 / 146uS = 6.8 kOhm.\",\n        \"range\": {\n          \"min\": 5000,\n          \"typical\": 6800,\n          \"max\": 10000,\n          \"unit\": \"ohm\"\n        },\n        \"reasoning\": \"The extracted netlist uses a parameterized W=5u for the shunt transistor, resulting in high impedance. A real RF shunt design would use W > 1000u to achieve the < 3 ohms reported in the paper.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"Frequency at which the error amplifier open-loop gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"3.39 MHz\",\n        \"technology\": \"Not specified\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"UGF = gm2 / (2 * pi * C_load). Assuming parasitic C_load ~ 10fF, UGF ~ 5 GHz.\",\n        \"range\": {\n          \"min\": 1e6,\n          \"typical\": 1e9,\n          \"max\": 5e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Highly dependent on the load capacitance at N1. Without an explicit load capacitor in the netlist, parasitic capacitance dominates, leading to a very high UGF compared to the paper.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure the open-loop gain, unity gain frequency, phase margin, DC trip point, and transient response of the shunt regulator error amplifier.\",\n    \"analyses\": [\n      \"OP\",\n      \"AC\",\n      \"DC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"open_loop_gain\",\n      \"unity_gain_frequency\",\n      \"phase_margin\",\n      \"power_consumption\",\n      \"trip_point\"\n    ],\n    \"spice\": \"* Testbench for Shunt Regulator Error Amplifier\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm4=5u L_xm4=0.5u\\n.param W_xmshunt=5u L_xmshunt=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm5=5u L_xm5=0.5u\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM4 N1 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm4} w={W_xm4}\\nXMSHUNT N4 N1 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xmshunt} w={W_xmshunt}\\nXM2 N1 N3 N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N0 VREF N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM5 N0 N0 VDD VDD sky130_fd_pr__pfet_01v8 l={L_xm5} w={W_xm5}\\nXM1 N2 BIAS N4 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\n* Connect isolated ground N4 to main GND for testing\\nV_N4 N4 0 0\\n\\n* DC Sources\\nVVDD VDD 0 1.8\\nVVREF VREF 0 0.9\\nVBIAS BIAS 0 0.6\\n\\n* Input Signal at Feedback Node (N3)\\nVN3 N3 0 dc 0.9 ac 1 pulse(0.8 1.0 1n 1n 1n 5u 10u)\\n\\n.control\\n  * DC Operating Point\\n  op\\n  let power = -i(VVDD) * 1.8\\n  print power\\n\\n  * AC Analysis for Open-Loop Gain and Phase\\n  ac dec 100 1 10G\\n  let gain_db = vdb(N1)\\n  let phase = 180/PI * cph(v(N1))\\n  meas ac dc_gain find gain_db at=10\\n  meas ac ugf when gain_db=0 fall=1\\n  meas ac phase_at_ugf find phase when gain_db=0 fall=1\\n\\n  * DC Sweep for Transfer Characteristic\\n  dc VN3 0 1.8 0.01\\n  meas dc trip_point when v(N1)=0.9 fall=1\\n\\n  * Transient Analysis for Step Response\\n  tran 10n 10u\\n  meas tran trise trig v(N1) val=0.5 rise=1 targ v(N1) val=1.3 rise=1\\n  meas tran tfall trig v(N1) val=1.3 fall=1 targ v(N1) val=0.5 fall=1\\n\\n  quit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "910496",
+  "_case": "910496_image_3"
+}

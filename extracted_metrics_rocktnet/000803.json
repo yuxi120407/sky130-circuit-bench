@@ -1,0 +1,126 @@
+{
+  "step1_analysis": {
+    "circuit_type": "CMOS Single-Balanced Passive Mixer",
+    "description": "A single-balanced passive mixer core utilizing parallel NMOS switches with a unique bias-shifting network (LOCP/LOCN) to track the LO DC offset, which reduces second-order intermodulation (IIP2).",
+    "node_mapping": {
+      "input": [
+        "N2",
+        "LOP",
+        "LON",
+        "LOCP",
+        "LOCN"
+      ],
+      "output": [
+        "N0",
+        "N1"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A CMOS Passive Mixer With Low Flicker Noise for Low-Power Direct-Conversion Receiver",
+      "figure": "Unknown",
+      "year": 2005
+    }
+  },
+  "step2_metrics": {
+    "conversion_gain": {
+      "description": "Voltage conversion gain from RF input to differential IF output",
+      "unit": "dB",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "3 dB",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Ideal passive mixer voltage gain is 2/pi (~ -3.9 dB). The 3 dB reported in the paper likely includes an LNA or resonant matching network voltage gain.",
+        "range": {
+          "min": -6,
+          "typical": -4,
+          "max": -3,
+          "unit": "dB"
+        },
+        "reasoning": "The passive switch core itself has inherent conversion loss. Expect around -4 dB for the bare core."
+      },
+      "importance": "essential"
+    },
+    "flicker_noise_corner": {
+      "description": "Flicker noise (1/f) corner frequency",
+      "unit": "Hz",
+      "analysis_type": "Noise",
+      "paper_reported": {
+        "value": "45 kHz",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Depends on device sizing (W*L) and process-specific flicker noise coefficients.",
+        "range": {
+          "min": 10000,
+          "typical": 45000,
+          "max": 100000,
+          "unit": "Hz"
+        },
+        "reasoning": "Passive mixers generally exhibit very low flicker noise because there is no DC current flowing through the switches. Sky130 should achieve similar performance."
+      },
+      "importance": "recommended"
+    },
+    "IIP2": {
+      "description": "Second-order input intercept point",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "39 dBm",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Highly dependent on device matching and the effectiveness of the bias-shifting technique.",
+        "range": {
+          "min": 30,
+          "typical": 39,
+          "max": 45,
+          "unit": "dBm"
+        },
+        "reasoning": "The unique bias-shifting network (LOCP/LOCN) is specifically designed to boost IIP2. Expected to be in the high 30s to 40s dBm."
+      },
+      "importance": "essential"
+    },
+    "IIP3": {
+      "description": "Third-order input intercept point",
+      "unit": "dBm",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "5 dBm",
+        "technology": "0.18 um CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Determined by switch linearity under large LO drive.",
+        "range": {
+          "min": 0,
+          "typical": 5,
+          "max": 10,
+          "unit": "dBm"
+        },
+        "reasoning": "Passive switches driven with large LO swings typically have good linearity. Sky130 devices should yield similar IIP3."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "Transient analysis to measure the voltage conversion gain of the passive mixer core. A 5.01 GHz RF signal is mixed with a 5 GHz LO signal to produce a 10 MHz IF signal. An ideal low-pass filter is used to extract the IF amplitude.",
+    "analyses": [
+      "Tran"
+    ],
+    "metrics_measured": [
+      "conversion_gain"
+    ],
+    "spice": "* Testbench for Passive Mixer\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n.param W_xm2=5u L_xm2=0.5u\n.param W_xm3=5u L_xm3=0.5u\n.param W_xm4=5u L_xm4=0.5u\n\nVVDD VDD 0 1.8\n\n* RF input (5.01 GHz, 10mV peak)\nV_RF N2 0 dc 0 sin(0 10m 5.01G)\n\n* LO inputs (5 GHz, 0.6V peak, 0.6V DC bias)\n* LOCP and LOCN have a slightly shifted DC bias to emulate the bias-shifting network\nV_LOP LOP 0 sin(0.6 0.6 5G 0 0 0)\nV_LOCN LOCN 0 sin(0.65 0.6 5G 0 0 0)\nV_LON LON 0 sin(0.6 0.6 5G 0 0 180)\nV_LOCP LOCP 0 sin(0.65 0.6 5G 0 0 180)\n\n* IF Load (10k || 0.1pF)\nC1 N0 0 0.1p\nR1 N0 0 10k\nC2 N1 0 0.1p\nR2 N1 0 10k\n\n* DUT\nXM1 N0 LON N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\nXM2 N1 LOP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\nXM3 N1 LOCN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\nXM4 N0 LOCP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\n\n* Differential output and ideal low-pass filter for measurement (Pole ~ 159 MHz)\nE_diff Ndiff 0 vol='v(N0)-v(N1)'\nR_flt Ndiff Ndiff_flt 1k\nC_flt Ndiff_flt 0 1p\n\n.control\n* Simulate for 200ns to capture two full 10MHz IF cycles\ntran 10p 200n\n\n* Measure peak-to-peak of the filtered IF signal in the second cycle\nmeas tran max_vd max v(Ndiff_flt) from=100n to=200n\nmeas tran min_vd min v(Ndiff_flt) from=100n to=200n\n\n* Calculate Voltage Conversion Gain (VCG)\nlet vd_amp = (max_vd - min_vd)/2\nlet vcg = vd_amp / 10m\nlet vcg_db = 20 * log10(vcg)\n\nprint vcg_db\nquit\n.endc"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"CMOS Single-Balanced Passive Mixer\",\n    \"description\": \"A single-balanced passive mixer core utilizing parallel NMOS switches with a unique bias-shifting network (LOCP/LOCN) to track the LO DC offset, which reduces second-order intermodulation (IIP2).\",\n    \"node_mapping\": {\n      \"input\": [\n        \"N2\",\n        \"LOP\",\n        \"LON\",\n        \"LOCP\",\n        \"LOCN\"\n      ],\n      \"output\": [\n        \"N0\",\n        \"N1\"\n      ],\n      \"supply\": [\n        \"VDD\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"A CMOS Passive Mixer With Low Flicker Noise for Low-Power Direct-Conversion Receiver\",\n      \"figure\": \"Unknown\",\n      \"year\": 2005\n    }\n  },\n  \"step2_metrics\": {\n    \"conversion_gain\": {\n      \"description\": \"Voltage conversion gain from RF input to differential IF output\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"3 dB\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Ideal passive mixer voltage gain is 2/pi (~ -3.9 dB). The 3 dB reported in the paper likely includes an LNA or resonant matching network voltage gain.\",\n        \"range\": {\n          \"min\": -6,\n          \"typical\": -4,\n          \"max\": -3,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"The passive switch core itself has inherent conversion loss. Expect around -4 dB for the bare core.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"flicker_noise_corner\": {\n      \"description\": \"Flicker noise (1/f) corner frequency\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"Noise\",\n      \"paper_reported\": {\n        \"value\": \"45 kHz\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Depends on device sizing (W*L) and process-specific flicker noise coefficients.\",\n        \"range\": {\n          \"min\": 10000,\n          \"typical\": 45000,\n          \"max\": 100000,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Passive mixers generally exhibit very low flicker noise because there is no DC current flowing through the switches. Sky130 should achieve similar performance.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"IIP2\": {\n      \"description\": \"Second-order input intercept point\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"39 dBm\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Highly dependent on device matching and the effectiveness of the bias-shifting technique.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 39,\n          \"max\": 45,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"The unique bias-shifting network (LOCP/LOCN) is specifically designed to boost IIP2. Expected to be in the high 30s to 40s dBm.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"IIP3\": {\n      \"description\": \"Third-order input intercept point\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"5 dBm\",\n        \"technology\": \"0.18 um CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Determined by switch linearity under large LO drive.\",\n        \"range\": {\n          \"min\": 0,\n          \"typical\": 5,\n          \"max\": 10,\n          \"unit\": \"dBm\"\n        },\n        \"reasoning\": \"Passive switches driven with large LO swings typically have good linearity. Sky130 devices should yield similar IIP3.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Transient analysis to measure the voltage conversion gain of the passive mixer core. A 5.01 GHz RF signal is mixed with a 5 GHz LO signal to produce a 10 MHz IF signal. An ideal low-pass filter is used to extract the IF amplitude.\",\n    \"analyses\": [\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"conversion_gain\"\n    ],\n    \"spice\": \"* Testbench for Passive Mixer\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n.param W_xm2=5u L_xm2=0.5u\\n.param W_xm3=5u L_xm3=0.5u\\n.param W_xm4=5u L_xm4=0.5u\\n\\nVVDD VDD 0 1.8\\n\\n* RF input (5.01 GHz, 10mV peak)\\nV_RF N2 0 dc 0 sin(0 10m 5.01G)\\n\\n* LO inputs (5 GHz, 0.6V peak, 0.6V DC bias)\\n* LOCP and LOCN have a slightly shifted DC bias to emulate the bias-shifting network\\nV_LOP LOP 0 sin(0.6 0.6 5G 0 0 0)\\nV_LOCN LOCN 0 sin(0.65 0.6 5G 0 0 0)\\nV_LON LON 0 sin(0.6 0.6 5G 0 0 180)\\nV_LOCP LOCP 0 sin(0.65 0.6 5G 0 0 180)\\n\\n* IF Load (10k || 0.1pF)\\nC1 N0 0 0.1p\\nR1 N0 0 10k\\nC2 N1 0 0.1p\\nR2 N1 0 10k\\n\\n* DUT\\nXM1 N0 LON N2 GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\nXM2 N1 LOP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm2} w={W_xm2}\\nXM3 N1 LOCN N2 GND sky130_fd_pr__nfet_01v8 l={L_xm3} w={W_xm3}\\nXM4 N0 LOCP N2 GND sky130_fd_pr__nfet_01v8 l={L_xm4} w={W_xm4}\\n\\n* Differential output and ideal low-pass filter for measurement (Pole ~ 159 MHz)\\nE_diff Ndiff 0 vol='v(N0)-v(N1)'\\nR_flt Ndiff Ndiff_flt 1k\\nC_flt Ndiff_flt 0 1p\\n\\n.control\\n* Simulate for 200ns to capture two full 10MHz IF cycles\\ntran 10p 200n\\n\\n* Measure peak-to-peak of the filtered IF signal in the second cycle\\nmeas tran max_vd max v(Ndiff_flt) from=100n to=200n\\nmeas tran min_vd min v(Ndiff_flt) from=100n to=200n\\n\\n* Calculate Voltage Conversion Gain (VCG)\\nlet vd_amp = (max_vd - min_vd)/2\\nlet vcg = vd_amp / 10m\\nlet vcg_db = 20 * log10(vcg)\\n\\nprint vcg_db\\nquit\\n.endc\"\n  }\n}\n```",
+  "_paper_id": "1425716",
+  "_case": "1425716_image_8"
+}

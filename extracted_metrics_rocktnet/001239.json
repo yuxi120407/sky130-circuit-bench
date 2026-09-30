@@ -1,0 +1,143 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Passive RLC network / Inductor model",
+    "description": "The extracted netlist consists of passive components forming a Pi-network (L2, R1, C2, C3, C4), which is a standard lumped-element model for an on-chip inductor or transformer winding. It also includes an ideal switch and a separate LC tank, likely representing a sub-block of the distributed active transformer power amplifier described in the paper.",
+    "node_mapping": {
+      "input": [
+        "n1"
+      ],
+      "output": [
+        "n2"
+      ],
+      "supply": [
+        "label_net_0"
+      ],
+      "bias": [],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "Fully Integrated CMOS Power Amplifier Design Using the Distributed Active-Transformer Architecture",
+      "figure": "unknown",
+      "year": 2002
+    }
+  },
+  "step2_metrics": {
+    "Power Added Efficiency (PAE)": {
+      "description": "Ratio of RF output power minus RF input power to DC power consumed.",
+      "unit": "%",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "41%",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A for passive netlist.",
+        "range": {
+          "min": 30,
+          "typical": 40,
+          "max": 50,
+          "unit": "%"
+        },
+        "reasoning": "Depends on active PA design, not measurable with the provided passive-only netlist."
+      },
+      "importance": "essential"
+    },
+    "Output Power": {
+      "description": "Maximum RF power delivered to the load.",
+      "unit": "W",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "1 W",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "N/A",
+        "range": {
+          "min": 0.1,
+          "typical": 0.5,
+          "max": 1.0,
+          "unit": "W"
+        },
+        "reasoning": "Not measurable with the provided passive netlist."
+      },
+      "importance": "essential"
+    },
+    "Inductance (L)": {
+      "description": "Effective inductance of the Pi-network.",
+      "unit": "H",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Im(Z) / (2*pi*f)",
+        "range": {
+          "min": 1e-10,
+          "typical": 1e-09,
+          "max": 1e-08,
+          "unit": "H"
+        },
+        "reasoning": "Typical on-chip inductor values range from 0.1nH to 10nH."
+      },
+      "importance": "essential"
+    },
+    "Quality Factor (Q)": {
+      "description": "Ratio of imaginary to real part of the impedance.",
+      "unit": "ratio",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Im(Z) / Re(Z)",
+        "range": {
+          "min": 5,
+          "typical": 10,
+          "max": 20,
+          "unit": "ratio"
+        },
+        "reasoning": "Typical Q-factor for on-chip inductors in standard CMOS."
+      },
+      "importance": "essential"
+    },
+    "Self-Resonance Frequency (SRF)": {
+      "description": "Frequency at which the imaginary part of the impedance becomes zero.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": null,
+        "technology": null
+      },
+      "sky130_expected": {
+        "calculation": "Frequency where Im(Z) = 0",
+        "range": {
+          "min": 5000000000.0,
+          "typical": 20000000000.0,
+          "max": 100000000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Determined by L and parasitic C. Expected to be well above the operating frequency."
+      },
+      "importance": "essential"
+    }
+  },
+  "step3_testbench": {
+    "description": "AC analysis to measure the Inductance, Quality Factor, and Self-Resonance Frequency of the extracted passive Pi-network.",
+    "analyses": [
+      "AC"
+    ],
+    "metrics_measured": [
+      "Inductance",
+      "Quality Factor",
+      "SRF"
+    ],
+    "spice": "* Testbench for Extracted Passive Network\n.lib \"${SKY130_PDK}\" tt\n\n.param c_val=100f r_val=10 l_val=1n\n\n* DUT\nC1 n0 GND {c_val}\nR1 n1 n2 {r_val}\nC2 n1 n2 {c_val/10}\nC3 n1 GND {c_val/2}\nC4 n2 GND {c_val/2}\nL1 n0 label_net_0 {l_val}\n* Modified switch syntax to include control nodes for ngspice compatibility\nS1 n1 GND ctrl GND switch_ideal\nL2 n1 n2 {l_val}\n\n.model switch_ideal sw vt=0.5 ron=0.1 roff=1G\n\n* Biasing and Sources\nVLABEL_NET_0 label_net_0 0 dc 0.9\nVctrl ctrl 0 dc 0\nIac n1 0 dc 0 ac 1\nVn2 n2 0 dc 0\n\n.control\nac dec 100 100Meg 100Gig\n\n* Calculate Impedance Z11 (since Iac = 1A, Z11 = V(n1))\nlet ReZ = real(v(n1))\nlet ImZ = imag(v(n1))\nlet Q_factor = ImZ / ReZ\nlet L_ind = ImZ / (2 * pi * frequency)\n\n* Measure metrics\nmeas ac max_Q max Q_factor\nmeas ac SRF when ImZ=0 fall=1\nmeas ac L_at_1G find L_ind at=1G\n\nprint max_Q SRF L_at_1G\nquit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Passive RLC network / Inductor model\",\n    \"description\": \"The extracted netlist consists of passive components forming a Pi-network (L2, R1, C2, C3, C4), which is a standard lumped-element model for an on-chip inductor or transformer winding. It also includes an ideal switch and a separate LC tank, likely representing a sub-block of the distributed active transformer power amplifier described in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\n        \"n1\"\n      ],\n      \"output\": [\n        \"n2\"\n      ],\n      \"supply\": [\n        \"label_net_0\"\n      ],\n      \"bias\": [],\n      \"ground\": [\n        \"GND\"\n      ]\n    },\n    \"paper_reference\": {\n      \"title\": \"Fully Integrated CMOS Power Amplifier Design Using the Distributed Active-Transformer Architecture\",\n      \"figure\": \"unknown\",\n      \"year\": 2002\n    }\n  },\n  \"step2_metrics\": {\n    \"Power Added Efficiency (PAE)\": {\n      \"description\": \"Ratio of RF output power minus RF input power to DC power consumed.\",\n      \"unit\": \"%\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"41%\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A for passive netlist.\",\n        \"range\": {\n          \"min\": 30,\n          \"typical\": 40,\n          \"max\": 50,\n          \"unit\": \"%\"\n        },\n        \"reasoning\": \"Depends on active PA design, not measurable with the provided passive-only netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Output Power\": {\n      \"description\": \"Maximum RF power delivered to the load.\",\n      \"unit\": \"W\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"1 W\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"N/A\",\n        \"range\": {\n          \"min\": 0.1,\n          \"typical\": 0.5,\n          \"max\": 1.0,\n          \"unit\": \"W\"\n        },\n        \"reasoning\": \"Not measurable with the provided passive netlist.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Inductance (L)\": {\n      \"description\": \"Effective inductance of the Pi-network.\",\n      \"unit\": \"H\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Im(Z) / (2*pi*f)\",\n        \"range\": {\n          \"min\": 0.1e-9,\n          \"typical\": 1e-9,\n          \"max\": 10e-9,\n          \"unit\": \"H\"\n        },\n        \"reasoning\": \"Typical on-chip inductor values range from 0.1nH to 10nH.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Quality Factor (Q)\": {\n      \"description\": \"Ratio of imaginary to real part of the impedance.\",\n      \"unit\": \"ratio\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Im(Z) / Re(Z)\",\n        \"range\": {\n          \"min\": 5,\n          \"typical\": 10,\n          \"max\": 20,\n          \"unit\": \"ratio\"\n        },\n        \"reasoning\": \"Typical Q-factor for on-chip inductors in standard CMOS.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Self-Resonance Frequency (SRF)\": {\n      \"description\": \"Frequency at which the imaginary part of the impedance becomes zero.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": null,\n        \"technology\": null\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Frequency where Im(Z) = 0\",\n        \"range\": {\n          \"min\": 5e9,\n          \"typical\": 20e9,\n          \"max\": 100e9,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Determined by L and parasitic C. Expected to be well above the operating frequency.\"\n      },\n      \"importance\": \"essential\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"AC analysis to measure the Inductance, Quality Factor, and Self-Resonance Frequency of the extracted passive Pi-network.\",\n    \"analyses\": [\n      \"AC\"\n    ],\n    \"metrics_measured\": [\n      \"Inductance\",\n      \"Quality Factor\",\n      \"SRF\"\n    ],\n    \"spice\": \"* Testbench for Extracted Passive Network\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param c_val=100f r_val=10 l_val=1n\\n\\n* DUT\\nC1 n0 GND {c_val}\\nR1 n1 n2 {r_val}\\nC2 n1 n2 {c_val/10}\\nC3 n1 GND {c_val/2}\\nC4 n2 GND {c_val/2}\\nL1 n0 label_net_0 {l_val}\\n* Modified switch syntax to include control nodes for ngspice compatibility\\nS1 n1 GND ctrl GND switch_ideal\\nL2 n1 n2 {l_val}\\n\\n.model switch_ideal sw vt=0.5 ron=0.1 roff=1G\\n\\n* Biasing and Sources\\nVLABEL_NET_0 label_net_0 0 dc 0.9\\nVctrl ctrl 0 dc 0\\nIac n1 0 dc 0 ac 1\\nVn2 n2 0 dc 0\\n\\n.control\\nac dec 100 100Meg 100Gig\\n\\n* Calculate Impedance Z11 (since Iac = 1A, Z11 = V(n1))\\nlet ReZ = real(v(n1))\\nlet ImZ = imag(v(n1))\\nlet Q_factor = ImZ / ReZ\\nlet L_ind = ImZ / (2 * pi * frequency)\\n\\n* Measure metrics\\nmeas ac max_Q max Q_factor\\nmeas ac SRF when ImZ=0 fall=1\\nmeas ac L_at_1G find L_ind at=1G\\n\\nprint max_Q SRF L_at_1G\\nquit\\n.endc\\n.end\"\n  }\n}\n```",
+  "_paper_id": "987090",
+  "_case": "987090_image_17"
+}

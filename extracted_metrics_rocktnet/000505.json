@@ -1,0 +1,149 @@
+{
+  "step1_analysis": {
+    "circuit_type": "Single-transistor common-source amplifier / test structure",
+    "description": "A single NMOS transistor configured as a common-source amplifier, likely used as a test structure to characterize large-signal intermodulation distortion (IMD) behavior in RF CMOS power amplifiers as described in the paper.",
+    "node_mapping": {
+      "input": [
+        "N2"
+      ],
+      "output": [
+        "N4"
+      ],
+      "supply": [
+        "VDD"
+      ],
+      "bias": [
+        "N2"
+      ],
+      "ground": [
+        "GND"
+      ]
+    },
+    "paper_reference": {
+      "title": "A Comprehensive Analysis of IMD Behavior in RF CMOS Power Amplifiers",
+      "figure": "N/A",
+      "year": 2004
+    }
+  },
+  "step2_metrics": {
+    "Id_bias": {
+      "description": "Drain current at the DC operating point (Vgs=0.9V)",
+      "unit": "A",
+      "analysis_type": "OP",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2",
+        "range": {
+          "min": "200u",
+          "typical": "311u",
+          "max": "400u",
+          "unit": "A"
+        },
+        "reasoning": "Calculated using standard square-law model with SKY130 parameters."
+      },
+      "importance": "essential"
+    },
+    "Voltage_Gain": {
+      "description": "Low-frequency AC voltage gain",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "gm = 2*Id/(Vgs-Vth) = 1.29mA/V. Gain = gm * (RL || ro) = 1.29m * (2.7k || 32k) = 3.2 V/V = 10.1 dB",
+        "range": {
+          "min": "8",
+          "typical": "10.1",
+          "max": "12",
+          "unit": "dB"
+        },
+        "reasoning": "Based on gm and parallel combination of load resistor (2.7k) and transistor output resistance."
+      },
+      "importance": "essential"
+    },
+    "Vth": {
+      "description": "Threshold voltage measured at 10uA drain current",
+      "unit": "V",
+      "analysis_type": "DC",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vgs at Id=10uA. (Vgs-0.42)^2 = 10u / 1.35m => Vgs = 0.42 + 0.086 = 0.5V",
+        "range": {
+          "min": "0.4",
+          "typical": "0.5",
+          "max": "0.6",
+          "unit": "V"
+        },
+        "reasoning": "Extracted from DC sweep at a constant small drain current."
+      },
+      "importance": "recommended"
+    },
+    "Vout_swing": {
+      "description": "Peak-to-peak output voltage swing for a 0.2Vpp input",
+      "unit": "V",
+      "analysis_type": "Tran",
+      "paper_reported": {
+        "value": "N/A",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Vin_pp * Gain_linear = 0.2V * 3.2 V/V = 0.64V",
+        "range": {
+          "min": "0.5",
+          "typical": "0.64",
+          "max": "0.8",
+          "unit": "V"
+        },
+        "reasoning": "Transient swing corresponds to the linear gain multiplied by input swing."
+      },
+      "importance": "essential"
+    },
+    "IIP3": {
+      "description": "Input Third-Order Intercept Point",
+      "unit": "dBm",
+      "analysis_type": "Tran (Two-tone)",
+      "paper_reported": {
+        "value": "Mentioned in abstract",
+        "technology": "CMOS"
+      },
+      "sky130_expected": {
+        "calculation": "Complex nonlinear derivation. Typically for a short-channel NMOS at moderate inversion, IIP3 is around 10 dBm.",
+        "range": {
+          "min": "0",
+          "typical": "10",
+          "max": "20",
+          "unit": "dBm"
+        },
+        "reasoning": "Standard performance for a single-transistor amplifier in 130nm CMOS."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC bias current, threshold voltage, AC voltage gain, and transient output swing of the single-transistor amplifier.",
+    "analyses": [
+      "OP",
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "Id_bias",
+      "Vth",
+      "Voltage_Gain",
+      "Vout_swing"
+    ],
+    "spice": "* Single-transistor amplifier testbench\n.lib \"${SKY130_PDK}\" tt\n\n.param W_xm1=5u L_xm1=0.5u\n\nXM1 N4 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\n\nVDD VDD 0 DC 1.8\nRL VDD N4 2.7k\nVIN N2 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\n\n.control\n  * 1. DC Operating Point\n  op\n  let id_bias = (1.8 - v(N4)) / 2700\n  print id_bias\n\n  * 2. DC Sweep for Vth\n  dc VIN 0 1.8 0.01\n  let id_dc = (1.8 - v(N4)) / 2700\n  meas dc vth_10uA find v(N2) when id_dc=10u\n\n  * 3. AC Analysis\n  ac dec 100 1k 10G\n  let gain_db = vdb(N4)\n  meas ac low_freq_gain_db find gain_db at=10k\n\n  * 4. Transient Analysis\n  tran 1n 2u\n  meas tran vout_max max v(N4)\n  meas tran vout_min min v(N4)\n  meas tran vout_swing param='vout_max - vout_min'\n\n  quit\n.endc\n.end\n"
+  },
+  "_raw_response": "```json\n{\n  \"step1_analysis\": {\n    \"circuit_type\": \"Single-transistor common-source amplifier / test structure\",\n    \"description\": \"A single NMOS transistor configured as a common-source amplifier, likely used as a test structure to characterize large-signal intermodulation distortion (IMD) behavior in RF CMOS power amplifiers as described in the paper.\",\n    \"node_mapping\": {\n      \"input\": [\"N2\"],\n      \"output\": [\"N4\"],\n      \"supply\": [\"VDD\"],\n      \"bias\": [\"N2\"],\n      \"ground\": [\"GND\"]\n    },\n    \"paper_reference\": {\n      \"title\": \"A Comprehensive Analysis of IMD Behavior in RF CMOS Power Amplifiers\",\n      \"figure\": \"N/A\",\n      \"year\": 2004\n    }\n  },\n  \"step2_metrics\": {\n    \"Id_bias\": {\n      \"description\": \"Drain current at the DC operating point (Vgs=0.9V)\",\n      \"unit\": \"A\",\n      \"analysis_type\": \"OP\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Id = 0.5 * unCox * (W/L) * (Vgs - Vth)^2 = 0.5 * 270u * 10 * (0.9 - 0.42)^2\",\n        \"range\": { \"min\": \"200u\", \"typical\": \"311u\", \"max\": \"400u\", \"unit\": \"A\" },\n        \"reasoning\": \"Calculated using standard square-law model with SKY130 parameters.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Voltage_Gain\": {\n      \"description\": \"Low-frequency AC voltage gain\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"gm = 2*Id/(Vgs-Vth) = 1.29mA/V. Gain = gm * (RL || ro) = 1.29m * (2.7k || 32k) = 3.2 V/V = 10.1 dB\",\n        \"range\": { \"min\": \"8\", \"typical\": \"10.1\", \"max\": \"12\", \"unit\": \"dB\" },\n        \"reasoning\": \"Based on gm and parallel combination of load resistor (2.7k) and transistor output resistance.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"Vth\": {\n      \"description\": \"Threshold voltage measured at 10uA drain current\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"DC\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vgs at Id=10uA. (Vgs-0.42)^2 = 10u / 1.35m => Vgs = 0.42 + 0.086 = 0.5V\",\n        \"range\": { \"min\": \"0.4\", \"typical\": \"0.5\", \"max\": \"0.6\", \"unit\": \"V\" },\n        \"reasoning\": \"Extracted from DC sweep at a constant small drain current.\"\n      },\n      \"importance\": \"recommended\"\n    },\n    \"Vout_swing\": {\n      \"description\": \"Peak-to-peak output voltage swing for a 0.2Vpp input\",\n      \"unit\": \"V\",\n      \"analysis_type\": \"Tran\",\n      \"paper_reported\": {\n        \"value\": \"N/A\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Vin_pp * Gain_linear = 0.2V * 3.2 V/V = 0.64V\",\n        \"range\": { \"min\": \"0.5\", \"typical\": \"0.64\", \"max\": \"0.8\", \"unit\": \"V\" },\n        \"reasoning\": \"Transient swing corresponds to the linear gain multiplied by input swing.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"IIP3\": {\n      \"description\": \"Input Third-Order Intercept Point\",\n      \"unit\": \"dBm\",\n      \"analysis_type\": \"Tran (Two-tone)\",\n      \"paper_reported\": {\n        \"value\": \"Mentioned in abstract\",\n        \"technology\": \"CMOS\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Complex nonlinear derivation. Typically for a short-channel NMOS at moderate inversion, IIP3 is around 10 dBm.\",\n        \"range\": { \"min\": \"0\", \"typical\": \"10\", \"max\": \"20\", \"unit\": \"dBm\" },\n        \"reasoning\": \"Standard performance for a single-transistor amplifier in 130nm CMOS.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC bias current, threshold voltage, AC voltage gain, and transient output swing of the single-transistor amplifier.\",\n    \"analyses\": [\"OP\", \"DC\", \"AC\", \"Tran\"],\n    \"metrics_measured\": [\"Id_bias\", \"Vth\", \"Voltage_Gain\", \"Vout_swing\"],\n    \"spice\": \"* Single-transistor amplifier testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n.param W_xm1=5u L_xm1=0.5u\\n\\nXM1 N4 N2 GND GND sky130_fd_pr__nfet_01v8 l={L_xm1} w={W_xm1}\\n\\nVDD VDD 0 DC 1.8\\nRL VDD N4 2.7k\\nVIN N2 0 DC 0.9 AC 1 SIN(0.9 0.1 1MEG 0 0)\\n\\n.control\\n  * 1. DC Operating Point\\n  op\\n  let id_bias = (1.8 - v(N4)) / 2700\\n  print id_bias\\n\\n  * 2. DC Sweep for Vth\\n  dc VIN 0 1.8 0.01\\n  let id_dc = (1.8 - v(N4)) / 2700\\n  meas dc vth_10uA find v(N2) when id_dc=10u\\n\\n  * 3. AC Analysis\\n  ac dec 100 1k 10G\\n  let gain_db = vdb(N4)\\n  meas ac low_freq_gain_db find gain_db at=10k\\n\\n  * 4. Transient Analysis\\n  tran 1n 2u\\n  meas tran vout_max max v(N4)\\n  meas tran vout_min min v(N4)\\n  meas tran vout_swing param='vout_max - vout_min'\\n\\n  quit\\n.endc\\n.end\\n\"\n  }\n}\n```",
+  "_paper_id": "1261285",
+  "_case": "1261285_image_13"
+}

@@ -1,0 +1,126 @@
+{
+  "step1_figure": {
+    "schematic_figure": "Fig 21.17",
+    "page": "672",
+    "circuit_type": "Class AB Amplifier",
+    "description": "The provided netlist describes a two-stage Class AB amplifier with a cascode input stage and a wide-swing bias circuit. While the exact full schematic is not drawn in the provided pages, it builds upon the fundamental Class A common-source amplifier shown in Fig 21.17 and is explicitly referenced in the text on page 672 which discusses Class AB operation ('both MOSFETs or a single MOSFET conduct a current at a given time')."
+  },
+  "step2_metrics": {
+    "slew_rate": {
+      "description": "Maximum rate of change of the output voltage across the load capacitor.",
+      "unit": "V/us",
+      "analysis_type": "Tran",
+      "source": {
+        "page": "672",
+        "reference": "Eq 21.38"
+      },
+      "equation": {
+        "formula": "slew_rate = I / C_L",
+        "explanation": "I is the maximum current the amplifier can source or sink to the output node, and C_L is the load capacitance.",
+        "assumptions": "Assumes the amplifier's speed is limited by the maximum current of the output stage charging/discharging the load."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming a typical Class AB output peak current of 50uA to 100uA and C_L = 1pF, SR = 50uA / 1pF = 50 V/us.",
+        "range": {
+          "min": 10,
+          "typical": 50,
+          "max": 200,
+          "unit": "V/us"
+        },
+        "reasoning": "Class AB stages can source significantly more current than their quiescent bias, leading to high slew rates depending on the input step size."
+      },
+      "importance": "essential"
+    },
+    "small_signal_gain": {
+      "description": "Low-frequency open-loop voltage gain of the amplifier.",
+      "unit": "dB",
+      "analysis_type": "AC",
+      "source": {
+        "page": "673",
+        "reference": "Eq 21.39"
+      },
+      "equation": {
+        "formula": "A_v = -g_m1 * (r_o1 || r_o2)",
+        "explanation": "The product of the input stage transconductance and the equivalent output resistance.",
+        "assumptions": "Equation 21.39 is for a single stage. For this two-stage cascode + Class AB topology, the total gain is the product of both stages' gains."
+      },
+      "sky130_expected": {
+        "calculation": "For SKY130 W/L=10, I_D=20uA: g_m ~ 328uS, r_o ~ 500kOhm. Stage 1 (cascode) gain ~ (g_m*r_o)^2 / 2 ~ 60 dB. Stage 2 (CS) gain ~ g_m*r_o/2 ~ 38 dB. Total gain ~ 98 dB.",
+        "range": {
+          "min": 60,
+          "typical": 80,
+          "max": 110,
+          "unit": "dB"
+        },
+        "reasoning": "Two-stage amplifiers with a cascode first stage typically achieve very high open-loop DC gain in 130nm processes."
+      },
+      "importance": "essential"
+    },
+    "unity_gain_frequency": {
+      "description": "The frequency at which the open-loop voltage gain drops to 0 dB.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "680",
+        "reference": "Eq 21.72"
+      },
+      "equation": {
+        "formula": "f_un = g_m1 / (2 * pi * C_c)",
+        "explanation": "Determined by the input transconductance and the dominant compensation/load capacitance.",
+        "assumptions": "Assumes a single dominant pole response up to the unity-gain frequency."
+      },
+      "sky130_expected": {
+        "calculation": "With g_m1 = 328uS and an effective load/compensation capacitance of 1pF: f_un = 328e-6 / (2 * pi * 1e-12) = 52.2 MHz.",
+        "range": {
+          "min": 10000000.0,
+          "typical": 50000000.0,
+          "max": 150000000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "Typical bandwidth for a W/L=10 input pair biased at ~20uA driving a 1pF load in SKY130."
+      },
+      "importance": "essential"
+    },
+    "dominant_pole": {
+      "description": "The lowest frequency pole that determines the -3dB bandwidth of the amplifier.",
+      "unit": "Hz",
+      "analysis_type": "AC",
+      "source": {
+        "page": "679",
+        "reference": "Eq 21.65"
+      },
+      "equation": {
+        "formula": "f_1 = 1 / (2 * pi * g_m2 * R_2 * R_1 * C_c)",
+        "explanation": "The Miller-multiplied capacitance creates a dominant low-frequency pole at the high-impedance node.",
+        "assumptions": "Assumes the second stage provides large voltage gain (g_m2 * R_2 >> 1)."
+      },
+      "sky130_expected": {
+        "calculation": "Assuming total DC gain is 80 dB (10,000 V/V) and f_un is 50 MHz. f_1 = f_un / A_DC = 50e6 / 10000 = 5 kHz.",
+        "range": {
+          "min": 1000.0,
+          "typical": 5000.0,
+          "max": 50000.0,
+          "unit": "Hz"
+        },
+        "reasoning": "The extremely high output impedance of the cascode stage pushes the dominant pole to the low kHz range."
+      },
+      "importance": "recommended"
+    }
+  },
+  "step3_testbench": {
+    "description": "Testbench to measure DC operating point (trip point), AC open-loop gain, bandwidth, phase margin, and transient slew rate.",
+    "analyses": [
+      "DC",
+      "AC",
+      "Tran"
+    ],
+    "metrics_measured": [
+      "small_signal_gain",
+      "dominant_pole",
+      "unity_gain_frequency",
+      "slew_rate"
+    ],
+    "spice": "* Class AB Amplifier Testbench\n.lib \"${SKY130_PDK}\" tt\n\n* Define parameters for the parameterized netlist\n.param W_xm2=10 L_xm2=1\n.param W_xmn=10 L_xmn=1\n.param W_xm6b=20 L_xm6b=1\n.param W_xmp=20 L_xmp=1\n.param W_xmp1=20 L_xmp1=1\n.param W_xmn1=10 L_xmn1=1\n.param W_xmop=40 L_xmop=1\n.param W_xmon=20 L_xmon=1\n.param W_xmsu2=20 L_xmsu2=1\n.param W_xmsu1=10 L_xmsu1=1\n.param W_xmsu3=10 L_xmsu3=1\n.param W_xm3=20 L_xm3=1\n.param W_xm4=20 L_xm4=1\n.param W_xm1=10 L_xm1=1\n.param W_xma4=20 L_xma4=1\n.param W_xma3=20 L_xma3=1\n.param W_xm5=10 L_xm5=1\n.param W_xm6=10 L_xm6=1\n.param W_xm7=20 L_xm7=1\n.param W_xma1=20 L_xma1=1\n.param W_xma2=20 L_xma2=1\n.param W_xmsu4=10 L_xmsu4=1\n.param W_xm8=10 L_xm8=1\n.param W_xm9=10 L_xm9=1\n.param W_xm10=10 L_xm10=1\n.param W_xm11=10 L_xm11=1\n.param W_xm12=10 L_xm12=1\n.param W_xm13=10 L_xm13=1\n.param W_xm14=10 L_xm14=1\n.param W_xm15=10 L_xm15=1\n.param W_xma5=20 L_xma5=1\n.param W_xma6=20 L_xma6=1\n.param W_xma7=20 L_xma7=1\n.param W_xma8=20 L_xma8=1\n.param W_xma9=20 L_xma9=1\n.param W_xma10=20 L_xma10=1\n.param W_xma11=20 L_xma11=1\n.param W_xma12=20 L_xma12=1\n.param W_xm16=10 L_xm16=1\n.param W_xm17=10 L_xm17=1\n.param W_xm18=10 L_xm18=1\n\n* DUT Netlist\nVDD VDD 0 1.8\nxm2 N004 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\nxmn N003 Vbias3 N004 0 sky130_fd_pr__nfet_01v8 w={W_xmn} l={L_xmn}\nxm6b N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6b} l={L_xm6b}\nxmp N002 Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xmp} l={L_xmp}\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\nxmp1 N003 Vpcas N002 VDD sky130_fd_pr__pfet_01v8 w={W_xmp1} l={L_xmp1}\nxmn1 N002 Vncas N003 0 sky130_fd_pr__nfet_01v8 w={W_xmn1} l={L_xmn1}\nxmop Out N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmop} l={L_xmop}\nxmon Out N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmon} l={L_xmon}\nVin Vin 0 0\n\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\n  R1 N005 GND 5.5k\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\n.ends SUB_1\n\n* Load capacitor\nCL Out 0 1p\n\n.control\n  * 1. DC Sweep to find the high-gain region (trip point)\n  dc Vin 0 1.8 0.01\n  meas dc v_trip when v(Out)=0.9\n  \n  * 2. AC Analysis\n  * Set Vin to the trip point and add AC stimulus\n  alter Vin dc = v_trip\n  alter Vin ac = 1\n  ac dec 100 1 1G\n  \n  let gain_db = vdb(Out)\n  let phase = 180/PI * cph(v(Out))\n  \n  meas ac low_freq_gain find gain_db at=10\n  meas ac f_3db when gain_db=(low_freq_gain-3) fall=1\n  meas ac unity_gain_freq when gain_db=0 fall=1\n  meas ac phase_margin find phase when gain_db=0 fall=1\n  \n  * 3. Transient Analysis for Slew Rate\n  * Apply a large step input\n  alter Vin ac = 0\n  alter @Vin[pulse] = [ 0.4 1.4 1n 1n 1n 5u 10u ]\n  tran 10n 10u\n  \n  meas tran t_rise trig v(Out) val=0.6 rise=1 targ v(Out) val=1.2 rise=1\n  meas tran t_fall trig v(Out) val=1.2 fall=1 targ v(Out) val=0.6 fall=1\n  \n  * Calculate slew rate in V/us\n  let sr_rise = 0.6 / (t_rise * 1e6)\n  let sr_fall = 0.6 / (t_fall * 1e6)\n  print sr_rise sr_fall\n  \n  quit\n.endc\n.end"
+  },
+  "_raw_response": "```json\n{\n  \"step1_figure\": {\n    \"schematic_figure\": \"Fig 21.17\",\n    \"page\": \"672\",\n    \"circuit_type\": \"Class AB Amplifier\",\n    \"description\": \"The provided netlist describes a two-stage Class AB amplifier with a cascode input stage and a wide-swing bias circuit. While the exact full schematic is not drawn in the provided pages, it builds upon the fundamental Class A common-source amplifier shown in Fig 21.17 and is explicitly referenced in the text on page 672 which discusses Class AB operation ('both MOSFETs or a single MOSFET conduct a current at a given time').\"\n  },\n  \"step2_metrics\": {\n    \"slew_rate\": {\n      \"description\": \"Maximum rate of change of the output voltage across the load capacitor.\",\n      \"unit\": \"V/us\",\n      \"analysis_type\": \"Tran\",\n      \"source\": {\n        \"page\": \"672\",\n        \"reference\": \"Eq 21.38\"\n      },\n      \"equation\": {\n        \"formula\": \"slew_rate = I / C_L\",\n        \"explanation\": \"I is the maximum current the amplifier can source or sink to the output node, and C_L is the load capacitance.\",\n        \"assumptions\": \"Assumes the amplifier's speed is limited by the maximum current of the output stage charging/discharging the load.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming a typical Class AB output peak current of 50uA to 100uA and C_L = 1pF, SR = 50uA / 1pF = 50 V/us.\",\n        \"range\": {\n          \"min\": 10,\n          \"typical\": 50,\n          \"max\": 200,\n          \"unit\": \"V/us\"\n        },\n        \"reasoning\": \"Class AB stages can source significantly more current than their quiescent bias, leading to high slew rates depending on the input step size.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"small_signal_gain\": {\n      \"description\": \"Low-frequency open-loop voltage gain of the amplifier.\",\n      \"unit\": \"dB\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"673\",\n        \"reference\": \"Eq 21.39\"\n      },\n      \"equation\": {\n        \"formula\": \"A_v = -g_m1 * (r_o1 || r_o2)\",\n        \"explanation\": \"The product of the input stage transconductance and the equivalent output resistance.\",\n        \"assumptions\": \"Equation 21.39 is for a single stage. For this two-stage cascode + Class AB topology, the total gain is the product of both stages' gains.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"For SKY130 W/L=10, I_D=20uA: g_m ~ 328uS, r_o ~ 500kOhm. Stage 1 (cascode) gain ~ (g_m*r_o)^2 / 2 ~ 60 dB. Stage 2 (CS) gain ~ g_m*r_o/2 ~ 38 dB. Total gain ~ 98 dB.\",\n        \"range\": {\n          \"min\": 60,\n          \"typical\": 80,\n          \"max\": 110,\n          \"unit\": \"dB\"\n        },\n        \"reasoning\": \"Two-stage amplifiers with a cascode first stage typically achieve very high open-loop DC gain in 130nm processes.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"unity_gain_frequency\": {\n      \"description\": \"The frequency at which the open-loop voltage gain drops to 0 dB.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"680\",\n        \"reference\": \"Eq 21.72\"\n      },\n      \"equation\": {\n        \"formula\": \"f_un = g_m1 / (2 * pi * C_c)\",\n        \"explanation\": \"Determined by the input transconductance and the dominant compensation/load capacitance.\",\n        \"assumptions\": \"Assumes a single dominant pole response up to the unity-gain frequency.\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"With g_m1 = 328uS and an effective load/compensation capacitance of 1pF: f_un = 328e-6 / (2 * pi * 1e-12) = 52.2 MHz.\",\n        \"range\": {\n          \"min\": 10e6,\n          \"typical\": 50e6,\n          \"max\": 150e6,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"Typical bandwidth for a W/L=10 input pair biased at ~20uA driving a 1pF load in SKY130.\"\n      },\n      \"importance\": \"essential\"\n    },\n    \"dominant_pole\": {\n      \"description\": \"The lowest frequency pole that determines the -3dB bandwidth of the amplifier.\",\n      \"unit\": \"Hz\",\n      \"analysis_type\": \"AC\",\n      \"source\": {\n        \"page\": \"679\",\n        \"reference\": \"Eq 21.65\"\n      },\n      \"equation\": {\n        \"formula\": \"f_1 = 1 / (2 * pi * g_m2 * R_2 * R_1 * C_c)\",\n        \"explanation\": \"The Miller-multiplied capacitance creates a dominant low-frequency pole at the high-impedance node.\",\n        \"assumptions\": \"Assumes the second stage provides large voltage gain (g_m2 * R_2 >> 1).\"\n      },\n      \"sky130_expected\": {\n        \"calculation\": \"Assuming total DC gain is 80 dB (10,000 V/V) and f_un is 50 MHz. f_1 = f_un / A_DC = 50e6 / 10000 = 5 kHz.\",\n        \"range\": {\n          \"min\": 1e3,\n          \"typical\": 5e3,\n          \"max\": 50e3,\n          \"unit\": \"Hz\"\n        },\n        \"reasoning\": \"The extremely high output impedance of the cascode stage pushes the dominant pole to the low kHz range.\"\n      },\n      \"importance\": \"recommended\"\n    }\n  },\n  \"step3_testbench\": {\n    \"description\": \"Testbench to measure DC operating point (trip point), AC open-loop gain, bandwidth, phase margin, and transient slew rate.\",\n    \"analyses\": [\n      \"DC\",\n      \"AC\",\n      \"Tran\"\n    ],\n    \"metrics_measured\": [\n      \"small_signal_gain\",\n      \"dominant_pole\",\n      \"unity_gain_frequency\",\n      \"slew_rate\"\n    ],\n    \"spice\": \"* Class AB Amplifier Testbench\\n.lib \\\"${SKY130_PDK}\\\" tt\\n\\n* Define parameters for the parameterized netlist\\n.param W_xm2=10 L_xm2=1\\n.param W_xmn=10 L_xmn=1\\n.param W_xm6b=20 L_xm6b=1\\n.param W_xmp=20 L_xmp=1\\n.param W_xmp1=20 L_xmp1=1\\n.param W_xmn1=10 L_xmn1=1\\n.param W_xmop=40 L_xmop=1\\n.param W_xmon=20 L_xmon=1\\n.param W_xmsu2=20 L_xmsu2=1\\n.param W_xmsu1=10 L_xmsu1=1\\n.param W_xmsu3=10 L_xmsu3=1\\n.param W_xm3=20 L_xm3=1\\n.param W_xm4=20 L_xm4=1\\n.param W_xm1=10 L_xm1=1\\n.param W_xma4=20 L_xma4=1\\n.param W_xma3=20 L_xma3=1\\n.param W_xm5=10 L_xm5=1\\n.param W_xm6=10 L_xm6=1\\n.param W_xm7=20 L_xm7=1\\n.param W_xma1=20 L_xma1=1\\n.param W_xma2=20 L_xma2=1\\n.param W_xmsu4=10 L_xmsu4=1\\n.param W_xm8=10 L_xm8=1\\n.param W_xm9=10 L_xm9=1\\n.param W_xm10=10 L_xm10=1\\n.param W_xm11=10 L_xm11=1\\n.param W_xm12=10 L_xm12=1\\n.param W_xm13=10 L_xm13=1\\n.param W_xm14=10 L_xm14=1\\n.param W_xm15=10 L_xm15=1\\n.param W_xma5=20 L_xma5=1\\n.param W_xma6=20 L_xma6=1\\n.param W_xma7=20 L_xma7=1\\n.param W_xma8=20 L_xma8=1\\n.param W_xma9=20 L_xma9=1\\n.param W_xma10=20 L_xma10=1\\n.param W_xma11=20 L_xma11=1\\n.param W_xma12=20 L_xma12=1\\n.param W_xm16=10 L_xm16=1\\n.param W_xm17=10 L_xm17=1\\n.param W_xm18=10 L_xm18=1\\n\\n* DUT Netlist\\nVDD VDD 0 1.8\\nxm2 N004 Vin 0 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\nxmn N003 Vbias3 N004 0 sky130_fd_pr__nfet_01v8 w={W_xmn} l={L_xmn}\\nxm6b N001 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm6b} l={L_xm6b}\\nxmp N002 Vbias2 N001 VDD sky130_fd_pr__pfet_01v8 w={W_xmp} l={L_xmp}\\nX_U1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD 0 SUB_1\\nxmp1 N003 Vpcas N002 VDD sky130_fd_pr__pfet_01v8 w={W_xmp1} l={L_xmp1}\\nxmn1 N002 Vncas N003 0 sky130_fd_pr__nfet_01v8 w={W_xmn1} l={L_xmn1}\\nxmop Out N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmop} l={L_xmop}\\nxmon Out N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmon} l={L_xmon}\\nVin Vin 0 0\\n\\n.subckt SUB_1 Vbias1 Vhigh Vbias2 Vpcas Vncas Vbias3 Vlow Vbias4 VDD GND\\n  xmsu2 N002 N002 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xmsu2} l={L_xmsu2}\\n  xmsu1 N002 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu1} l={L_xmsu1}\\n  xmsu3 Vbiasp N002 N003 0 sky130_fd_pr__nfet_01v8 w={W_xmsu3} l={L_xmsu3}\\n  xm3 N003 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm3} l={L_xm3}\\n  xm4 N004 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm4} l={L_xm4}\\n  xm1 N003 N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm1} l={L_xm1}\\n  xm2 N004 N004 N005 0 sky130_fd_pr__nfet_01v8 w={W_xm2} l={L_xm2}\\n  R1 N005 GND 5.5k\\n  xma4 Vbiasp N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma4} l={L_xma4}\\n  xma3 N001 N001 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma3} l={L_xma3}\\n  xm5 N001 N004 0 0 sky130_fd_pr__nfet_01v8 w={W_xm5} l={L_xm5}\\n  xm6 Vbiasp N003 0 0 sky130_fd_pr__nfet_01v8 w={W_xm6} l={L_xm6}\\n  xm7 VDD Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xm7} l={L_xm7}\\n  xma1 Vbias3 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma1} l={L_xma1}\\n  xma2 Vbias4 Vbiasp VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma2} l={L_xma2}\\n  xmsu4 Vbias3 Vbias3 0 0 sky130_fd_pr__nfet_01v8 w={W_xmsu4} l={L_xmsu4}\\n  xm8 Vbias4 Vbias3 Vlow 0 sky130_fd_pr__nfet_01v8 w={W_xm8} l={L_xm8}\\n  xm9 Vlow Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm9} l={L_xm9}\\n  xm10 Vpcas Vbias3 N009 0 sky130_fd_pr__nfet_01v8 w={W_xm10} l={L_xm10}\\n  xm11 N009 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm11} l={L_xm11}\\n  xm12 Vbias2 Vbias3 N010 0 sky130_fd_pr__nfet_01v8 w={W_xm12} l={L_xm12}\\n  xm13 N010 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm13} l={L_xm13}\\n  xm14 Vbias1 Vbias3 N011 0 sky130_fd_pr__nfet_01v8 w={W_xm14} l={L_xm14}\\n  xm15 N011 Vbias4 0 0 sky130_fd_pr__nfet_01v8 w={W_xm15} l={L_xm15}\\n  xma5 Vpcas Vpcas N006 VDD sky130_fd_pr__pfet_01v8 w={W_xma5} l={L_xma5}\\n  xma6 N006 Vbias2 N007 VDD sky130_fd_pr__pfet_01v8 w={W_xma6} l={L_xma6}\\n  xma7 N007 N006 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma7} l={L_xma7}\\n  xma8 Vbias2 Vbias2 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma8} l={L_xma8}\\n  xma9 Vbias1 Vbias2 Vhigh VDD sky130_fd_pr__pfet_01v8 w={W_xma9} l={L_xma9}\\n  xma10 Vhigh Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma10} l={L_xma10}\\n  xma11 Vncas Vbias2 N008 VDD sky130_fd_pr__pfet_01v8 w={W_xma11} l={L_xma11}\\n  xma12 N008 Vbias1 VDD VDD sky130_fd_pr__pfet_01v8 w={W_xma12} l={L_xma12}\\n  xm16 Vncas Vncas N012 0 sky130_fd_pr__nfet_01v8 w={W_xm16} l={L_xm16}\\n  xm17 N012 Vbias3 P001 0 sky130_fd_pr__nfet_01v8 w={W_xm17} l={L_xm17}\\n  xm18 P001 N012 0 0 sky130_fd_pr__nfet_01v8 w={W_xm18} l={L_xm18}\\n.ends SUB_1\\n\\n* Load capacitor\\nCL Out 0 1p\\n\\n.control\\n  * 1. DC Sweep to find the high-gain region (trip point)\\n  dc Vin 0 1.8 0.01\\n  meas dc v_trip when v(Out)=0.9\\n  \\n  * 2. AC Analysis\\n  * Set Vin to the trip point and add AC stimulus\\n  alter Vin dc = v_trip\\n  alter Vin ac = 1\\n  ac dec 100 1 1G\\n  \\n  let gain_db = vdb(Out)\\n  let phase = 180/PI * cph(v(Out))\\n  \\n  meas ac low_freq_gain find gain_db at=10\\n  meas ac f_3db when gain_db=(low_freq_gain-3) fall=1\\n  meas ac unity_gain_freq when gain_db=0 fall=1\\n  meas ac phase_margin find phase when gain_db=0 fall=1\\n  \\n  * 3. Transient Analysis for Slew Rate\\n  * Apply a large step input\\n  alter Vin ac = 0\\n  alter @Vin[pulse] = [ 0.4 1.4 1n 1n 1n 5u 10u ]\\n  tran 10n 10u\\n  \\n  meas tran t_rise trig v(Out) val=0.6 rise=1 targ v(Out) val=1.2 rise=1\\n  meas tran t_fall trig v(Out) val=1.2 fall=1 targ v(Out) val=0.6 fall=1\\n  \\n  * Calculate slew rate in V/us\\n  let sr_rise = 0.6 / (t_rise * 1e6)\\n  let sr_fall = 0.6 / (t_fall * 1e6)\\n  print sr_rise sr_fall\\n  \\n  quit\\n.endc\\n.end\"\n  }\n}\n```"
+}
